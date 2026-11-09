@@ -1,0 +1,77 @@
+# buf_LRU_free_page() can free only the uncompressed frame of a compressed
+# page and keep the compressed page. In that case it removes the page from
+# the page hash and re-inserts a compressed-only descriptor for it, and it
+# keeps the page hash cell X-latch from the removal until the re-insert, so
+# that the page is never observably absent from the page hash.
+#
+# This test pauses the eviction just before the re-insert and checks that a
+# concurrent read of the page waits for the page hash cell latch, instead of
+# reading the page from disk again (which would insert a second descriptor
+# for the same page id into the page hash).
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_innodb_16k.inc
+--source include/count_sessions.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c CHAR(10)) ENGINE=InnoDB
+  ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
+
+# Evict the uncompressed frames of all compressed pages (including pages of
+# tables dropped by earlier tests), then read t1 again, so that the only
+# page with an uncompressed frame of a compressed table is the page of t1.
+SET GLOBAL innodb_buffer_pool_evict = 'uncompressed';
+SELECT * FROM t1;
+
+--connect (con1, localhost, root,,)
+--connect (con2, localhost, root,,)
+let $con2_id = `SELECT CONNECTION_ID()`;
+
+--connection default
+let $wait_condition =
+  SELECT COUNT(*) = 1
+  FROM performance_schema.events_waits_current w
+  JOIN performance_schema.threads t USING (THREAD_ID)
+  WHERE t.PROCESSLIST_ID = $con2_id
+    AND w.EVENT_NAME = 'wait/synch/sxlock/innodb/hash_table_locks'
+    AND w.END_EVENT_ID IS NULL;
+
+# While the eviction is paused, it holds the LRU list mutex, so any page
+# read would wait for it. Run the wait condition once now, so that it does
+# not need to read any page later.
+--disable_query_log
+--disable_result_log
+eval $wait_condition;
+--enable_result_log
+--enable_query_log
+
+--connection con1
+SET DEBUG_SYNC = 'buf_lru_free_page_before_zip_reinsert SIGNAL paused WAIT_FOR go';
+--send SET GLOBAL innodb_buffer_pool_evict = 'uncompressed'
+
+--connection default
+SET DEBUG_SYNC = 'now WAIT_FOR paused';
+
+--connection con2
+--send SELECT * FROM t1
+
+--connection default
+# The read must wait for the page hash cell latch, which the eviction holds.
+--source include/wait_condition.inc
+
+SET DEBUG_SYNC = 'now SIGNAL go';
+
+--connection con1
+--reap
+--disconnect con1
+
+--connection con2
+--reap
+--disconnect con2
+
+--connection default
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+
+--source include/wait_until_count_sessions.inc

@@ -1273,10 +1273,6 @@ static void sync_latch_meta_init() UNIV_NOTHROW {
   LATCH_ADD_MUTEX(FTS_PLL_TOKENIZE, SYNC_FTS_TOKENIZE,
                   fts_pll_tokenize_mutex_key);
 
-  /* Do not use SYNC_BUF_PAGE_HASH for HASH_TABLE_MUTEX.
-  @see buf_buddy_no_page_hash_latch_validate(). */
-  LATCH_ADD_MUTEX(HASH_TABLE_MUTEX, SYNC_ANY_LATCH, hash_table_mutex_key);
-
   LATCH_ADD_MUTEX(IBUF_BITMAP, SYNC_IBUF_BITMAP_MUTEX, ibuf_bitmap_mutex_key);
 
   LATCH_ADD_MUTEX(IBUF, SYNC_IBUF_MUTEX, ibuf_mutex_key);

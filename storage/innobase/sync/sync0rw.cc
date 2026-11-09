@@ -271,16 +271,16 @@ rw_lock_t::~rw_lock_t() {
 }
 
 #ifdef UNIV_DEBUG
-/** Asserts that the calling thread is allowed to start waiting for the
-given rw-lock.
+/** Asserts that the calling thread is allowed to request the given rw-lock
+in a way which may wait for it.
 
 This is the hook for latch-order rules which cannot be expressed through
-latch_level_t ordering and which constrain only actual waits, not
-non-blocking acquisitions (the rw_lock_*_nowait() variants never reach
-this, by design: an acquisition that never waits cannot participate in a
-deadlock cycle). It is called at the only spots where an rw-lock
-acquisition starts to wait - every unbounded wait, spinning included,
-funnels into a sync array reservation.
+latch_level_t ordering and which constrain only acquisitions that may wait,
+not non-blocking ones (the rw_lock_*_nowait() variants never reach this, by
+design: an acquisition that never waits cannot participate in a deadlock
+cycle). It is called at the start of every blocking acquisition, whether it
+would actually have to wait or not, so that a violation is detected even if
+the lock happens to be free during testing.
 
 Currently there is one such rule, for the buffer block frame locks
 (buf_block_t::lock): a thread must not wait for a frame lock while
@@ -298,12 +298,10 @@ are exempt by construction.
 Note that this check is only effective when LatchDebug is enabled
 (--innodb-sync-debug); an actual deadlock occurrence is additionally caught
 by the sync array deadlock detector, which does track frame rw-locks. */
-namespace {
 void rw_lock_assert_wait_allowed(const rw_lock_t *lock) {
   ut_ad(lock->get_id() != LATCH_ID_BUF_BLOCK_LOCK ||
         sync_check_find(SYNC_BUF_LRU_LIST) == nullptr);
 }
-}  // namespace
 #endif /* UNIV_DEBUG */
 
 void rw_lock_s_lock_spin(rw_lock_t *lock, ulint pass, ut::Location location) {
@@ -345,8 +343,6 @@ lock_loop:
     }
 
     ++count_os_wait;
-
-    ut_d(rw_lock_assert_wait_allowed(lock));
 
     sync_cell_t *cell;
 
@@ -430,8 +426,6 @@ static inline void rw_lock_x_lock_wait_func(rw_lock_t *lock,
     }
 
     /* If there is still a reader, then go to sleep.*/
-    ut_d(rw_lock_assert_wait_allowed(lock));
-
     sync_cell_t *cell;
 
     sync_arr = sync_array_get_and_reserve_cell(lock, RW_LOCK_X_WAIT,
@@ -618,6 +612,7 @@ void rw_lock_x_lock_func(rw_lock_t *lock, ulint pass, ut::Location location) {
 
   ut_ad(rw_lock_validate(lock));
   ut_ad(!rw_lock_own(lock, RW_LOCK_S));
+  ut_d(rw_lock_assert_wait_allowed(lock));
 
 lock_loop:
 
@@ -651,8 +646,6 @@ lock_loop:
       goto lock_loop;
     }
   }
-
-  ut_d(rw_lock_assert_wait_allowed(lock));
 
   sync_cell_t *cell;
 
@@ -689,6 +682,7 @@ void rw_lock_sx_lock_func(rw_lock_t *lock, ulint pass, ut::Location location) {
 
   ut_ad(rw_lock_validate(lock));
   ut_ad(!rw_lock_own(lock, RW_LOCK_S));
+  ut_d(rw_lock_assert_wait_allowed(lock));
 
 lock_loop:
 
@@ -718,8 +712,6 @@ lock_loop:
       goto lock_loop;
     }
   }
-
-  ut_d(rw_lock_assert_wait_allowed(lock));
 
   sync_cell_t *cell;
 

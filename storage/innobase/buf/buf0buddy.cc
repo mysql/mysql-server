@@ -421,21 +421,18 @@ static void *buf_buddy_alloc_from(buf_pool_t *buf_pool, void *buf, ulint i,
 
 #ifdef UNIV_DEBUG
 /** Asserts that the calling thread holds no buffer pool page hash cell
-latch (S or X). The buddy allocator must never be entered while one is
-held: buf_buddy_free() may recombine and call buf_buddy_relocate(),
-which acquires the cell X-latch of whatever page id is stamped in the
-buddy frame - possibly the very cell the caller holds, and in any case
-an unordered same-level acquisition (page-hash cell -> zip_free_mutex ->
-page-hash cell) which can form a deadlock cycle with other threads.
-This rule is what makes it safe for the keep-zip path of
-buf_LRU_free_page() to keep a cell X-latch across
-buf_LRU_block_remove_hashed() (keep_hash_lock): that path never reaches
-the buddy allocator. */
-namespace {
-void buf_buddy_no_page_hash_latch_validate() {
+latch (S or X). The buddy allocator must never be entered while one is held:
+buf_buddy_free() may recombine and call buf_buddy_relocate(), which acquires the
+cell X-latch of whatever page id is stamped in the buddy frame - possibly the
+very cell the caller holds, and in any case an unordered same-level acquisition
+(page-hash cell -> zip_free_mutex -> page-hash cell) which can form a deadlock
+cycle with other threads. This rule is what makes it safe for the keep-zip path
+of buf_LRU_free_page() to keep a cell X-latch across
+buf_LRU_block_remove_hashed() (keep_hash_lock): that path never reaches the
+buddy allocator. */
+static void buf_buddy_no_page_hash_latch_validate() {
   ut_ad(sync_check_find(SYNC_BUF_PAGE_HASH) == nullptr);
 }
-}  // namespace
 #endif /* UNIV_DEBUG */
 
 /** Allocate a block.

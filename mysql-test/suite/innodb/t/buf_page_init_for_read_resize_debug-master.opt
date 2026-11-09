@@ -2,3 +2,4 @@
 --innodb-buffer-pool-chunk-size=2M
 --innodb-page-hash-locks=1024
 --innodb-adaptive-hash-index=OFF
+--innodb-sync-debug=1

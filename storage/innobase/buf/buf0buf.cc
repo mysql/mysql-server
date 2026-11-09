@@ -3139,9 +3139,7 @@ void buf_pool_watch_unset(const page_id_t &page_id) {
   rw_lock_t *hash_lock = buf_page_hash_lock_get(buf_pool, page_id);
   rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
 
-  /* A concurrent buffer pool resize can rehash page_hash and remap this
-  page id to a different shard latch between computing hash_lock and
-  latching it; re-confirm and re-latch the correct shard. */
+  /* @see buf_page_hash_lock_x_confirm for reasons to call it. */
   hash_lock = buf_page_hash_lock_x_confirm(hash_lock, buf_pool, page_id);
 
   /* The page must exist because buf_pool_watch_set()
@@ -3168,9 +3166,7 @@ bool buf_pool_watch_occurred(const page_id_t &page_id) {
 
   rw_lock_s_lock(hash_lock, UT_LOCATION_HERE);
 
-  /* A concurrent buffer pool resize can rehash page_hash and remap this
-  page id to a different shard latch between computing hash_lock and
-  latching it; re-confirm and re-latch the correct shard. */
+  /* @see buf_page_hash_lock_s_confirm for reasons to call it. */
   hash_lock = buf_page_hash_lock_s_confirm(hash_lock, buf_pool, page_id);
 
   /* The page must exist because buf_pool_watch_set()
@@ -3220,22 +3216,21 @@ static void buf_page_make_young_if_needed(buf_page_t *bpage) {
   ut_ad(bpage->buf_fix_count > 0);
   ut_a(buf_page_in_file(bpage));
 
-  /* A page whose read IO is still in progress may not yet be linked into
-  the LRU list: buf_page_init_for_read() makes the page hash-visible before
-  it links it into the LRU list. Such a page must not be promoted -
-  buf_LRU_make_block_young() would unlink a node which is not linked,
-  corrupting the LRU list.
+  /* A page whose read IO is still in progress may not yet be linked into the
+  LRU list: buf_page_init_for_read() makes the page hash-visible before it links
+  it into the LRU list. Such a page must not be promoted -
+  buf_LRU_make_block_young() would unlink a node which is not linked, corrupting
+  the LRU list.
   Reading the io-fix snapshot without the block mutex is correct here: the
-  LRU-add happens-before the read IO is dispatched, which happens-before
-  io_fix is reset to BUF_IO_NONE at IO completion. Thus observing
-  !was_io_fix_read() implies the LRU-add has already happened, and the
-  buf-fix held by our caller keeps the page in the LRU. Skipping the
-  promotion on a stale BUF_IO_READ snapshot is benign: the page was just
-  added at the head of the old sublist and a subsequent access will promote
-  it.
-  Both orderings this argument depends on (BUF_IO_READ is published before
-  the page is hash-reachable; the read io-fix is cleared only after the
-  LRU-add) are asserted at the transitions in buf_page_t::set_io_fix(). */
+  LRU-add happens-before the read IO is dispatched, which happens-before io_fix
+  is reset to BUF_IO_NONE at IO completion. Thus observing !was_io_fix_read()
+  implies the LRU-add has already happened, and the buf-fix held by our caller
+  keeps the page in the LRU. Skipping the promotion on a stale BUF_IO_READ
+  snapshot is benign: the page was just added at the head of the old sublist and
+  a subsequent access will promote it.
+  Both orderings this argument depends on (BUF_IO_READ is published before the
+  page is hash-reachable; the read io-fix is cleared only after the LRU-add) are
+  asserted at the transitions in buf_page_t::set_io_fix(). */
   if (bpage->was_io_fix_read()) {
     return;
   }
@@ -3884,9 +3879,7 @@ buf_block_t *Buf_fetch<T>::lookup() {
 
   rw_lock_s_lock(m_hash_lock, UT_LOCATION_HERE);
 
-  /* A concurrent buffer pool resize can rehash page_hash and remap this
-  page id to a different shard latch between computing m_hash_lock and
-  latching it; re-confirm and re-latch the correct shard. */
+  /* @see buf_page_hash_lock_s_confirm for reasons to call it. */
   m_hash_lock =
       buf_page_hash_lock_s_confirm(m_hash_lock, m_buf_pool, m_page_id);
 
@@ -3936,10 +3929,7 @@ buf_block_t *Buf_fetch<T>::is_on_watch() {
 
   rw_lock_x_lock(m_hash_lock, UT_LOCATION_HERE);
 
-  /* A concurrent buffer pool resize can rehash page_hash (buf_pool_resize()
-  changes the number of cells), remapping this page id to a different shard
-  latch after we computed m_hash_lock but before we latched it. Re-confirm
-  the shard the page id currently maps to and re-latch it if it moved. */
+  /* @see buf_page_hash_lock_x_confirm for reasons to call it. */
   m_hash_lock =
       buf_page_hash_lock_x_confirm(m_hash_lock, m_buf_pool, m_page_id);
 
@@ -4286,8 +4276,9 @@ dberr_t Buf_fetch<T>::debug_check(buf_block_t *fix_block) {
 
     /* Now we are only holding the buf_pool->LRU_list_mutex,
     not block->mutex or m_hash_lock. Blocks cannot be
-    relocated or enter or exit the buf_pool while we
-    are holding the buf_pool->LRU_list_mutex. */
+    relocated or exit the buf_pool while we
+    are holding the buf_pool->LRU_list_mutex (they can
+    enter the page hash, see buf_page_init_for_read()). */
 
     auto fix_mutex = buf_page_get_mutex(&fix_block->page);
 
@@ -4300,9 +4291,7 @@ dberr_t Buf_fetch<T>::debug_check(buf_block_t *fix_block) {
 
       rw_lock_x_lock(m_hash_lock, UT_LOCATION_HERE);
 
-      /* We held no shard latch across the lines above, so a concurrent
-      buffer pool resize may have rehashed page_hash and remapped this page
-      id to a different shard; re-confirm and re-latch the correct shard. */
+      /* @see buf_page_hash_lock_x_confirm for reasons to call it. */
       m_hash_lock =
           buf_page_hash_lock_x_confirm(m_hash_lock, m_buf_pool, m_page_id);
 
@@ -4993,10 +4982,7 @@ buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
 
   rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
 
-  /* We do not hold the LRU list mutex, so a concurrent buffer pool resize
-  may have rehashed page_hash and remapped this page id to a different shard
-  latch between computing hash_lock and latching it; re-confirm and re-latch
-  the correct shard. */
+  /* @see buf_page_hash_lock_x_confirm for reasons to call it. */
   hash_lock = buf_page_hash_lock_x_confirm(hash_lock, buf_pool, page_id);
 
   buf_page_t *watch_page;
@@ -5045,7 +5031,7 @@ buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
     buf_page_set_io_fix(bpage, BUF_IO_READ);
 
     if (page_size.is_compressed()) {
-      /* Setting zip.data is still protected by the hash X-latch here:
+      /* Setting zip.data is protected by the hash X-latch here:
       the page is already in the page hash, but no other thread can look
       it up until the latch is released below. */
       block->page.zip.data = (page_zip_t *)data;
@@ -5062,7 +5048,7 @@ buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
     so no other thread can race with the add.
 
     IMPORTANT: we strongly depend here on the fact that there is no
-    other thread that can try to acquire that frame's S-lock while
+    other thread that can try to acquire that frame's latch while
     holding already the LRU list mutex (it would be deadlock cycle).
     For existing use cases, for that thread to exist, the page would
     need to be in the LRU list already. This latching rule is documented
@@ -5092,10 +5078,8 @@ buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
     links the block into the unzip_LRU list as well, within this same
     critical section: every observer of the LRU list sees the invariant
     block->in_unzip_LRU_list ==
-    buf_page_belongs_to_unzip_LRU(&block->page) hold. (This is unlike the
-    pre-narrowing code, which set zip.data only after buf_LRU_add_block()
-    and therefore had to add the block to the unzip_LRU list explicitly
-    afterwards; an explicit second add here would corrupt the list.) */
+    buf_page_belongs_to_unzip_LRU(&block->page) hold. (So the block must not
+    be added to the unzip_LRU list explicitly here: it would be added twice.) */
     buf_LRU_add_block(bpage, true /* to old blocks */);
 
     ut_ad(!page_size.is_compressed() || block->in_unzip_LRU_list);
@@ -5185,14 +5169,12 @@ buf_page_t *buf_page_init_for_read(ulint mode, const page_id_t &page_id,
     thread can race with the add. The block must be put to the LRU list,
     to the old blocks. The zip size is already set into the page zip. */
     mutex_enter(&buf_pool->LRU_list_mutex);
+    buf_LRU_add_block(bpage, true /* to old blocks */);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
     /* buf_LRU_insert_zip_clean() requires the zip_mutex; re-acquired
     here under the LRU list mutex, which follows the registered
     latch_level_t order (SYNC_BUF_LRU_LIST > SYNC_BUF_BLOCK). */
     mutex_enter(&buf_pool->zip_mutex);
-#endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
-    buf_LRU_add_block(bpage, true /* to old blocks */);
-#if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
     buf_LRU_insert_zip_clean(bpage);
     mutex_exit(&buf_pool->zip_mutex);
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -5303,16 +5285,17 @@ buf_block_t *buf_page_create(const page_id_t &page_id,
   LRU list mutex, see the LRU_list_mutex declaration) free of blocking
   acquisitions - we hold the LRU list mutex here. */
   mtr_memo_type_t mtr_latch_type;
-  bool latched [[maybe_unused]];
+  bool latched;
 
   if (rw_latch == RW_X_LATCH) {
     latched = rw_lock_x_lock_nowait(&block->lock, UT_LOCATION_HERE);
     mtr_latch_type = MTR_MEMO_PAGE_X_FIX;
   } else {
+    ut_ad_eq(rw_latch, RW_SX_LATCH);
     latched = rw_lock_sx_lock_nowait(&block->lock, 0, UT_LOCATION_HERE);
     mtr_latch_type = MTR_MEMO_PAGE_SX_FIX;
   }
-  ut_ad(latched);
+  ut_a(latched);
   mtr_memo_push(mtr, block, mtr_latch_type);
 
   rw_lock_x_unlock(hash_lock);
@@ -5863,6 +5846,7 @@ void buf_page_t::set_io_fix(buf_io_fix io_fix) {
   Latching_rules_helpers::on_transition_to(*this, io_fix);
 
   if (io_fix == BUF_IO_READ) {
+    ut_ad(old_io_fix == BUF_IO_NONE);
     /* BUF_IO_READ may only be stored on a page that is not yet reachable
     through the page hash: either it is not in the page hash at all, or
     the storing thread still holds the hash cell's X-latch. Threads which
@@ -6252,7 +6236,6 @@ static void buf_pool_validate_instance(buf_pool_t *buf_pool) {
   ulint n_flush = 0;
   ulint n_free = 0;
   ulint n_zip = 0;
-  ulint n_lru_add_pending = 0;
 
   ut_ad(buf_pool);
 
@@ -6308,17 +6291,13 @@ static void buf_pool_validate_instance(buf_pool_t *buf_pool) {
             read. Reading in_LRU_list is stable here: it is only modified
             under LRU_list_mutex, which we hold. */
             ut_a(block->page.was_io_fix_read());
-            n_lru_add_pending++;
           } else {
             n_lru++;
           }
 #else  /* UNIV_DEBUG */
-          /* Without UNIV_DEBUG there is no in_LRU_list flag; count how many
-          FILE_PAGE blocks may legitimately be missing from the LRU list so
-          the length cross-check below can be relaxed by that amount. */
-          if (block->page.was_io_fix_read()) {
-            n_lru_add_pending++;
-          }
+          /* Without UNIV_DEBUG there is no in_LRU_list flag, so this may also
+          count pages which buf_page_init_for_read() has not yet linked into
+          the LRU list (see the length check below). */
           n_lru++;
 #endif /* UNIV_DEBUG */
           break;
@@ -6422,13 +6401,12 @@ static void buf_pool_validate_instance(buf_pool_t *buf_pool) {
   }
 
 #ifdef UNIV_DEBUG
-  /* Pages whose read IO is in progress and which are not yet linked into
-  the LRU list were counted into n_lru_add_pending instead of n_lru. */
-  (void)n_lru_add_pending;
+  /* Pages which buf_page_init_for_read() has already inserted into the page
+  hash but not yet linked into the LRU list were not counted into n_lru. */
   ut_a(UT_LIST_GET_LEN(buf_pool->LRU) == n_lru);
 #else  /* UNIV_DEBUG */
+  /* n_lru may include pages which are not yet linked into the LRU list. */
   ut_a(UT_LIST_GET_LEN(buf_pool->LRU) <= n_lru);
-  ut_a(n_lru <= UT_LIST_GET_LEN(buf_pool->LRU) + n_lru_add_pending);
 #endif /* UNIV_DEBUG */
 
   mutex_exit(&buf_pool->LRU_list_mutex);
