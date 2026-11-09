@@ -1,0 +1,169 @@
+--echo #
+--echo # Bug#39905175 Bound query expansion during parsing
+--echo #
+--echo # Every reference to a CTE after the first one reparses the CTE
+--echo # definition. With chains of CTEs that each reference the previous
+--echo # one twice, the number of reparses grows exponentially with the
+--echo # chain depth. Building a statement is limited to 1024 CTE reparses
+--echo # and view parses, and 64 MiB of cumulative definition text.
+--echo #
+--echo # A chain c0..cN where each ck references c(k-1) twice, referenced
+--echo # twice by the outer query, needs 2^(N+2) - N - 3 reparses.
+--echo # N=8 needs 1013 reparses; each extra reference to c0 adds one.
+
+# 1013 reparses.
+let $q1013 = WITH c0 AS (SELECT 1 AS a),
+     c1 AS (SELECT a FROM c0 UNION SELECT a FROM c0),
+     c2 AS (SELECT a FROM c1 UNION SELECT a FROM c1),
+     c3 AS (SELECT a FROM c2 UNION SELECT a FROM c2),
+     c4 AS (SELECT a FROM c3 UNION SELECT a FROM c3),
+     c5 AS (SELECT a FROM c4 UNION SELECT a FROM c4),
+     c6 AS (SELECT a FROM c5 UNION SELECT a FROM c5),
+     c7 AS (SELECT a FROM c6 UNION SELECT a FROM c6),
+     c8 AS (SELECT a FROM c7 UNION SELECT a FROM c7)
+SELECT a FROM c8 UNION SELECT a FROM c8;
+
+# 1013 + 11 = 1024 reparses, exactly the limit.
+let $q1024 = WITH c0 AS (SELECT 1 AS a),
+     c1 AS (SELECT a FROM c0 UNION SELECT a FROM c0),
+     c2 AS (SELECT a FROM c1 UNION SELECT a FROM c1),
+     c3 AS (SELECT a FROM c2 UNION SELECT a FROM c2),
+     c4 AS (SELECT a FROM c3 UNION SELECT a FROM c3),
+     c5 AS (SELECT a FROM c4 UNION SELECT a FROM c4),
+     c6 AS (SELECT a FROM c5 UNION SELECT a FROM c5),
+     c7 AS (SELECT a FROM c6 UNION SELECT a FROM c6),
+     c8 AS (SELECT a FROM c7 UNION SELECT a FROM c7)
+SELECT a FROM c8 UNION SELECT a FROM c8
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0;
+
+# 1013 + 12 = 1025 reparses, one more than the limit.
+let $q1025 = WITH c0 AS (SELECT 1 AS a),
+     c1 AS (SELECT a FROM c0 UNION SELECT a FROM c0),
+     c2 AS (SELECT a FROM c1 UNION SELECT a FROM c1),
+     c3 AS (SELECT a FROM c2 UNION SELECT a FROM c2),
+     c4 AS (SELECT a FROM c3 UNION SELECT a FROM c3),
+     c5 AS (SELECT a FROM c4 UNION SELECT a FROM c4),
+     c6 AS (SELECT a FROM c5 UNION SELECT a FROM c5),
+     c7 AS (SELECT a FROM c6 UNION SELECT a FROM c6),
+     c8 AS (SELECT a FROM c7 UNION SELECT a FROM c7)
+SELECT a FROM c8 UNION SELECT a FROM c8
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0
+UNION SELECT a FROM c0;
+
+--let $q_deep = WITH c0 AS (SELECT 1 AS a)
+--let $i = 1
+while ($i <= 30)
+{
+  --let $p = $i
+  --dec $p
+  --let $q_deep = $q_deep, c$i AS (SELECT a FROM c$p UNION SELECT a FROM c$p)
+  --inc $i
+}
+--let $q_deep = $q_deep SELECT a FROM c30 UNION SELECT a FROM c30
+
+--disable_query_log
+--echo # 1013 reparses: accepted
+eval $q1013;
+--echo # 1024 reparses: accepted
+eval $q1024;
+--echo # 1025 reparses: rejected
+--error ER_QUERY_EXPANSION_LIMIT_EXCEEDED
+eval $q1025;
+--echo # Deep nesting (about 2^32 reparses) is rejected quickly
+--error ER_QUERY_EXPANSION_LIMIT_EXCEEDED
+eval $q_deep;
+--echo # The same connection recovers after a rejection
+eval $q1024;
+
+--echo # Byte limit: a CTE with about 1 MiB of text may be reparsed 63 times
+--echo # (64 references), but not 64 times (65 references).
+--let $big = `SELECT REPEAT('x', 1048576)`
+--let $qb = WITH c0 AS (SELECT 1 AS a WHERE '$big' <> '') SELECT COUNT(*) FROM (SELECT a FROM c0
+--let $i = 1
+while ($i < 64)
+{
+  --let $qb = $qb UNION ALL SELECT a FROM c0
+  --inc $i
+}
+--let $qb64 = $qb) AS dt
+--let $qb65 = $qb UNION ALL SELECT a FROM c0) AS dt
+eval $qb64;
+--error ER_QUERY_EXPANSION_LIMIT_EXCEEDED
+eval $qb65;
+
+--echo # Prepared statement: reparse happens at PREPARE; cached execution
+--echo # and automatic repreparation work.
+CREATE TABLE t1 (a INT);
+INSERT INTO t1 VALUES (1);
+--let $qp = $q1013 UNION SELECT a FROM t1
+eval PREPARE ps FROM '$qp';
+EXECUTE ps;
+EXECUTE ps;
+ALTER TABLE t1 ADD COLUMN b INT;
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+DROP TABLE t1;
+--error ER_QUERY_EXPANSION_LIMIT_EXCEEDED
+eval PREPARE ps FROM '$q1025';
+
+--echo # Views: each view reference shares the enclosing statement's budget.
+eval CREATE VIEW v1 AS $q1013;
+SELECT * FROM v1;
+--error ER_QUERY_EXPANSION_LIMIT_EXCEEDED
+SELECT * FROM v1 AS x, v1 AS y;
+CREATE VIEW v2 AS SELECT * FROM v1;
+SELECT * FROM v2;
+--error ER_QUERY_EXPANSION_LIMIT_EXCEEDED
+SELECT * FROM v2 UNION SELECT * FROM v1;
+--echo # Recovery after a rejected view statement
+SELECT * FROM v2;
+DROP VIEW v2, v1;
+
+--echo # View-only expansion uses the same budget. Each view in this chain
+--echo # references its predecessor twice.
+CREATE VIEW ev0 AS SELECT 1 AS a;
+--let $i = 1
+while ($i <= 9)
+{
+  --let $p = $i
+  --dec $p
+  --eval CREATE VIEW ev$i AS SELECT a FROM ev$p UNION SELECT a FROM ev$p
+  --inc $i
+}
+--echo # 1023 view parses: accepted
+SELECT a FROM ev9;
+--echo # 1024 view parses: accepted
+SELECT a FROM ev9 UNION SELECT a FROM ev0;
+--echo # 1025 view parses: rejected
+--error ER_QUERY_EXPANSION_LIMIT_EXCEEDED
+SELECT a FROM ev9 UNION SELECT a FROM ev0 UNION SELECT a FROM ev0;
+--echo # Creating a view that exceeds the limit is rejected
+--error ER_QUERY_EXPANSION_LIMIT_EXCEEDED
+CREATE VIEW ev10 AS SELECT a FROM ev9 UNION SELECT a FROM ev9;
+--echo # Failed CREATE VIEW leaves no view behind
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.VIEWS
+WHERE TABLE_SCHEMA = 'test' AND TABLE_NAME = 'ev10';
+--echo # The same connection recovers after rejected view expansion
+SELECT a FROM ev9;
+DROP VIEW ev9, ev8, ev7, ev6, ev5, ev4, ev3, ev2, ev1, ev0;
+--enable_query_log

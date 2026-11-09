@@ -1,0 +1,67 @@
+#
+# Bug#39905175 Bound query expansion during parsing
+#
+# Every reference to a CTE after the first one reparses the CTE
+# definition. With chains of CTEs that each reference the previous
+# one twice, the number of reparses grows exponentially with the
+# chain depth. Building a statement is limited to 1024 CTE reparses
+# and view parses, and 64 MiB of cumulative definition text.
+#
+# A chain c0..cN where each ck references c(k-1) twice, referenced
+# twice by the outer query, needs 2^(N+2) - N - 3 reparses.
+# N=8 needs 1013 reparses; each extra reference to c0 adds one.
+# 1013 reparses: accepted
+a
+1
+# 1024 reparses: accepted
+a
+1
+# 1025 reparses: rejected
+ERROR HY000: Query expansion exceeded an implementation limit. Simplify the query.
+# Deep nesting (about 2^32 reparses) is rejected quickly
+ERROR HY000: Query expansion exceeded an implementation limit. Simplify the query.
+# The same connection recovers after a rejection
+a
+1
+# Byte limit: a CTE with about 1 MiB of text may be reparsed 63 times
+# (64 references), but not 64 times (65 references).
+COUNT(*)
+64
+ERROR HY000: Query expansion exceeded an implementation limit. Simplify the query.
+# Prepared statement: reparse happens at PREPARE; cached execution
+# and automatic repreparation work.
+a
+1
+a
+1
+a
+1
+ERROR HY000: Query expansion exceeded an implementation limit. Simplify the query.
+# Views: each view reference shares the enclosing statement's budget.
+a
+1
+ERROR HY000: Query expansion exceeded an implementation limit. Simplify the query.
+a
+1
+ERROR HY000: Query expansion exceeded an implementation limit. Simplify the query.
+# Recovery after a rejected view statement
+a
+1
+# View-only expansion uses the same budget. Each view in this chain
+# references its predecessor twice.
+# 1023 view parses: accepted
+a
+1
+# 1024 view parses: accepted
+a
+1
+# 1025 view parses: rejected
+ERROR HY000: Query expansion exceeded an implementation limit. Simplify the query.
+# Creating a view that exceeds the limit is rejected
+ERROR HY000: Query expansion exceeded an implementation limit. Simplify the query.
+# Failed CREATE VIEW leaves no view behind
+COUNT(*)
+0
+# The same connection recovers after rejected view expansion
+a
+1

@@ -1315,6 +1315,8 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
     return false;
   }
 
+  if (add_query_expansion_cost(thd, view_ref->select_stmt.length)) return true;
+
   /*
     We don't invalidate a prepared statement when a view changes,
     or when someone creates a temporary table.
@@ -1401,18 +1403,14 @@ bool parse_view_definition(THD *thd, Table_ref *view_ref) {
     assert(!parser_state.m_input.m_has_digest);
 
     // Parse the query text of the view
-    // View references contribute to the enclosing statement's CTE budget,
+    // View references contribute to the enclosing statement's expansion budget,
     // even though each view definition is parsed using a separate LEX.
-    view_lex->reparse_common_table_expr_count =
-        old_lex->reparse_common_table_expr_count;
-    view_lex->reparse_common_table_expr_bytes =
-        old_lex->reparse_common_table_expr_bytes;
+    view_lex->query_expansion_count = old_lex->query_expansion_count;
+    view_lex->query_expansion_bytes = old_lex->query_expansion_bytes;
     result = parse_sql(thd, &parser_state, view_ref->view_creation_ctx);
     // Preserve the cost on both success and failure, before restoring LEX.
-    old_lex->reparse_common_table_expr_count =
-        view_lex->reparse_common_table_expr_count;
-    old_lex->reparse_common_table_expr_bytes =
-        view_lex->reparse_common_table_expr_bytes;
+    old_lex->query_expansion_count = view_lex->query_expansion_count;
+    old_lex->query_expansion_bytes = view_lex->query_expansion_bytes;
   }
 
   if (thd->parsing_system_view) thd->pop_internal_handler();

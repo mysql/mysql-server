@@ -4370,12 +4370,12 @@ struct LEX : public Query_tables_list {
   */
   uint reparse_common_table_expr_at;
 
-  /// Number of CTE reparses while building this statement's parse tree.
+  /// Number of CTE reparses and view parses while building this statement.
   /// View parsing inherits and returns this cost to the enclosing LEX.
-  uint reparse_common_table_expr_count{0};
-  /// Cumulative length in bytes of CTE definitions reparsed for this statement.
+  uint query_expansion_count{0};
+  /// Cumulative length of CTE and view definitions parsed for this statement.
   /// View parsing inherits and returns this cost to the enclosing LEX.
-  size_t reparse_common_table_expr_bytes{0};
+  size_t query_expansion_bytes{0};
   /**
     If currently re-parsing a condition which is pushed down to a derived
     table, this will be set to true.

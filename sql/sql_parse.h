@@ -70,6 +70,8 @@ extern void turn_parser_debug_on();
 bool parse_sql(THD *thd, Parser_state *parser_state,
                Object_creation_ctx *creation_ctx);
 
+bool add_query_expansion_cost(THD *thd, size_t text_length);
+
 void free_items(Item *item);
 void cleanup_items(Item *item);
 void bind_fields(Item *first);

@@ -5759,36 +5759,35 @@ void add_to_list(SQL_I_List<ORDER> &list, ORDER *order) {
 }
 
 /**
-  Maximum number of reparses of CTE definitions allowed while parsing a single
-  statement.
+  Maximum number of CTE reparses and view parses allowed while building a
+  single statement.
 
-  Multi-reference CTE definitions need fresh parse tree nodes for each
-  reference. If such definitions are deeply nested, the total reparse work may
-  grow much faster than the statement text. Keep parsing bounded by rejecting
-  statements that need more than this many reparse invocations.
+  Multi-reference CTEs and views need fresh parse tree nodes for each
+  reference. If such definitions are deeply nested, the total parse work may
+  grow much faster than the statement text.
 */
-static constexpr uint kMaxCommonTableExprReparses = 1024;
+static constexpr uint kMaxQueryExpansions = 1024;
 
 /**
-  Maximum cumulative length of CTE definitions reparsed while parsing a single
-  statement.
+  Maximum cumulative length of CTE and view definitions parsed while building
+  a single statement.
 
-  This allows the maximum reparse count for small definitions, while reducing
-  the permitted reparse count for larger definitions.
+  This allows the maximum expansion count for small definitions, while
+  reducing the permitted expansion count for larger definitions.
 */
-static constexpr size_t kMaxCommonTableExprReparseBytes = 64 * 1024 * 1024;
+static constexpr size_t kMaxQueryExpansionBytes = 64 * 1024 * 1024;
 
-static bool add_common_table_expr_reparse_cost(THD *thd, size_t text_length) {
+bool add_query_expansion_cost(THD *thd, size_t text_length) {
   LEX *const lex = thd->lex;
-  if (lex->reparse_common_table_expr_count >= kMaxCommonTableExprReparses ||
-      text_length > kMaxCommonTableExprReparseBytes -
-                        lex->reparse_common_table_expr_bytes) {
-    my_error(ER_CTE_EXPANSION_LIMIT_EXCEEDED, MYF(0));
+  if (lex->query_expansion_count >= kMaxQueryExpansions ||
+      lex->query_expansion_bytes > kMaxQueryExpansionBytes ||
+      text_length > kMaxQueryExpansionBytes - lex->query_expansion_bytes) {
+    my_error(ER_QUERY_EXPANSION_LIMIT_EXCEEDED, MYF(0));
     return true;
   }
 
-  ++lex->reparse_common_table_expr_count;
-  lex->reparse_common_table_expr_bytes += text_length;
+  ++lex->query_expansion_count;
+  lex->query_expansion_bytes += text_length;
   return false;
 }
 
@@ -5805,7 +5804,7 @@ static bool add_common_table_expr_reparse_cost(THD *thd, size_t text_length) {
 static bool reparse_common_table_expr(THD *thd, const char *text,
                                       size_t text_length, uint text_offset,
                                       PT_subquery **node) {
-  if (add_common_table_expr_reparse_cost(thd, text_length)) {
+  if (add_query_expansion_cost(thd, text_length)) {
     return true;
   }
 
