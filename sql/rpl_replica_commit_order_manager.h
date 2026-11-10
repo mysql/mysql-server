@@ -213,8 +213,10 @@ class Commit_order_manager {
 
     @param worker_id Sequence id of the worker
     @param thd Session pointer
+    @return false on success, true if the slot is still in use. On failure,
+            the existing MDL context and queue entry are left unchanged.
    */
-  void init_worker_context(std::size_t worker_id, THD *thd);
+  bool init_worker_context(std::size_t worker_id, THD *thd);
 
   /**
     Register the worker into commit order queue when coordinator dispatches a

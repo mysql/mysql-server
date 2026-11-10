@@ -36,6 +36,20 @@ using namespace mysql::csa;
 
 namespace mysql::csa {
 
+#ifndef NDEBUG
+// Test pause point usable on the unblocked helper, which has no THD for
+// debug_sync. Threads without their own debug state read the global debug
+// keywords, so a test drives this with SET GLOBAL debug: adds
+// "<keyword>_reached", then waits while <keyword> is still set.
+static void csa_debug_pause(const char *keyword) {
+  const std::string reached = std::string{"+d,"} + keyword + "_reached";
+  DBUG_SET_INITIAL(reached.c_str());
+  while (DBUG_EVALUATE_IF(keyword, true, false)) {
+    std::this_thread::sleep_for(std::chrono::milliseconds{10});
+  }
+}
+#endif
+
 Job_applier::Job_applier(Channel *channel, unsigned int max_retries,
                          std::shared_ptr<Fetchable_transaction> fetch_object,
                          Stat_monitor_ref stat_monitor,
@@ -45,13 +59,12 @@ Job_applier::Job_applier(Channel *channel, unsigned int max_retries,
 
 Job_applier::~Job_applier() {
   // If we have not released the session yet, release it now. Session release
-  // here can be called only when the scheduler pops up unfinished jobs from
-  // the queue (stop now request). In other cases, session must be released in
-  // "detach" (normal execution / failure). This way we ensure that session
-  // service can be destructed just after the sync in all of the cases.
+  // here handles unfinished and failed jobs. Successful jobs return their
+  // sessions in detach(), before the scheduler releases dependent work.
+  // Failed jobs retain the context until all task phases have released it.
   if (m_relay_context) {
     auto *w_ctx = m_relay_context->get_parallel_worker_context();
-    if (w_ctx && w_ctx->found_commit_order_deadlock()) {
+    if (w_ctx && w_ctx->is_rollback_requested()) {
       w_ctx->wait_for_rollback();
       m_relay_context->detach_rli();
     } else {
@@ -110,7 +123,11 @@ bool Job_applier::attach(Thread_id thread_id) {
       if (is_stopped()) {
         return true;
       }
-      return false;
+      if (is_done() || m_phase == Transaction_phase::prepare) {
+        return false;
+      }
+      // Prepare may have finished while we waited for its attachment.
+      // Reevaluate the phase, including a possible recovery retry.
     }
 
     if (m_co_registered) {
@@ -133,6 +150,15 @@ bool Job_applier::attach(Thread_id thread_id) {
   // secure a session only when needed, just before running
   ensure_session(thread_id);
   if (m_relay_context->get_session().is_killed()) {
+    if (scheduler::current_dispatch_reason() ==
+        scheduler::Dispatch_reason::unblocked) {
+      // Prepare has handed over. Take over the session, so that this task
+      // reports the failure and cleans up on an attached session.
+      m_relay_context->attach_session();
+      m_is_attached = true;
+      scheduler::set_current_dispatch_reason(
+          scheduler::Dispatch_reason::normal);
+    }
     return true;
   }
 
@@ -150,6 +176,8 @@ bool Job_applier::attach(Thread_id thread_id) {
       set_fatal_error();
       m_relay_context->attach_session();
       m_is_attached = true;
+      scheduler::set_current_dispatch_reason(
+          scheduler::Dispatch_reason::normal);
       return true;
     }
     m_phase = Transaction_phase::retry_commit;
@@ -157,6 +185,9 @@ bool Job_applier::attach(Thread_id thread_id) {
   m_relay_context->attach_session();
   m_relay_context->set_fde(m_fetch_metadata->get_fde());
   m_is_attached = true;
+  // Early registration never attaches. Once prepare has handed over and
+  // recovery has finished, this invocation owns normal commit execution.
+  scheduler::set_current_dispatch_reason(scheduler::Dispatch_reason::normal);
   m_stat_monitor.get()
       .get_stat(Statistics_map::worker_session)
       .store(m_relay_context->get_id(), thread_id);
@@ -167,22 +198,22 @@ bool Job_applier::attach(Thread_id thread_id) {
 }
 
 bool Job_applier::detach(Thread_id /*thread_id*/) {
+  if (scheduler::current_dispatch_reason() ==
+      scheduler::Dispatch_reason::unblocked) {
+    return false;
+  }
   if (!m_is_attached) {
     return false;
   }
   finish_telemetry();
   m_relay_context->set_fde(nullptr);
   m_relay_context->detach_session();
-  if (is_done()) {
-    const bool is_unblocked_dispatch = scheduler::current_dispatch_reason() ==
-                                       scheduler::Dispatch_reason::unblocked;
-    if (!(is_unblocked_dispatch && is_error())) {
-      m_relay_context->detach_rli();
-      concurrency::set_stage(stage_csa_session_release.m_key);
-      m_session_service->release_session(std::move(m_relay_context),
-                                         get_attach_id());
-      m_relay_context.reset();
-    }
+  if (is_done() && !is_error()) {
+    m_relay_context->detach_rli();
+    concurrency::set_stage(stage_csa_session_release.m_key);
+    m_session_service->release_session(std::move(m_relay_context),
+                                       get_attach_id());
+    m_relay_context.reset();
   }
   m_is_attached = false;
   return false;
@@ -236,11 +267,21 @@ bool Job_applier::commit_register(Thread_id thread_id) {
   if (needs_commit_registration) {
     if (!m_co_registered) {
       assert(m_relay_context);
-      m_relay_context->set_parallel_worker_context(
-          m_channel->get_commit_order_manager(), get_id(), thread_id,
-          get_channel_id(), get_retries(), m_max_retries);
-      m_relay_context->register_to_commit_order();
+      if (is_unblocked_dispatch)
+        DBUG_EXECUTE_IF("csa_helper_before_register",
+                        csa_debug_pause("csa_helper_before_register"););
+      // The transaction and channel were initialized when acquiring the
+      // session. Registration only changes its commit worker and retry count.
+      m_relay_context->get_parallel_worker_context()->update(thread_id,
+                                                             get_retries());
+      if (m_relay_context->register_to_commit_order()) {
+        set_fatal_error();
+        return true;
+      }
       m_co_registered = true;
+      if (is_unblocked_dispatch)
+        DBUG_EXECUTE_IF("csa_helper_after_register",
+                        csa_debug_pause("csa_helper_after_register"););
     }
     if (m_phase == Transaction_phase::commit_register) {
       m_phase = Transaction_phase::commit_binlog;
@@ -350,13 +391,15 @@ bool Job_applier::run_phase(Thread_id thread_id) {
       concurrency::set_thd_stage(thd,
                                  stage_worker_waiting_for_its_turn_to_commit);
       if (m_phase == Transaction_phase::prepare) {
-        m_phase = Transaction_phase::commit_register;
         // we need to detach in case of rpco conflict
         if (m_channel->get_commit_order_manager()) {
           detach(thread_id);
           m_relay_context->get_parallel_worker_context()->set_applied();
-          check_rpco_conflict(thread_id);
+          if (check_rpco_conflict(thread_id)) {
+            return false;
+          }
         }
+        m_phase = Transaction_phase::commit_register;
       }
       // do not apply commit event
       return false;
@@ -510,6 +553,8 @@ void Job_applier::sync_rows_query_event_retention() {
 void Job_applier::set_failure() {
   // ensures session release in detach
   set_fatal_error();
+  DBUG_EXECUTE_IF("csa_owner_after_fatal",
+                  csa_debug_pause("csa_owner_after_fatal"););
   THD *thd{m_relay_context->get_session().get_thd()};
   // to fail quickly, don't unregister from COM queue or finish session ticket
   // in case of error, sessions will be killed
@@ -517,6 +562,8 @@ void Job_applier::set_failure() {
   bool is_err = thd->is_error();
   thd->clear_error();
   m_relay_context->get_relay_log_info()->cleanup_context(thd, is_err);
+  DBUG_EXECUTE_IF("csa_owner_after_cleanup",
+                  csa_debug_pause("csa_owner_after_cleanup"););
   sync_rows_query_event_retention();
 }
 
