@@ -1,0 +1,128 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# Case 1: START REPLICA IO_THREAD and SET GLOBAL max_relay_log_size = 8192
+# 1. START REPLICA pauses holding channel_map.
+[connection server_2_2]
+SET DEBUG_SYNC = 'after_locking_channel_map_in_start_replica SIGNAL channel_map_locked WAIT_FOR continue_start';
+START REPLICA IO_THREAD;
+[connection server_2]
+SET DEBUG_SYNC = 'now WAIT_FOR channel_map_locked';
+# 2. The SET lets START REPLICA continue just before it takes
+#    channel_map.
+[connection server_2_1]
+SET DEBUG_SYNC = 'before_locking_channel_map_in_set_relay_log_size SIGNAL continue_start';
+SET GLOBAL max_relay_log_size = 8192;
+# 3. Both statements finish.
+[connection server_2_2]
+[connection server_2]
+SET DEBUG_SYNC = 'RESET';
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/stop_receiver.inc
+SET GLOBAL max_relay_log_size = DEFAULT;
+SET GLOBAL max_binlog_size = DEFAULT;
+SET GLOBAL gtid_mode = ON;
+
+# Case 2: START REPLICA SQL_THREAD and SET GLOBAL max_binlog_size = 8192
+# 1. START REPLICA pauses holding channel_map.
+[connection server_2_2]
+SET DEBUG_SYNC = 'after_locking_channel_map_in_start_replica SIGNAL channel_map_locked WAIT_FOR continue_start';
+START REPLICA SQL_THREAD;
+[connection server_2]
+SET DEBUG_SYNC = 'now WAIT_FOR channel_map_locked';
+# 2. The SET lets START REPLICA continue just before it takes
+#    channel_map.
+[connection server_2_1]
+SET DEBUG_SYNC = 'before_locking_channel_map_in_set_relay_log_size SIGNAL continue_start';
+SET GLOBAL max_binlog_size = 8192;
+# 3. Both statements finish.
+[connection server_2_2]
+[connection server_2]
+SET DEBUG_SYNC = 'RESET';
+include/rpl/wait_for_applier_to_start.inc
+include/rpl/stop_applier.inc
+SET GLOBAL max_relay_log_size = DEFAULT;
+SET GLOBAL max_binlog_size = DEFAULT;
+SET GLOBAL gtid_mode = ON;
+
+# Case 3: START REPLICA IO_THREAD and SET GLOBAL gtid_mode = ON_PERMISSIVE
+# 1. START REPLICA pauses holding channel_map.
+[connection server_2_2]
+SET DEBUG_SYNC = 'after_locking_channel_map_in_start_replica SIGNAL channel_map_locked WAIT_FOR continue_start';
+START REPLICA IO_THREAD;
+[connection server_2]
+SET DEBUG_SYNC = 'now WAIT_FOR channel_map_locked';
+# 2. The SET lets START REPLICA continue just before it takes
+#    channel_map.
+[connection server_2_1]
+SET DEBUG_SYNC = 'before_locking_channel_map_in_set_gtid_mode SIGNAL continue_start';
+SET GLOBAL gtid_mode = ON_PERMISSIVE;
+# 3. Both statements finish.
+[connection server_2_2]
+[connection server_2]
+SET DEBUG_SYNC = 'RESET';
+include/rpl/wait_for_receiver_to_start.inc
+include/rpl/stop_receiver.inc
+SET GLOBAL max_relay_log_size = DEFAULT;
+SET GLOBAL max_binlog_size = DEFAULT;
+SET GLOBAL gtid_mode = ON;
+
+# Case 4: an older relay log size update does not overwrite a newer one.
+# The older SET (1 GB) pauses before it takes channel_map. The newer
+# SET (4 KB) finishes first. The relay log must keep rotating at 4 KB.
+[connection server_2_1]
+SET DEBUG_SYNC = 'before_locking_channel_map_in_set_relay_log_size SIGNAL older_paused WAIT_FOR older_continue';
+SET GLOBAL max_relay_log_size = 1073741824;
+[connection server_2]
+SET DEBUG_SYNC = 'now WAIT_FOR older_paused';
+SET GLOBAL max_relay_log_size = 4096;
+SET DEBUG_SYNC = 'now SIGNAL older_continue';
+[connection server_2_1]
+include/assert.inc [max_relay_log_size has the newer value]
+[connection server_2]
+SET DEBUG_SYNC = 'RESET';
+SET GLOBAL relay_log_purge = OFF;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT, b TEXT);
+INSERT INTO t1 (b) VALUES (REPEAT('x', 2000));
+INSERT INTO t1 (b) VALUES (REPEAT('x', 2000));
+INSERT INTO t1 (b) VALUES (REPEAT('x', 2000));
+INSERT INTO t1 (b) VALUES (REPEAT('x', 2000));
+INSERT INTO t1 (b) VALUES (REPEAT('x', 2000));
+INSERT INTO t1 (b) VALUES (REPEAT('x', 2000));
+INSERT INTO t1 (b) VALUES (REPEAT('x', 2000));
+INSERT INTO t1 (b) VALUES (REPEAT('x', 2000));
+INSERT INTO t1 (b) VALUES (REPEAT('x', 2000));
+INSERT INTO t1 (b) VALUES (REPEAT('x', 2000));
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/assert.inc [Relay log rotated at 4 KB]
+include/rpl/stop_replica.inc
+SET GLOBAL max_relay_log_size = DEFAULT;
+SET GLOBAL relay_log_purge = DEFAULT;
+
+# Case 5: @@GLOBAL.gtid_mode shows the old mode until the SET finishes.
+[connection server_2_1]
+SET DEBUG_SYNC = 'before_locking_channel_map_in_set_gtid_mode SIGNAL gtid_set_paused WAIT_FOR gtid_set_continue';
+SET GLOBAL gtid_mode = ON_PERMISSIVE;
+[connection server_2]
+SET DEBUG_SYNC = 'now WAIT_FOR gtid_set_paused';
+SELECT @@GLOBAL.gtid_mode;
+@@GLOBAL.gtid_mode
+ON
+SET DEBUG_SYNC = 'now SIGNAL gtid_set_continue';
+[connection server_2_1]
+SELECT @@GLOBAL.gtid_mode;
+@@GLOBAL.gtid_mode
+ON_PERMISSIVE
+SET GLOBAL gtid_mode = ON;
+[connection server_2]
+SET DEBUG_SYNC = 'RESET';
+
+# Cleanup
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

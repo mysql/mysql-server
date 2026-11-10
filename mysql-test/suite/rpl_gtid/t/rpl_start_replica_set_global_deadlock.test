@@ -1,0 +1,199 @@
+# ==== Purpose ====
+#
+# Verify that START REPLICA does not deadlock with a concurrent
+# SET GLOBAL max_relay_log_size, SET GLOBAL max_binlog_size or
+# SET GLOBAL gtid_mode, and that these setters stay correct when they run
+# concurrently with each other or with readers.
+#
+# START REPLICA holds channel_map while the new receiver or applier thread
+# starts, and that thread takes LOCK_global_system_variables in its THD
+# constructor. The setters used to take channel_map while holding
+# LOCK_global_system_variables, so the three threads deadlocked.
+#
+# ==== Implementation ====
+#
+# Cases 1-3, for each setter:
+# 1. START REPLICA pauses just after it takes channel_map.
+# 2. The SET lets START REPLICA continue just before it takes channel_map.
+# 3. START REPLICA creates the thread. Both statements must finish: the
+#    SET has to release LOCK_global_system_variables before it waits for
+#    channel_map, so that the new thread can start.
+#
+# Case 4: an older SET GLOBAL max_relay_log_size that reaches channel_map
+# after a newer one must not overwrite the newer size.
+#
+# Case 5: while SET GLOBAL gtid_mode waits for channel_map,
+# @@GLOBAL.gtid_mode does not block and still shows the old mode.
+#
+# ==== References ====
+#
+# Bug#121726 Deadlock between START REPLICA and SET GLOBAL
+
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave = 1
+--let $rpl_extra_connections_per_server = 2
+--source include/rpl/init_source_replica.inc
+
+--let $case = 1
+while ($case <= 3)
+{
+  if ($case == 1)
+  {
+    --let $set_statement = SET GLOBAL max_relay_log_size = 8192
+    --let $set_sync_point = before_locking_channel_map_in_set_relay_log_size
+    --let $thread = IO_THREAD
+  }
+  if ($case == 2)
+  {
+    # max_binlog_size is applied to the relay logs only while
+    # max_relay_log_size is 0.
+    --let $set_statement = SET GLOBAL max_binlog_size = 8192
+    --let $set_sync_point = before_locking_channel_map_in_set_relay_log_size
+    --let $thread = SQL_THREAD
+  }
+  if ($case == 3)
+  {
+    --let $set_statement = SET GLOBAL gtid_mode = ON_PERMISSIVE
+    --let $set_sync_point = before_locking_channel_map_in_set_gtid_mode
+    --let $thread = IO_THREAD
+  }
+  --echo
+  --echo # Case $case: START REPLICA $thread and $set_statement
+
+  --echo # 1. START REPLICA pauses holding channel_map.
+  --let $rpl_connection_name = server_2_2
+  --source include/connection.inc
+  SET DEBUG_SYNC = 'after_locking_channel_map_in_start_replica SIGNAL channel_map_locked WAIT_FOR continue_start';
+  --send_eval START REPLICA $thread
+
+  --let $rpl_connection_name = server_2
+  --source include/connection.inc
+  SET DEBUG_SYNC = 'now WAIT_FOR channel_map_locked';
+
+  --echo # 2. The SET lets START REPLICA continue just before it takes
+  --echo #    channel_map.
+  --let $rpl_connection_name = server_2_1
+  --source include/connection.inc
+  --eval SET DEBUG_SYNC = '$set_sync_point SIGNAL continue_start'
+  --send_eval $set_statement
+
+  --echo # 3. Both statements finish.
+  --reap
+  --let $rpl_connection_name = server_2_2
+  --source include/connection.inc
+  --reap
+
+  --let $rpl_connection_name = server_2
+  --source include/connection.inc
+  SET DEBUG_SYNC = 'RESET';
+  if ($thread == IO_THREAD)
+  {
+    --source include/rpl/wait_for_receiver_to_start.inc
+    --source include/rpl/stop_receiver.inc
+  }
+  if ($thread == SQL_THREAD)
+  {
+    --source include/rpl/wait_for_applier_to_start.inc
+    --source include/rpl/stop_applier.inc
+  }
+  SET GLOBAL max_relay_log_size = DEFAULT;
+  SET GLOBAL max_binlog_size = DEFAULT;
+  SET GLOBAL gtid_mode = ON;
+
+  --inc $case
+}
+
+
+--echo
+--echo # Case 4: an older relay log size update does not overwrite a newer one.
+--echo # The older SET (1 GB) pauses before it takes channel_map. The newer
+--echo # SET (4 KB) finishes first. The relay log must keep rotating at 4 KB.
+--let $rpl_connection_name = server_2_1
+--source include/connection.inc
+SET DEBUG_SYNC = 'before_locking_channel_map_in_set_relay_log_size SIGNAL older_paused WAIT_FOR older_continue';
+--send SET GLOBAL max_relay_log_size = 1073741824
+
+--let $rpl_connection_name = server_2
+--source include/connection.inc
+SET DEBUG_SYNC = 'now WAIT_FOR older_paused';
+SET GLOBAL max_relay_log_size = 4096;
+SET DEBUG_SYNC = 'now SIGNAL older_continue';
+
+--let $rpl_connection_name = server_2_1
+--source include/connection.inc
+--reap
+--let $assert_text = max_relay_log_size has the newer value
+--let $assert_cond = @@GLOBAL.max_relay_log_size = 4096
+--source include/assert.inc
+
+--let $rpl_connection_name = server_2
+--source include/connection.inc
+SET DEBUG_SYNC = 'RESET';
+# Keep the relay logs, so that the rotations can be counted.
+SET GLOBAL relay_log_purge = OFF;
+--source include/rpl/start_replica.inc
+--let RELAY_LOG_DIR = `SELECT @@GLOBAL.datadir`
+--let RELAY_LOG_COUNT_INC = $MYSQLTEST_VARDIR/tmp/relay_log_count.inc
+--perl
+  opendir(my $dir, $ENV{RELAY_LOG_DIR}) or die "opendir: $!";
+  my $count = grep { /^slave-relay-bin\.\d+$/ } readdir($dir);
+  open(my $out, '>', $ENV{RELAY_LOG_COUNT_INC}) or die "open: $!";
+  print $out "--let \$relay_logs_before = $count\n";
+EOF
+--source $RELAY_LOG_COUNT_INC
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT PRIMARY KEY AUTO_INCREMENT, b TEXT);
+--let $i = 10
+while ($i)
+{
+  INSERT INTO t1 (b) VALUES (REPEAT('x', 2000));
+  --dec $i
+}
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--perl
+  opendir(my $dir, $ENV{RELAY_LOG_DIR}) or die "opendir: $!";
+  my $count = grep { /^slave-relay-bin\.\d+$/ } readdir($dir);
+  open(my $out, '>', $ENV{RELAY_LOG_COUNT_INC}) or die "open: $!";
+  print $out "--let \$relay_logs_after = $count\n";
+EOF
+--source $RELAY_LOG_COUNT_INC
+--remove_file $RELAY_LOG_COUNT_INC
+# 10 transactions of 2 KB: at 4 KB the receiver rotates several times, at
+# 1 GB it does not rotate.
+--let $assert_text = Relay log rotated at 4 KB
+--let $assert_cond = $relay_logs_after - $relay_logs_before >= 3
+--source include/assert.inc
+--source include/rpl/stop_replica.inc
+SET GLOBAL max_relay_log_size = DEFAULT;
+SET GLOBAL relay_log_purge = DEFAULT;
+
+--echo
+--echo # Case 5: @@GLOBAL.gtid_mode shows the old mode until the SET finishes.
+--let $rpl_connection_name = server_2_1
+--source include/connection.inc
+SET DEBUG_SYNC = 'before_locking_channel_map_in_set_gtid_mode SIGNAL gtid_set_paused WAIT_FOR gtid_set_continue';
+--send SET GLOBAL gtid_mode = ON_PERMISSIVE
+
+--let $rpl_connection_name = server_2
+--source include/connection.inc
+SET DEBUG_SYNC = 'now WAIT_FOR gtid_set_paused';
+SELECT @@GLOBAL.gtid_mode;
+SET DEBUG_SYNC = 'now SIGNAL gtid_set_continue';
+
+--let $rpl_connection_name = server_2_1
+--source include/connection.inc
+--reap
+SELECT @@GLOBAL.gtid_mode;
+SET GLOBAL gtid_mode = ON;
+
+--let $rpl_connection_name = server_2
+--source include/connection.inc
+SET DEBUG_SYNC = 'RESET';
+--echo
+--echo # Cleanup
+--source include/rpl/start_replica.inc
+--source include/rpl/deinit.inc
