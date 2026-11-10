@@ -58,9 +58,14 @@ Commit_order_manager::~Commit_order_manager() = default;
 
 std::size_t Commit_order_manager::pool_size() const { return m_workers.size(); }
 
-void Commit_order_manager::init_worker_context(std::size_t worker_id,
+bool Commit_order_manager::init_worker_context(std::size_t worker_id,
                                                THD *thd) {
+  if (this->m_workers[worker_id].m_stage !=
+      cs::apply::Commit_order_queue::enum_worker_stage::FINISHED) {
+    return true;
+  }
   this->m_workers[worker_id].m_mdl_context = &thd->mdl_context;
+  return false;
 }
 
 void Commit_order_manager::register_trx(Parallel_worker_context *worker) {

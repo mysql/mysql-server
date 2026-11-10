@@ -79,9 +79,6 @@ class Task_exec_job {
   /// @brief Indicates that a task executed with a non-recoverable error (stop)
   void set_error();
 
-  /// @brief Internal error flag
-  bool m_is_error{false};
-
   /// @brief Shared job handle provided by the job provider.
   std::shared_ptr<Job> m_job;
   /// @brief Job id assigned by the job provider.
@@ -89,8 +86,6 @@ class Task_exec_job {
   /// @brief Assigned session service handle.
   Session_service_ptr m_session_service;
 
-  /// @brief Checks if task has been started
-  bool m_started{false};
   /// Statistics monitoring object for the current instance
   scheduler::Statistics_instance_monitor_ref m_stat_monitor;
   /// If retried, this flag will be checked to determine

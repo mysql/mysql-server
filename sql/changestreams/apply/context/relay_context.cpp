@@ -252,12 +252,16 @@ void Relay_context::set_parallel_worker_context(
   m_rli->set_commit_order_manager(com);
 }
 
-void Relay_context::register_to_commit_order() {
-  if (m_commit_order_manager && !m_session.self_killed()) {
-    m_commit_order_manager->init_worker_context(
-        m_csa_worker_context->get_worker_id(), m_session.get_thd());
+bool Relay_context::register_to_commit_order() {
+  if (m_commit_order_manager) {
+    if (m_session.self_killed() ||
+        m_commit_order_manager->init_worker_context(
+            m_csa_worker_context->get_worker_id(), m_session.get_thd())) {
+      return true;
+    }
     m_commit_order_manager->register_trx(m_rli->get_parallel_worker_context());
   }
+  return false;
 }
 
 cs::apply::Csa_worker_context *Relay_context::get_parallel_worker_context() {

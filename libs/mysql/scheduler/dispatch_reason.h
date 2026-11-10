@@ -38,6 +38,12 @@ inline Dispatch_reason current_dispatch_reason() {
   return current_dispatch_reason_tls;
 }
 
+/// Change the current execution role after an unblocked phase hands over.
+/// The enclosing Scoped_dispatch_reason still restores the caller's state.
+inline void set_current_dispatch_reason(Dispatch_reason reason) {
+  current_dispatch_reason_tls = reason;
+}
+
 class Scoped_dispatch_reason {
  public:
   explicit Scoped_dispatch_reason(Dispatch_reason reason)
