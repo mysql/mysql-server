@@ -1,0 +1,200 @@
+# ==== PURPOSE ====
+#
+# With replica_preserve_commit_order=ON, a commit-order stall of 10 s makes
+# the CSA scheduler dispatch the stalled transaction's commit registration
+# on a helper thread while its owner is still in prepare. When the owner
+# then fails, the helper and the owner's failure cleanup race. This test
+# forces both orders, and a case with later transactions queued behind the
+# failed one, and checks that no later transaction commits while the
+# failed one is still being handled:
+#   1. failure before registration: the owner marks the failure before the
+#      helper registers; the helper must report an error so the commit
+#      clock does not let a later transaction commit first;
+#   2. failure after registration: the helper registered and then sees the
+#      job done before the owner removed it from the commit order queue;
+#      the helper's thread must wait for the owner instead of registering a
+#      later transaction on the still-registered slot (Debug assertion in
+#      Commit_order_manager::register_trx);
+#   3. later transactions registered behind the failed one must not
+#      commit ahead of it. (Adapted for the reviewer's alternative fix,
+#      which keeps the failed transaction in the commit order queue: the
+#      later ones wait behind it instead of rolling back with ER 3030.)
+#
+# ==== IMPLEMENTATION ====
+#
+# Scenarios 1 and 3 use four replica workers, so later transactions have
+# free threads while the owner and the helper are busy. Scenario 2 uses
+# two, so the helper's thread is the one that picks up the next
+# transaction. A replica client holds the row lock of the first replicated
+# INSERT; four independent INSERTs follow. The pause points in
+# Job_applier (csa_debug_pause) add "<keyword>_reached" to the global debug
+# keywords and wait while <keyword> is set. Per scenario:
+#   - arm the helper and owner pause points;
+#   - wait for the helper (dispatched after 10 s), then for the owner
+#     (innodb_lock_wait_timeout=30, no retries); scenario 3 releases the
+#     helper before the owner fails, so later transactions register behind
+#     the failed one, and, with the owner paused after its cleanup, gives
+#     them 3 s to commit ahead of it (adapted: no ER 3030 wait);
+#   - release the helper if still paused and, with the owner paused, check
+#     that none of the source GTIDs and rows is on the replica;
+#   - release the owner, expect ER_LOCK_WAIT_TIMEOUT as the channel error;
+#   - release the row lock, restart, sync and compare the tables.
+#
+# ==== REFERENCES ====
+#
+# Bug#121659 CSA helper thread crashes replica and breaks commit order
+--source include/big_test.inc
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+# Test scenario is constructed assuming replica_preserve_commit_order=1
+--source include/have_replica_preserve_commit_order.inc
+--let $rpl_applier_version=2:2
+--let $rpl_applier_worker_count=2:2
+--source include/rpl/init_source_replica.inc
+CREATE TABLE t1 (id INT PRIMARY KEY);
+--source include/rpl/sync_to_replica.inc
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+CALL mtr.add_suppression("Worker .* failed executing transaction");
+CALL mtr.add_suppression("Error 'Lock wait timeout exceeded");
+CALL mtr.add_suppression("Replica worker has stopped after at least one previous worker encountered an error");
+SET @saved_debug = @@GLOBAL.debug;
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET @saved_replica_transaction_retries = @@GLOBAL.replica_transaction_retries;
+
+--let $scenario = 1
+while ($scenario <= 3)
+{
+  --let $release_helper_early = 0
+  if ($scenario == 1)
+  {
+    --echo #
+    --echo # Scenario 1: the owner marks the failure before the helper registers.
+    --echo #
+    --let $helper_hook = csa_helper_before_register
+    --let $owner_hook = csa_owner_after_cleanup
+    # Spare workers, so a later transaction can register while the owner's
+    # and the helper's threads are busy.
+    --let $workers = 4
+  }
+  if ($scenario == 2)
+  {
+    --echo #
+    --echo # Scenario 2: the helper sees the job done before the owner's cleanup.
+    --echo #
+    --let $helper_hook = csa_helper_after_register
+    --let $owner_hook = csa_owner_after_fatal
+    # Only the helper's thread is free, so it takes the next transaction.
+    --let $workers = 2
+  }
+  if ($scenario == 3)
+  {
+    --echo #
+    --echo # Scenario 3: later transactions wait behind the failed one.
+    --echo #
+    --let $helper_hook = csa_helper_after_register
+    --let $owner_hook = csa_owner_after_cleanup
+    --let $workers = 4
+    --let $release_helper_early = 1
+  }
+  --let $first_id = `SELECT $scenario * 10`
+  --let $helper_reached = `SELECT CONCAT('$helper_hook', '_reached')`
+  --let $owner_reached = `SELECT CONCAT('$owner_hook', '_reached')`
+
+  --source include/rpl/connection_replica.inc
+  --source include/rpl/stop_applier.inc
+  --eval CHANGE REPLICATION SOURCE TO APPLIER_WORKER_COUNT = $workers
+  SET GLOBAL innodb_lock_wait_timeout = 30;
+  SET GLOBAL replica_transaction_retries = 0;
+  --source include/rpl/start_applier.inc
+  --let $rollbacks_before = `SELECT COUNT(*) FROM performance_schema.error_log WHERE DATA LIKE '%Replica worker has stopped after at least one previous worker encountered an error%'`
+  --eval SET GLOBAL debug = '+d,$helper_hook,$owner_hook'
+
+  # Block the first replicated transaction on a row lock.
+  --connection slave1
+  BEGIN;
+  --eval INSERT INTO t1 VALUES ($first_id)
+
+  --source include/rpl/connection_source.inc
+  --let $gtids_before = `SELECT @@GLOBAL.gtid_executed`
+  --eval INSERT INTO t1 VALUES ($first_id)
+  --eval INSERT INTO t1 VALUES ($first_id + 1)
+  --eval INSERT INTO t1 VALUES ($first_id + 2)
+  --eval INSERT INTO t1 VALUES ($first_id + 3)
+  --eval INSERT INTO t1 VALUES ($first_id + 4)
+  --let $new_gtids = `SELECT GTID_SUBTRACT(@@GLOBAL.gtid_executed, '$gtids_before')`
+
+  --source include/rpl/connection_replica.inc
+  # The helper is dispatched after the 10 s commit-order stall.
+  --let $wait_timeout = 60
+  --let $wait_condition = SELECT @@GLOBAL.debug LIKE '%$helper_reached%'
+  --source include/wait_condition.inc
+  if ($release_helper_early)
+  {
+    # The helper reports success, so the later transactions register in the
+    # commit order queue behind the failed one.
+    --eval SET GLOBAL debug = '-d,$helper_hook'
+  }
+  # The owner fails when the 30 s lock wait times out.
+  --let $wait_timeout = 90
+  --let $wait_condition = SELECT @@GLOBAL.debug LIKE '%$owner_reached%'
+  --source include/wait_condition.inc
+
+  if (!$release_helper_early)
+  {
+    --eval SET GLOBAL debug = '-d,$helper_hook'
+    # Nothing signals that the helper's thread is idle again, so give it
+    # time to pick up a later transaction, which on broken code commits it
+    # ahead of the failed one or hits the register_trx assertion.
+    --sleep 3
+  }
+  if ($release_helper_early)
+  {
+    # ADAPTED for the reviewer's alternative fix: its failure handling keeps
+    # the failed transaction in the commit order queue, so the later ones
+    # do not roll back with ER 3030; they wait behind it until the channel
+    # stop kills them (ER 1317) or fail to register. Instead of waiting for
+    # ER 3030, check that none of them commits while the owner is paused
+    # after its failure handling. Nothing signals that they had the chance
+    # to commit ahead of the failed one, so give them time; the asserts
+    # below catch it.
+    --sleep 3
+  }
+  SELECT "server alive with the owner paused" AS status;
+  --let $assert_text = No source GTID is applied while the owner is paused
+  --let $assert_cond = [SELECT GTID_SUBTRACT("$new_gtids", @@GLOBAL.gtid_executed) = "$new_gtids"]
+  --source include/assert.inc
+  --let $assert_text = No row of the later transactions is applied
+  --let $assert_cond = [SELECT COUNT(*) FROM t1 WHERE id > $first_id AND id <= $first_id + 4] = 0
+  --source include/assert.inc
+
+  --eval SET GLOBAL debug = '-d,$owner_hook'
+  --let $slave_sql_errno = 1205
+  --source include/rpl/wait_for_applier_error.inc
+  --let $assert_text = The channel keeps the original error
+  --let $assert_cond = "[SHOW REPLICA STATUS, Last_SQL_Errno, 1]" = "1205"
+  --source include/assert.inc
+
+  --connection slave1
+  ROLLBACK;
+  --source include/rpl/connection_replica.inc
+  SET GLOBAL debug = @saved_debug;
+  SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+  SET GLOBAL replica_transaction_retries = @saved_replica_transaction_retries;
+  --source include/rpl/start_replica.inc
+  --source include/rpl/connection_source.inc
+  --source include/rpl/sync_to_replica.inc
+  FLUSH TABLES;
+  --let $diff_tables = master:t1, slave:t1
+  --source include/diff_tables.inc
+
+  --inc $scenario
+}
+
+#
+# Cleanup
+#
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc
