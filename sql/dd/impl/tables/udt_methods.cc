@@ -58,6 +58,36 @@ UDT_Methods::UDT_Methods() {
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
                              String_type(name_collation()->m_coll_name));
+  m_target_def.add_field(FIELD_SPECIFIC_NAME, "FIELD_SPECIFIC_NAME",
+                         "specific_name VARCHAR(64) NOT NULL COLLATE " +
+                             String_type(name_collation()->m_coll_name));
+
+  m_target_def.add_field(FIELD_IS_STATIC, "FIELD_IS_STATIC", "is_static BOOL");
+  m_target_def.add_field(FIELD_IS_OVERRIDING, "FIELD_IS_OVERRIDING",
+                         "is_overriding BOOL");
+  m_target_def.add_field(FIELD_IS_CONSTRUCTOR, "FIELD_IS_CONSTRUCTOR",
+                         "is_constructor BOOL");
+
+  m_target_def.add_field(FIELD_IS_UNSIGNED, "FIELD_IS_UNSIGNED",
+                         "is_unsigned BOOL");
+  m_target_def.add_field(FIELD_CHAR_MAX_LENGTH, "FIELD_CHAR_MAX_LENGTH",
+                         "char_max_length INT UNSIGNED");
+  m_target_def.add_field(FIELD_CHAR_OCTET_LENGTH, "FIELD_CHAR_OCTET_LENGTH",
+                         "char_octet_length INT UNSIGNED");
+  m_target_def.add_field(FIELD_NUMERIC_PRECISION, "FIELD_NUMERIC_PRECISION",
+                         "numeric_precision INT UNSIGNED");
+  m_target_def.add_field(FIELD_NUMERIC_SCALE, "FIELD_NUMERIC_SCALE",
+                         "numeric_scale INT UNSIGNED");
+  m_target_def.add_field(FIELD_DATETIME_PRECISION, "FIELD_DATETIME_PRECISION",
+                         "datetime_precision INT UNSIGNED");
+  m_target_def.add_field(FIELD_COLLATION_ID, "FIELD_COLLATION_ID",
+                         "collation_id BIGINT UNSIGNED");
+  m_target_def.add_field(FIELD_IS_EXPLICIT_COLLATION,
+                         "FIELD_IS_EXPLICIT_COLLATION",
+                         "is_explicit_collation BOOL");
+
+  m_target_def.add_field(FIELD_RETURN_TYPE_ID, "FIELD_RETURN_TYPE_ID",
+                         "return_type_id BIGINT UNSIGNED NULL");
 
   m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
                          "created TIMESTAMP NOT NULL");

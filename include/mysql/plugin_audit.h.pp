@@ -352,6 +352,10 @@ enum enum_sql_command {
   SQLCOM_CREATE_TYPE,
   SQLCOM_ALTER_TYPE,
   SQLCOM_DROP_TYPE,
+  SQLCOM_CREATE_CAST,
+  SQLCOM_DROP_CAST,
+  SQLCOM_CREATE_ORDERING,
+  SQLCOM_DROP_ORDERING,
   SQLCOM_END
 };
 #include "plugin_audit_message_types.h"

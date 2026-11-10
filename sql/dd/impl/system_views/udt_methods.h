@@ -32,17 +32,37 @@ namespace dd {
 namespace system_views {
 
 /*
-  The class representing INFORMATION_SCHEMA.METHODS
+  The class representing INFORMATION_SCHEMA.METHOD_SPECIFICATIONS
   system view definition.
 */
 class UDT_Methods
     : public System_view_impl<System_view_select_definition_impl> {
  public:
   enum enum_fields {
-    FIELD_TYPE_CATALOG,
-    FIELD_TYPE_SCHEMA,
-    FIELD_TYPE_NAME,
+    FIELD_SPECIFIC_CATALOG,
+    FIELD_SPECIFIC_SCHEMA,
+    FIELD_SPECIFIC_NAME,
+    FIELD_UDT_CATALOG,
+    FIELD_UDT_SCHEMA,
+    FIELD_UDT_NAME,
     FIELD_METHOD_NAME,
+    FIELD_IS_STATIC,
+    FIELD_IS_OVERRIDING,
+    FIELD_IS_CONSTRUCTOR,
+    FIELD_DATA_TYPE,
+    FIELD_CHARACTER_MAXIMUM_LENGTH,
+    FIELD_CHARACTER_OCTET_LENGTH,
+    FIELD_CHARACTER_SET_NAME,
+    FIELD_COLLATION_NAME,
+    FIELD_NUMERIC_PRECISION,
+    FIELD_NUMERIC_SCALE,
+    FIELD_DATETIME_PRECISION,
+    FIELD_RETURN_UDT_CATALOG,
+    FIELD_RETURN_UDT_SCHEMA,
+    FIELD_RETURN_UDT_NAME,
+    FIELD_IS_DETERMINISTIC,
+    FIELD_SQL_DATA_ACCESS,
+    FIELD_IS_NULL_CALL,
     FIELD_CREATE_TIME,
     FIELD_UPDATE_TIME
   };
@@ -52,7 +72,7 @@ class UDT_Methods
   static const UDT_Methods &instance();
 
   static const String_type &view_name() {
-    static String_type s_view_name("TYPE_METHODS");
+    static String_type s_view_name("METHOD_SPECIFICATIONS");
     return s_view_name;
   }
 

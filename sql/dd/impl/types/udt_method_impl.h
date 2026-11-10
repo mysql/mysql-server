@@ -88,6 +88,128 @@ class UDT_Method_impl : public Entity_object_impl, public UDT_Method {
   void set_type_id(Object_id type_id) override { m_type_id = type_id; }
 
   /////////////////////////////////////////////////////////////////////////
+  // Column specific name.
+  /////////////////////////////////////////////////////////////////////////
+
+  const String_type &specific_name() const override { return m_specific_name; }
+
+  void set_specific_name(const String_type &specific_name) override {
+    m_specific_name = specific_name;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_static.
+  /////////////////////////////////////////////////////////////////////////
+
+  bool is_static() const override { return m_is_static; }
+  void set_is_static(bool is_static) override { m_is_static = is_static; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_overriding.
+  /////////////////////////////////////////////////////////////////////////
+
+  bool is_overriding() const override { return m_is_overriding; }
+  void set_is_overriding(bool is_overriding) override {
+    m_is_overriding = is_overriding;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_constructor.
+  /////////////////////////////////////////////////////////////////////////
+
+  bool is_constructor() const override { return m_is_constructor; }
+  void set_is_constructor(bool is_constructor) override {
+    m_is_constructor = is_constructor;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_unsigned.
+  /////////////////////////////////////////////////////////////////////////
+
+  bool is_unsigned() const override { return m_is_unsigned; }
+  void set_is_unsigned(bool is_unsigned) override {
+    m_is_unsigned = is_unsigned;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // char_length.
+  /////////////////////////////////////////////////////////////////////////
+
+  size_t char_max_length() const override { return m_char_max_length; }
+  void set_char_max_length(size_t char_max_length) override {
+    m_char_max_length = char_max_length;
+  }
+
+  size_t char_octet_length() const override { return m_char_octet_length; }
+  void set_char_octet_length(size_t char_octet_length) override {
+    m_char_octet_length = char_octet_length;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // numeric_precision.
+  /////////////////////////////////////////////////////////////////////////
+
+  uint numeric_precision() const override { return m_numeric_precision; }
+  void set_numeric_precision(uint numeric_precision) override {
+    m_numeric_precision = numeric_precision;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // numeric_scale.
+  /////////////////////////////////////////////////////////////////////////
+
+  uint numeric_scale() const override { return m_numeric_scale; }
+  void set_numeric_scale(uint numeric_scale) override {
+    m_numeric_scale_null = false;
+    m_numeric_scale = numeric_scale;
+  }
+  void set_numeric_scale_null(bool is_null) override {
+    m_numeric_scale_null = is_null;
+  }
+  bool is_numeric_scale_null() const override { return m_numeric_scale_null; }
+
+  /////////////////////////////////////////////////////////////////////////
+  // datetime_precision.
+  /////////////////////////////////////////////////////////////////////////
+
+  uint datetime_precision() const override { return m_datetime_precision; }
+  void set_datetime_precision(uint datetime_precision) override {
+    m_datetime_precision_null = false;
+    m_datetime_precision = datetime_precision;
+  }
+  void set_datetime_precision_null(bool is_null) override {
+    m_datetime_precision_null = is_null;
+  }
+  bool is_datetime_precision_null() const override {
+    return m_datetime_precision_null;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // collation.
+  /////////////////////////////////////////////////////////////////////////
+
+  Object_id collation_id() const override { return m_collation_id; }
+  void set_collation_id(Object_id collation_id) override {
+    m_collation_id = collation_id;
+  }
+
+  void set_is_explicit_collation(bool is_explicit_collation) override {
+    m_is_explicit_collation = is_explicit_collation;
+  }
+  bool is_explicit_collation() const override {
+    return m_is_explicit_collation;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // return_type.
+  /////////////////////////////////////////////////////////////////////////
+
+  Object_id return_type_id() const override { return m_return_type_id; }
+  void set_return_type_id(Object_id return_type_id) override {
+    m_return_type_id = return_type_id;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
   // created
   /////////////////////////////////////////////////////////////////////////
 
@@ -139,10 +261,28 @@ class UDT_Method_impl : public Entity_object_impl, public UDT_Method {
  private:
   // Fields
 
+  Object_id m_type_id;
+  String_type m_specific_name;
+  bool m_is_static;
+  bool m_is_overriding;
+  bool m_is_constructor;
+
+  bool m_is_unsigned;
+  size_t m_char_max_length;
+  size_t m_char_octet_length;
+  uint m_numeric_precision;
+  uint m_numeric_scale;
+  bool m_numeric_scale_null;
+  uint m_datetime_precision;
+  uint m_datetime_precision_null;
+
+  Object_id m_return_type_id;
+
+  Object_id m_collation_id;
+  bool m_is_explicit_collation;
+
   ulonglong m_created;
   ulonglong m_last_altered;
-
-  Object_id m_type_id;
 
   UDT_Method *clone() const override { return new UDT_Method_impl(*this); }
 

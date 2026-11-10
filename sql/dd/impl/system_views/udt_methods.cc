@@ -33,19 +33,62 @@ const UDT_Methods &UDT_Methods::instance() {
 UDT_Methods::UDT_Methods() {
   m_target_def.set_view_name(view_name());
 
-  m_target_def.add_field(FIELD_TYPE_CATALOG, "TYPE_CATALOG",
+#ifdef NEVER
+  m_target_def.add_field(
+      FIELD_SPECIFIC_CATALOG, "SPECIFIC_CATALOG",
+      "specific_cat.name" + m_target_def.fs_name_collation());
+  m_target_def.add_field(
+      FIELD_SPECIFIC_SCHEMA, "SPECIFIC_SCHEMA",
+      "specific_sch.name" + m_target_def.fs_name_collation());
+#endif
+
+  m_target_def.add_field(FIELD_SPECIFIC_NAME, "SPECIFIC_NAME",
+                         "met.specific_name");
+
+  m_target_def.add_field(FIELD_UDT_CATALOG, "UDT_CATALOG",
                          "cat.name" + m_target_def.fs_name_collation());
-  m_target_def.add_field(FIELD_TYPE_SCHEMA, "TYPE_SCHEMA",
+  m_target_def.add_field(FIELD_UDT_SCHEMA, "UDT_SCHEMA",
                          "sch.name" + m_target_def.fs_name_collation());
-  m_target_def.add_field(FIELD_TYPE_NAME, "TYPE_NAME",
+  m_target_def.add_field(FIELD_UDT_NAME, "UDT_NAME",
                          "typ.name" + m_target_def.fs_name_collation());
 
   m_target_def.add_field(FIELD_METHOD_NAME, "METHOD_NAME", "met.name");
+
+  m_target_def.add_field(FIELD_IS_STATIC, "IS_STATIC", "met.is_static");
+  m_target_def.add_field(FIELD_IS_OVERRIDING, "IS_OVERRIDING",
+                         "met.is_overriding");
+  m_target_def.add_field(FIELD_IS_CONSTRUCTOR, "IS_CONSTRUCTOR",
+                         "met.is_constructor");
+
+  m_target_def.add_field(FIELD_CHARACTER_MAXIMUM_LENGTH,
+                         "CHARACTER_MAXIMUM_LENGTH", "met.char_max_length");
+  m_target_def.add_field(FIELD_CHARACTER_OCTET_LENGTH, "CHARACTER_OCTET_LENGTH",
+                         "met.char_octet_length");
+  m_target_def.add_field(
+      FIELD_NUMERIC_PRECISION, "NUMERIC_PRECISION",
+      "IF (met.numeric_precision = 0, NULL, met.numeric_precision)");
+  m_target_def.add_field(
+      FIELD_NUMERIC_SCALE, "NUMERIC_SCALE",
+      "IF (met.numeric_scale = 0 && met.numeric_precision = 0,"
+      "    NULL, met.numeric_scale)");
+  m_target_def.add_field(FIELD_DATETIME_PRECISION, "DATETIME_PRECISION",
+                         "met.datetime_precision");
+
+  m_target_def.add_field(FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
+                         "cs.name");
+  m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "coll.name");
 
   m_target_def.add_from("mysql.type_methods met");
   m_target_def.add_from("JOIN mysql.types typ ON met.type_id=typ.id");
   m_target_def.add_from("JOIN mysql.schemata sch ON typ.schema_id=sch.id");
   m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
+
+  m_target_def.add_from(
+      "LEFT JOIN mysql.collations coll "
+      "ON met.collation_id=coll.id");
+  m_target_def.add_from(
+      "LEFT JOIN mysql.character_sets cs "
+      "ON coll.character_set_id= cs.id");
 
   m_target_def.add_where("CAN_ACCESS_DATABASE(sch.name)");
 }
