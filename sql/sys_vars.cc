@@ -2834,23 +2834,48 @@ static Sys_var_ulonglong Sys_max_binlog_stmt_cache_size(
     BLOCK_SIZE(IO_SIZE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(nullptr),
     ON_UPDATE(fix_binlog_stmt_cache_size));
 
-static bool fix_max_binlog_size(sys_var *, THD *, enum_var_type) {
+/*
+  Relay log size to apply: max_relay_log_size, or max_binlog_size when it is
+  0. Stored under LOCK_global_system_variables, read under channel_map.
+*/
+static std::atomic<ulong> relay_log_max_size{0};
+
+/**
+  Apply the relay log size to the relay log of every channel.
+
+  LOCK_global_system_variables is released while channel_map is held, as in
+  fix_replica_net_timeout(): START REPLICA holds channel_map while the new
+  replica thread waits for LOCK_global_system_variables in its THD
+  constructor. The size is stored before the release and loaded after
+  channel_map is taken, so the last setter to take channel_map applies the
+  latest size.
+*/
+static void update_relay_log_max_sizes(THD *thd) {
+  mysql_mutex_assert_owner(&LOCK_global_system_variables);
+  relay_log_max_size =
+      max_relay_log_size ? max_relay_log_size : max_binlog_size;
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  DEBUG_SYNC(thd, "before_locking_channel_map_in_set_relay_log_size");
+  channel_map.wrlock();
+  const ulong size = relay_log_max_size;
+  for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
+       it++) {
+    Master_info *mi = it->second;
+    if (mi != nullptr) mi->rli->relay_log.set_max_size(size);
+  }
+  channel_map.unlock();
+
+  mysql_mutex_lock(&LOCK_global_system_variables);
+}
+
+static bool fix_max_binlog_size(sys_var *, THD *thd, enum_var_type) {
   mysql_bin_log.set_max_size(max_binlog_size);
   /*
     For multisource replication, this max size is set to all relay logs
     per channel. So, run through them
   */
-  if (!max_relay_log_size) {
-    Master_info *mi = nullptr;
-
-    channel_map.wrlock();
-    for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
-         it++) {
-      mi = it->second;
-      if (mi != nullptr) mi->rli->relay_log.set_max_size(max_binlog_size);
-    }
-    channel_map.unlock();
-  }
+  if (!max_relay_log_size) update_relay_log_max_sizes(thd);
   return false;
 }
 static Sys_var_ulong Sys_max_binlog_size(
@@ -2981,19 +3006,8 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
        schema. */
     sys_var::PARSE_EARLY);
 
-static bool fix_max_relay_log_size(sys_var *, THD *, enum_var_type) {
-  Master_info *mi = nullptr;
-
-  channel_map.wrlock();
-  for (mi_map::iterator it = channel_map.begin(); it != channel_map.end();
-       it++) {
-    mi = it->second;
-
-    if (mi != nullptr)
-      mi->rli->relay_log.set_max_size(max_relay_log_size ? max_relay_log_size
-                                                         : max_binlog_size);
-  }
-  channel_map.unlock();
+static bool fix_max_relay_log_size(sys_var *, THD *thd, enum_var_type) {
+  update_relay_log_max_sizes(thd);
   return false;
 }
 static Sys_var_ulong Sys_max_relay_log_size(
@@ -4306,6 +4320,20 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     return ret;
   }
 
+  /*
+    Do not wait for channel_map while holding LOCK_global_system_variables:
+    START REPLICA holds channel_map while the new replica thread waits for
+    LOCK_global_system_variables in its THD constructor. It is taken again
+    after all the locks below are released. Gtid_mode::lock still keeps a
+    concurrent SET GTID_MODE out.
+  */
+  // START REPLICA resets sql_replica_skip_counter under its own mutex only.
+  mysql_mutex_lock(&LOCK_sql_replica_skip_counter);
+  const uint skip_counter = sql_replica_skip_counter;
+  mysql_mutex_unlock(&LOCK_sql_replica_skip_counter);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
+  DEBUG_SYNC(thd, "before_locking_channel_map_in_set_gtid_mode");
+
   channel_map.wrlock();
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
   global_tsid_lock->wrlock();
@@ -4330,8 +4358,8 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     goto err;
   }
 
-  DBUG_PRINT("info", ("sql_replica_skip_counter=%d", sql_replica_skip_counter));
-  if (new_gtid_mode == Gtid_mode::ON && sql_replica_skip_counter > 0) {
+  DBUG_PRINT("info", ("sql_replica_skip_counter=%u", skip_counter));
+  if (new_gtid_mode == Gtid_mode::ON && skip_counter > 0) {
     push_warning(
         thd, Sql_condition::SL_WARNING,
         ER_SQL_REPLICA_SKIP_COUNTER_USED_WITH_GTID_MODE_ON,
@@ -4547,8 +4575,8 @@ bool Sys_var_gtid_mode::global_update(THD *thd, set_var *var) {
     goto err;
   }
 
-  // Update the mode
-  global_var(ulong) = new_gtid_mode;
+  // Update the mode. The variable storage is updated below, under
+  // LOCK_global_system_variables.
   global_gtid_mode.set(new_gtid_mode);
   global_tsid_lock->unlock();
   lock_count = 3;
@@ -4573,6 +4601,13 @@ err:
   mysql_mutex_unlock(mysql_bin_log.get_log_lock());
   channel_map.unlock();
   Gtid_mode::lock.unlock();
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  /*
+    Readers of @@GLOBAL.gtid_mode read this storage under
+    LOCK_global_system_variables. Copy the current mode rather than
+    new_gtid_mode: a later SET GTID_MODE may already have changed it.
+  */
+  global_var(ulong) = global_gtid_mode.get();
   return ret;
 }
 
