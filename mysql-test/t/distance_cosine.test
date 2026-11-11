@@ -1,0 +1,2 @@
+let $metric = COSINE;
+--source ../include/distance.inc

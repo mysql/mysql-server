@@ -1,0 +1,140 @@
+--echo #
+--echo # DISTANCE() and VECTOR_DISTANCE() in generated columns and functional
+--echo # indexes.
+--echo #
+--echo # VECTOR columns cannot be referenced by generated columns, functional
+--echo # indexes, DEFAULT expressions or CHECK constraints, so these tests store
+--echo # the vectors as binary strings of packed float32 values, which DISTANCE()
+--echo # also accepts.
+--echo #
+
+--echo #
+--echo # 0) A VECTOR column is rejected in every value generator.
+--echo #
+--error ER_INCORRECT_TYPE
+CREATE TABLE t1 (v VECTOR(2),
+                 d DOUBLE AS (DISTANCE(v, TO_VECTOR('[1, 0]'), 'DOT')));
+--error ER_INCORRECT_TYPE
+CREATE TABLE t1 (v VECTOR(2),
+                 INDEX i ((DISTANCE(v, TO_VECTOR('[1, 0]'), 'DOT'))));
+--error ER_INCORRECT_TYPE
+CREATE TABLE t1 (v VECTOR(2),
+                 CHECK (DISTANCE(v, TO_VECTOR('[1, 0]'), 'DOT') < 0));
+
+--echo #
+--echo # 1) Stored and virtual generated columns, indexes on them, and
+--echo #    functional indexes, one per metric.
+--echo #
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  v VARBINARY(16),
+  d_euclidean DOUBLE AS
+    (DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'EUCLIDEAN')) STORED,
+  d_cosine DOUBLE AS
+    (VECTOR_DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'COSINE')) VIRTUAL,
+  INDEX i_euclidean (d_euclidean),
+  INDEX i_cosine (d_cosine),
+  INDEX i_dot ((DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'DOT'))),
+  INDEX i_manhattan
+    ((VECTOR_DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'MANHATTAN'))));
+SHOW CREATE TABLE t1;
+
+--echo # Row 4 is the zero vector (COSINE is NULL), row 5 a NULL vector.
+INSERT INTO t1 (id, v) VALUES (1, TO_VECTOR('[1, 0, 0, 0]')),
+                              (2, TO_VECTOR('[0, 1, 0, 0]')),
+                              (3, TO_VECTOR('[2, 2, 0, 0]')),
+                              (4, TO_VECTOR('[0, 0, 0, 0]')),
+                              (5, NULL),
+                              (6, TO_VECTOR('[-1, 0, 0, 0]'));
+SELECT id, FROM_VECTOR(v), d_euclidean, d_cosine FROM t1 ORDER BY id;
+
+--echo # Stored values equal the values computed now.
+SELECT COUNT(*) FROM t1
+ WHERE NOT (d_euclidean <=> DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'EUCLIDEAN'))
+    OR NOT (d_cosine <=> DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'COSINE'));
+
+--echo #
+--echo # 2) The indexes are used, and give the same rows as a table scan.
+--echo #    The constant must be a DOUBLE (0e0, not 0) for the optimizer to
+--echo #    replace the expression with the indexed column.
+--echo #
+ANALYZE TABLE t1;
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1
+ WHERE DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'DOT') < 0e0;
+SELECT id FROM t1 FORCE INDEX (i_dot)
+ WHERE DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'DOT') < 0e0 ORDER BY id;
+SELECT id FROM t1 IGNORE INDEX (i_dot)
+ WHERE DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'DOT') < 0e0 ORDER BY id;
+
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1
+ WHERE VECTOR_DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'MANHATTAN') = 2e0;
+SELECT id FROM t1 FORCE INDEX (i_manhattan)
+ WHERE VECTOR_DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'MANHATTAN') = 2e0
+ ORDER BY id;
+
+--echo # k-NN through a functional index and an index on a generated column.
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 FORCE INDEX (i_dot)
+ ORDER BY DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'DOT') LIMIT 3;
+SELECT id FROM t1 FORCE INDEX (i_dot)
+ WHERE DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'DOT') IS NOT NULL
+ ORDER BY DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'DOT'), id LIMIT 3;
+--replace_column 10 # 11 #
+EXPLAIN SELECT id FROM t1 ORDER BY d_euclidean LIMIT 3;
+SELECT id, d_euclidean FROM t1 FORCE INDEX (i_euclidean)
+ ORDER BY d_euclidean, id LIMIT 3;
+SELECT id, d_cosine FROM t1 FORCE INDEX (i_cosine)
+ WHERE d_cosine IS NOT NULL ORDER BY d_cosine, id LIMIT 3;
+
+--echo #
+--echo # 3) UPDATE and DELETE maintain the indexes.
+--echo #
+UPDATE t1 SET v = TO_VECTOR('[0, 0, 3, 4]') WHERE id = 3;
+UPDATE t1 SET v = TO_VECTOR('[1, 1, 0, 0]') WHERE id = 5;
+DELETE FROM t1 WHERE id = 2;
+SELECT id, FROM_VECTOR(v), d_euclidean, d_cosine FROM t1 ORDER BY id;
+SELECT id FROM t1 FORCE INDEX (i_dot)
+ WHERE DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'DOT') <= -1e0 ORDER BY id;
+CHECK TABLE t1;
+
+--echo #
+--echo # 4) Adding a generated column and a functional index to a table that
+--echo #    already has rows.
+--echo #
+ALTER TABLE t1 ADD COLUMN d_squared DOUBLE AS
+  (DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'EUCLIDEAN_SQUARED')) STORED;
+ALTER TABLE t1 ADD INDEX i_squared
+  ((DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'EUCLIDEAN_SQUARED')));
+SELECT id, d_euclidean, d_squared FROM t1 ORDER BY id;
+SELECT id FROM t1 FORCE INDEX (i_squared)
+ WHERE DISTANCE(v, TO_VECTOR('[1, 0, 0, 0]'), 'EUCLIDEAN_SQUARED') = 4e0
+ ORDER BY id;
+CHECK TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # 5) Errors when the generated value is computed.
+--echo #
+CREATE TABLE t1 (v VARBINARY(8),
+                 d DOUBLE AS (DISTANCE(v, TO_VECTOR('[1, 0]'), 'DOT')) STORED);
+--echo # NaN element (X'0000C07F' is a float32 NaN).
+--error ER_DATA_OUT_OF_RANGE
+INSERT INTO t1 (v) VALUES (X'0000C07F0000803F');
+--echo # Dimension mismatch.
+--error ER_WRONG_ARGUMENTS
+INSERT INTO t1 (v) VALUES (TO_VECTOR('[1]'));
+--echo # Length is not a multiple of 4.
+--error ER_TO_VECTOR_CONVERSION
+INSERT INTO t1 (v) VALUES (X'0000803F00');
+SELECT COUNT(*) FROM t1;
+DROP TABLE t1;
+
+--echo # The metric must be a known string literal in generated columns too.
+CREATE TABLE t1 (v VARBINARY(8), m VARCHAR(10));
+--error ER_WRONG_ARGUMENTS
+ALTER TABLE t1 ADD COLUMN d DOUBLE AS (DISTANCE(v, v, m));
+--error ER_WRONG_ARGUMENTS
+ALTER TABLE t1 ADD COLUMN d DOUBLE AS (DISTANCE(v, v, 'HAMMING'));
+DROP TABLE t1;

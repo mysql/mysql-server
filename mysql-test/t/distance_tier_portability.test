@@ -1,0 +1,102 @@
+# ==== Purpose ====
+#
+# DISTANCE() values stored in generated columns and functional indexes must
+# stay valid when the server computes DISTANCE() with another SIMD tier, as
+# happens when a data directory moves to a machine with a different CPU.
+#
+# ==== Requirements ====
+#
+# R1. Stored generated column values written on one tier equal the values
+#     the other tier computes.
+# R2. Index lookups with values computed on the other tier find every row,
+#     for an index on a virtual generated column and for functional indexes.
+# R3. UPDATE and DELETE on the other tier find and maintain the index
+#     entries; CHECK TABLE reports no corruption.
+# R4. ER_VECTOR_DISTANCE_SIMD_DISPATCH names the tier in use.
+#
+# ==== Implementation ====
+#
+# Fill a table on the best tier for this CPU, restart with the debug keyword
+# vector_distance_force_scalar, which selects the scalar tier, and check
+# R1-R4. Then change the data on the scalar tier, restart on the best tier
+# and check again. On a CPU without SIMD support both runs use the scalar
+# tier and the test still passes.
+#
+# The vectors have 67 dimensions (four 16-lane blocks and a 3-element tail)
+# with magnitudes from 1e-3 to 1e3, so that a different summation order
+# would round differently.
+#
+--source include/have_debug.inc
+
+--echo #
+--echo # 1) Fill the table on the best tier for this CPU.
+--echo #
+SELECT data REGEXP '^For VECTOR_DISTANCE using (hardware accelerated (AVX-512F|AVX2|SSE4[.]2|NEON)|software scalar)[.]$' AS message_ok
+  FROM performance_schema.error_log
+ WHERE error_code = 'MY-016026' ORDER BY logged DESC LIMIT 1;
+
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  v VARBINARY(268),
+  w VARBINARY(268),
+  d_euclidean DOUBLE AS (DISTANCE(v, w, 'EUCLIDEAN')) STORED,
+  d_squared DOUBLE AS (DISTANCE(v, w, 'EUCLIDEAN_SQUARED')) STORED,
+  d_cosine DOUBLE AS (DISTANCE(v, w, 'COSINE')) VIRTUAL,
+  INDEX i_euclidean (d_euclidean),
+  INDEX i_cosine (d_cosine),
+  INDEX i_dot ((DISTANCE(v, w, 'DOT'))),
+  INDEX i_manhattan ((DISTANCE(v, w, 'MANHATTAN'))));
+
+SET SESSION group_concat_max_len = 65536;
+INSERT INTO t1 (id, v, w)
+  WITH RECURSIVE r (i) AS (SELECT 1 UNION ALL SELECT i + 1 FROM r WHERE i < 100),
+                 n (j) AS (SELECT 0 UNION ALL SELECT j + 1 FROM n WHERE j < 66)
+  SELECT i,
+         TO_VECTOR(CONCAT('[', GROUP_CONCAT(
+           ROUND(SIN(i * 67 + j) * POW(10, j % 7 - 3), 6) ORDER BY j), ']')),
+         TO_VECTOR(CONCAT('[', GROUP_CONCAT(
+           ROUND(COS(i * 31 + j * 7) * POW(10, (j + 3) % 7 - 3), 6) ORDER BY j), ']'))
+    FROM r, n GROUP BY i;
+SET SESSION group_concat_max_len = DEFAULT;
+SELECT COUNT(*), MIN(LENGTH(v)), MAX(LENGTH(w)) FROM t1;
+
+--source include/distance_tier_check.inc
+
+--echo #
+--echo # 2) Restart on the scalar tier.
+--echo #
+--let $restart_parameters = restart: --debug=+d,vector_distance_force_scalar
+--source include/restart_mysqld.inc
+SELECT data FROM performance_schema.error_log
+ WHERE error_code = 'MY-016026' ORDER BY logged DESC LIMIT 1;
+
+--source include/distance_tier_check.inc
+
+--echo # Change the data on the scalar tier.
+CREATE TEMPORARY TABLE src SELECT id, v, w FROM t1;
+UPDATE t1 JOIN src ON src.id = t1.id + 1 SET t1.w = src.w WHERE t1.id % 2 = 0;
+UPDATE t1 SET w = v WHERE id % 5 = 0;
+DELETE FROM t1 WHERE id % 3 = 0;
+DROP TEMPORARY TABLE src;
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+--source include/distance_tier_check.inc
+
+--echo #
+--echo # 3) Restart on the best tier for this CPU.
+--echo #
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+SELECT data REGEXP '^For VECTOR_DISTANCE using (hardware accelerated (AVX-512F|AVX2|SSE4[.]2|NEON)|software scalar)[.]$' AS message_ok
+  FROM performance_schema.error_log
+ WHERE error_code = 'MY-016026' ORDER BY logged DESC LIMIT 1;
+
+--source include/distance_tier_check.inc
+
+UPDATE t1 SET v = w WHERE id % 7 = 0;
+DELETE FROM t1 WHERE id % 4 = 0;
+SELECT COUNT(*) FROM t1;
+CHECK TABLE t1;
+--source include/distance_tier_check.inc
+
+DROP TABLE t1;

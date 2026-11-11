@@ -1,0 +1,27 @@
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+CREATE TABLE t1 (id INT PRIMARY KEY, v VECTOR(2));
+CREATE TABLE t2 (id INT PRIMARY KEY, d DOUBLE);
+INSERT INTO t1 VALUES (1, TO_VECTOR('[1, 0]')), (2, TO_VECTOR('[0, 1]'));
+# R1
+INSERT INTO t2 SELECT id, DISTANCE(v, TO_VECTOR('[1, 1]'), 'EUCLIDEAN') FROM t1;
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+INSERT INTO t2 VALUES
+(3, VECTOR_DISTANCE(TO_VECTOR('[1, 1]'), TO_VECTOR('[2, 2]'), 'COSINE'));
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+UPDATE t2 JOIN t1 USING (id)
+SET t2.d = DISTANCE(t1.v, TO_VECTOR('[1, 1]'), 'DOT');
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+DELETE FROM t2
+WHERE d < DISTANCE(TO_VECTOR('[1, 1]'), TO_VECTOR('[1, 2]'), 'MANHATTAN');
+Warnings:
+Note	1592	Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT. Statement is unsafe because it uses a system function that may return a different value on the replica.
+# R2
+SELECT id, DISTANCE(v, TO_VECTOR('[1, 1]'), 'EUCLIDEAN_SQUARED') AS d
+FROM t1 ORDER BY d, id;
+id	d
+1	1
+2	1
+DROP TABLE t1, t2;
