@@ -1,0 +1,54 @@
+include/rpl/init_source_replica.inc [rpl_server_count=3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=1;
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+include/rpl/connect.inc [creating second_control]
+SET DEBUG_SYNC='before_start_failover_monitor SIGNAL first_ready WAIT_FOR launch_first';
+START REPLICA IO_THREAD FOR CHANNEL '';
+SET DEBUG_SYNC='now WAIT_FOR first_ready';
+SET DEBUG_SYNC='before_start_failover_monitor SIGNAL second_ready WAIT_FOR launch_second';
+START REPLICA IO_THREAD FOR CHANNEL 'second';
+include/rpl/connect.inc [creating monitor_control]
+SET DEBUG_SYNC='now WAIT_FOR second_ready';
+SET DEBUG_SYNC='now SIGNAL launch_first';
+SET DEBUG_SYNC='now SIGNAL launch_second';
+SELECT COUNT(*) FROM performance_schema.threads WHERE NAME='thread/sql/replica_monitor';
+COUNT(*)
+1
+SELECT COUNT(*) FROM performance_schema.replication_connection_status WHERE SERVICE_STATE='ON';
+COUNT(*)
+2
+STOP REPLICA IO_THREAD FOR CHANNEL 'second';
+STOP REPLICA IO_THREAD FOR CHANNEL '';
+#
+# START must not reuse a monitor that another channel is stopping.
+#
+START REPLICA IO_THREAD FOR CHANNEL '';
+SET DEBUG_SYNC='after_deciding_to_stop_failover_monitor SIGNAL stop_decided WAIT_FOR finish_stop';
+STOP REPLICA IO_THREAD FOR CHANNEL '';
+SET DEBUG_SYNC='now WAIT_FOR stop_decided';
+SET DEBUG_SYNC='before_start_failover_monitor SIGNAL restart_ready';
+START REPLICA IO_THREAD FOR CHANNEL 'second';
+SET DEBUG_SYNC='now WAIT_FOR restart_ready';
+SET DEBUG_SYNC='now SIGNAL finish_stop';
+SELECT COUNT(*) FROM performance_schema.threads WHERE NAME='thread/sql/replica_monitor';
+COUNT(*)
+1
+SELECT CHANNEL_NAME, SERVICE_STATE FROM performance_schema.replication_connection_status ORDER BY CHANNEL_NAME;
+CHANNEL_NAME	SERVICE_STATE
+	OFF
+second	ON
+STOP REPLICA IO_THREAD FOR CHANNEL 'second';
+RESET REPLICA ALL FOR CHANNEL 'second';
+CHANGE REPLICATION SOURCE TO SOURCE_CONNECTION_AUTO_FAILOVER=0;
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='RESET';
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

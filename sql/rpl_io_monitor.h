@@ -25,6 +25,7 @@
 #define RPL_IO_MONITOR_H
 
 #include <atomic>
+#include <mutex>
 #include <vector>
 
 #include "sql/rpl_async_conn_failover_table_operations.h"
@@ -145,7 +146,8 @@ class Source_IO_monitor {
   static Source_IO_monitor *get_instance();
 
   /**
-    Creates and launches new Monitor IO thread.
+    Creates and launches the shared Monitor IO thread, or reuses the running
+    monitor. Concurrent startup requests are idempotent.
 
     @param[in] thread_key  instrumentation key
 
@@ -156,9 +158,11 @@ class Source_IO_monitor {
   /**
     Terminate the Monitor IO thread.
 
+    @param only_if_last_channel Stop only if exactly one failover channel
+           remains running. The caller must hold a channel-map lock.
     @returns 0 in case of success, or 1 otherwise.
   */
-  int terminate_monitoring_process();
+  int terminate_monitoring_process(bool only_if_last_channel = false);
 
   /**
     Check if Monitor IO thread is killed.
@@ -238,6 +242,11 @@ class Source_IO_monitor {
   uint m_retry_monitor_wait{5};
 
   /* monitor IO thread lock for thread synchronization */
+  /*
+    Serializes lifecycle decisions across channels, including waits that
+    temporarily release m_run_lock. Acquire before m_run_lock.
+  */
+  std::mutex m_lifecycle_lock;
   mysql_mutex_t m_run_lock;
 
   /* monitor IO thread condition variable for thread wait. */

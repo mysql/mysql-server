@@ -1,0 +1,138 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/rpl/stop_replica.inc
+include/save_sysvars.inc [ "GLOBAL.replica_parallel_workers", "GLOBAL.sync_relay_log_info" ]
+SET GLOBAL replica_parallel_workers = 4;
+SET GLOBAL sync_relay_log_info = 1;
+Warnings:
+Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data INT) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 1);
+include/rpl/sync_to_replica.inc
+#
+# Test 1: STOP REPLICA cancels the worker repository retry
+#
+[connection slave]
+[connection master]
+INSERT INTO t1 VALUES (2, 2);
+[connection slave]
+# restart: --skip-replica-start=0 --innodb-lock-wait-timeout=1 --debug=d,wait_in_recv_rollback
+include/rpl/reconnect.inc
+include/rpl/connect.inc [creating rollback_control]
+include/save_error_log_position.inc
+STOP REPLICA SQL_THREAD;
+include/assert_error_log.inc [server: 2, pattern: Error reading replica worker configuration\nError creating applier metadata: Failed to create the worker metadata repository structure\nFailed during replica worker thread creation for channel ''\nFailed during replica workers initialization]
+START REPLICA;
+include/save_error_log_position.inc
+STOP REPLICA SQL_THREAD;
+include/assert_error_log.inc [server: 2, pattern: Error reading replica worker configuration\nError creating applier metadata: Failed to create the worker metadata repository structure\nFailed during replica worker thread creation for channel ''\nFailed during replica workers initialization]
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+SELECT * FROM t1 ORDER BY id;
+id	data
+1	1
+2	2
+#
+# Test 2: Server shutdown cancels the worker repository retry
+#
+[connection master]
+INSERT INTO t1 VALUES (3, 3);
+[connection slave]
+# restart: --skip-replica-start --innodb-lock-wait-timeout=1 --debug=d,wait_in_recv_rollback
+include/rpl/reconnect.inc
+START REPLICA;
+include/rpl/connect.inc [creating shutdown_control]
+SELECT COUNT(*) FROM information_schema.innodb_trx
+WHERE trx_state = 'ROLLING BACK';
+COUNT(*)
+1
+include/save_error_log_position.inc
+include/rpl/stop_server.inc [server_number=2]
+# restart: --skip-replica-start --innodb-lock-wait-timeout=1
+include/rpl/reconnect.inc
+include/assert_error_log.inc [server: 2, pattern: Error reading replica worker configuration\nError creating applier metadata: Failed to create the worker metadata repository structure\nFailed during replica worker thread creation for channel ''\nFailed during replica workers initialization\nError writing source configuration]
+[connection slave]
+include/rpl/start_replica.inc
+include/rpl/wait_for_replica_to_start.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+SELECT * FROM t1 ORDER BY id;
+id	data
+1	1
+2	2
+3	3
+#
+# Test 3: Worker initialization succeeds after recovery rollback
+#
+[connection slave]
+[connection master]
+INSERT INTO t1 VALUES (4, 4);
+[connection slave]
+# restart: --skip-replica-start --innodb-lock-wait-timeout=1 --innodb-rollback-on-timeout=ON --debug=d,wait_in_recv_rollback
+include/rpl/reconnect.inc
+START REPLICA;
+include/rpl/connect.inc [creating recovery_control]
+include/rpl/wait_for_replica_to_start.inc
+[connection master]
+INSERT INTO t1 VALUES (5, 5);
+include/rpl/sync_to_replica.inc
+[connection slave]
+SELECT * FROM t1 ORDER BY id;
+id	data
+1	1
+2	2
+3	3
+4	4
+5	5
+SET GLOBAL init_replica = '';
+#
+# Test 4: Automatic file-position gap recovery does not block startup
+#
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_AUTO_POSITION = 0;
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (6, 6);
+include/rpl/sync_to_replica.inc
+[connection slave]
+[connection master]
+INSERT INTO t1 VALUES (7, 7);
+[connection slave]
+# restart: --skip-replica-start=0 --innodb-lock-wait-timeout=1 --debug=d,wait_in_recv_rollback,sync_worker_info_lock_wait_timeout
+include/rpl/reconnect.inc
+include/rpl/connect.inc [creating gap_recovery_control]
+[connection master]
+INSERT INTO t1 VALUES (8, 8);
+include/rpl/sync_to_replica.inc
+[connection slave]
+SELECT * FROM t1 ORDER BY id;
+id	data
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+8	8
+#
+# Cleanup
+#
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/stop_replica.inc
+include/restore_sysvars.inc
+Warnings:
+Warning	1287	'@@sync_relay_log_info' is deprecated and will be removed in a future release.
+include/rpl/deinit.inc

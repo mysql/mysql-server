@@ -51,7 +51,8 @@ class Rpl_info_table_access : public System_table_access {
   void before_open(THD *thd) override;
   bool close_table(THD *thd, TABLE *table, Open_tables_backup *backup,
                    bool error);
-  enum enum_return_id find_info(Rpl_info_values *field_values, TABLE *table);
+  enum enum_return_id find_info(Rpl_info_values *field_values, TABLE *table,
+                                int *handler_error = nullptr);
   enum enum_return_id scan_info(TABLE *table, uint instance);
   std::pair<bool, bool> is_table_in_use(TABLE *table);
   bool count_info(TABLE *table, ulonglong *counter);

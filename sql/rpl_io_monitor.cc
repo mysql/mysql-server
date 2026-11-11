@@ -28,6 +28,7 @@
 
 #include "sql-common/json_dom.h"
 #include "sql/changestreams/apply/replication_thread_status.h"
+#include "sql/debug_sync.h"
 #include "sql/mysqld.h"
 #include "sql/mysqld_thd_manager.h"  // Global_THD_manager
 #include "sql/protocol_classic.h"
@@ -193,13 +194,17 @@ bool Source_IO_monitor::is_monitor_killed(THD *thd, Master_info *) {
 bool Source_IO_monitor::launch_monitoring_process(PSI_thread_key thread_key) {
   DBUG_TRACE;
 
+  std::lock_guard<std::mutex> lifecycle_guard(m_lifecycle_lock);
+
   mysql_mutex_lock(&m_run_lock);
 
-  // Callers should ensure the process is terminated
-  assert(!m_monitor_thd_state.is_thread_alive());
   if (m_monitor_thd_state.is_thread_alive()) {
+    /*
+      Concurrent channel starts reuse the shared monitor. The lifecycle lock
+      ensures that its startup has already completed.
+    */
     mysql_mutex_unlock(&m_run_lock);
-    return true;
+    return false;
   }
 
   if (mysql_thread_create(thread_key, &m_th, &connection_attrib,
@@ -1042,7 +1047,16 @@ Source_IO_monitor::get_senders_details(const std::string &channel_name) {
   return make_pair(error, failover_table_detail_list);
 }
 
-int Source_IO_monitor::terminate_monitoring_process() {
+int Source_IO_monitor::terminate_monitoring_process(bool only_if_last_channel) {
+  std::lock_guard<std::mutex> lifecycle_guard(m_lifecycle_lock);
+  if (only_if_last_channel &&
+      channel_map.get_number_of_connection_auto_failover_channels_running() !=
+          1)
+    return 0;
+
+  if (only_if_last_channel)
+    DEBUG_SYNC(current_thd, "after_deciding_to_stop_failover_monitor");
+
   mysql_mutex_lock(&m_run_lock);
 
   if (m_monitor_thd_state.is_thread_dead()) {

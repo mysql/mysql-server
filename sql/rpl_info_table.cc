@@ -111,6 +111,7 @@ int Rpl_info_table::do_init_info(uint instance) {
 
 int Rpl_info_table::do_init_info(enum_find_method method, uint instance) {
   int error = 1;
+  int handler_error = 0;
   enum enum_return_id res = FOUND_ID;
   TABLE *table = nullptr;
   sql_mode_t saved_mode;
@@ -140,7 +141,7 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance) {
   */
   switch (method) {
     case FIND_KEY:
-      res = access->find_info(field_values, table);
+      res = access->find_info(field_values, table, &handler_error);
       break;
 
     case FIND_SCAN:
@@ -160,12 +161,12 @@ int Rpl_info_table::do_init_info(enum_find_method method, uint instance) {
     if (access->load_info_values(get_number_info(), table->field, field_values))
       goto end;
   }
-  error = (res == ERROR_ID);
+  error = (res == ERROR_ID) ? (handler_error != 0 ? handler_error : 1) : 0;
 end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  error = access->close_table(thd, table, &backup, error) || error;
+  if (access->close_table(thd, table, &backup, error) && error == 0) error = 1;
   thd->variables.sql_mode = saved_mode;
   thd->variables.option_bits = saved_options;
   access->drop_thd(thd);
@@ -425,12 +426,20 @@ end:
 }
 
 enum_return_check Rpl_info_table::do_check_info() {
+  return do_check_info_with_error(nullptr);
+}
+
+enum_return_check Rpl_info_table::do_check_info_with_error(int *handler_error) {
   TABLE *table = nullptr;
   sql_mode_t saved_mode;
   Open_tables_backup backup;
   enum_return_check return_check = ERROR_CHECKING_REPOSITORY;
+  enum_return_id find_result = ERROR_ID;
+  int lookup_error = 0;
 
   DBUG_TRACE;
+
+  if (handler_error != nullptr) *handler_error = 0;
 
   THD *thd = access->create_thd();
   saved_mode = thd->variables.sql_mode;
@@ -452,7 +461,10 @@ enum_return_check Rpl_info_table::do_check_info() {
     Points the cursor at the row to be read according to the
     keys.
   */
-  if (access->find_info(field_values, table) != FOUND_ID) {
+  find_result = access->find_info(field_values, table, &lookup_error);
+  if (find_result != FOUND_ID) {
+    if (find_result == ERROR_ID && handler_error != nullptr)
+      *handler_error = lookup_error;
     /*
        We cannot simply call my_error here because it does not
        really means that there was a failure but only that the
@@ -467,8 +479,9 @@ end:
   /*
     Unlocks and closes the rpl_info table.
   */
-  access->close_table(thd, table, &backup,
-                      return_check == ERROR_CHECKING_REPOSITORY);
+  access->close_table(
+      thd, table, &backup,
+      return_check == ERROR_CHECKING_REPOSITORY || lookup_error != 0);
   thd->variables.sql_mode = saved_mode;
   access->drop_thd(thd);
   return return_check;

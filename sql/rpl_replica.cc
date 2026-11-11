@@ -786,7 +786,12 @@ bool start_slave_cmd(THD *thd) {
 
   DEBUG_SYNC(thd, "begin_start_replica");
 
-  channel_map.wrlock();
+  /*
+    START does not modify the channel map. Holding a read lock also lets a
+    concurrent STOP find the channel and announce its stop request while START
+    waits for the replication thread to finish initialization.
+  */
+  channel_map.rdlock();
 
   DEBUG_SYNC(thd, "after_locking_channel_map_in_start_replica");
 
@@ -1812,12 +1817,10 @@ int terminate_slave_threads(Master_info *mi, int thread_mask,
     Only stops the monitoring thread if this is the only failover channel
     running.
   */
-  if ((thread_mask & (SLAVE_MONITOR | SLAVE_FORCE_ALL)) &&
-      channel_map.get_number_of_connection_auto_failover_channels_running() ==
-          1) {
+  if (thread_mask & (SLAVE_MONITOR | SLAVE_FORCE_ALL)) {
     DBUG_PRINT("info", ("Terminating Monitor IO thread"));
     if ((error = Source_IO_monitor::get_instance()
-                     ->terminate_monitoring_process()) &&
+                     ->terminate_monitoring_process(true)) &&
         !force_all) {
       if (error == 1) {
         return ER_STOP_REPLICA_MONITOR_IO_THREAD_TIMEOUT;
@@ -2168,8 +2171,8 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
                                   &mi->slave_running, &mi->slave_run_id, mi);
 
   if (!is_error && (thread_mask & (REPLICA_IO | SLAVE_MONITOR)) &&
-      mi->is_source_connection_auto_failover() &&
-      !Source_IO_monitor::get_instance()->is_monitoring_process_running()) {
+      mi->is_source_connection_auto_failover()) {
+    DEBUG_SYNC(current_thd, "before_start_failover_monitor");
     is_error = Source_IO_monitor::get_instance()->launch_monitoring_process(
         key_thread_replica_monitor_io);
 
@@ -2179,20 +2182,9 @@ bool start_slave_threads(bool need_lock_slave, bool wait_for_start,
   }
 
   if (!is_error && (thread_mask & REPLICA_SQL)) {
-    /*
-      MTS-recovery gaps gathering is placed onto common execution path
-      for either START-SLAVE and --skip-start-replica= 0
-    */
-    if (mi->rli->recovery_parallel_workers != 0) {
-      if (mts_recovery_groups(mi->rli)) {
-        is_error = true;
-        my_error(ER_MTA_RECOVERY_FAILURE, MYF(0));
-      }
-    }
-    if (!is_error)
-      is_error = start_slave_thread(
-          key_thread_replica_sql, handle_slave_sql, lock_sql, lock_cond_sql,
-          cond_sql, &mi->rli->slave_running, &mi->rli->slave_run_id, mi);
+    is_error = start_slave_thread(
+        key_thread_replica_sql, handle_slave_sql, lock_sql, lock_cond_sql,
+        cond_sql, &mi->rli->slave_running, &mi->rli->slave_run_id, mi);
     if (is_error)
       terminate_slave_threads(mi, thread_mask & (REPLICA_IO | SLAVE_MONITOR),
                               rpl_stop_replica_timeout, need_lock_slave);
@@ -7269,6 +7261,18 @@ extern "C" void *handle_slave_sql(void *arg) {
         goto err;
       }
 
+      if (rli->recovery_parallel_workers != 0) {
+        const bool recovery_error = mts_recovery_groups(rli);
+        if (recovery_error) {
+          mysql_cond_broadcast(&rli->start_cond);
+          mysql_mutex_unlock(&rli->run_lock);
+          rli->report(ERROR_LEVEL, ER_REPLICA_FATAL_ERROR,
+                      ER_THD(thd, ER_REPLICA_FATAL_ERROR),
+                      "Failed during replica MTS gap recovery");
+          goto err;
+        }
+      }
+
       /* MTS: starting the worker pool */
       if (!rli->is_csa_enabled() &&
           slave_start_workers(rli, rli->get_applier_worker_count(),
@@ -9352,6 +9356,15 @@ int stop_slave(THD *thd, Master_info *mi, bool net_report, bool for_one_channel,
     return 1;
   }
 
+  const bool stops_sql_thread =
+      !thd->lex->replica_thd_opt || (thd->lex->replica_thd_opt & REPLICA_SQL);
+  if (stops_sql_thread) {
+    ++mi->rli->pending_stop_requests;
+  }
+  Scope_guard pending_stop_request_guard([&]() {
+    if (stops_sql_thread) --mi->rli->pending_stop_requests;
+  });
+
   mi->channel_wrlock();
 
   THD_STAGE_INFO(thd, stage_killing_replica);
@@ -10232,8 +10245,7 @@ static bool change_applier_receiver_options(THD *thd, LEX_SOURCE_INFO *lex_mi,
         If IO thread is running and the monitoring thread is not, start
         the monitoring thread.
       */
-      if (mi->slave_running &&
-          !Source_IO_monitor::get_instance()->is_monitoring_process_running()) {
+      if (mi->slave_running) {
         if (Source_IO_monitor::get_instance()->launch_monitoring_process(
                 key_thread_replica_monitor_io)) {
           my_error(ER_STARTING_REPLICA_MONITOR_IO_THREAD, MYF(0));

@@ -919,6 +919,13 @@ class Relay_log_info : public Rpl_info {
   // purge.
   std::atomic_bool is_receiver_waiting_for_rl_space;
 
+  /**
+    Number of STOP REPLICA commands waiting to stop the applier. This lets a
+    STOP command cancel applier startup before it can acquire the channel
+    administration lock.
+  */
+  std::atomic<uint> pending_stop_requests{0};
+
   // This is file to which coordinator moved after enforced purge
   // It is used by the receiver to check if all possible files were purged
   // before making a decision on whether transaction may fit into the

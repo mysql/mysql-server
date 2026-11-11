@@ -60,6 +60,7 @@
 #include "sql/binlog_reader.h"
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"
+#include "sql/handler.h"
 #include "sql/log.h"
 #include "sql/mdl.h"
 #include "sql/mysqld.h"  // key_mutex_slave_parallel_worker
@@ -421,12 +422,47 @@ int Slave_worker::rli_init_info(bool is_gaps_collecting_phase) {
     will be values to be read. Please, do not move this call after
     the handler->init_info().
   */
-  return_check = check_info();
-  if (return_check == ERROR_CHECKING_REPOSITORY ||
-      (return_check == REPOSITORY_DOES_NOT_EXIST && is_gaps_collecting_phase))
-    goto err;
+  /*
+    Worker metadata can also be initialized by a startup or client thread
+    before the coordinator exists. Use the caller THD in those paths and fall
+    back to the coordinator THD when the caller has none.
+  */
+  THD *thd = current_thd != nullptr ? current_thd : c_rli->info_thd;
+  while (true) {
+    int error = 0;
+    return_check = check_info(&error);
 
-  if (handler->init_info()) goto err;
+    if (error == 0) {
+      if (return_check == ERROR_CHECKING_REPOSITORY ||
+          (return_check == REPOSITORY_DOES_NOT_EXIST &&
+           is_gaps_collecting_phase))
+        goto err;
+      error = handler->init_info();
+    }
+    if (error == 0) break;
+
+    if (error != HA_ERR_LOCK_WAIT_TIMEOUT) goto err;
+    DBUG_EXECUTE_IF("sync_worker_info_lock_wait_timeout", {
+      if (thd != nullptr) {
+        const char action[] = "now SIGNAL worker_info_lock_wait_timeout";
+        debug_sync_set_action(thd, STRING_WITH_LEN(action));
+      }
+    });
+    if (c_rli->pending_stop_requests > 0 || connection_events_loop_aborted() ||
+        (thd != nullptr && thd->killed))
+      goto err;
+
+    if (thd != nullptr) {
+      /*
+        End the failed attempt's transaction and release its transaction
+        resources before retrying, even if only a statement rollback was
+        requested. Each retry starts a new transaction: future changes must
+        not depend on uncommitted work surviving across attempts.
+      */
+      if (ha_rollback_trans(thd, true)) goto err;
+      thd->clear_error();
+    }
+  }
 
   bitmap_init(&group_executed, nullptr, num_bits);
   bitmap_init(&group_shifted, nullptr, num_bits);

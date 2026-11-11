@@ -98,7 +98,9 @@ class Rpl_info : public Slave_reporting_capability {
   */
   Rpl_info_handler *get_rpl_info_handler() { return (handler); }
 
-  enum_return_check check_info() const { return (handler->check_info()); }
+  enum_return_check check_info(int *handler_error = nullptr) const {
+    return handler->check_info(handler_error);
+  }
 
   int remove_info() { return (handler->remove_info()); }
 
