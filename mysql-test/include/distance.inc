@@ -231,8 +231,9 @@ EXECUTE s1;
 EXECUTE s1;
 DEALLOCATE PREPARE s1;
 
+--echo # The metric cannot be a parameter marker.
 --error ER_WRONG_ARGUMENTS
-PREPARE stmt FROM 'SELECT DISTANCE(v1, TO_VECTOR("[2]"), "?") FROM t1 WHERE id = 4';
+PREPARE stmt FROM 'SELECT DISTANCE(v1, TO_VECTOR("[2]"), ?) FROM t1 WHERE id = 4';
 
 eval PREPARE stmt FROM 'SELECT DISTANCE(v1, TO_VECTOR(?), "$metric") FROM t1 WHERE id = 4';
 SET @met="[2]";

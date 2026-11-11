@@ -62,6 +62,11 @@
   precision of the float32 VECTOR type (e.g. 1e8 + 4 - 1e8 in one lane gives
   0 or 8, as in any float32 sum).
 
+  A float32 sum of exactly 0 is below kMinExactSum too, but it is usually a
+  true 0: a row compared with itself, or an all-zero vector.
+  zero_sum_is_exact() recognizes these from the bytes of the inputs and skips
+  the second pass, which would return the same bits.
+
   All kernels accept const char * and any byte alignment: loads use memcpy,
   which compiles to an unaligned load.
 
@@ -109,9 +114,12 @@
 #include "vector-common/vector_constants.h"  // max_dimensions
 
 // No fused multiply-add, see the file comment. GCC and Clang get
-// -ffp-contract=off from the build; MSVC before Visual Studio 2022 may
-// contract under /fp:precise and does not take that option.
-#if defined(_MSC_VER) && !defined(__clang__)
+// -ffp-contract=off from the build. Clang takes the pragma as well, which
+// also covers clang-cl, where the build does not add that option. MSVC before
+// Visual Studio 2022 may contract under /fp:precise.
+#if defined(__clang__)
+#pragma clang fp contract(off)
+#elif defined(_MSC_VER)
 #pragma fp_contract(off)
 #endif
 
@@ -225,6 +233,52 @@ inline bool needs_double(const double (&sum)[kSums<M>]) {
     // The result is the sum itself, so a tiny sum may be underflow (or an
     // orthogonal dot product, which the double pass returns exactly).
     return sum_out_of_range(sum[0]);
+  }
+}
+
+// True when the n floats at p are all +0.0, i.e. every byte is 0 (n > 0).
+// -0.0 does not count, which only costs the double pass.
+inline bool all_zero(const char *p, uint32_t n) {
+  uint32_t first;
+  memcpy(&first, p, sizeof(first));
+  // If the first float is 0 and every float equals the one before it, all
+  // are 0.
+  return first == 0 &&
+         memcmp(p, p + sizeof(float), (n - 1) * sizeof(float)) == 0;
+}
+
+// Called when needs_double() is true, with the float32 sums of the first
+// `blocks` elements (all the whole blocks).  A sum of exactly 0 is below
+// kMinExactSum, yet it is usually not underflow but a true 0: a row compared
+// with itself, or an all-zero vector.  Returns true when the inputs prove
+// that, in which case double_lanes_kernel() would return the same bits as
+// finish() on these sums, and the second pass can be skipped:
+// - Euclidean: the two block parts are byte-identical, so every difference is
+//   +0.0.  (Identical Inf or NaN elements give a NaN sum, not 0.)
+// - Dot: one block part is all +0.0, so every product is 0.  (0 * Inf is NaN,
+//   so a sum of 0 also means the other elements are finite.)
+// - Cosine: one whole vector (tail included) is all +0.0, so its norm is 0 in
+//   both passes, and the other norm sum is finite.  The result is then the
+//   zero-denominator sentinel, or NaN if the other vector has a non-finite
+//   tail element, whatever the other sums round to.  If only the block part
+//   is zero, the result depends on the other norm, which the two passes
+//   round differently, so the double pass must run.
+template <Metric M>
+inline bool zero_sum_is_exact([[maybe_unused]] const double (&sum)[kSums<M>],
+                              [[maybe_unused]] const char *a_raw,
+                              [[maybe_unused]] const char *b_raw,
+                              [[maybe_unused]] uint32_t blocks,
+                              [[maybe_unused]] uint32_t dims) {
+  if constexpr (M == Metric::Euclidean) {
+    return sum[0] == 0.0 && memcmp(a_raw, b_raw, blocks * sizeof(float)) == 0;
+  } else if constexpr (M == Metric::Dot) {
+    return sum[0] == 0.0 &&
+           (all_zero(a_raw, blocks) || all_zero(b_raw, blocks));
+  } else if constexpr (M == Metric::Cosine) {
+    return (sum[1] == 0.0 && std::isfinite(sum[2]) && all_zero(a_raw, dims)) ||
+           (sum[2] == 0.0 && std::isfinite(sum[1]) && all_zero(b_raw, dims));
+  } else {  // Manhattan falls back only for a non-finite sum
+    return false;
   }
 }
 
@@ -399,8 +453,10 @@ inline double lanes_kernel(const char *a_raw, const char *b_raw,
   double sum[kSums<M>] = {};
   if (i > 0) {
     reduce_lanes<L>(acc, sum);
-    if (needs_double<M>(sum)) [[unlikely]]
-      return double_lanes_kernel<L, M>(a_raw, b_raw, dims);
+    if (needs_double<M>(sum)) [[unlikely]] {
+      if (!zero_sum_is_exact<M>(sum, a_raw, b_raw, i, dims))
+        return double_lanes_kernel<L, M>(a_raw, b_raw, dims);
+    }
   }
   return finish<M>(sum, a_raw, b_raw, i, dims);
 }

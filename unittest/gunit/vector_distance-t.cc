@@ -559,6 +559,79 @@ TEST_P(VectorDistanceTierParityTest, NonFiniteIdenticalVectorsPerTier) {
       << "tier=" << tier_name(GetParam());
 }
 
+TEST_P(VectorDistanceTierParityTest, ExactZeroSumsPerTier) {
+  // A float32 block sum of exactly 0 is either a true 0 (a vector compared
+  // with itself, an all-zero vector), which the kernels recognize from the
+  // input bytes, or underflow, which they recompute in double.  Both must
+  // give the exact result.
+  for (uint32_t dims : {16u, 20u, 48u, 1536u, 16383u}) {
+    SCOPED_TRACE(std::string("tier=") + tier_name(GetParam()) +
+                 " dims=" + std::to_string(dims));
+    const uint32_t last = dims - 1;
+    std::vector<float> a(dims), z(dims, 0.0f);
+    // Squares are not exact in float32, so float32 and double sums differ.
+    for (uint32_t i = 0; i < dims; i++) a[i] = 1.0f + 0.1f * (i % 13);
+    a[last] = 1.5f;
+    const char *pa = (const char *)a.data();
+    const char *pz = (const char *)z.data();
+
+    // Identical vectors.
+    EXPECT_EQ(vector_distance_euclidean_squared(pa, pa, dims), 0.0);
+
+    // Identical except in the last element.
+    std::vector<float> b = a;
+    b[last] = 2.5f;
+    EXPECT_EQ(
+        vector_distance_euclidean_squared(pa, (const char *)b.data(), dims),
+        1.0);
+
+    // Not identical: the only difference is too small to square in float32.
+    std::vector<float> c = a, d = a;
+    c[3] = 1e-30f;
+    d[3] = 2e-30f;
+    const double diff = (double)d[3] - c[3];
+    EXPECT_DOUBLE_EQ(
+        vector_distance_euclidean_squared((const char *)c.data(),
+                                          (const char *)d.data(), dims),
+        diff * diff);
+
+    // An all-zero vector, in either position.
+    EXPECT_EQ(vector_distance_dot(pz, pa, dims), 0.0);
+    EXPECT_EQ(vector_distance_dot(pa, pz, dims), 0.0);
+    EXPECT_TRUE(std::isinf(vector_distance_cosine(pz, pa, dims)));
+    EXPECT_TRUE(std::isinf(vector_distance_cosine(pa, pz, dims)));
+    EXPECT_TRUE(std::isinf(vector_distance_cosine(pz, pz, dims)));
+
+    // An all-zero vector and one whose float32 norm overflows.
+    std::vector<float> huge(dims, 3e38f);
+    const char *ph = (const char *)huge.data();
+    EXPECT_TRUE(std::isinf(vector_distance_cosine(pz, ph, dims)));
+    EXPECT_EQ(vector_distance_dot(pz, ph, dims), 0.0);
+
+    // Zero except in the last element.  With dims % 16 != 0 that element is
+    // in the tail, so the float32 block sums are 0 although the vector is
+    // not: cosine must still use the other vector's norm in double.
+    std::vector<float> zt = z;
+    zt[last] = 2.0f;
+    const char *pzt = (const char *)zt.data();
+    EXPECT_EQ(vector_distance_dot(pzt, pa, dims), 2.0 * a[last]);
+    if (dims % 16 != 0) {
+      EXPECT_NEAR(vector_distance_cosine(pzt, pa, dims),
+                  ref_cosine(zt.data(), a.data(), dims), 1e-13);
+      EXPECT_NEAR(vector_distance_cosine(pa, pzt, dims),
+                  ref_cosine(a.data(), zt.data(), dims), 1e-13);
+    }
+
+    // Not zero: the only product is too small for float32.
+    std::vector<float> u = z, v = a;
+    u[3] = 1e-30f;
+    v[3] = 1e-30f;
+    EXPECT_DOUBLE_EQ(vector_distance_dot((const char *)u.data(),
+                                         (const char *)v.data(), dims),
+                     (double)u[3] * v[3]);
+  }
+}
+
 TEST_P(VectorDistanceTierParityTest, CosineRangePerTier) {
   // Rounding can put 1 - cos just below 0 for parallel vectors or above 2 for
   // anti-parallel ones; the result is clamped so ACOS(1 - d) stays defined.

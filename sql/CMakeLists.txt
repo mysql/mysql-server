@@ -673,9 +673,9 @@ SET(SQL_SHARED_SOURCES
 # results differ between SIMD tiers and so between machines. DISTANCE() values
 # can be stored in functional indexes and generated columns, and tables with
 # such objects must stay binary portable between machines.
-# MSVC does not know this option; vector_distance.cc disables contraction there
-# with #pragma fp_contract(off). clang-cl builds only the scalar tier for a
-# baseline x86-64 target, which has no fused multiply-add instruction.
+# MSVC does not know this option and clang-cl is not given it;
+# vector_distance.cc disables contraction for both with a pragma. The pragma
+# applies to every Clang build, GCC relies on this option alone.
 IF(MY_COMPILER_IS_GNU_OR_CLANG AND NOT WIN32_CLANG)
   ADD_COMPILE_FLAGS(
     ../vector-common/vector_distance.cc COMPILE_FLAGS -ffp-contract=off)

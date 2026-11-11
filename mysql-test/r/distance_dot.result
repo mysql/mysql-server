@@ -362,7 +362,8 @@ EXECUTE s1;
 DISTANCE(v1, TO_VECTOR("[2]"), "DOT")
 -4
 DEALLOCATE PREPARE s1;
-PREPARE stmt FROM 'SELECT DISTANCE(v1, TO_VECTOR("[2]"), "?") FROM t1 WHERE id = 4';
+# The metric cannot be a parameter marker.
+PREPARE stmt FROM 'SELECT DISTANCE(v1, TO_VECTOR("[2]"), ?) FROM t1 WHERE id = 4';
 ERROR HY000: Incorrect arguments to distance
 PREPARE stmt FROM 'SELECT DISTANCE(v1, TO_VECTOR(?), "DOT") FROM t1 WHERE id = 4';
 SET @met="[2]";
