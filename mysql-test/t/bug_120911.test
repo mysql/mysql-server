@@ -57,3 +57,43 @@ SET character_set_client=@save_character_set_client;
 SET character_set_results=@save_character_set_results;
 SET character_set_connection=@save_character_set_connection;
 SET collation_connection=@save_collation_connection;
+
+--echo #
+--echo # DISTINCT REAL sums preserve grouping-key condition pushdown.
+--echo #
+--source include/elide_costs.inc
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='derived_condition_pushdown=on';
+CREATE TABLE t1 (k INT, x DOUBLE);
+INSERT INTO t1 VALUES (1,1),(1,1),(1,2),(2,4),(2,4),(2,NULL),(3,NULL);
+
+# The filter must be below aggregation when the only REAL sum is DISTINCT.
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE
+SELECT * FROM (SELECT k, SUM(DISTINCT x) AS s FROM t1 GROUP BY k) AS d
+WHERE k>1;
+--sorted_result
+SELECT * FROM (SELECT k, SUM(DISTINCT x) AS s FROM t1 GROUP BY k) AS d
+WHERE k>1;
+
+# Also allow pushdown when the DISTINCT sum is only observed by HAVING.
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE
+SELECT * FROM (SELECT k FROM t1 GROUP BY k HAVING SUM(DISTINCT x)>0) AS d
+WHERE k>1;
+--sorted_result
+SELECT * FROM (SELECT k FROM t1 GROUP BY k HAVING SUM(DISTINCT x)>0) AS d
+WHERE k>1;
+
+# A non-DISTINCT REAL sum still needs protection in a mixed query.
+--replace_regex $elide_costs_and_rows
+EXPLAIN FORMAT=TREE
+SELECT * FROM
+  (SELECT k, SUM(x) AS s, SUM(DISTINCT x) AS ds FROM t1 GROUP BY k) AS d
+WHERE k>1;
+--sorted_result
+SELECT * FROM
+  (SELECT k, SUM(x) AS s, SUM(DISTINCT x) AS ds FROM t1 GROUP BY k) AS d
+WHERE k>1;
+DROP TABLE t1;
+SET optimizer_switch=@save_optimizer_switch;

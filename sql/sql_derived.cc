@@ -1382,14 +1382,15 @@ bool Condition_pushdown::push_past_group_by() {
   // group, but it can change the order in which its rows reach SUM. For a
   // REAL SUM, that can change the value exposed by the derived table (or
   // tested by its HAVING clause). Keep such predicates after aggregation.
+  // DISTINCT sums accumulate sorted distinct values, so their accumulation
+  // order is unaffected by grouping-key condition pushdown.
   const auto has_real_sum = [this](Item *item) {
     return WalkItem(item, enum_walk::PREFIX, [this](Item *inner_item) {
       if (inner_item->type() != Item::SUM_FUNC_ITEM) return false;
       const Item_sum *sum = down_cast<Item_sum *>(inner_item);
       return !sum->m_is_window_function &&
              sum->aggr_query_block == m_query_block &&
-             (sum->sum_func() == Item_sum::SUM_FUNC ||
-              sum->sum_func() == Item_sum::SUM_DISTINCT_FUNC) &&
+             sum->sum_func() == Item_sum::SUM_FUNC &&
              sum->result_type() == REAL_RESULT;
     });
   };

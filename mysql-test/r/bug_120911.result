@@ -71,3 +71,68 @@ SET character_set_client=@save_character_set_client;
 SET character_set_results=@save_character_set_results;
 SET character_set_connection=@save_character_set_connection;
 SET collation_connection=@save_collation_connection;
+#
+# DISTINCT REAL sums preserve grouping-key condition pushdown.
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='derived_condition_pushdown=on';
+CREATE TABLE t1 (k INT, x DOUBLE);
+INSERT INTO t1 VALUES (1,1),(1,1),(1,2),(2,4),(2,4),(2,NULL),(3,NULL);
+EXPLAIN FORMAT=TREE
+SELECT * FROM (SELECT k, SUM(DISTINCT x) AS s FROM t1 GROUP BY k) AS d
+WHERE k>1;
+EXPLAIN
+-> Table scan on d  (...)
+    -> Materialize  (...)
+        -> Group aggregate: sum(distinct t1.x)  (...)
+            -> Sort: t1.k  (...)
+                -> Filter: (t1.k > 1)  (...)
+                    -> Table scan on t1  (...)
+
+Warnings:
+Note	1003	/* select#1 */ select `d`.`k` AS `k`,`d`.`s` AS `s` from (/* select#2 */ select `test`.`t1`.`k` AS `k`,sum(distinct `test`.`t1`.`x`) AS `s` from `test`.`t1` where (`test`.`t1`.`k` > 1) group by `test`.`t1`.`k`) `d`
+SELECT * FROM (SELECT k, SUM(DISTINCT x) AS s FROM t1 GROUP BY k) AS d
+WHERE k>1;
+k	s
+2	4
+3	NULL
+EXPLAIN FORMAT=TREE
+SELECT * FROM (SELECT k FROM t1 GROUP BY k HAVING SUM(DISTINCT x)>0) AS d
+WHERE k>1;
+EXPLAIN
+-> Table scan on d  (...)
+    -> Materialize  (...)
+        -> Filter: (sum(distinct t1.x) > 0)  (...)
+            -> Group aggregate: sum(distinct t1.x)  (...)
+                -> Sort: t1.k  (...)
+                    -> Filter: (t1.k > 1)  (...)
+                        -> Table scan on t1  (...)
+
+Warnings:
+Note	1003	/* select#1 */ select `d`.`k` AS `k` from (/* select#2 */ select `test`.`t1`.`k` AS `k` from `test`.`t1` where (`test`.`t1`.`k` > 1) group by `test`.`t1`.`k` having (sum(distinct `test`.`t1`.`x`) > 0)) `d`
+SELECT * FROM (SELECT k FROM t1 GROUP BY k HAVING SUM(DISTINCT x)>0) AS d
+WHERE k>1;
+k
+2
+EXPLAIN FORMAT=TREE
+SELECT * FROM
+(SELECT k, SUM(x) AS s, SUM(DISTINCT x) AS ds FROM t1 GROUP BY k) AS d
+WHERE k>1;
+EXPLAIN
+-> Table scan on d  (...)
+    -> Materialize  (...)
+        -> Filter: (t1.k > 1)  (...)
+            -> Group aggregate: sum(t1.x), sum(distinct t1.x)  (...)
+                -> Sort: t1.k  (...)
+                    -> Table scan on t1  (...)
+
+Warnings:
+Note	1003	/* select#1 */ select `d`.`k` AS `k`,`d`.`s` AS `s`,`d`.`ds` AS `ds` from (/* select#2 */ select `test`.`t1`.`k` AS `k`,sum(`test`.`t1`.`x`) AS `s`,sum(distinct `test`.`t1`.`x`) AS `ds` from `test`.`t1` group by `test`.`t1`.`k` having (`test`.`t1`.`k` > 1)) `d`
+SELECT * FROM
+(SELECT k, SUM(x) AS s, SUM(DISTINCT x) AS ds FROM t1 GROUP BY k) AS d
+WHERE k>1;
+k	s	ds
+2	8	4
+3	NULL	NULL
+DROP TABLE t1;
+SET optimizer_switch=@save_optimizer_switch;
