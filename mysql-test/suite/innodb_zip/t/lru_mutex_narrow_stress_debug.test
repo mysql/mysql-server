@@ -19,9 +19,10 @@
 #    accepts it (io-fixed, not in the LRU list) without asserting.
 #
 # The workload keeps a compressed table with externally stored BLOBs
-# (read through buf_page_get_zip()) larger than the buffer pool, so that
-# unzip-LRU eviction, keep-zip frees, physical re-reads and buddy
-# alloc/free churn all run concurrently.
+# (read through buf_page_get_zip()) which does not stay cached in the buffer
+# pool (see the check of physical reads below), so that unzip-LRU eviction,
+# keep-zip frees, physical re-reads and buddy alloc/free churn all run
+# concurrently.
 
 --source include/have_debug.inc
 --source include/have_innodb_16k.inc
@@ -73,6 +74,16 @@ CALL populate_t1();
 SET autocommit = 1;
 --enable_query_log
 
+# The workload is meant to read pages from disk concurrently with the
+# evictions (each read goes through buf_page_init_for_read()). The data fits
+# in the buffer pool, but the page cleaner keeps evicting, because the free
+# list stays shorter than innodb_lru_scan_depth. Check that there are more
+# physical reads than BLOB pages, that is, evicted pages are read again, so
+# that this coverage cannot silently disappear.
+let $reads_before = `SELECT variable_value
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_buffer_pool_reads'`;
+
 # Two connections scanning the BLOB column (physical re-reads +
 # buf_page_get_zip() -> buf_block_try_discard_uncompressed()), one
 # connection updating (creates dirty compressed pages, so the keep-zip
@@ -99,6 +110,13 @@ SET autocommit = 1;
 --disconnect con_upd
 
 --connection default
+let $reads_after = `SELECT variable_value
+  FROM performance_schema.global_status
+  WHERE variable_name = 'Innodb_buffer_pool_reads'`;
+--let $assert_text = Evicted pages were read again during the concurrent phase
+--let $assert_cond = $reads_after - $reads_before > 2000
+--source include/assert.inc
+
 SELECT COUNT(*), MIN(LENGTH(c)) > 0 FROM t1;
 
 SET GLOBAL DEBUG="-d,buf_lru_free_page_delay_zip_reinsert,buf_page_init_for_read_delay_lru_add";

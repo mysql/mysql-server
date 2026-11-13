@@ -6,6 +6,7 @@ c LONGBLOB
 CALL scan_t1(6);
 CALL scan_t1(6);
 CALL update_t1(12);
+include/assert.inc [Evicted pages were read again during the concurrent phase]
 SELECT COUNT(*), MIN(LENGTH(c)) > 0 FROM t1;
 COUNT(*)	MIN(LENGTH(c)) > 0
 2000	1
