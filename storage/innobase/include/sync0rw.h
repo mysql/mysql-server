@@ -303,6 +303,11 @@ pass value == 0.
 @return true if locked */
 [[nodiscard]] bool rw_lock_own_flagged(const rw_lock_t *lock,
                                        rw_lock_flags_t flags);
+
+/** Asserts that the calling thread is allowed to request the given rw-lock
+in a way which may wait for it.
+@param[in]      lock    rw-lock */
+void rw_lock_assert_wait_allowed(const rw_lock_t *lock);
 #endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 /** Checks if somebody has locked the rw-lock in the specified mode.

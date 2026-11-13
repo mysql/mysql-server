@@ -270,6 +270,40 @@ rw_lock_t::~rw_lock_t() {
   ut_d(magic_n = 0);
 }
 
+#ifdef UNIV_DEBUG
+/** Asserts that the calling thread is allowed to request the given rw-lock
+in a way which may wait for it.
+
+This is the hook for latch-order rules which cannot be expressed through
+latch_level_t ordering and which constrain only acquisitions that may wait,
+not non-blocking ones (the rw_lock_*_nowait() variants never reach this, by
+design: an acquisition that never waits cannot participate in a deadlock
+cycle). It is called at the start of every blocking acquisition, whether it
+would actually have to wait or not, so that a violation is detected even if
+the lock happens to be free during testing.
+
+Currently there is one such rule, for the buffer block frame locks
+(buf_block_t::lock): a thread must not wait for a frame lock while
+holding any buffer pool LRU list mutex. buf_page_init_for_read() acquires
+buf_pool_t::LRU_list_mutex while holding the X-latch on the frame of the
+page being read in, so such a wait would form a deadlock cycle with that
+path. The rule cannot use latch levels because buf_block_t::lock is
+registered with SYNC_LEVEL_VARYING (B-tree page latching order genuinely
+varies), and LatchDebug ignores such latches entirely - both when they
+are acquired and when they are held. The code paths which do latch a
+frame under the LRU list mutex (flushing, and buf_page_create() on a
+block freshly taken from the free list) use the nowait variants, so they
+are exempt by construction.
+
+Note that this check is only effective when LatchDebug is enabled
+(--innodb-sync-debug); an actual deadlock occurrence is additionally caught
+by the sync array deadlock detector, which does track frame rw-locks. */
+void rw_lock_assert_wait_allowed(const rw_lock_t *lock) {
+  ut_ad(lock->get_id() != LATCH_ID_BUF_BLOCK_LOCK ||
+        sync_check_find(SYNC_BUF_LRU_LIST) == nullptr);
+}
+#endif /* UNIV_DEBUG */
+
 void rw_lock_s_lock_spin(rw_lock_t *lock, ulint pass, ut::Location location) {
   ulint i = 0; /* spin round count */
   sync_array_t *sync_arr;
@@ -578,6 +612,7 @@ void rw_lock_x_lock_func(rw_lock_t *lock, ulint pass, ut::Location location) {
 
   ut_ad(rw_lock_validate(lock));
   ut_ad(!rw_lock_own(lock, RW_LOCK_S));
+  ut_d(rw_lock_assert_wait_allowed(lock));
 
 lock_loop:
 
@@ -647,6 +682,7 @@ void rw_lock_sx_lock_func(rw_lock_t *lock, ulint pass, ut::Location location) {
 
   ut_ad(rw_lock_validate(lock));
   ut_ad(!rw_lock_own(lock, RW_LOCK_S));
+  ut_d(rw_lock_assert_wait_allowed(lock));
 
 lock_loop:
 

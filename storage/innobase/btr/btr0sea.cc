@@ -211,8 +211,8 @@ void btr_search_sys_t::search_part_t::initialize(size_t hash_size) {
   rw_lock_create(btr_search_latch_key, &latch, LATCH_ID_BTR_SEARCH);
 
   /* Step-2: Allocate hash tables. */
-  hash_table = ib_create((hash_size / btr_ahi_parts), LATCH_ID_HASH_TABLE_MUTEX,
-                         0, MEM_HEAP_FOR_BTR_SEARCH);
+  hash_table = ib_create((hash_size / btr_ahi_parts), LATCH_ID_NONE, 0,
+                         MEM_HEAP_FOR_BTR_SEARCH);
   hash_table->heap->free_block_ptr = &free_block_for_heap;
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -239,9 +239,8 @@ void btr_search_sys_resize(ulint hash_size) {
     mem_heap_free(part.hash_table->heap);
     ut::delete_(part.hash_table);
 
-    part.hash_table =
-        ib_create((hash_size / btr_ahi_parts), LATCH_ID_HASH_TABLE_MUTEX, 0,
-                  MEM_HEAP_FOR_BTR_SEARCH);
+    part.hash_table = ib_create((hash_size / btr_ahi_parts), LATCH_ID_NONE, 0,
+                                MEM_HEAP_FOR_BTR_SEARCH);
     part.hash_table->heap->free_block_ptr = &part.free_block_for_heap;
 
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
@@ -1932,15 +1931,11 @@ static bool btr_search_hash_table_validate(ulint part_id) {
       if (hash_block) {
         ut_a(hash_block == block);
       } else {
-        /* When a block is being freed,
-        buf_LRU_free_page() first
-        removes the block from
-        buf_pool->page_hash by calling
-        buf_LRU_block_remove_hashed_page().
-        After that, it invokes
-        buf_LRU_block_remove_hashed() to
-        remove the block from
-        btr_search_sys->hash_tables[i]. */
+        /* When a block is being freed, buf_LRU_free_page() first removes the
+        block from buf_pool->page_hash and sets it to BUF_BLOCK_REMOVE_HASH by
+        calling buf_LRU_block_remove_hashed(). After that, it removes the block
+        from btr_search_sys->parts[i] (the AHI) by calling
+        btr_search_drop_page_hash_index(). */
 
         ut_a(buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
       }

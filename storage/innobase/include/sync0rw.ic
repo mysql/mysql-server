@@ -287,6 +287,7 @@ static inline void rw_lock_s_lock_func(rw_lock_t *lock, ulint pass,
 
   ut_ad(!rw_lock_own(lock, RW_LOCK_S)); /* see NOTE above */
   ut_ad(!rw_lock_own(lock, RW_LOCK_X));
+  ut_d(rw_lock_assert_wait_allowed(lock));
 
   if (!rw_lock_s_lock_low(lock, pass, location)) {
     /* Did not succeed, try spin wait */

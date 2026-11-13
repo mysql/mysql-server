@@ -737,7 +737,6 @@ static PSI_mutex_info all_innodb_mutexes[] = {
     PSI_MUTEX_KEY(fts_optimize_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(fts_doc_id_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(fts_pll_tokenize_mutex, 0, 0, PSI_DOCUMENT_ME),
-    PSI_MUTEX_KEY(hash_table_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(ibuf_bitmap_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(ibuf_mutex, 0, 0, PSI_DOCUMENT_ME),
     PSI_MUTEX_KEY(ibuf_pessimistic_insert_mutex, 0, 0, PSI_DOCUMENT_ME),

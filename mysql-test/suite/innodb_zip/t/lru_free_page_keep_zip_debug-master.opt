@@ -1,0 +1,2 @@
+--performance-schema-instrument='wait/synch/sxlock/innodb/hash_table_locks=ON'
+--performance-schema-consumer-events-waits-current=ON

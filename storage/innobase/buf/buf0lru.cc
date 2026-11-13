@@ -135,7 +135,8 @@ the object will be freed.
 
 The caller must hold buf_pool->LRU_list_mutex, the buf_page_get_mutex() mutex
 and the appropriate hash_lock. This function will release the
-buf_page_get_mutex() and the hash_lock.
+buf_page_get_mutex() and the hash_lock (the latter is kept if keep_hash_lock
+is passed). The LRU_list_mutex is not released.
 
 If a compressed page is freed other compressed pages may be relocated.
 
@@ -146,13 +147,16 @@ If a compressed page is freed other compressed pages may be relocated.
                                 compressed page of an uncompressed page
 @param[in]      ignore_content  true if should ignore page content, since it
                                 could be not initialized
+@param[in]      keep_hash_lock  true if the hash cell X-latch should be kept
+                                by this function instead of being released;
+                                the caller must release it then
 @retval true if BUF_BLOCK_FILE_PAGE was removed from page_hash. The
 caller needs to free the page to the free list
 @retval false if BUF_BLOCK_ZIP_PAGE was removed from page_hash. In
 this case the block is already returned to the buddy allocator. */
-[[nodiscard]] static bool buf_LRU_block_remove_hashed(buf_page_t *bpage,
-                                                      bool zip,
-                                                      bool ignore_content);
+[[nodiscard]] static bool buf_LRU_block_remove_hashed(
+    buf_page_t *bpage, bool zip, bool ignore_content,
+    bool keep_hash_lock = false);
 
 /** Puts a file page whose has no hash index to the free list.
 @param[in,out] block            Must contain a file page and be in a state
@@ -958,15 +962,20 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
   auto block_mutex = buf_page_get_mutex(bpage);
   auto hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
 
-  ut_ad(bpage->in_LRU_list);
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
   ut_ad(mutex_own(block_mutex));
-  ut_ad(buf_page_in_file(bpage));
 
   if (!buf_page_can_relocate(bpage)) {
     /* Do not free buffer fixed and I/O-fixed blocks. */
     return (false);
   }
+
+  /* These assertions can only be checked after the io-fix check above, because
+  pages become visible in the page hash table before they are linked into the
+  LRU list (they are io-fixed for read until after they are linked into the LRU
+  list, so buf_page_can_relocate() has returned false for them). */
+  ut_ad(bpage->in_LRU_list);
+  ut_ad(buf_page_in_file(bpage));
 
 #ifdef UNIV_IBUF_COUNT_DEBUG
   ut_a(ibuf_count_get(bpage->id) == 0);
@@ -988,9 +997,19 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
     return (false);
 
   } else if (buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE) {
+    /* This holds because of the "else" keyword above, but we assert it for
+    clarity. */
+    ut_ad(!zip);
+    ut_ad(bpage->zip.data != nullptr);
     b = buf_page_alloc_descriptor();
     ut_a(b);
   }
+
+  const bool keep_compressed_page = b != nullptr;
+
+  /* Protect: buf_buddy_free must not be invoked in buf_LRU_block_remove_hashed,
+  when passing keep_hash_lock = true (keep_compressed_page is true). */
+  ut_ad(!keep_compressed_page || (!zip && bpage->zip.data != nullptr));
 
   ut_ad(buf_page_in_file(bpage));
   ut_ad(bpage->in_LRU_list);
@@ -1037,7 +1056,20 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
   ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
   ut_ad(buf_page_can_relocate(bpage));
 
-  if (!buf_LRU_block_remove_hashed(bpage, zip, false)) {
+  /* When the compressed page is to be kept (keep_compressed_page is true), ask
+  buf_LRU_block_remove_hashed() to keep the hash cell X-latch, so that it
+  is held continuously from before the HASH_DELETE until after the
+  compressed-only descriptor is re-inserted below: the page id is never
+  observably absent from the page hash. Otherwise a concurrent
+  buf_page_init_for_read() (which inserts into the page hash without
+  holding the LRU list mutex) could insert a second descriptor for this
+  page id in the meantime.
+
+  Protect: buf_buddy_free must not be invoked in buf_LRU_block_remove_hashed,
+  when passing keep_hash_lock = true (keep_compressed_page is true). */
+  ut_ad(!keep_compressed_page || (!zip && bpage->zip.data != nullptr));
+
+  if (!buf_LRU_block_remove_hashed(bpage, zip, false, keep_compressed_page)) {
     mutex_exit(&buf_pool->LRU_list_mutex);
 
     if (b != nullptr) {
@@ -1047,9 +1079,16 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
   }
   ut_ad(!mutex_own(block_mutex));
 
-  /* buf_LRU_block_remove_hashed() releases the hash_lock */
-  ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X) &&
-        !rw_lock_own(hash_lock, RW_LOCK_S));
+  /* buf_LRU_block_remove_hashed() releases the hash_lock, unless it was
+  asked to keep it for the re-insert of the compressed-only descriptor. */
+#ifdef UNIV_DEBUG
+  if (keep_compressed_page) {
+    ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
+  } else {
+    ut_ad(!rw_lock_own(hash_lock, RW_LOCK_X));
+    ut_ad(!rw_lock_own(hash_lock, RW_LOCK_S));
+  }
+#endif /* UNIV_DEBUG */
 
   /* We have just freed a BUF_BLOCK_FILE_PAGE. If b != nullptr
   then it was a compressed page with an uncompressed frame and
@@ -1058,10 +1097,26 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
   into the LRU and page_hash (and possibly flush_list).
   if b == nullptr then it was a regular page that has been freed */
 
+  /* Widen the window between the page hash delete and the re-insert of
+  the compressed-only descriptor. The hash cell X-latch is held here
+  (keep_hash_lock), so a concurrent buf_page_init_for_read() of this page
+  must block on the cell latch instead of inserting a second descriptor
+  for the same page id into the gap. */
+  DBUG_EXECUTE_IF(
+      "buf_lru_free_page_delay_zip_reinsert", if (keep_compressed_page) {
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+      });
+
   if (b != nullptr) {
     auto prev_b = UT_LIST_GET_PREV(LRU, b);
 
-    rw_lock_x_lock(hash_lock, UT_LOCATION_HERE);
+    DEBUG_SYNC_C("buf_lru_free_page_before_zip_reinsert");
+
+    /* The hash cell X-latch has been held continuously since before the
+    HASH_DELETE in buf_LRU_block_remove_hashed() (see keep_hash_lock),
+    which is what makes the assertion below provable: no other thread can
+    have inserted a descriptor for this page id in the meantime. */
+    ut_ad(rw_lock_own(hash_lock, RW_LOCK_X));
 
     mutex_enter(block_mutex);
 
@@ -1273,35 +1328,29 @@ void buf_LRU_block_free_non_file_page(buf_block_t *block) {
   }
 }
 
-/** Takes a block out of the LRU list and page hash table.
-If the block is compressed-only (BUF_BLOCK_ZIP_PAGE),
-the object will be freed.
-
-The caller must hold buf_pool->LRU_list_mutex, the buf_page_get_mutex() mutex
-and the appropriate hash_lock. This function will release the
-buf_page_get_mutex() and the hash_lock.
-
-If a compressed page is freed other compressed pages may be relocated.
-
-@param[in]      bpage           block, must contain a file page and
-                                be in a state where it can be freed; there
-                                may or may not be a hash index to the page
-@param[in]      zip             true if should remove also the
-                                compressed page of an uncompressed page
-@param[in]      ignore_content  true if should ignore page content, since it
-                                could be not initialized
-@retval true if BUF_BLOCK_FILE_PAGE was removed from page_hash. The
-caller needs to free the page to the free list
-@retval false if BUF_BLOCK_ZIP_PAGE was removed from page_hash. In
-this case the block is already returned to the buddy allocator. */
 static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
-                                        bool ignore_content) {
+                                        bool ignore_content,
+                                        bool keep_hash_lock) {
   const buf_page_t *hashed_bpage;
   buf_pool_t *buf_pool = buf_pool_from_bpage(bpage);
   rw_lock_t *hash_lock;
 
   ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
   ut_ad(mutex_own(buf_page_get_mutex(bpage)));
+
+  /* keep_hash_lock is only supported for the keep-zip path of
+  buf_LRU_free_page(). */
+  if (keep_hash_lock) {
+    /* We have the uncompressed frame, which we want to free... */
+    ut_ad_eq(buf_page_get_state(bpage), BUF_BLOCK_FILE_PAGE);
+    /* ...because we have a compressed image... */
+    ut_ad(bpage->zip.data != nullptr);
+    /* ...which we want to preserve (and later re-insert into the page hash).
+    In particular the buddy allocator must not be invoked while the hash cell
+    X-latch is kept (buf_buddy_free() may take page hash latches via
+    buf_buddy_relocate()), which is guaranteed by zip == false. */
+    ut_a(!zip);
+  }
 
   hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
 
@@ -1455,6 +1504,7 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
       mutex_exit(&buf_pool->zip_mutex);
+      ut_ad(!keep_hash_lock);
       rw_lock_x_unlock(hash_lock);
 
       buf_buddy_free(buf_pool, bpage->zip.data, bpage->size.physical());
@@ -1482,14 +1532,24 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
       avoid relocation during the scan. But that is not
       possible because we are holding LRU list mutex.
 
-      2) Not possible because in buf_page_init_for_read()
-      we do a look up of page_hash while holding LRU list
-      mutex and since we are holding LRU list mutex here
-      and by the time we'll release it in the caller we'd
-      have inserted the compressed only descriptor in the
-      page_hash. */
+      2) When a compressed-only descriptor will be re-inserted
+      for this page id (the keep-zip path of buf_LRU_free_page(),
+      keep_hash_lock == true), the hash cell X-latch is kept from
+      before the HASH_DELETE above until after the re-insert in the
+      caller, so the page id is never observably absent from the
+      page hash: a concurrent buf_page_init_for_read() blocks on
+      the hash cell latch and then finds the compressed-only
+      descriptor. (It cannot be the LRU list mutex which protects
+      this transition: buf_page_init_for_read() inserts into the
+      page hash without holding the LRU list mutex.)
+      When nothing will be re-inserted (keep_hash_lock == false),
+      the page is leaving the buffer pool for good and a concurrent
+      thread reading it from the disk afresh is the normal cache
+      miss path. */
       ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
-      rw_lock_x_unlock(hash_lock);
+      if (!keep_hash_lock) {
+        rw_lock_x_unlock(hash_lock);
+      }
       mutex_exit(&((buf_block_t *)bpage)->mutex);
 
       if (zip && bpage->zip.data) {

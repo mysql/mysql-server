@@ -1,0 +1,18 @@
+CREATE TABLE t1 (id INT PRIMARY KEY, c CHAR(10)) ENGINE=InnoDB
+ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
+SET GLOBAL innodb_buffer_pool_evict = 'uncompressed';
+SELECT * FROM t1;
+id	c
+1	a
+2	b
+SET DEBUG_SYNC = 'buf_lru_free_page_before_zip_reinsert SIGNAL paused WAIT_FOR go';
+SET GLOBAL innodb_buffer_pool_evict = 'uncompressed';
+SET DEBUG_SYNC = 'now WAIT_FOR paused';
+SELECT * FROM t1;
+SET DEBUG_SYNC = 'now SIGNAL go';
+id	c
+1	a
+2	b
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
