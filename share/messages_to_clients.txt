@@ -11100,6 +11100,37 @@ ER_MRS_UDFS_REGISTER_ERROR
 ER_MRS_BACKEND_INIT_ERROR
   eng "Failed to initialize backend."
 
+## MARC: USER DEFINED TYPES poc
+
+ER_WARN_CODE_NOT_IMPLEMENTED
+  eng "The following code is not implemented: %s"
+
+ER_UDT_TYPE_EXISTS
+  eng "User defined type '%-.192s.%-.192s' already exists"
+
+ER_NO_SUCH_UDT_TYPE
+  eng "User defined type '%-.192s.%-.192s' does not exist"
+
+# Can not print db.type.method, too long for error messages.
+
+ER_UDT_METHOD_EXISTS
+  eng "User defined type method '%-.192s.%-.192s' already exists"
+
+ER_NO_SUCH_UDT_METHOD
+  eng "User defined type method '%-.192s.%-.192s' does not exist"
+
+ER_UDT_METHOD_NOT_STATIC
+  eng "User defined type method '%-.192s.%-.192s' is not static"
+
+ER_UDT_METHOD_NOT_DYNAMIC
+  eng "User defined type method '%-.192s.%-.192s' is not dynamic"
+
+ER_UDT_ORDERING_EXISTS
+  eng "User defined type '%-.192s.%-.192s' ordering already exists"
+
+ER_NO_SUCH_UDT_ORDERING
+  eng "User defined type '%-.192s.%-.192s' ordering does not exist"
+
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).
 #

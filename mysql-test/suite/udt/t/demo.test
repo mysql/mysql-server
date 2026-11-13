@@ -1,0 +1,69 @@
+
+# SET GLOBAL DEBUG="d,parser_debug";
+
+CREATE SCHEMA math;
+CREATE TYPE math.complex_number AS BINARY(16)
+  STATIC METHOD `from_string` ( TEXT )
+    RETURNS math.complex_number
+  STATIC METHOD `add` ( math.complex_number, math.complex_number )
+    RETURNS math.complex_number
+  STATIC METHOD `mul` ( math.complex_number, math.complex_number )
+    RETURNS math.complex_number
+    RETURN NULL ON NULL INPUT
+  INSTANCE METHOD `real` ()
+    RETURNS DOUBLE
+  INSTANCE METHOD `imaginary` ()
+    RETURNS DOUBLE
+  ;
+
+ALTER TYPE math.complex_number ADD
+  STATIC METHOD `sub` ( math.complex_number, math.complex_number )
+    RETURNS math.complex_number;
+
+SELECT * FROM INFORMATION_SCHEMA.USER_DEFINED_TYPES;
+
+SELECT * FROM INFORMATION_SCHEMA.METHOD_SPECIFICATIONS;
+
+ALTER TYPE math.complex_number ADD
+  STATIC METHOD `compare` ( math.complex_number, math.complex_number )
+    RETURNS INTEGER;
+
+CREATE ORDERING FOR math.complex_number
+  EQUALS ONLY BY
+  RELATIVE WITH
+  STATIC METHOD compare FOR math.complex_number
+  ;
+
+SELECT * FROM INFORMATION_SCHEMA.USER_DEFINED_TYPES;
+
+--error ER_NOT_SUPPORTED_YET
+DROP ORDERING FOR math.complex_number;
+
+--error ER_NOT_SUPPORTED_YET
+CREATE CAST ( DOUBLE AS math.complex_number ) WITH
+  STATIC METHOD from_double FOR math.complex_number
+  AS ASSIGNMENT
+  ;
+
+--error ER_NOT_SUPPORTED_YET
+DROP CAST ( DOUBLE AS math.complex_number );
+
+CREATE TABLE test.t1(a math.complex_number, b math.complex_number);
+
+INSTALL COMPONENT "file://component_udt_example";
+
+INSERT INTO test.t1 VALUES(
+  math.complex_number::from_string("1+2i"),
+  math.complex_number::from_string("3+4i"));
+
+SELECT math.complex_number::to_string(a), math.complex_number::to_string(b) from test.t1;
+# SELECT t1.a.to_string(), t1.b.to_string() from test.t1;
+
+SELECT math.complex_number::to_string(math.complex_number::`add`(a, b)) from test.t1;
+
+UNINSTALL COMPONENT "file://component_udt_example";
+
+DROP TABLE test.t1;
+DROP TYPE math.complex_number;
+DROP SCHEMA math;
+

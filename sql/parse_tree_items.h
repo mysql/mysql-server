@@ -237,7 +237,7 @@ class PTI_function_call_generic_ident_sys : public Parse_tree_item {
 };
 
 /**
-  Parse tree Item wrapper for 2-dimentional functional names (ex.: db.func_name)
+  Parse tree Item wrapper for 2-dimensional functional names (ex.: db.func_name)
 */
 class PTI_function_call_generic_2d : public Parse_tree_item {
   typedef Parse_tree_item super;
@@ -253,6 +253,74 @@ class PTI_function_call_generic_2d : public Parse_tree_item {
       : super(pos),
         db(db_arg),
         func(func_arg),
+        opt_expr_list(opt_expr_list_arg) {}
+
+  bool do_itemize(Parse_context *pc, Item **res) override;
+
+ protected:
+  void add_json_info(Json_object *obj) override;
+};
+
+/**
+  Parse tree Item wrapper for 3-dimensional functional names (ex.:
+  table.column.method)
+*/
+class PTI_function_call_generic_3d : public Parse_tree_item {
+  typedef Parse_tree_item super;
+
+  LEX_STRING table;
+  LEX_STRING column;
+  LEX_STRING method;
+  PT_item_list *opt_expr_list;
+
+ public:
+  PTI_function_call_generic_3d(const POS &pos, const LEX_STRING &table_arg,
+                               const LEX_STRING &column_arg,
+                               const LEX_STRING &method_arg,
+                               PT_item_list *opt_expr_list_arg)
+      : super(pos),
+        table(table_arg),
+        column(column_arg),
+        method(method_arg),
+        opt_expr_list(opt_expr_list_arg) {}
+
+  bool do_itemize(Parse_context *pc, Item **res) override;
+
+ protected:
+  void add_json_info(Json_object *obj) override;
+};
+
+/**
+  Parse tree Item wrapper for user defined types static methods
+  (ex.: db.type::method, type::method)
+*/
+class PTI_function_call_static_method : public Parse_tree_item {
+  typedef Parse_tree_item super;
+
+  // Optional.
+  LEX_STRING db;
+  LEX_STRING type;
+  LEX_STRING method;
+  PT_item_list *opt_expr_list;
+
+ public:
+  PTI_function_call_static_method(const POS &pos, const LEX_STRING &type_arg,
+                                  const LEX_STRING &method_arg,
+                                  PT_item_list *opt_expr_list_arg)
+      : super(pos),
+        db{},
+        type(type_arg),
+        method(method_arg),
+        opt_expr_list(opt_expr_list_arg) {}
+
+  PTI_function_call_static_method(const POS &pos, const LEX_STRING &db_arg,
+                                  const LEX_STRING &type_arg,
+                                  const LEX_STRING &method_arg,
+                                  PT_item_list *opt_expr_list_arg)
+      : super(pos),
+        db(db_arg),
+        type(type_arg),
+        method(method_arg),
         opt_expr_list(opt_expr_list_arg) {}
 
   bool do_itemize(Parse_context *pc, Item **res) override;

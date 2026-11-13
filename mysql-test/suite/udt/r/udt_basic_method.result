@@ -1,0 +1,57 @@
+SELECT test.no_such_type::no_such_method();
+ERROR HY000: User defined type method 'no_such_type.no_such_method' does not exist
+SELECT no_such_type::no_such_method(1,2);
+ERROR HY000: User defined type method 'no_such_type.no_such_method' does not exist
+CREATE SCHEMA math;
+CREATE TYPE test.usbn13 AS CHAR(13);
+Warnings:
+Warning	6924	The following code is not implemented: Sql_cmd_create_type::execute()
+CREATE TYPE math.complex_number AS BINARY(16);
+Warnings:
+Warning	6924	The following code is not implemented: Sql_cmd_create_type::execute()
+SELECT * FROM INFORMATION_SCHEMA.USER_DEFINED_TYPES
+ORDER BY USER_DEFINED_TYPE_SCHEMA, USER_DEFINED_TYPE_NAME;
+USER_DEFINED_TYPE_CATALOG	USER_DEFINED_TYPE_SCHEMA	USER_DEFINED_TYPE_NAME	USER_DEFINED_TYPE_CATEGORY	IS_INSTANTIABLE	IS_FINAL	ORDERING_FORM	ORDERING_CATEGORY	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME	COLLATION_NAME	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION
+def	math	complex_number	DISTINCT	0	0	NO_ORDER	NO_CATEGORY	16	16	binary	binary	NULL	NULL	0
+def	test	usbn13	DISTINCT	0	0	NO_ORDER	NO_CATEGORY	13	13	NULL	NULL	NULL	NULL	0
+INSTALL COMPONENT "file://component_udt_example";
+CREATE PROCEDURE test.complex()
+BEGIN
+DECLARE a math.complex_number;
+DECLARE b math.complex_number;
+DECLARE c math.complex_number;
+DECLARE s VARCHAR(80);
+SET a = math.complex_number::from_string("1+2i");
+SET b = math.complex_number::from_string("3+4i");
+SET c = math.complex_number::`add`(a, b);
+SET s = complex_number_to_string(c);
+SELECT s as "result";
+END$$
+Warnings:
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+call test.complex();
+result
+4.000000+6.000000i
+Warnings:
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: resolve_type_descriptor()
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+Warning	6924	The following code is not implemented: PTI_function_call_static_method::do_itemize()
+select foo.bar.baz() from INFORMATION_SCHEMA.USER_DEFINED_TYPES;
+ERROR 42S22: Unknown column 'foo.bar' in 'field list'
+UNINSTALL COMPONENT "file://component_udt_example";
+DROP PROCEDURE test.complex;
+DROP TYPE test.usbn13;
+Warnings:
+Warning	6924	The following code is not implemented: Sql_cmd_drop_type::execute()
+DROP TYPE math.complex_number;
+Warnings:
+Warning	6924	The following code is not implemented: Sql_cmd_drop_type::execute()
+DROP SCHEMA math;

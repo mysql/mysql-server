@@ -3315,13 +3315,147 @@ triggers=
        table_id=32
        trx_id=0
        space_id=1
-view_routine_usage=
+types=
   col0=table_id=33
   col1=table_id=33
+  col10=table_id=33
+  col11=table_id=33
+  col12=table_id=33
+  col13=table_id=33
+  col14=table_id=33
+  col15=table_id=33
   col2=table_id=33
   col3=table_id=33
   col4=table_id=33
   col5=table_id=33
+  col6=table_id=33
+  col7=table_id=33
+  col8=table_id=33
+  col9=table_id=33
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=char_length INT UNSIGNED
+            lbl=FIELD_CHAR_LENGTH
+            pos=5
+      elem1=def=collation_id BIGINT UNSIGNED
+            lbl=FIELD_COLLATION_ID
+            pos=9
+      elem10=def=numeric_precision INT UNSIGNED
+            lbl=FIELD_NUMERIC_PRECISION
+            pos=6
+      elem11=def=numeric_scale INT UNSIGNED
+            lbl=FIELD_NUMERIC_SCALE
+            pos=7
+      elem12=def=schema_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_SCHEMA_ID
+            pos=1
+      elem13=def=data_type ENUM(
+    'MYSQL_TYPE_DECIMAL', 'MYSQL_TYPE_TINY',
+    'MYSQL_TYPE_SHORT',  'MYSQL_TYPE_LONG',
+    'MYSQL_TYPE_FLOAT',  'MYSQL_TYPE_DOUBLE',
+    'MYSQL_TYPE_NULL', 'MYSQL_TYPE_TIMESTAMP',
+    'MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24',
+    'MYSQL_TYPE_DATE',   'MYSQL_TYPE_TIME',
+    'MYSQL_TYPE_DATETIME', 'MYSQL_TYPE_YEAR',
+    'MYSQL_TYPE_NEWDATE', 'MYSQL_TYPE_VARCHAR',
+    'MYSQL_TYPE_BIT', 'MYSQL_TYPE_TIMESTAMP2',
+    'MYSQL_TYPE_DATETIME2', 'MYSQL_TYPE_TIME2',
+    'MYSQL_TYPE_NEWDECIMAL', 'MYSQL_TYPE_ENUM',
+    'MYSQL_TYPE_SET', 'MYSQL_TYPE_TINY_BLOB',
+    'MYSQL_TYPE_MEDIUM_BLOB', 'MYSQL_TYPE_LONG_BLOB',
+    'MYSQL_TYPE_BLOB', 'MYSQL_TYPE_VAR_STRING',
+    'MYSQL_TYPE_STRING', 'MYSQL_TYPE_GEOMETRY',
+    'MYSQL_TYPE_JSON', 'MYSQL_TYPE_VECTOR' 
+  ) NOT NULL
+            lbl=FIELD_TYPE
+            pos=3
+      elem2=def=column_type_utf8 MEDIUMTEXT NOT NULL
+            lbl=FIELD_COLUMN_TYPE_UTF8
+            pos=10
+      elem3=def=created TIMESTAMP NOT NULL
+            lbl=FIELD_CREATED
+            pos=13
+      elem4=def=datetime_precision INT UNSIGNED
+            lbl=FIELD_DATETIME_PRECISION
+            pos=8
+      elem5=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem6=def=is_explicit_collation BOOL
+            lbl=FIELD_IS_EXPLICIT_COLLATION
+            pos=11
+      elem7=def=is_unsigned BOOL
+            lbl=FIELD_IS_UNSIGNED
+            pos=4
+      elem8=def=last_altered TIMESTAMP NOT NULL
+            lbl=FIELD_LAST_ALTERED
+            pos=12
+      elem9=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
+            lbl=FIELD_NAME
+            pos=2
+    foreign_keys=
+      elem0=def=FOREIGN KEY (collation_id) REFERENCES collations(id)
+            lbl=FK_COLLATIONS_ID
+            pos=1
+      elem1=def=FOREIGN KEY (schema_id) REFERENCES schemata(id)
+            lbl=FK_SCHEMA_ID
+            pos=0
+    indexes=
+      elem0=def=KEY(collation_id)
+            lbl=INDEX_K_COLLATION_ID
+            pos=2
+      elem1=def=PRIMARY KEY (id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem2=def=UNIQUE KEY (schema_id, name)
+            lbl=INDEX_UK_SCHEMA_ID_NAME
+            pos=1
+    name=types
+    options=
+      elem0=def=DEFAULT CHARSET=utf8mb3
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8mb3_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=33
+  idx0=id=99
+       root=104
+       space_id=4294967294
+       table_id=33
+       trx_id=0
+  idx1=id=100
+       root=105
+       space_id=4294967294
+       table_id=33
+       trx_id=0
+  idx2=id=101
+       root=106
+       space_id=4294967294
+       table_id=33
+       trx_id=0
+       space_id=1
+view_routine_usage=
+  col0=table_id=34
+  col1=table_id=34
+  col2=table_id=34
+  col3=table_id=34
+  col4=table_id=34
+  col5=table_id=34
   data=
   def=
     fields=
@@ -3368,25 +3502,25 @@ view_routine_usage=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=33
-  idx0=id=99
-       root=104
+  id=34
+  idx0=id=102
+       root=107
        space_id=4294967294
-       table_id=33
+       table_id=34
        trx_id=0
-  idx1=id=100
-       root=105
+  idx1=id=103
+       root=108
        space_id=4294967294
-       table_id=33
+       table_id=34
        trx_id=0
        space_id=1
 view_table_usage=
-  col0=table_id=34
-  col1=table_id=34
-  col2=table_id=34
-  col3=table_id=34
-  col4=table_id=34
-  col5=table_id=34
+  col0=table_id=35
+  col1=table_id=35
+  col2=table_id=35
+  col3=table_id=35
+  col4=table_id=35
+  col5=table_id=35
   data=
   def=
     fields=
@@ -3433,15 +3567,15 @@ view_table_usage=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=34
-  idx0=id=101
-       root=106
+  id=35
+  idx0=id=104
+       root=109
        space_id=4294967294
-       table_id=34
+       table_id=35
        trx_id=0
-  idx1=id=102
-       root=107
+  idx1=id=105
+       root=110
        space_id=4294967294
-       table_id=34
+       table_id=35
        trx_id=0
        space_id=1

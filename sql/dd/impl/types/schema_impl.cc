@@ -52,6 +52,7 @@
 #include "sql/dd/types/library.h"    // Library
 #include "sql/dd/types/procedure.h"  // Procedure
 #include "sql/dd/types/table.h"
+#include "sql/dd/types/udt_type.h"
 #include "sql/dd/types/view.h"  // View
 #include "sql/histograms/value_map.h"
 #include "sql/mdl.h"
@@ -327,6 +328,32 @@ View *Schema_impl::create_system_view(THD *thd [[maybe_unused]]) const {
   v->set_last_altered(ull_curtime);
 
   return v.release();
+}
+
+///////////////////////////////////////////////////////////////////////////
+
+UDT_Type *Schema_impl::create_udt_type(THD *thd) const {
+// Creating UDT_Type requires an IX meta data lock on the schema name.
+#ifndef NDEBUG
+  char name_buf[NAME_LEN + 1];
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::SCHEMA,
+      dd::Object_table_definition_impl::fs_name_case(name(), name_buf), "",
+      MDL_INTENTION_EXCLUSIVE));
+#endif
+
+  std::unique_ptr<UDT_Type> obj(dd::create_object<UDT_Type>());
+  obj->set_schema_id(this->id());
+
+  // Get statement start time.
+  ulonglong ull_curtime =
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs());
+
+  // Set new table start time.
+  obj->set_created(ull_curtime);
+  obj->set_last_altered(ull_curtime);
+
+  return obj.release();
 }
 
 ///////////////////////////////////////////////////////////////////////////

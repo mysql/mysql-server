@@ -124,6 +124,12 @@ and
 #define PROC_OP_ACLS (ALTER_PROC_ACL | EXECUTE_ACL)
 
 /**
+  Privileges to modify or use user defined types.
+  There is no USAGE_ACL, representing it with REFERENCES_ACL.
+*/
+#define UDT_OP_ACLS (CREATE_ACL | DROP_ACL | REFERENCES_ACL)
+
+/**
   Represents all privileges which could be granted to users at DB-level. It
   essentially represents all the privileges present in the mysql.db table.
 */
@@ -148,6 +154,8 @@ and
   mysql.procs_priv table.
 */
 #define PROC_ACLS (PROC_OP_ACLS | GRANT_ACL)
+
+#define UDT_ACLS (UDT_OP_ACLS | GRANT_ACL)
 
 /**
   Represents all privileges which are required to show the stored procedure.

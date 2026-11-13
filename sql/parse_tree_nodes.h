@@ -75,6 +75,9 @@
 #include "string_with_len.h"
 #include "thr_lock.h"
 
+#include "sql/method_call_option.h"
+#include "sql/null_call_option.h"
+
 class Item;
 class Item_cache;
 class Json_table_column;
@@ -6128,5 +6131,218 @@ PT_set_operation *flatten_equal_set_ops(MEM_ROOT *mem_root, const POS &pos,
         Class(pos, left, is_distinct, right, is_right_in_parentheses);
   }
 }
+
+// -- BEGIN POC
+
+class PT_alter_type_action;
+class PT_alter_type_add_method;
+class PT_alter_type_drop_method;
+
+class PT_type_add_method_def {
+ public:
+  PT_type_add_method_def(const LEX_STRING &method_name,
+                         enum_method_call_option option, PT_type *return_type,
+                         const LEX_STRING &method_specific_name)
+      : m_method_name(method_name),
+        m_method_specific_name(method_specific_name),
+        m_option(option),
+        m_return_type(return_type) {}
+
+  LEX_STRING m_method_name;
+  LEX_STRING m_method_specific_name;
+  enum_method_call_option m_option;
+  PT_type *m_return_type;
+};
+
+class PT_type_drop_method_def {
+ public:
+  PT_type_drop_method_def(const LEX_STRING &method_name)
+      : m_method_name(method_name) {}
+
+  LEX_STRING m_method_name;
+};
+
+class PT_create_type_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  PT_type *m_type;
+  Mem_root_array<PT_type_add_method_def *> *m_methods;
+  POS m_end_pos;
+
+ public:
+  PT_create_type_stmt(const POS &pos, Type_ident *type_name, PT_type *type,
+                      Mem_root_array<PT_type_add_method_def *> *methods,
+                      const POS &end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_type(type),
+        m_methods(methods),
+        m_end_pos(end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_alter_type_action_visitor {
+ public:
+  virtual void visit_add_method(PT_alter_type_add_method *action) = 0;
+  virtual void visit_drop_method(PT_alter_type_drop_method *action) = 0;
+};
+
+class PT_alter_type_action {
+  POS m_pos;
+  POS m_end_pos;
+
+ public:
+  PT_alter_type_action(const POS &pos, const POS &end_pos = POS())
+      : m_pos(pos), m_end_pos(end_pos) {}
+
+  virtual void accept(PT_alter_type_action_visitor &visitor) = 0;
+};
+
+class PT_alter_type_add_method : public PT_alter_type_action {
+  typedef PT_alter_type_action super;
+
+ public:
+  PT_alter_type_add_method(const POS &pos, PT_type_add_method_def *method_def)
+      : super(pos), m_method_def(method_def) {}
+
+  void accept(PT_alter_type_action_visitor &visitor) override {
+    visitor.visit_add_method(this);
+  }
+
+  PT_type_add_method_def *m_method_def;
+};
+
+class PT_alter_type_drop_method : public PT_alter_type_action {
+  typedef PT_alter_type_action super;
+
+ public:
+  PT_alter_type_drop_method(const POS &pos, PT_type_drop_method_def *method_def)
+      : super(pos), m_method_def(method_def) {}
+
+  void accept(PT_alter_type_action_visitor &visitor) override {
+    visitor.visit_drop_method(this);
+  }
+
+  PT_type_drop_method_def *m_method_def;
+};
+
+class PT_alter_type_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  PT_alter_type_action *m_action;
+  POS m_end_pos;
+
+ public:
+  PT_alter_type_stmt(const POS &pos, Type_ident *type_name,
+                     PT_alter_type_action *action, const POS &end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_action(action),
+        m_end_pos(end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_drop_type_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  bool m_if_exists;
+  POS m_columns_end_pos;
+
+ public:
+  PT_drop_type_stmt(const POS &pos, Type_ident *type_name, bool if_exists,
+                    const POS &columns_end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_if_exists(if_exists),
+        m_columns_end_pos(columns_end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_specific_method_designator {
+ public:
+  POS m_pos;
+  LEX_STRING m_method_name;
+  enum_method_call_option m_option;
+  Type_ident *m_type_name;
+  POS m_end_pos;
+
+ public:
+  PT_specific_method_designator(const POS &pos, const LEX_STRING &method_name,
+                                enum_method_call_option option,
+                                Type_ident *type_name,
+                                const POS &end_pos = POS())
+      : m_pos(pos),
+        m_method_name(method_name),
+        m_option(option),
+        m_type_name(type_name),
+        m_end_pos(end_pos) {}
+};
+
+class PT_create_cast_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  POS m_columns_end_pos;
+
+ public:
+  PT_create_cast_stmt(const POS &pos, Type_ident *type_name,
+                      const POS &columns_end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_columns_end_pos(columns_end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_drop_cast_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  POS m_columns_end_pos;
+
+ public:
+  PT_drop_cast_stmt(const POS &pos, Type_ident *type_name,
+                    const POS &columns_end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_columns_end_pos(columns_end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_create_ordering_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  enum_ordering_form m_ordering_form;
+  enum_ordering_category m_ordering_category;
+  PT_specific_method_designator *m_method_designator;
+  POS m_columns_end_pos;
+
+ public:
+  PT_create_ordering_stmt(const POS &pos, Type_ident *type_name,
+                          enum_ordering_form ordering_form,
+                          enum_ordering_category ordering_category,
+                          PT_specific_method_designator *method_designator,
+                          const POS &columns_end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_ordering_form(ordering_form),
+        m_ordering_category(ordering_category),
+        m_method_designator(method_designator),
+        m_columns_end_pos(columns_end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+class PT_drop_ordering_stmt : public Parse_tree_root {
+  Type_ident *m_type_name;
+  POS m_columns_end_pos;
+
+ public:
+  PT_drop_ordering_stmt(const POS &pos, Type_ident *type_name,
+                        const POS &columns_end_pos = POS())
+      : Parse_tree_root(pos),
+        m_type_name(type_name),
+        m_columns_end_pos(columns_end_pos) {}
+
+  Sql_cmd *make_cmd(THD *thd) override;
+};
+
+// -- END POC
 
 #endif /* PARSE_TREE_NODES_INCLUDED */

@@ -667,11 +667,28 @@ class PT_type : public Parse_tree_node {
  public:
   virtual ulong get_type_flags() const { return 0; }
   virtual const char *get_length() const { return nullptr; }
+  size_t get_length_as_size_t() const {
+    const char *length = get_length();
+    if (length == nullptr) {
+      return 0;
+    }
+    return atoi(length);
+  }
+
   virtual const char *get_dec() const { return nullptr; }
+  size_t get_dec_as_size_t() const {
+    const char *dec = get_dec();
+    if (dec == nullptr) {
+      return 0;
+    }
+    return atoi(dec);
+  }
+
   virtual const CHARSET_INFO *get_charset() const { return nullptr; }
   virtual uint get_uint_geom_type() const { return 0; }
   virtual List<String> *get_interval_list() const { return nullptr; }
   virtual bool is_serial_type() const { return false; }
+  virtual const Type_ident *get_type_ident() const { return nullptr; }
 };
 
 /**
@@ -1013,6 +1030,24 @@ class PT_json_type : public PT_type {
   const CHARSET_INFO *get_charset() const override { return &my_charset_bin; }
 };
 
+class PT_user_defined_type : public PT_type {
+  typedef PT_type super;
+
+ public:
+  explicit PT_user_defined_type(const POS &pos, Type_ident *ident)
+      : PT_type(pos, MYSQL_TYPE_INVALID), type_ident(ident) {}
+
+  const Type_ident *get_type_ident() const override { return type_ident; }
+
+  bool do_contextualize(Parse_context *pc) override {
+    if (super::do_contextualize(pc)) return true;
+    return false;
+  }
+
+ private:
+  Type_ident *type_ident;
+};
+
 /**
   Base class for both generated and regular column definitions
 
@@ -1023,6 +1058,7 @@ class PT_field_def_base : public Parse_tree_node {
   typedef decltype(Alter_info::flags) alter_info_flags_t;
 
  public:
+  const Type_ident *type_ident = nullptr;
   enum_field_types type = MYSQL_TYPE_INVALID;
   ulong type_flags = 0;
   const char *length = nullptr;
@@ -1055,6 +1091,7 @@ class PT_field_def_base : public Parse_tree_node {
       return true;
 
     type = type_node->type;
+    type_ident = type_node->get_type_ident();
     type_flags = type_node->get_type_flags();
     length = type_node->get_length();
     dec = type_node->get_dec();

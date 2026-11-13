@@ -2627,7 +2627,13 @@ end $$
 call test_signal $$
 drop procedure test_signal $$
 
--- error ER_PARSE_ERROR
+#
+# Without user defined types:
+#   DECLARE foo bar ... -> syntax error ER_PARSE_ERROR
+# With user defined types:
+#   DECLARE foo bar ...-> foo of type test.bar, ER_NO_SUCH_UDT_TYPE
+#
+-- error ER_PARSE_ERROR, ER_NO_SUCH_UDT_TYPE
 create procedure test_signal()
 begin
   DECLARE céèçà foo CONDITION FOR SQLSTATE '12345';

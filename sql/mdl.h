@@ -419,6 +419,7 @@ struct MDL_key {
     FOREIGN_KEY,
     CHECK_CONSTRAINT,
     LIBRARY,
+    UDT_TYPE,
     /* This should be the last ! */
     NAMESPACE_END
   };
