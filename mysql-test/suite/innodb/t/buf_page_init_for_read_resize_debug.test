@@ -18,6 +18,21 @@
 --source include/have_debug_sync.inc
 --source include/have_innodb_16k.inc
 
+# The -master.opt file keeps the buffer pool content deterministic:
+#
+# - The buffer pool dump at shutdown and load at startup are disabled. Both
+#   scenarios need a page read from disk after a restart, and a loaded dump
+#   could already contain that page, in which case the debug sync point in
+#   buf_page_init_for_read() is never reached.
+#
+# - innodb_lru_scan_depth is set to its minimum. The page cleaner evicts pages
+#   from the tail of the LRU list whenever the free list is shorter than
+#   innodb_lru_scan_depth, and the evicted blocks are put at the head of the
+#   free list. In the second scenario such a block would come from one of the
+#   first chunks, which the shrink keeps, so the page being read would not
+#   block the withdrawal. The buffer pool of the second scenario is sized so
+#   that about half of it stays free, far above the minimum.
+
 CREATE TABLE t1 (id INT PRIMARY KEY, c CHAR(200)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd');
 INSERT INTO t1 SELECT id + 4, c FROM t1;
@@ -30,7 +45,8 @@ INSERT INTO t1 SELECT id + 256, c FROM t1;
 INSERT INTO t1 SELECT id + 512, c FROM t1;
 INSERT INTO t1 SELECT id + 1024, c FROM t1;
 
-# About 17 MB of data, used to fill the buffer pool in the second scenario.
+# About 17 MB of data (close to 30 MB of pages in the buffer pool), used to
+# fill the first chunks of the buffer pool in the second scenario.
 CREATE TABLE t2 (id INT PRIMARY KEY, c CHAR(200)) ENGINE=InnoDB;
 INSERT INTO t2 SELECT id, c FROM t1;
 INSERT INTO t2 SELECT id + 2048, c FROM t2;
@@ -87,14 +103,16 @@ SET DEBUG_SYNC = 'RESET';
 --echo # hash but not yet on the LRU list.
 --echo #
 
---let $restart_parameters = restart: --innodb-buffer-pool-size=32M
+--let $restart_parameters = restart: --innodb-buffer-pool-size=64M
 --source include/restart_mysqld.inc
 --source include/count_sessions.inc
 
-# Open t1 and read its root page, then fill the buffer pool with t2. Free
-# blocks are taken from the head of the free list, which is ordered by chunk,
-# so the next page read gets a block from one of the last chunks, which the
-# shrink below withdraws.
+# Open t1 and read its root page, then fill the first half of the buffer pool
+# with t2. Free blocks are taken from the head of the free list, which is
+# ordered by chunk, so the next page read gets a block from one of the last
+# chunks, which the shrink below withdraws. This relies on no block being
+# returned to the head of the free list in the meantime (see the note on
+# innodb_lru_scan_depth at the top of this file).
 SELECT c FROM t1 WHERE id = 1;
 --disable_result_log
 SELECT SUM(LENGTH(c)) FROM t2;

@@ -37,7 +37,7 @@ SET DEBUG_SYNC = 'RESET';
 # Scenario 2: the buffer pool is shrunk while a page is in the page
 # hash but not yet on the LRU list.
 #
-# restart: --innodb-buffer-pool-size=32M
+# restart: --innodb-buffer-pool-size=64M
 SELECT c FROM t1 WHERE id = 1;
 c
 a

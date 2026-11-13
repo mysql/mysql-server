@@ -678,11 +678,6 @@ void buf_page_print(const byte *read_buf, const page_size_t &page_size,
 bool buf_zip_decompress(buf_block_t *block, /*!< in/out: block */
                         bool check); /*!< in: true=verify the page checksum */
 #ifndef UNIV_HOTBACKUP
-#ifdef UNIV_DEBUG
-/** Returns the number of latched pages in the buffer pool.
- @return number of latched pages */
-ulint buf_get_latched_pages_number(void);
-#endif /* UNIV_DEBUG */
 /** Returns the number of pending buf pool read ios.
  @return number of pending read I/O operations */
 ulint buf_get_n_pending_read_ios(void);

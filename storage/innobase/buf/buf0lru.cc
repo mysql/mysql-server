@@ -970,11 +970,10 @@ bool buf_LRU_free_page(buf_page_t *bpage, bool zip) {
     return (false);
   }
 
-  /* These assertions can only be checked after the io-fix check
-  above, because pages become visible in the page hash table before
-  they are linked into the LRU list (they are io-fixed for read
-  until after they are linked into the LRU list, so
-  buf_page_can_relocate() has returned false for them). */
+  /* These assertions can only be checked after the io-fix check above, because
+  pages become visible in the page hash table before they are linked into the
+  LRU list (they are io-fixed for read until after they are linked into the LRU
+  list, so buf_page_can_relocate() has returned false for them). */
   ut_ad(bpage->in_LRU_list);
   ut_ad(buf_page_in_file(bpage));
 
@@ -1340,14 +1339,18 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
   ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
   /* keep_hash_lock is only supported for the keep-zip path of
-  buf_LRU_free_page(): an uncompressed frame being freed while its
-  compressed page is kept and will be re-inserted into the page hash.
-  In particular the buddy allocator must not be invoked while the hash
-  cell X-latch is kept (buf_buddy_free() may take page hash latches via
-  buf_buddy_relocate()), which is guaranteed by zip == false. */
-  ut_ad(!keep_hash_lock ||
-        (!zip && buf_page_get_state(bpage) == BUF_BLOCK_FILE_PAGE &&
-         bpage->zip.data != nullptr));
+  buf_LRU_free_page(). */
+  if (keep_hash_lock) {
+    /* We have the uncompressed frame, which we want to free... */
+    ut_ad_eq(buf_page_get_state(bpage), BUF_BLOCK_FILE_PAGE);
+    /* ...because we have a compressed image... */
+    ut_ad(bpage->zip.data != nullptr);
+    /* ...which we want to preserve (and later re-insert into the page hash).
+    In particular the buddy allocator must not be invoked while the hash cell
+    X-latch is kept (buf_buddy_free() may take page hash latches via
+    buf_buddy_relocate()), which is guaranteed by zip == false. */
+    ut_a(!zip);
+  }
 
   hash_lock = buf_page_hash_lock_get(buf_pool, bpage->id);
 
@@ -1501,6 +1504,7 @@ static bool buf_LRU_block_remove_hashed(buf_page_t *bpage, bool zip,
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
 
       mutex_exit(&buf_pool->zip_mutex);
+      ut_ad(!keep_hash_lock);
       rw_lock_x_unlock(hash_lock);
 
       buf_buddy_free(buf_pool, bpage->zip.data, bpage->size.physical());
