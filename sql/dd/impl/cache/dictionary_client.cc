@@ -864,7 +864,8 @@ size_t Dictionary_client::release(Object_registry *registry) {
          release<Collation>(registry) + release<Event>(registry) +
          release<Resource_group>(registry) + release<Routine>(registry) +
          release<Spatial_reference_system>(registry) +
-         release<Column_statistics>(registry);
+         release<Column_statistics>(registry) + release<UDT_Type>(registry) +
+         release<UDT_Method>(registry);
 }
 
 // Initialize an instance with a default auto releaser.
@@ -2835,6 +2836,8 @@ void Dictionary_client::rollback_modified_objects() {
   remove_uncommitted_objects<Routine>(false);
   remove_uncommitted_objects<Spatial_reference_system>(false);
   remove_uncommitted_objects<Resource_group>(false);
+  remove_uncommitted_objects<UDT_Type>(false);
+  remove_uncommitted_objects<UDT_Method>(false);
 }
 
 void Dictionary_client::commit_modified_objects() {
@@ -2848,6 +2851,8 @@ void Dictionary_client::commit_modified_objects() {
   remove_uncommitted_objects<Routine>(true);
   remove_uncommitted_objects<Spatial_reference_system>(true);
   remove_uncommitted_objects<Resource_group>(true);
+  remove_uncommitted_objects<UDT_Type>(true);
+  remove_uncommitted_objects<UDT_Method>(true);
 }
 
 // Debug dump of the client and its registry to stderr.

@@ -24,6 +24,10 @@
 #ifndef SQL_METHOD_CALL_OPTION_H
 #define SQL_METHOD_CALL_OPTION_H
 
-enum enum_method_call_option { INSTANCE_METHOD, STATIC_METHOD, CONSTRUCTOR_METHOD };
+enum enum_method_call_option {
+  INSTANCE_METHOD = 1,
+  STATIC_METHOD = 2,
+  CONSTRUCTOR_METHOD = 3
+};
 
 #endif  // SQL_METHOD_CALL_OPTION_H

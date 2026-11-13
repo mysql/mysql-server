@@ -2036,6 +2036,7 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %type <drop_method_def> specific_method_specification_designator
 %type <add_method_def_list> method_specification_list opt_method_specification_list
 %type <specific_method_designator> specific_routine_designator
+%type <lexer.lex_str> opt_specific_method_name specific_method_name
 
 %type <top_level_node>
         alter_instance_stmt
@@ -3471,10 +3472,27 @@ method_specification:
 
 partial_method_specification:
           opt_method_kind METHOD_SYM IDENT_sys '(' opt_sql_parameter_declaration_list ')'
-          returns_clause
+          returns_clause opt_specific_method_name
           {
-            $$= NEW_PTN PT_type_add_method_def($3, $1, $7);
+            $$= NEW_PTN PT_type_add_method_def($3, $1, $7, $8);
           }
+        ;
+
+opt_specific_method_name:
+          %empty
+          {
+            $$.str= nullptr;
+            $$.length= 0;
+          }
+        | specific_method_name
+        ;
+
+specific_method_name:
+          SPECIFIC_SYM IDENT_sys
+          {
+            $$= $2;
+          }
+        /* | SPECIFIC_SYM IDENT_sys '.' IDENT_sys */
         ;
 
 opt_sql_parameter_declaration_list:

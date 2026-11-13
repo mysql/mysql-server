@@ -101,9 +101,20 @@ bool udt_method_exists(dd::cache::Dictionary_client *dc,
 #endif
 
 bool create_udt_method(THD *thd, const dd::UDT_Type &typ_obj,
-                       const dd::String_type &type_name) {
+                       enum_method_call_option method_call,
+                       const dd::String_type &method_name,
+                       const dd::String_type &method_specific_name) {
   std::unique_ptr<dd::UDT_Method> obj(typ_obj.create_udt_method(thd));
-  obj->set_name(type_name);
+
+  bool is_static = (method_call == enum_method_call_option::STATIC_METHOD);
+  bool is_constructor = (method_call == enum_method_call_option::CONSTRUCTOR_METHOD);
+
+  obj->set_is_static(is_static);
+  obj->set_is_overriding(false);
+  obj->set_is_constructor(is_constructor);
+  obj->set_name(method_name);
+  obj->set_specific_name(method_specific_name);
+
   return thd->dd_client()->store(obj.get());
 }
 

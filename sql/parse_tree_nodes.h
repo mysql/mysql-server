@@ -6141,12 +6141,15 @@ class PT_alter_type_drop_method;
 class PT_type_add_method_def {
  public:
   PT_type_add_method_def(const LEX_STRING &method_name,
-                         enum_method_call_option option, PT_type *return_type)
+                         enum_method_call_option option, PT_type *return_type,
+                         const LEX_STRING &method_specific_name)
       : m_method_name(method_name),
+        m_method_specific_name(method_specific_name),
         m_option(option),
         m_return_type(return_type) {}
 
   LEX_STRING m_method_name;
+  LEX_STRING m_method_specific_name;
   enum_method_call_option m_option;
   PT_type *m_return_type;
 };

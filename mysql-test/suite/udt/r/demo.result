@@ -22,12 +22,15 @@ USER_DEFINED_TYPE_CATALOG	USER_DEFINED_TYPE_SCHEMA	USER_DEFINED_TYPE_NAME	USER_D
 def	math	complex_number	DISTINCT	0	0	NO_ORDER	NO_CATEGORY	16	16	binary	binary	NULL	NULL	0
 SELECT * FROM INFORMATION_SCHEMA.METHOD_SPECIFICATIONS;
 SPECIFIC_NAME	UDT_CATALOG	UDT_SCHEMA	UDT_NAME	METHOD_NAME	IS_STATIC	IS_OVERRIDING	IS_CONSTRUCTOR	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME	COLLATION_NAME	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION
-	def	math	complex_number	add	0	0	0	0	0	NULL	NULL	NULL	NULL	NULL
-	def	math	complex_number	from_string	0	0	0	0	0	NULL	NULL	NULL	NULL	NULL
-	def	math	complex_number	imaginary	0	0	0	0	0	NULL	NULL	NULL	NULL	NULL
-	def	math	complex_number	mul	0	0	0	0	0	NULL	NULL	NULL	NULL	NULL
-	def	math	complex_number	real	0	0	0	0	0	NULL	NULL	NULL	NULL	NULL
-	def	math	complex_number	sub	0	0	0	0	0	NULL	NULL	NULL	NULL	NULL
+add	def	math	complex_number	add	1	0	0	0	0	NULL	NULL	NULL	NULL	NULL
+from_string	def	math	complex_number	from_string	1	0	0	0	0	NULL	NULL	NULL	NULL	NULL
+imaginary	def	math	complex_number	imaginary	0	0	0	0	0	NULL	NULL	NULL	NULL	NULL
+mul	def	math	complex_number	mul	1	0	0	0	0	NULL	NULL	NULL	NULL	NULL
+real	def	math	complex_number	real	0	0	0	0	0	NULL	NULL	NULL	NULL	NULL
+sub	def	math	complex_number	sub	1	0	0	0	0	NULL	NULL	NULL	NULL	NULL
+ALTER TYPE math.complex_number ADD
+STATIC METHOD `compare` ( math.complex_number, math.complex_number )
+RETURNS INTEGER;
 CREATE ORDERING FOR math.complex_number
 EQUALS ONLY BY
 RELATIVE WITH

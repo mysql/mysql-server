@@ -377,7 +377,7 @@ class Object_registry {
     return size<Abstract_table>() + size<Charset>() + size<Collation>() +
            size<Column_statistics>() + size<Event>() + size<Resource_group>() +
            size<Routine>() + size<Schema>() + size<Spatial_reference_system>() +
-           size<Tablespace>();
+           size<Tablespace>() + size<UDT_Type>() + size<UDT_Method>();
   }
 
   /**

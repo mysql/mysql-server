@@ -158,9 +158,17 @@ const dd::UDT_Method *Sql_cmd_ddl_type::acquire_dd_method(
 bool Sql_cmd_ddl_type::execute_add_method(
     THD *thd, const dd::UDT_Type *udt_type,
     const PT_type_add_method_def *method_def) {
+  enum_method_call_option call_option = method_def->m_option;
   dd::String_type method_name(method_def->m_method_name.str);
+  dd::String_type method_specific_name;
 
-  if (create_udt_method(thd, *udt_type, method_name)) {
+  if (method_def->m_method_specific_name.length != 0) {
+    method_specific_name = method_def->m_method_specific_name.str;
+  } else {
+    method_specific_name = method_def->m_method_name.str;
+  }
+
+  if (create_udt_method(thd, *udt_type, call_option, method_name, method_specific_name)) {
     return true;
   }
 
@@ -427,23 +435,34 @@ bool Sql_cmd_create_ordering::execute(THD *thd) {
     return true;
   }
 
-  dd::UDT_Type *udt = acquire_for_modification_dd_type(thd);
-  if (udt == nullptr) {
+  dd::UDT_Type *udt_type = acquire_for_modification_dd_type(thd);
+  if (udt_type == nullptr) {
     my_error(ER_NO_SUCH_UDT_TYPE, MYF(0), db_name, type_name);
     return true;
   }
 
   // CREATE ORDERING
 
-  if (udt->get_ordering_form() != enum_ordering_form::NO_ORDER) {
+  if (udt_type->get_ordering_form() != enum_ordering_form::NO_ORDER) {
     my_error(ER_UDT_ORDERING_EXISTS, MYF(0), db_name, type_name);
+    return true;
   }
 
-  udt->set_ordering_form(m_ordering_form);
-  udt->set_ordering_category(m_ordering_category);
+  // Find the ordering method
+  const char *method_name = m_method_name;
+
+  const dd::UDT_Method *udt_method =
+      acquire_dd_method(thd, udt_type, method_name);
+  if (udt_method == nullptr) {
+    my_error(ER_NO_SUCH_UDT_METHOD, MYF(0), type_name, method_name);
+    return true;
+  }
+
+  udt_type->set_ordering_form(m_ordering_form);
+  udt_type->set_ordering_category(m_ordering_category);
   // udt->set_ordering_method_id();
 
-  if (dc->update(udt)) {
+  if (dc->update(udt_type)) {
     return true;
   }
 
