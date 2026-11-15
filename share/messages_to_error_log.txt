@@ -13560,6 +13560,9 @@ ER_MRS_COMPONENT_WARNING
 ER_MRS_COMPONENT_ERROR
   eng "%s"
 
+ER_IB_MSG_PARENT_DIR_FLUSH_SKIPPED
+  eng "Cannot open volume root directory '%s' for flushing (error %lu); a directory entry may not survive a crash."
+
 #
 # End of "9.7 cal-ver compatibility lineage (starts from 26.7)" messages intended to be written to the server error log.
 #

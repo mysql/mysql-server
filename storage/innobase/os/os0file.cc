@@ -3806,6 +3806,10 @@ deletion, and similar directory altering operations.
 Windows counterpart of os_parent_dir_fsync_posix(): FlushFileBuffers()
 requires a handle opened with GENERIC_WRITE, and FILE_FLAG_BACKUP_SEMANTICS
 is what allows opening a directory.
+Windows has no uniform directory-handle access rule: opening a volume root
+directory for writing may be refused with ERROR_ACCESS_DENIED depending on
+the volume ACL, even for an account that can create files there. That single
+case is downgraded to a warning; every other failure stays fatal, as on POSIX.
 @param[in]      path            path of the file whose parent directory
                                 should be flushed */
 static void os_parent_dir_fsync_win(const char *path) {
@@ -3814,6 +3818,7 @@ static void os_parent_dir_fsync_win(const char *path) {
   auto parent_in_path = os_file_get_parent_dir(path);
   const char *parent_dir = parent_in_path;
   char root_dir_name[4];
+  bool parent_is_volume_root = false;
   if (parent_in_path == nullptr) {
     /* If there is no parent dir in the path, then the real parent is
     either the current directory, or a volume root directory. */
@@ -3826,6 +3831,7 @@ static void os_parent_dir_fsync_win(const char *path) {
       root_dir_name[2] = OS_PATH_SEPARATOR;
       root_dir_name[3] = '\0';
       parent_dir = root_dir_name;
+      parent_is_volume_root = true;
     } else {
       /* A file in the current directory. */
       static const char cur_dir_name[] = {FN_CURLIB, 0};
@@ -3839,7 +3845,28 @@ static void os_parent_dir_fsync_win(const char *path) {
                  FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
                  nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
 
-  ut_a(dir_handle != INVALID_HANDLE_VALUE);
+  if (dir_handle == INVALID_HANDLE_VALUE) {
+    const DWORD open_error = GetLastError();
+
+    /* A volume root may refuse a GENERIC_WRITE open depending on its ACL.
+    That is a Windows-specific access restriction, not an I/O failure, so
+    prefer availability over aborting the server: warn and continue without
+    the parent directory flush. */
+    if (parent_is_volume_root && open_error == ERROR_ACCESS_DENIED) {
+      ib::warn(ER_IB_MSG_PARENT_DIR_FLUSH_SKIPPED, parent_dir,
+               static_cast<ulong>(open_error));
+
+      if (parent_in_path != nullptr) {
+        ut::free(parent_in_path);
+      }
+
+      return;
+    }
+
+    /* Anything else -- missing parent directory, ACL problems on a regular
+    directory, ... -- is a real error. */
+    ut_a(dir_handle != INVALID_HANDLE_VALUE);
+  }
 
   if (parent_in_path != nullptr) {
     ut::free(parent_in_path);
