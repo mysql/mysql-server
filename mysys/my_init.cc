@@ -92,7 +92,7 @@ static void my_win_init();
 extern void my_main_thread_end();
 
 bool my_init_done = false;
-ulong my_thread_stack_size = 65536;
+alignas(64) ulong my_thread_stack_size = 65536;
 
 static ulong atoi_octal(const char *str) {
   long int tmp;
