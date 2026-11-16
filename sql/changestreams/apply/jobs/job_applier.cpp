@@ -149,11 +149,17 @@ bool Job_applier::attach(Thread_id thread_id) {
   }
   // secure a session only when needed, just before running
   ensure_session(thread_id);
+  auto *w_ctx = m_relay_context->get_parallel_worker_context();
   if (m_relay_context->get_session().is_killed()) {
     if (scheduler::current_dispatch_reason() ==
         scheduler::Dispatch_reason::unblocked) {
-      // Prepare has handed over. Take over the session, so that this task
-      // reports the failure and cleans up on an attached session.
+      // Prepare has handed over, but recovery may still own the THD.
+      // Wait without retrying before taking over failure handling.
+      if (w_ctx->is_rollback_requested()) {
+        w_ctx->wait_for_rollback();
+      }
+      // Take over the session, so that this task reports the failure and
+      // cleans up on an attached session.
       m_relay_context->attach_session();
       m_is_attached = true;
       scheduler::set_current_dispatch_reason(
@@ -162,7 +168,6 @@ bool Job_applier::attach(Thread_id thread_id) {
     return true;
   }
 
-  auto *w_ctx = m_relay_context->get_parallel_worker_context();
   if (m_phase == Transaction_phase::commit_binlog) {
     w_ctx->set_committing();
   }
@@ -445,7 +450,11 @@ bool Job_applier::run_phase(Thread_id thread_id) {
     m_relay_context->get_relay_log_info()->cleanup_context(thd, true);
     sync_rows_query_event_retention();
     thd->clear_error();
-    m_phase = Transaction_phase::done;
+    // Retire through the commit phase, like an already executed transaction.
+    // Early registration may still be using the session or its COM slot.
+    m_skip = true;
+    m_phase = Transaction_phase::commit_register;
+    return false;
   } else {
     if (!is_trx()) {
       m_phase = Transaction_phase::done;
