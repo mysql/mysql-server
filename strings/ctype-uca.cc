@@ -5184,8 +5184,14 @@ static size_t my_strnxfrmlen_uca_900(const CHARSET_INFO *cs, size_t len) {
 
     We also need to add room for one level separator between each level.
   */
-  // We really ought to have len % 4 == 0, but not all calling code conforms.
-  const size_t num_codepoints = (len + 3) / 4;
+  /*
+    The input length is given in bytes, but the characters with the most
+    weights (U+FDFA and U+FDFB, eight weights each) are three bytes in
+    UTF-8, not four. Using three bytes per code point keeps the estimate
+    pessimistic even when a caller passes the actual string length instead
+    of the mbmaxlen-padded length mandated by the strnxfrmlen contract.
+  */
+  const size_t num_codepoints = (len + 2) / 3;
   const size_t max_num_weights_per_level = num_codepoints * 8;
   size_t max_num_weights = max_num_weights_per_level * cs->levels_for_compare;
   if (cs->coll_param && cs->coll_param->reorder_param) {
