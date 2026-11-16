@@ -1,0 +1,62 @@
+###########################################################################
+# Same as show_binlog_events_end_pos, with binlog transaction compression #
+# enabled. T1 is written as a Transaction_payload event that embeds all   #
+# of its events.                                                          #
+#                                                                         #
+# Steps:                                                                  #
+#  1) Commit one transaction (T1) with several statements.                #
+#  2) Start SHOW BINLOG EVENTS in con1 and pause it right after it has    #
+#     captured end_pos, before it reads any event.                        #
+#  3) Commit more transactions (T2, T3) from the default connection.      #
+#  4) Resume SHOW BINLOG EVENTS. It must list T1 only, including every    #
+#     event embedded in its Transaction_payload. T2 and T3 were committed #
+#     after end_pos was captured and must not be returned.                #
+#                                                                         #
+# The test does not depend on the GTID mode: the Gtid / Anonymous_Gtid    #
+# event type is normalized to Gtid in the output.                         #
+###########################################################################
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+
+# Setup
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (i INT);
+
+# Only list events after the CREATE TABLE
+--let $binlog_file= query_get_value(SHOW BINARY LOG STATUS, File, 1)
+--let $start_pos= query_get_value(SHOW BINARY LOG STATUS, Position, 1)
+
+# Step 1: commit T1, a compressed transaction with several embedded events
+BEGIN;
+INSERT INTO t1 VALUES (1);
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+COMMIT;
+
+# Step 2: con1 starts SHOW BINLOG EVENTS and pauses after end_pos is read
+--connect (con1,localhost,root,,)
+SET DEBUG_SYNC = "after_show_binlog_event_found_file SIGNAL reached WAIT_FOR go";
+--disable_query_log
+--send_eval SHOW BINLOG EVENTS IN '$binlog_file' FROM $start_pos
+--enable_query_log
+
+# Step 3: commit T2 and T3 while SHOW BINLOG EVENTS is paused
+--connection default
+SET DEBUG_SYNC = "now WAIT_FOR reached";
+INSERT INTO t1 VALUES (4);
+INSERT INTO t1 VALUES (5);
+
+# Step 4: resume SHOW BINLOG EVENTS. Expected: the Gtid and
+# Transaction_payload events of T1, followed by its 8 embedded events
+SET DEBUG_SYNC = "now SIGNAL go";
+
+--connection con1
+--replace_column 1 # 2 # 5 # 6 #
+--replace_regex /Anonymous_Gtid/Gtid/ /table_id: [0-9]+/table_id: #/ /xid=[0-9]+/xid=#/
+--reap
+
+--connection default
+# Cleanup
+--disconnect con1
+SET DEBUG_SYNC = "RESET";
+DROP TABLE t1;
