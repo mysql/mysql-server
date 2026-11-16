@@ -58,17 +58,17 @@ Because User Data Types installed in a server are optional, users need to discov
 
 FR:
 
-A table INFORMATION_SCHEMA.TYPES is exposed by the server
+A table INFORMATION_SCHEMA.USER_DEFINED_TYPES is exposed by the server
 to list all available User Data Types.
 
 FR:
 
-A table INFORMATION_SCHEMA.TYPE_METHODS is exposed by the server
+A table INFORMATION_SCHEMA.METHOD_SPECIFICATIONS is exposed by the server
 to list all operations available for a given User Data Type.
 
 FR:
 
-A table INFORMATION_SCHEMA.TYPE_METHOD_PARAMETERS is exposed by the server
+A table INFORMATION_SCHEMA.METHOD_SPECIFICATION_PARAMETERS is exposed by the server
 to describe the full operation signature for a given operation on a given User Data Type.
 
 ### Type usage discoverability

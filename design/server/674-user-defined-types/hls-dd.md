@@ -134,31 +134,35 @@ TODO.
 
 ## INFORMATION_SCHEMA
 
-### View INFORMATION_SCHEMA.TYPES
+### View INFORMATION_SCHEMA.USER_DEFINED_TYPES
 
 This is a new view.
 
 ```sql
-mysql> describe INFORMATION_SCHEMA.TYPES;
-+--------------------------+-----------------+------+-----+---------+-------+
-| Field                    | Type            | Null | Key | Default | Extra |
-+--------------------------+-----------------+------+-----+---------+-------+
-| TYPE_CATALOG             | varchar(64)     | NO   |     | NULL    |       |
-| TYPE_SCHEMA              | varchar(64)     | NO   |     | NULL    |       |
-| TYPE_NAME                | varchar(64)     | NO   |     | NULL    |       |
-| DATA_TYPE                | longtext        | YES  |     | NULL    |       |
-| CHARACTER_MAXIMUM_LENGTH | bigint          | YES  |     | NULL    |       |
-| CHARACTER_OCTET_LENGTH   | bigint          | YES  |     | NULL    |       |
-| NUMERIC_PRECISION        | bigint unsigned | YES  |     | NULL    |       |
-| NUMERIC_SCALE            | bigint unsigned | YES  |     | NULL    |       |
-| DATETIME_PRECISION       | int unsigned    | YES  |     | NULL    |       |
-| CHARACTER_SET_NAME       | varchar(64)     | YES  |     | NULL    |       |
-| COLLATION_NAME           | varchar(64)     | YES  |     | NULL    |       |
-| COLUMN_TYPE              | mediumtext      | NO   |     | NULL    |       |
-+--------------------------+-----------------+------+-----+---------+-------+
+mysql> describe INFORMATION_SCHEMA.USER_DEFINED_TYPES;
++----------------------------+----------------------------------------------+------+-----+---------+-------+
+| Field                      | Type                                         | Null | Key | Default | Extra |
++----------------------------+----------------------------------------------+------+-----+---------+-------+
+| USER_DEFINED_TYPE_CATALOG  | varchar(64)                                  | NO   |     | NULL    |       |
+| USER_DEFINED_TYPE_SCHEMA   | varchar(64)                                  | NO   |     | NULL    |       |
+| USER_DEFINED_TYPE_NAME     | varchar(64)                                  | NO   |     | NULL    |       |
+| USER_DEFINED_TYPE_CATEGORY | enum('DISTINCT','STRUCTURED')                | NO   |     | NULL    |       |
+| IS_INSTANTIABLE            | tinyint(1)                                   | YES  |     | NULL    |       |
+| IS_FINAL                   | tinyint(1)                                   | YES  |     | NULL    |       |
+| ORDERING_FORM              | enum('NO_ORDER','EQUAL_ONLY','ORDER_FULL')   | NO   |     | NULL    |       |
+| ORDERING_CATEGORY          | enum('NO_CATEGORY','RELATIVE','MAP','STATE') | NO   |     | NULL    |       |
+| CHARACTER_MAXIMUM_LENGTH   | int unsigned                                 | YES  |     | NULL    |       |
+| CHARACTER_OCTET_LENGTH     | int unsigned                                 | YES  |     | NULL    |       |
+| CHARACTER_SET_NAME         | varchar(64)                                  | YES  |     | NULL    |       |
+| COLLATION_NAME             | varchar(64)                                  | YES  |     | NULL    |       |
+| NUMERIC_PRECISION          | bigint unsigned                              | YES  |     | NULL    |       |
+| NUMERIC_SCALE              | bigint unsigned                              | YES  |     | NULL    |       |
+| DATETIME_PRECISION         | int unsigned                                 | YES  |     | NULL    |       |
++----------------------------+----------------------------------------------+------+-----+---------+-------+
+15 rows in set (0.002 sec)
 ```
 
-View INFORMATION_SCHEMA.TYPES joins the following tables:
+View INFORMATION_SCHEMA.USER_DEFINED_TYPES joins the following tables:
 
 - TABLE mysql.types, for the type definitions
 - TABLE mysql.catalogs, for the catalogs definitions
@@ -172,8 +176,9 @@ This is an existing view.
 
 Add columns:
 
-- `TYPE_SCHEMA varchar(64)`
-- `TYPE_NAME varchar(64)`
+- `UDT_CATALOG`
+- `UDT_SCHEMA`
+- `UDT_NAME`
 
 to represent the user defined type used by a column, if any.
 
@@ -185,10 +190,39 @@ This is an existing view.
 
 Add columns:
 
-- `RESULT_TYPE_SCHEMA varchar(64)`
-- `RESULT_TYPE_NAME varchar(64)`
+- `TYPE_UDT_CATALOG`
+- `TYPE_UDT_SCHEMA`
+- `TYPE_UDT_NAME`
 
 to represent the user defined type used in the result, if any.
+
+TODO INVESTIGATE: Add columns:
+
+- `UDT_CATALOG`
+- `UDT_SCHEMA`
+- `UDT_NAME`
+
+to represent that the routime implements a method in a user defined type.
+
+This assumes that routines:
+
+* can be expressed in SQL,
+* or can be declared as implemented externally (by a component as a service)
+
+TODO INVESTIGATE: Add columns:
+
+- `RESULT_CAST_TYPE_UDT_CATALOG`
+- `RESULT_CAST_TYPE_UDT_SCHEMA`
+- `RESULT_CAST_TYPE_UDT_NAME`
+- `RESULT_CAST_DTD_IDENTIFIER`
+
+to represent that the routine implements a CAST involving a user defined type.
+
+This assumes that cast routines:
+
+* can be expressed in SQL,
+* or can be declared as implemented externally (by a component as a service)
+
 
 This view now also joins TABLE `mysql`.`types`.
 
@@ -198,22 +232,47 @@ This is an existing view.
 
 Add columns:
 
-- `PARAMETER_TYPE_SCHEMA varchar(64)`
-- `PARAMETER_TYPE_NAME varchar(64)`
+- `UDT_CATALOG`
+- `UDT_SCHEMA`
+- `UDT_NAME`
 
 to represent the user defined type used by a parameter, if any.
 
 This view now also joins TABLE `mysql`.`types`.
 
-### View INFORMATION_SCHEMA.TYPE_METHODS
+### View INFORMATION_SCHEMA.METHOD_SPECIFICATIONS
 
 This is a new view.
 
-TODO.
+TODO (in progress)
 
-### View INFORMATION_SCHEMA.TYPE_METHOD_PARAMETERS
+```sql
+mysql> describe INFORMATION_SCHEMA.METHOD_SPECIFICATIONS;
++--------------------------+-----------------+------+-----+---------+-------+
+| Field                    | Type            | Null | Key | Default | Extra |
++--------------------------+-----------------+------+-----+---------+-------+
+| SPECIFIC_NAME            | varchar(64)     | NO   |     | NULL    |       |
+| UDT_CATALOG              | varchar(64)     | NO   |     | NULL    |       |
+| UDT_SCHEMA               | varchar(64)     | NO   |     | NULL    |       |
+| UDT_NAME                 | varchar(64)     | NO   |     | NULL    |       |
+| METHOD_NAME              | varchar(64)     | NO   |     | NULL    |       |
+| IS_STATIC                | tinyint(1)      | YES  |     | NULL    |       |
+| IS_OVERRIDING            | tinyint(1)      | YES  |     | NULL    |       |
+| IS_CONSTRUCTOR           | tinyint(1)      | YES  |     | NULL    |       |
+| CHARACTER_MAXIMUM_LENGTH | int unsigned    | YES  |     | NULL    |       |
+| CHARACTER_OCTET_LENGTH   | int unsigned    | YES  |     | NULL    |       |
+| CHARACTER_SET_NAME       | varchar(64)     | YES  |     | NULL    |       |
+| COLLATION_NAME           | varchar(64)     | YES  |     | NULL    |       |
+| NUMERIC_PRECISION        | bigint unsigned | YES  |     | NULL    |       |
+| NUMERIC_SCALE            | bigint unsigned | YES  |     | NULL    |       |
+| DATETIME_PRECISION       | int unsigned    | YES  |     | NULL    |       |
++--------------------------+-----------------+------+-----+---------+-------+
+15 rows in set (0.002 sec)
+```
+
+### View INFORMATION_SCHEMA.METHOD_SPECIFICATION_PARAMETERS
 
 This is a new view.
 
-TODO.
+TODO (in progress)
 
