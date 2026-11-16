@@ -259,13 +259,13 @@ let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
-let $WHERE_COND = AND TABLE_NAME='TYPES';
+let $WHERE_COND = AND TABLE_NAME='USER_DEFINED_TYPES';
 replace_regex /(cat|sch|tbl).name COLLATE utf8mb3_tolower_ci/\1.name/;
 let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;
 eval INSERT INTO I_S_check_table(t) VALUES ("$str");
 
-let $WHERE_COND = AND TABLE_NAME='TYPE_METHODS';
+let $WHERE_COND = AND TABLE_NAME='METHOD_SPECIFICATIONS';
 replace_regex /(cat|sch|tbl).name COLLATE utf8mb3_tolower_ci/\1.name/;
 let $str = `$SELECT_CMD $WHERE_COND`;
 echo $str;

@@ -49,7 +49,7 @@ const CHARSET_INFO *UDT_Parameters::name_collation() {
 ///////////////////////////////////////////////////////////////////////////
 
 UDT_Parameters::UDT_Parameters() {
-  m_target_def.set_table_name("type_methods");
+  m_target_def.set_table_name("method_specification_parameters");
 
   m_target_def.add_field(FIELD_ID, "FIELD_ID",
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");

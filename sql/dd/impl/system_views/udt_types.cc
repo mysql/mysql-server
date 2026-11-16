@@ -85,7 +85,7 @@ UDT_Types::UDT_Types() {
                          "cs.name");
   m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "coll.name");
 
-  m_target_def.add_from("mysql.types typ");
+  m_target_def.add_from("mysql.user_defined_types typ");
   m_target_def.add_from("JOIN mysql.schemata sch ON typ.schema_id=sch.id");
   m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
 

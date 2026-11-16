@@ -71,8 +71,8 @@ eval INSERT INTO $dd_table_names (name) VALUES
                ('tablespace_files'),
                ('tablespaces'),
                ('triggers'),
-               ('types'),
-               ('type_methods'),
+               ('user_defined_types'),
+               ('method_specifications'),
                ('view_routine_usage'),
                ('view_table_usage');
 --enable_result_log

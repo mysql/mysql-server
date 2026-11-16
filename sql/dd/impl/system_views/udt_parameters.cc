@@ -78,8 +78,9 @@ UDT_Parameters::UDT_Parameters() {
                          "cs.name");
   m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "coll.name");
 
-  m_target_def.add_from("mysql.type_methods met");
-  m_target_def.add_from("JOIN mysql.types typ ON met.type_id=typ.id");
+  m_target_def.add_from("mysql.method_specifications met");
+  m_target_def.add_from(
+      "JOIN mysql.user_defined_types typ ON met.type_id=typ.id");
   m_target_def.add_from("JOIN mysql.schemata sch ON typ.schema_id=sch.id");
   m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
 

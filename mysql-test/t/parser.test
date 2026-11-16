@@ -42,9 +42,12 @@ create table BIT_XOR(a int);
 create table BIT_XOR (a int);
 drop table BIT_XOR;
 
+# CAST is reserved in SQL-2023
 --error ER_PARSE_ERROR
 create table CAST(a int);
+--error ER_PARSE_ERROR
 create table CAST (a int);
+--error ER_PARSE_ERROR
 drop table CAST;
 
 --error ER_PARSE_ERROR

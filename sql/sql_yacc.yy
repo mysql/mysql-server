@@ -1501,16 +1501,16 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 
 /* USER DEFINED TYPES */
 %token DOUBLE_COLON_SYM 1246 /* OPERATOR */
-%token STATIC_SYM 1247
-%token CONSTRUCTOR_SYM 1248
-%token METHOD_SYM 1249
-%token CALLED_SYM 1250
-%token INPUT_SYM 1251
-%token ORDERING_SYM 1252
-%token EQUALS_SYM 1253
-%token RELATIVE_SYM 1254
-%token MAP_SYM 1255
-%token ASSIGNMENT_SYM 1256
+%token STATIC_SYM 1247 /* SQL-2023-R */
+%token<lexer.keyword> CONSTRUCTOR_SYM 1248 /* SQL-2023-N */
+%token<lexer.keyword> METHOD_SYM 1249 /* SQL-2023-R */
+%token CALLED_SYM 1250 /* SQL-2023-R */
+%token<lexer.keyword> INPUT_SYM 1251 /* SQL-2023-N */
+%token<lexer.keyword> ORDERING_SYM 1252 /* SQL-2023-N */
+%token EQUALS_SYM 1253 /* SQL-2023-R */
+%token<lexer.keyword> RELATIVE_SYM 1254 /* SQL-2023-N */
+%token<lexer.keyword> MAP_SYM 1255 /* SQL-2023-N */
+%token<lexer.keyword> ASSIGNMENT_SYM 1256 /* SQL-2023-N */
 
 /*
   NOTE! When adding new non-standard keywords, make sure they are added to the
@@ -16953,7 +16953,6 @@ ident_keywords_unambiguous:
         | TRANSACTION_SYM
         | TRIGGERS_SYM
         | TYPES_SYM
-        // | TYPE_SYM
         | UNBOUNDED_SYM
         | UNCOMMITTED_SYM
         | UNDEFINED_SYM
@@ -16988,6 +16987,15 @@ ident_keywords_unambiguous:
         | YEAR_SYM
         | ZONE_SYM
         | VECTOR_SYM
+        // UDT:
+        // | TYPE_SYM
+        | CONSTRUCTOR_SYM
+        | METHOD_SYM
+        | INPUT_SYM
+        | ORDERING_SYM
+        | RELATIVE_SYM
+        | MAP_SYM
+        | ASSIGNMENT_SYM
         ;
 
 /*

@@ -50,7 +50,7 @@ const CHARSET_INFO *UDT_Types::name_collation() {
 ///////////////////////////////////////////////////////////////////////////
 
 UDT_Types::UDT_Types() {
-  m_target_def.set_table_name("types");
+  m_target_def.set_table_name("user_defined_types");
 
   m_target_def.add_field(FIELD_ID, "FIELD_ID",
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
