@@ -42,6 +42,7 @@ namespace dd {
 class Item_name_key;
 class Primary_id_key;
 class UDT_Method_impl;
+class UDT_Parameter;
 class Void_key;
 
 namespace tables {
@@ -186,6 +187,8 @@ class UDT_Method : virtual public Entity_object {
 
   virtual ulonglong last_altered(bool convert_time) const = 0;
   virtual void set_last_altered(ulonglong last_altered) = 0;
+
+  virtual UDT_Parameter *create_udt_parameter(THD *thd) const = 0;
 
   /**
     Allocate a new object and invoke the copy constructor

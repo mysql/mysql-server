@@ -130,6 +130,7 @@ SET(DD_SOURCES
   dd/dd_trigger.cc
   dd/dd_udt_type.cc
   dd/dd_udt_method.cc
+  dd/dd_udt_parameter.cc
   dd/dd_view.cc
   dd/dd_utility.cc
   dd/properties.cc
@@ -209,6 +210,7 @@ SET(DD_SOURCES
   dd/impl/system_views/triggers.cc
   dd/impl/system_views/udt_types.cc
   dd/impl/system_views/udt_methods.cc
+  dd/impl/system_views/udt_parameters.cc
   dd/impl/system_views/view_routine_usage.cc
   dd/impl/system_views/view_table_usage.cc
   dd/impl/system_views/views.cc
@@ -243,6 +245,7 @@ SET(DD_SOURCES
   dd/impl/tables/triggers.cc
   dd/impl/tables/udt_types.cc
   dd/impl/tables/udt_methods.cc
+  dd/impl/tables/udt_parameters.cc
   dd/impl/tables/view_routine_usage.cc
   dd/impl/tables/view_table_usage.cc
 
@@ -282,6 +285,7 @@ SET(DD_SOURCES
   dd/impl/types/trigger_impl.cc
   dd/impl/types/udt_type_impl.cc
   dd/impl/types/udt_method_impl.cc
+  dd/impl/types/udt_parameter_impl.cc
   dd/impl/types/view_impl.cc
   dd/impl/types/view_routine_impl.cc
   dd/impl/types/view_table_impl.cc

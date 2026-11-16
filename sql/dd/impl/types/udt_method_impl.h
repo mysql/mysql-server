@@ -248,6 +248,8 @@ class UDT_Method_impl : public Entity_object_impl, public UDT_Method {
     Entity_object_impl::set_name(name);
   }
 
+  UDT_Parameter *create_udt_parameter(THD *thd) const override;
+
  public:
   void debug_print(String_type &outb) const override {
     char outbuf[1024];
