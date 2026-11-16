@@ -2407,6 +2407,35 @@ static int my_strcasecmp_uca(const CHARSET_INFO *cs, const char *s,
          static_cast<int>(static_cast<uint8_t>(t[0]));
 }
 
+/**
+  strcasecmp() for the legacy UCA collations of ucs2, utf16 and utf32.
+
+  These character sets are not ASCII-compatible, so a 0-terminated string
+  cannot carry arbitrary text in them, and decoding one with mb_wc() (as
+  my_strcasecmp_uca() does) reads past the terminator. Compare byte by byte
+  instead, folding only ASCII letters, and stop at the first 0 byte.
+
+  @param[in] cs charset (unused)
+  @param[in] s  first 0-terminated string to compare
+  @param[in] t  second 0-terminated string to compare
+  @retval       negative number if s < t
+                positive number if s > t
+                0 if the strings are equal
+*/
+static int my_strcasecmp_uca_ascii(const CHARSET_INFO *cs [[maybe_unused]],
+                                   const char *s, const char *t) {
+  const auto fold = [](uint8_t c) -> int {
+    return (c >= 'A' && c <= 'Z') ? c + ('a' - 'A') : c;
+  };
+  const auto *a = pointer_cast<const uint8_t *>(s);
+  const auto *b = pointer_cast<const uint8_t *>(t);
+  for (;; ++a, ++b) {
+    const int ca = fold(*a);
+    const int cb = fold(*b);
+    if (ca != cb || ca == 0) return ca - cb;
+  }
+}
+
 extern "C" {
 static int my_wildcmp_uca(const CHARSET_INFO *cs, const char *str,
                           const char *str_end, const char *wildstr,
@@ -5232,17 +5261,10 @@ static size_t my_strnxfrm_ucs2_uca(const CHARSET_INFO *cs, uint8_t *dst,
 
 MY_COLLATION_HANDLER my_collation_ucs2_uca_handler = {
     my_coll_init_uca, /* init */
-    my_coll_uninit_uca,
-    my_strnncoll_ucs2_uca,
-    my_strnncollsp_ucs2_uca,
-    my_strnxfrm_ucs2_uca,
-    my_strnxfrmlen_simple,
-    my_like_range_generic,
-    my_wildcmp_uca,
-    nullptr,
-    my_instr_mb,
-    my_hash_sort_ucs2_uca,
-    my_propagate_complex};
+    my_coll_uninit_uca,    my_strnncoll_ucs2_uca,   my_strnncollsp_ucs2_uca,
+    my_strnxfrm_ucs2_uca,  my_strnxfrmlen_simple,   my_like_range_generic,
+    my_wildcmp_uca,        my_strcasecmp_uca_ascii, my_instr_mb,
+    my_hash_sort_ucs2_uca, my_propagate_complex};
 
 CHARSET_INFO my_charset_ucs2_unicode_ci = {
     128,
@@ -7815,17 +7837,10 @@ CHARSET_INFO my_charset_utf8mb4_vietnamese_ci = {
 
 MY_COLLATION_HANDLER my_collation_utf32_uca_handler = {
     my_coll_init_uca, /* init */
-    my_coll_uninit_uca,
-    my_strnncoll_any_uca,
-    my_strnncollsp_any_uca,
-    my_strnxfrm_any_uca,
-    my_strnxfrmlen_simple,
-    my_like_range_generic,
-    my_wildcmp_uca,
-    nullptr,
-    my_instr_mb,
-    my_hash_sort_any_uca,
-    my_propagate_complex};
+    my_coll_uninit_uca,   my_strnncoll_any_uca,    my_strnncollsp_any_uca,
+    my_strnxfrm_any_uca,  my_strnxfrmlen_simple,   my_like_range_generic,
+    my_wildcmp_uca,       my_strcasecmp_uca_ascii, my_instr_mb,
+    my_hash_sort_any_uca, my_propagate_complex};
 
 extern MY_CHARSET_HANDLER my_charset_utf32_handler;
 
@@ -8675,17 +8690,10 @@ CHARSET_INFO my_charset_utf32_vietnamese_ci = {
 
 MY_COLLATION_HANDLER my_collation_utf16_uca_handler = {
     my_coll_init_uca, /* init */
-    my_coll_uninit_uca,
-    my_strnncoll_any_uca,
-    my_strnncollsp_any_uca,
-    my_strnxfrm_any_uca,
-    my_strnxfrmlen_simple,
-    my_like_range_generic,
-    my_wildcmp_uca,
-    nullptr,
-    my_instr_mb,
-    my_hash_sort_any_uca,
-    my_propagate_complex};
+    my_coll_uninit_uca,   my_strnncoll_any_uca,    my_strnncollsp_any_uca,
+    my_strnxfrm_any_uca,  my_strnxfrmlen_simple,   my_like_range_generic,
+    my_wildcmp_uca,       my_strcasecmp_uca_ascii, my_instr_mb,
+    my_hash_sort_any_uca, my_propagate_complex};
 
 extern MY_CHARSET_HANDLER my_charset_utf16_handler;
 
@@ -9534,17 +9542,10 @@ CHARSET_INFO my_charset_utf16_vietnamese_ci = {
 
 MY_COLLATION_HANDLER my_collation_gb18030_uca_handler = {
     my_coll_init_uca, /* init */
-    my_coll_uninit_uca,
-    my_strnncoll_any_uca,
-    my_strnncollsp_any_uca,
-    my_strnxfrm_any_uca,
-    my_strnxfrmlen_simple,
-    my_like_range_mb,
-    my_wildcmp_uca,
-    nullptr,
-    my_instr_mb,
-    my_hash_sort_any_uca,
-    my_propagate_complex};
+    my_coll_uninit_uca,   my_strnncoll_any_uca,  my_strnncollsp_any_uca,
+    my_strnxfrm_any_uca,  my_strnxfrmlen_simple, my_like_range_mb,
+    my_wildcmp_uca,       my_strcasecmp_uca,     my_instr_mb,
+    my_hash_sort_any_uca, my_propagate_complex};
 
 /**
   The array used for "type of characters" bit mask for each
