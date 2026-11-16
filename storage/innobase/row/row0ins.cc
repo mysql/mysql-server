@@ -2008,6 +2008,11 @@ static bool row_allow_duplicates(que_thr_t *thr) {
       }
 #endif
 
+      if (is_next && !skip_gap_locks) {
+        /* Only gap lock is required on next record. */
+        lock_type = LOCK_GAP;
+      }
+
       /* If the SQL-query will update or replace duplicate key we will take
       X-lock for duplicates ( REPLACE, LOAD DATAFILE REPLACE, INSERT ON
       DUPLICATE KEY UPDATE). */
