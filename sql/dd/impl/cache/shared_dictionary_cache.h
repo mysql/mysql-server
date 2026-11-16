@@ -38,6 +38,7 @@
 #include "sql/dd/types/table.h"                     // IWYU pragma: keep
 #include "sql/dd/types/tablespace.h"                // Tablespace
 #include "sql/dd/types/udt_method.h"                // UDT_Method
+#include "sql/dd/types/udt_parameter.h"             // UDT_Parameter
 #include "sql/dd/types/udt_type.h"                  // UDT_Type
 #include "sql/handler.h"                            // enum_tx_isolation
 
@@ -82,6 +83,7 @@ class Shared_dictionary_cache {
 
   static const size_t udt_type_capacity = 256;
   static const size_t udt_method_capacity = 1024;
+  static const size_t udt_parameter_capacity = 2048;
 
   Shared_multi_map<Abstract_table> m_abstract_table_map;
   Shared_multi_map<Charset> m_charset_map;
@@ -95,6 +97,7 @@ class Shared_dictionary_cache {
   Shared_multi_map<Tablespace> m_tablespace_map;
   Shared_multi_map<UDT_Type> m_udt_type_map;
   Shared_multi_map<UDT_Method> m_udt_method_map;
+  Shared_multi_map<UDT_Parameter> m_udt_parameter_map;
 
   template <typename T>
   struct Type_selector {};  // Dummy type to use for
@@ -140,6 +143,9 @@ class Shared_dictionary_cache {
   Shared_multi_map<UDT_Method> *m_map(Type_selector<UDT_Method>) {
     return &m_udt_method_map;
   }
+  Shared_multi_map<UDT_Parameter> *m_map(Type_selector<UDT_Parameter>) {
+    return &m_udt_parameter_map;
+  }
 
   const Shared_multi_map<Abstract_table> *m_map(
       Type_selector<Abstract_table>) const {
@@ -171,6 +177,11 @@ class Shared_dictionary_cache {
   const Shared_multi_map<UDT_Method> *m_map(Type_selector<UDT_Method>) const {
     return &m_udt_method_map;
   }
+  const Shared_multi_map<UDT_Parameter> *m_map(
+      Type_selector<UDT_Parameter>) const {
+    return &m_udt_parameter_map;
+  }
+
   const Shared_multi_map<Resource_group> *m_map(
       Type_selector<Resource_group>) const {
     return &m_resource_group_map;

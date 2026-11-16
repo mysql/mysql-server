@@ -123,9 +123,9 @@ class UDT_Parameter_impl : public Entity_object_impl, public UDT_Parameter {
   // char_length.
   /////////////////////////////////////////////////////////////////////////
 
-  size_t char_length() const override { return m_char_length; }
+  size_t char_length() const override { return m_char_max_length; }
   void set_char_length(size_t char_length) override {
-    m_char_length = char_length;
+    m_char_max_length = char_length;
   }
 
   /////////////////////////////////////////////////////////////////////////
@@ -249,7 +249,8 @@ class UDT_Parameter_impl : public Entity_object_impl, public UDT_Parameter {
   bool m_is_result;
 
   bool m_is_unsigned;
-  size_t m_char_length;
+  size_t m_char_max_length;
+  size_t m_char_octet_length;
   uint m_numeric_precision;
   uint m_numeric_scale;
   bool m_numeric_scale_null;

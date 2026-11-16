@@ -92,6 +92,7 @@
 #include "sql/dd/types/table_stat.h"                // Table_stat
 #include "sql/dd/types/tablespace.h"                // Tablespace
 #include "sql/dd/types/udt_method.h"                // UDT_Method
+#include "sql/dd/types/udt_parameter.h"             // UDT_Parameter
 #include "sql/dd/types/udt_type.h"                  // UDT_Type
 #include "sql/dd/types/view.h"                      // View
 #include "sql/dd/types/view_routine.h"              // View_routine
@@ -259,6 +260,37 @@ MDL_key make_mdl_key(THD *thd, const dd::UDT_Method &udt_method) {
       dd::Object_table_definition_impl::fs_name_case(s->name(),
                                                      schema_name_buf),
       udt_type->name(), udt_method.name(), &mdl_key);
+
+  return mdl_key;
+}
+
+MDL_key make_mdl_key(THD *thd, const dd::UDT_Parameter &udt_parameter) {
+  auto dc = thd->dd_client();
+  dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+  MDL_key mdl_key{};
+
+  const dd::UDT_Method *udt_method = nullptr;
+  if (dc->acquire(udt_parameter.method_id(), &udt_method) ||
+      udt_method == nullptr) {
+    return mdl_key;
+  }
+
+  const dd::UDT_Type *udt_type = nullptr;
+  if (dc->acquire(udt_method->type_id(), &udt_type) || udt_type == nullptr) {
+    return mdl_key;
+  }
+
+  const dd::Schema *s = nullptr;
+  if (dc->acquire(udt_type->schema_id(), &s) || s == nullptr) {
+    return mdl_key;
+  }
+
+  char schema_name_buf[NAME_LEN + 1];
+  dd::UDT_Parameter::create_mdl_key(
+      // FIXME.dt: Temporary dd::String_type from const char*
+      dd::Object_table_definition_impl::fs_name_case(s->name(),
+                                                     schema_name_buf),
+      udt_type->name(), udt_method->name(), &mdl_key);
 
   return mdl_key;
 }
@@ -592,6 +624,7 @@ Dictionary_client::Auto_releaser::~Auto_releaser() {
   m_client->release<Resource_group>(&m_release_registry);
   m_client->release<UDT_Type>(&m_release_registry);
   m_client->release<UDT_Method>(&m_release_registry);
+  m_client->release<UDT_Parameter>(&m_release_registry);
 
 #ifndef NDEBUG
   // Make sure we still have some meta data lock. This is checked to
@@ -865,7 +898,7 @@ size_t Dictionary_client::release(Object_registry *registry) {
          release<Resource_group>(registry) + release<Routine>(registry) +
          release<Spatial_reference_system>(registry) +
          release<Column_statistics>(registry) + release<UDT_Type>(registry) +
-         release<UDT_Method>(registry);
+         release<UDT_Method>(registry) + release<UDT_Parameter>(registry);
 }
 
 // Initialize an instance with a default auto releaser.
@@ -2838,6 +2871,7 @@ void Dictionary_client::rollback_modified_objects() {
   remove_uncommitted_objects<Resource_group>(false);
   remove_uncommitted_objects<UDT_Type>(false);
   remove_uncommitted_objects<UDT_Method>(false);
+  remove_uncommitted_objects<UDT_Parameter>(false);
 }
 
 void Dictionary_client::commit_modified_objects() {
@@ -2853,6 +2887,7 @@ void Dictionary_client::commit_modified_objects() {
   remove_uncommitted_objects<Resource_group>(true);
   remove_uncommitted_objects<UDT_Type>(true);
   remove_uncommitted_objects<UDT_Method>(true);
+  remove_uncommitted_objects<UDT_Parameter>(true);
 }
 
 // Debug dump of the client and its registry to stderr.
@@ -3121,6 +3156,36 @@ template void Dictionary_client::remove_uncommitted_objects<UDT_Method>(bool);
 template bool Dictionary_client::drop(const UDT_Method *);
 template bool Dictionary_client::store(UDT_Method *);
 template bool Dictionary_client::update(UDT_Method *);
+
+// UDT_Parameter
+
+template bool Dictionary_client::acquire_uncached(Object_id, UDT_Parameter **);
+template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,
+                                                              UDT_Parameter **);
+template bool Dictionary_client::acquire_uncached_uncommitted(
+    Object_id, std::unique_ptr<UDT_Parameter> *);
+template bool Dictionary_client::acquire(Object_id, const UDT_Parameter **);
+
+template bool Dictionary_client::acquire(dd::UDT_Parameter::Name_key const &,
+                                         dd::UDT_Parameter const **);
+template bool Dictionary_client::acquire_for_modification(Object_id,
+                                                          UDT_Parameter **);
+#ifdef LATER
+template bool Dictionary_client::acquire_for_modification(
+    dd::UDT_Parameter::Name_key const &, dd::UDT_Parameter const **);
+#endif
+
+template bool Dictionary_client::acquire(const String_type &,
+                                         const String_type &,
+                                         const UDT_Parameter **);
+template bool Dictionary_client::acquire_for_modification(const String_type &,
+                                                          const String_type &,
+                                                          UDT_Parameter **);
+template void Dictionary_client::remove_uncommitted_objects<UDT_Parameter>(
+    bool);
+template bool Dictionary_client::drop(const UDT_Parameter *);
+template bool Dictionary_client::store(UDT_Parameter *);
+template bool Dictionary_client::update(UDT_Parameter *);
 
 template bool Dictionary_client::acquire_uncached(Object_id, View **);
 template bool Dictionary_client::acquire_uncached_uncommitted(Object_id,

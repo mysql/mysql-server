@@ -43,6 +43,7 @@
 #include "sql/dd/impl/tables/tables.h"
 #include "sql/dd/impl/tables/tablespaces.h"
 #include "sql/dd/impl/tables/udt_methods.h"
+#include "sql/dd/impl/tables/udt_parameters.h"
 #include "sql/dd/impl/tables/udt_types.h"
 #include "sql/log.h"        // sql_print_warning()
 #include "sql/mdl.h"        // MDL_request
@@ -732,6 +733,27 @@ template void Shared_multi_map<UDT_Method>::put<UDT_Method::Aux_key>(
     Cache_element<UDT_Method> **);
 template void Shared_multi_map<UDT_Method>::drop_if_present<UDT_Method::Id_key>(
     const UDT_Method::Id_key &);
+
+template class Shared_multi_map<UDT_Parameter>;
+template bool Shared_multi_map<UDT_Parameter>::get<const UDT_Parameter *>(
+    const UDT_Parameter *const &, Cache_element<UDT_Parameter> **);
+template bool Shared_multi_map<UDT_Parameter>::get<UDT_Parameter::Id_key>(
+    const UDT_Parameter::Id_key &, Cache_element<UDT_Parameter> **);
+template bool Shared_multi_map<UDT_Parameter>::get<UDT_Parameter::Name_key>(
+    const UDT_Parameter::Name_key &, Cache_element<UDT_Parameter> **);
+template bool Shared_multi_map<UDT_Parameter>::get<UDT_Parameter::Aux_key>(
+    const UDT_Parameter::Aux_key &, Cache_element<UDT_Parameter> **);
+template void Shared_multi_map<UDT_Parameter>::put<UDT_Parameter::Id_key>(
+    const UDT_Parameter::Id_key *, const UDT_Parameter *,
+    Cache_element<UDT_Parameter> **);
+template void Shared_multi_map<UDT_Parameter>::put<UDT_Parameter::Name_key>(
+    const UDT_Parameter::Name_key *, const UDT_Parameter *,
+    Cache_element<UDT_Parameter> **);
+template void Shared_multi_map<UDT_Parameter>::put<UDT_Parameter::Aux_key>(
+    const UDT_Parameter::Aux_key *, const UDT_Parameter *,
+    Cache_element<UDT_Parameter> **);
+template void Shared_multi_map<UDT_Parameter>::drop_if_present<
+    UDT_Parameter::Id_key>(const UDT_Parameter::Id_key &);
 
 }  // namespace cache
 }  // namespace dd

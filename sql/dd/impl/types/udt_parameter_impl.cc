@@ -60,7 +60,8 @@ UDT_Parameter_impl::UDT_Parameter_impl()
     : m_method_id(INVALID_OBJECT_ID),
       m_is_result(false),
       m_is_unsigned(false),
-      m_char_length(0),
+      m_char_max_length(0),
+      m_char_octet_length(0),
       m_numeric_precision(0),
       m_numeric_scale(0),
       m_numeric_scale_null(true),
@@ -84,7 +85,8 @@ bool UDT_Parameter_impl::restore_attributes(const Raw_record &r) {
   m_is_result = r.read_bool(UDT_Parameters::FIELD_IS_RESULT);
 
   m_is_unsigned = r.read_bool(UDT_Parameters::FIELD_IS_UNSIGNED);
-  m_char_length = r.read_uint(UDT_Parameters::FIELD_CHAR_LENGTH);
+  m_char_max_length = r.read_uint(UDT_Parameters::FIELD_CHAR_MAX_LENGTH);
+  m_char_octet_length = r.read_uint(UDT_Parameters::FIELD_CHAR_OCTET_LENGTH);
   m_numeric_precision = r.read_uint(UDT_Parameters::FIELD_NUMERIC_PRECISION);
   m_numeric_scale = r.read_uint(UDT_Parameters::FIELD_NUMERIC_SCALE);
   m_numeric_scale_null = r.is_null(UDT_Parameters::FIELD_NUMERIC_SCALE);
@@ -106,11 +108,7 @@ bool UDT_Parameter_impl::restore_attributes(const Raw_record &r) {
 bool UDT_Parameter_impl::store_attributes(Raw_record *r) {
   return store_id(r, UDT_Parameters::FIELD_ID) ||
          store_name(r, UDT_Parameters::FIELD_NAME) ||
-         r->store_ref_id(UDT_Parameters::FIELD_TYPE_ID, m_type_id) ||
-         r->store(UDT_Parameters::FIELD_SPECIFIC_NAME, m_specific_name) ||
-         r->store(UDT_Parameters::FIELD_IS_STATIC, m_is_static) ||
-         r->store(UDT_Parameters::FIELD_IS_OVERRIDING, m_is_overriding) ||
-         r->store(UDT_Parameters::FIELD_IS_CONSTRUCTOR, m_is_constructor) ||
+         r->store_ref_id(UDT_Parameters::FIELD_METHOD_ID, m_method_id) ||
 
          r->store(UDT_Parameters::FIELD_IS_UNSIGNED, m_is_unsigned) ||
          r->store(UDT_Parameters::FIELD_CHAR_MAX_LENGTH,
@@ -128,26 +126,20 @@ bool UDT_Parameter_impl::store_attributes(Raw_record *r) {
          r->store_ref_id(UDT_Parameters::FIELD_COLLATION_ID, m_collation_id) ||
          r->store(UDT_Parameters::FIELD_IS_EXPLICIT_COLLATION,
                   m_is_explicit_collation) ||
-         r->store_ref_id(UDT_Parameters::FIELD_RETURN_TYPE_ID,
-                         m_return_type_id) ||
 
          r->store(UDT_Parameters::FIELD_CREATED, m_created) ||
          r->store(UDT_Parameters::FIELD_LAST_ALTERED, m_last_altered);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(UDT_Parameters::NUMBER_OF_FIELDS == 18,
+static_assert(UDT_Parameters::NUMBER_OF_FIELDS == 14,
               "UDT_Parameters definition has changed, check if "
               "serialize() and deserialize() need to be updated!");
 void UDT_Parameter_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   w->StartObject();
   Entity_object_impl::serialize(wctx, w);
 
-  write(w, m_type_id, STRING_WITH_LEN("type_id"));
-  write(w, m_specific_name, STRING_WITH_LEN("specific_name"));
-  write(w, m_is_static, STRING_WITH_LEN("is_static"));
-  write(w, m_is_overriding, STRING_WITH_LEN("is_overriding"));
-  write(w, m_is_constructor, STRING_WITH_LEN("is_constructor"));
+  write(w, m_method_id, STRING_WITH_LEN("method_id"));
   write(w, m_is_unsigned, STRING_WITH_LEN("is_unsigned"));
   write(w, m_char_max_length, STRING_WITH_LEN("char_max_length"));
   write(w, m_char_octet_length, STRING_WITH_LEN("char_octet_length"));
@@ -159,7 +151,6 @@ void UDT_Parameter_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
         STRING_WITH_LEN("datetime_precision_null"));
   write(w, m_collation_id, STRING_WITH_LEN("collation_id"));
   write(w, m_is_explicit_collation, STRING_WITH_LEN("is_explicit_collation"));
-  write(w, m_return_type_id, STRING_WITH_LEN("return_type_id"));
 
   write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
   write(w, m_created, STRING_WITH_LEN("created"));
@@ -171,11 +162,7 @@ void UDT_Parameter_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
 bool UDT_Parameter_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   Entity_object_impl::deserialize(rctx, val);
 
-  read(&m_type_id, val, "type_id");
-  read(&m_specific_name, val, "specific_name");
-  read(&m_is_static, val, "is_static");
-  read(&m_is_overriding, val, "is_overriding");
-  read(&m_is_constructor, val, "is_constructor");
+  read(&m_method_id, val, "method_id");
   read(&m_is_unsigned, val, "is_unsigned");
   read(&m_char_max_length, val, "char_max_length");
   read(&m_char_octet_length, val, "char_octet_length");
@@ -186,7 +173,6 @@ bool UDT_Parameter_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_datetime_precision_null, val, "datetime_precision_null");
   read(&m_collation_id, val, "collation_id");
   read(&m_is_explicit_collation, val, "is_explicit_collation");
-  read(&m_return_type_id, val, "return_type_id");
 
   read(&m_last_altered, val, "last_altered");
   read(&m_created, val, "created");
@@ -196,15 +182,15 @@ bool UDT_Parameter_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool UDT_Method::update_id_key(Id_key *key, Object_id id) {
+bool UDT_Parameter::update_id_key(Id_key *key, Object_id id) {
   key->update(id);
   return false;
 }
 
 ///////////////////////////////////////////////////////////////////////////
 
-bool UDT_Method::update_name_key(Name_key *key, Object_id type_id,
-                                 const String_type &name) {
+bool UDT_Parameter::update_name_key(Name_key *key, Object_id type_id,
+                                    const String_type &name) {
   return UDT_Parameters::update_object_key(key, type_id, name);
 }
 
@@ -222,10 +208,10 @@ void UDT_Parameter_impl::register_tables(Open_dictionary_tables_ctx *otx) {
 
 ///////////////////////////////////////////////////////////////////////////
 
-void UDT_Method::create_mdl_key(const String_type &schema_name,
-                                const String_type &type_name,
-                                const String_type & /* method_name */,
-                                MDL_key *mdl_key) {
+void UDT_Parameter::create_mdl_key(const String_type &schema_name,
+                                   const String_type &type_name,
+                                   const String_type & /* method_name */,
+                                   MDL_key *mdl_key) {
 #ifndef DEBUG_OFF
   // Make sure schema name is lowercased when lower_case_table_names == 2.
   if (lower_case_table_names == 2)

@@ -38,6 +38,7 @@
 #include "sql/dd/impl/tables/tables.h"
 #include "sql/dd/impl/tables/tablespaces.h"
 #include "sql/dd/impl/tables/udt_methods.h"
+#include "sql/dd/impl/tables/udt_parameters.h"
 #include "sql/dd/impl/tables/udt_types.h"
 
 namespace dd {
@@ -152,5 +153,6 @@ template class Local_multi_map<Spatial_reference_system>;
 template class Local_multi_map<Tablespace>;
 template class Local_multi_map<UDT_Type>;
 template class Local_multi_map<UDT_Method>;
+template class Local_multi_map<UDT_Parameter>;
 
 }  // namespace dd::cache

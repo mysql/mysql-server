@@ -207,6 +207,7 @@ void System_tables::add_remaining_dd_tables() {
   register_table<Triggers>(core);
   register_table<UDT_Types>(second);
   register_table<UDT_Methods>(second);
+  // TODO: register_table<UDT_Parameters>(second);
   register_table<View_routine_usage>(core);
   register_table<View_table_usage>(core);
 
@@ -329,6 +330,7 @@ void System_views::init() {
   register_view<dd::system_views::Triggers>(is);
   register_view<dd::system_views::UDT_Types>(is);
   register_view<dd::system_views::UDT_Methods>(is);
+  // TODO: register_view<dd::system_views::UDT_Parameters>(is);
   register_view<dd::system_views::View_routine_usage>(is);
   register_view<dd::system_views::View_table_usage>(is);
   register_view<dd::system_views::Views>(is);

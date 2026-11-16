@@ -40,6 +40,7 @@
 #include "sql/dd/types/spatial_reference_system.h"  // Spatial_reference_system
 #include "sql/dd/types/tablespace.h"                // Tablespace
 #include "sql/dd/types/udt_method.h"                // UDT_Method
+#include "sql/dd/types/udt_parameter.h"             // UDT_Parameter
 #include "sql/dd/types/udt_type.h"                  // UDT_Type
 
 namespace dd {
@@ -80,6 +81,7 @@ class Object_registry {
   std::unique_ptr<Local_multi_map<Tablespace>> m_tablespace_map;
   std::unique_ptr<Local_multi_map<UDT_Type>> m_udt_type_map;
   std::unique_ptr<Local_multi_map<UDT_Method>> m_udt_method_map;
+  std::unique_ptr<Local_multi_map<UDT_Parameter>> m_udt_parameter_map;
 
   // Not inlined because it is big, and because it takes a lot of time
   // for the compiler to instantiate. Defined in dd.cc, along the similar
@@ -202,6 +204,15 @@ class Object_registry {
 
   const Local_multi_map<UDT_Method> *m_map(Type_selector<UDT_Method>) const {
     return m_udt_method_map.get();
+  }
+
+  Local_multi_map<UDT_Parameter> *m_map(Type_selector<UDT_Parameter>) {
+    return create_map_if_needed(&m_udt_parameter_map);
+  }
+
+  const Local_multi_map<UDT_Parameter> *m_map(
+      Type_selector<UDT_Parameter>) const {
+    return m_udt_parameter_map.get();
   }
 
   /**
@@ -351,6 +362,7 @@ class Object_registry {
     erase<Tablespace>();
     erase<UDT_Type>();
     erase<UDT_Method>();
+    erase<UDT_Parameter>();
   }
 
   /**
@@ -377,7 +389,8 @@ class Object_registry {
     return size<Abstract_table>() + size<Charset>() + size<Collation>() +
            size<Column_statistics>() + size<Event>() + size<Resource_group>() +
            size<Routine>() + size<Schema>() + size<Spatial_reference_system>() +
-           size<Tablespace>() + size<UDT_Type>() + size<UDT_Method>();
+           size<Tablespace>() + size<UDT_Type>() + size<UDT_Method>() +
+           size<UDT_Parameter>();
   }
 
   /**

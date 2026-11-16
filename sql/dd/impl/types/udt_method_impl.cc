@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -33,14 +33,16 @@
 #include <rapidjson/prettywriter.h>
 
 #include "m_string.h"
+#include "sql/dd/dd.h"                       // create_object
 #include "sql/dd/dd_utility.h"               // normalize_string()
 #include "sql/dd/impl/dictionary_impl.h"     // Dictionary_impl
 #include "sql/dd/impl/raw/raw_record.h"      // Raw_record
 #include "sql/dd/impl/sdi_impl.h"            // sdi read/write functions
 #include "sql/dd/impl/tables/schemata.h"     // Schemata::name_collation
 #include "sql/dd/impl/tables/udt_methods.h"  // Spatial_reference_sy...
-#include "sql/dd/impl/transaction_impl.h"    // Open_dictionary_tables_ctx
-#include "sql/dd/impl/utils.h"               // is_string_in_lowercase
+#include "sql/dd/impl/tables/udt_parameters.h"
+#include "sql/dd/impl/transaction_impl.h"  // Open_dictionary_tables_ctx
+#include "sql/dd/impl/utils.h"             // is_string_in_lowercase
 #include "string_with_len.h"
 
 namespace dd {
@@ -213,6 +215,34 @@ bool UDT_Method::update_id_key(Id_key *key, Object_id id) {
 bool UDT_Method::update_name_key(Name_key *key, Object_id type_id,
                                  const String_type &name) {
   return UDT_Methods::update_object_key(key, type_id, name);
+}
+
+UDT_Parameter *UDT_Method_impl::create_udt_parameter(THD *thd) const {
+// Creating UDT_Parameter requires an IX meta data lock on the UDT_Type.
+
+// FIXME
+#ifdef LATER
+#ifndef NDEBUG
+  char name_buf[NAME_LEN + 1];
+  assert(thd->mdl_context.owns_equal_or_stronger_lock(
+      MDL_key::SCHEMA,
+      dd::Object_table_definition_impl::fs_name_case(name(), name_buf), "",
+      MDL_INTENTION_EXCLUSIVE));
+#endif
+#endif
+
+  std::unique_ptr<UDT_Parameter> obj(dd::create_object<UDT_Parameter>());
+  obj->set_method_id(this->id());
+
+  // Get statement start time.
+  ulonglong ull_curtime =
+      dd::my_time_t_to_ull_datetime(thd->query_start_in_secs());
+
+  // Set new table start time.
+  obj->set_created(ull_curtime);
+  obj->set_last_altered(ull_curtime);
+
+  return obj.release();
 }
 
 ///////////////////////////////////////////////////////////////////////////
