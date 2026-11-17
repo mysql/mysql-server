@@ -1041,4 +1041,22 @@ FROM t1
 GROUP BY a
 HAVING MAX(a) > 0;
 
+# Case 3: HAVING reads the stored alias without calling its function again.
+DELETE FROM t1;
+INSERT INTO t1 VALUES (1, 0), (2, 0);
+DELIMITER |;
+CREATE FUNCTION bug121046_bump(x INT) RETURNS INT NOT DETERMINISTIC NO SQL
+BEGIN
+  SET @n = @n + 1;
+  RETURN x + @n;
+END|
+DELIMITER ;|
+SET @n = 0;
+--skip_if_hypergraph  # The hypergraph optimizer has the same issue before this fix.
+SELECT DISTINCT bug121046_bump(MAX(b)) AS v
+FROM t1 GROUP BY a HAVING v = 1;
+--skip_if_hypergraph
+SELECT @n;
+DROP FUNCTION bug121046_bump;
+
 DROP TABLE t1;

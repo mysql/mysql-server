@@ -3296,6 +3296,15 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       }
     }
 
+    // When DISTINCT is handled by a later sort, evaluate HAVING against the
+    // stored projection before removing duplicates. An alias may contain a
+    // non-deterministic expression that must not be evaluated again by
+    // copy_funcs(). Both materialization and streaming provide the stored row.
+    const bool having_after_materialization =
+        qep_tab->needs_duplicate_removal &&
+        (qep_tab->op_type == QEP_TAB::OT_MATERIALIZE ||
+         qep_tab->op_type == QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE);
+
     // Attach HAVING if needed (it's put on the QEP_TAB and not on the JOIN if
     // we have a temporary table) and we've done all aggregation.
     //
@@ -3311,7 +3320,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     // which was obsolete for the old executor after said fix, was never
     // removed. See if we can get this fixed in the new executor as well,
     // and then remove the code that moves HAVING onto qep_tab->condition().
-    if (qep_tab->having != nullptr &&
+    if (qep_tab->having != nullptr && !having_after_materialization &&
         qep_tab->op_type != QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE) {
       path = NewFilterAccessPath(thd, path, qep_tab->having);
     }
@@ -3482,6 +3491,10 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             /*reject_multiple_rows=*/false);
         EstimateMaterializeCost(thd, path);
       }
+    }
+
+    if (having_after_materialization && qep_tab->having != nullptr) {
+      path = NewFilterAccessPath(thd, path, qep_tab->having);
     }
 
     if (qep_tab->condition() != nullptr) {
