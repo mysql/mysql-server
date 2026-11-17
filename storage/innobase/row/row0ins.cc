@@ -1970,12 +1970,7 @@ static bool row_allow_duplicates(que_thr_t *thr) {
   do {
     const rec_t *rec = pcur.get_rec();
     const buf_block_t *block = pcur.get_block();
-
-    /* For DD tables, We don't use next-key locking for duplicates
-    found. This means it is possible for another transaction to
-    insert a duplicate key value but MDL protection on DD tables
-    will prevent insertion of duplicates into unique secondary indexes*/
-    ulint lock_type = skip_gap_locks ? LOCK_REC_NOT_GAP : LOCK_ORDINARY;
+    ulint lock_type;
 
     if (page_rec_is_infimum(rec)) {
       continue;
@@ -1990,7 +1985,7 @@ static bool row_allow_duplicates(que_thr_t *thr) {
     if (flags & BTR_NO_LOCKING_FLAG) {
       /* Set no locks when applying log
       in online table rebuild. */
-    } else if (allow_duplicates) {
+    } else {
 #if 0  // TODO: Enable this assert after WL#9509. REPLACE will not be allowed on
        // DD tables
                         /* This assert means DD tables should not use REPLACE
@@ -1998,27 +1993,6 @@ static bool row_allow_duplicates(que_thr_t *thr) {
                         ut_ad(!index->table->is_dd_table);
 #endif
 
-#if 1  // TODO: Remove this code after WL#9509. REPLACE will not be allowed on
-       // DD tables
-      if (skip_gap_locks) {
-        /* Only GAP lock is possible on supremum. */
-        if (is_supremum) {
-          continue;
-        }
-      }
-#endif
-
-      if (is_next && !skip_gap_locks) {
-        /* Only gap lock is required on next record. */
-        lock_type = LOCK_GAP;
-      }
-
-      /* If the SQL-query will update or replace duplicate key we will take
-      X-lock for duplicates ( REPLACE, LOAD DATAFILE REPLACE, INSERT ON
-      DUPLICATE KEY UPDATE). */
-      err = row_ins_set_rec_lock(LOCK_X, lock_type, block, rec, index, offsets,
-                                 thr);
-    } else {
       if (skip_gap_locks) {
         /* Skip GAP lock on supremum */
         if (is_supremum) {
@@ -2048,8 +2022,8 @@ static bool row_allow_duplicates(que_thr_t *thr) {
       anything at all in case there wasn't any matching record, which is fine,
       because the B-tree page latch will be released only after inserting the
       implicitly locked record, so no protection is needed.*/
-      err = row_ins_set_rec_lock(LOCK_S, lock_type, block, rec, index, offsets,
-                                 thr);
+      err = row_ins_set_rec_lock(allow_duplicates ? LOCK_X : LOCK_S, lock_type,
+                                 block, rec, index, offsets, thr);
     }
 
     switch (err) {
