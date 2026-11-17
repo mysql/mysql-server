@@ -1,0 +1,72 @@
+--source include/have_debug.inc
+
+# Verify DD duplicate checks do not lock gaps or the first unequal record.
+SET @saved_debug = @@SESSION.debug;
+SET SESSION debug = '+d,skip_dd_table_access_check';
+CREATE DATABASE duplicate_gap_a;
+CREATE DATABASE duplicate_gap_z;
+SELECT catalog_id, default_collation_id INTO @catalog_id, @collation_id
+  FROM mysql.schemata WHERE name = 'duplicate_gap_z';
+
+--connect (read_view_holder, localhost, root,,)
+SET SESSION debug = '+d,skip_dd_table_access_check';
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT name FROM mysql.schemata WHERE name = 'duplicate_gap_a';
+
+--connect (con1, localhost, root,,)
+SET SESSION debug = '+d,skip_dd_table_access_check';
+SELECT catalog_id INTO @catalog_id
+  FROM mysql.schemata WHERE name = 'duplicate_gap_z';
+
+--connection default
+DROP DATABASE duplicate_gap_a;
+--let $i=0
+while ($i < 3)
+{
+  --let $insert=INSERT
+  --let $update=
+  --let $mode=S,REC_NOT_GAP
+  if ($i == 1)
+  {
+    --let $insert=REPLACE
+    --let $mode=X,REC_NOT_GAP
+  }
+  if ($i == 2)
+  {
+    --let $update=ON DUPLICATE KEY UPDATE name='duplicate_gap_a'
+    --let $mode=X,REC_NOT_GAP
+  }
+
+  --connection default
+  BEGIN;
+  --eval $insert INTO mysql.schemata (catalog_id, name, default_collation_id, created, last_altered, default_encryption) VALUES (@catalog_id, 'duplicate_gap_a', @collation_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'NO') $update
+
+  # Prove the duplicate scan locked the matching delete-marked record.
+  # No gap or next-key lock is allowed on this DD unique index.
+  --eval SELECT COUNT(*) = 1 AS matching_record_locked FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = 'mysql' AND OBJECT_NAME = 'schemata' AND INDEX_NAME = 'catalog_id' AND LOCK_MODE = '$mode'
+  SELECT COUNT(*) = 0 AS no_gap_locks
+    FROM performance_schema.data_locks
+    WHERE OBJECT_SCHEMA = 'mysql' AND OBJECT_NAME = 'schemata'
+      AND INDEX_NAME = 'catalog_id'
+      AND LOCK_MODE NOT IN ('S,REC_NOT_GAP', 'X,REC_NOT_GAP');
+
+  --connection con1
+  BEGIN;
+  # The first unequal record must not be locked by the duplicate scan.
+  SELECT name FROM mysql.schemata
+    WHERE catalog_id = @catalog_id AND name = 'duplicate_gap_z'
+    FOR UPDATE NOWAIT;
+  ROLLBACK;
+
+  --connection default
+  ROLLBACK;
+  --inc $i
+}
+
+--disconnect con1
+--connection read_view_holder
+ROLLBACK;
+--disconnect read_view_holder
+--connection default
+DROP DATABASE duplicate_gap_z;
+SET SESSION debug = @saved_debug;
