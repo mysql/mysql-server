@@ -209,14 +209,13 @@ Event_set_fetchable_memory::decompress() {
   return {};
 }
 
-bool Event_set_fetchable_memory::wait_next() {
+Event_set_fetchable::Wait_result Event_set_fetchable_memory::wait_next() {
   while (true) {
-    if (is_error() || is_done()) {
-      return false;
-    }
+    if (is_error()) return Wait_result::error;
+    if (is_done()) return Wait_result::end;
 
     if (m_decompressing) {
-      return true;
+      return Wait_result::ready;
     }
 
     {
@@ -224,23 +223,20 @@ bool Event_set_fetchable_memory::wait_next() {
       while (m_event_id >= m_events.size()) {
         if (m_stream_truncated || m_stream_sealed) {
           m_is_done = true;
-          return false;
+          return Wait_result::end;
         }
-        // Contract: returning false while not done and not in error means
-        // the applier stop was requested or the coordinator was killed
-        // (Fetchable_transaction::wait_next).
         if (m_applier_stop == nullptr) {
           m_stream_cv.wait(lock);
         } else if (m_applier_stop->load(std::memory_order_acquire) ||
                    Trx_envelope_queue::is_coordinator_killed()) {
-          return false;
+          return Wait_result::cancelled;
         } else {
           m_stream_cv.wait_for(lock,
                                Trx_envelope_queue::kApplierStopPollInterval);
         }
       }
     }
-    return true;
+    return Wait_result::ready;
   }
 }
 

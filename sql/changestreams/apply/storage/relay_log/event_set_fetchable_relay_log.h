@@ -86,7 +86,7 @@ class Event_set_fetchable_relay_log : public Event_set_fetchable {
   ///
   /// @return Managed_event or empty optional in case of stream end or error.
   ///         Error can be checked with 'is_error'.
-  bool wait_next() override;
+  Wait_result wait_next() override;
   std::optional<Managed_event> fetch_next() override;
 
   /// @brief Retrieves the error message if any error occurred.

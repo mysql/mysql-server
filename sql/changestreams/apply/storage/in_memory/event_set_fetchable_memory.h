@@ -86,7 +86,7 @@ class Event_set_fetchable_memory : public Event_set_fetchable,
                              Trx_envelope_queue *owner_queue = nullptr,
                              std::size_t reserved_bytes = 0);
 
-  bool wait_next() override;
+  Wait_result wait_next() override;
   std::optional<Managed_event> fetch_next() override;
   const std::string &get_error_str() const override;
   bool is_done() const override;

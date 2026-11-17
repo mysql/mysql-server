@@ -57,9 +57,24 @@ class Event_set_fetchable {
   using Fde_type = Format_description_log_event;
   using Fde_ptr = Fde_type *;
   using Log_event_ptr = std::shared_ptr<Log_event>;
-  /// @brief Waits until the next event can be fetched.
-  /// @return true if the next event can be fetched, false on end/error.
-  virtual bool wait_next() = 0;
+  /// @brief Outcome of wait_next().
+  enum class Wait_result {
+    /// The next event can be fetched with fetch_next().
+    ready,
+    /// The event set ended (sealed or truncated); is_done() is now true.
+    end,
+    /// The wait was cancelled (applier stop or coordinator kill) before the
+    /// event set ended. The state is unchanged; the wait can be repeated.
+    /// Sources that cannot be cancelled never return it.
+    cancelled,
+    /// Fetching failed; is_error() is now true and get_error_str() says why.
+    error
+  };
+
+  /// @brief Waits until the next event can be fetched, the event set ends,
+  /// fetching fails, or the wait is cancelled.
+  /// @return The outcome; see Wait_result.
+  virtual Wait_result wait_next() = 0;
   /// @brief Fetches the next event if possible.
   ///
   /// Callers are expected to wait for availability with `wait_next()` first

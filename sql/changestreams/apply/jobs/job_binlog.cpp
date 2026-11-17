@@ -22,6 +22,7 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
 #include "sql/changestreams/apply/jobs/job_binlog.h"
+#include <scope_guard.h>                      // create_scope_guard
 #include "mysql/binlog/event/binlog_event.h"  // Log_event_type_helper
 #include "mysql/scheduler/dispatch_reason.h"
 #include "mysql/scheduler/statistics_monitor.h"
@@ -109,6 +110,9 @@ bool Job_binlog::run(Thread_id thread_id) {
   auto &stat_monitor = m_stat_monitor.get();
   auto &trx_exec_timer = stat_monitor.get_stat(Statistics_map::trx_exec_time);
   trx_exec_timer.start_time(thread_id);
+  // Stop the timer on every return below, including the early ones.
+  auto stop_exec_timer = create_scope_guard(
+      [&trx_exec_timer, thread_id] { trx_exec_timer.stop_time(thread_id); });
   if (m_channel->get_commit_order_manager() && is_trx() &&
       m_phase != Transaction_phase::retry_commit) {
     assert(m_phase != Transaction_phase::done);
@@ -136,7 +140,6 @@ bool Job_binlog::run(Thread_id thread_id) {
     if (this->commit_register(thread_id)) return true;
     if (this->commit(thread_id)) return true;
   }
-  trx_exec_timer.stop_time(thread_id);
   return is_error;
 }
 

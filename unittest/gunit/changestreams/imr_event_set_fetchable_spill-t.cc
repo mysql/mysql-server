@@ -64,6 +64,8 @@
 
 namespace mysql::csa::unittests {
 
+using Wait_result = Event_set_fetchable::Wait_result;
+
 namespace fs = std::filesystem;
 
 namespace {
@@ -117,7 +119,7 @@ void append_rotate(Event_set_fetchable_spill &sink, unsigned long long pos,
 std::vector<unsigned long long> drain_positions(
     Event_set_fetchable_spill &sink) {
   std::vector<unsigned long long> out;
-  while (sink.wait_next()) {
+  while (sink.wait_next() == Wait_result::ready) {
     auto managed = sink.fetch_next();
     if (!managed.has_value()) break;
     auto *rot = dynamic_cast<Rotate_log_event *>(managed->get_event().get());
@@ -409,7 +411,7 @@ TEST_F(ImrSpillSinkTest, StreamsBackEventsInOrder) {
   EXPECT_FALSE(sink.is_error()) << sink.get_error_str();
 
   // Fully drained: further consumer calls are terminal no-ops.
-  EXPECT_FALSE(sink.wait_next());
+  EXPECT_EQ(sink.wait_next(), Wait_result::end);
   EXPECT_FALSE(sink.fetch_next().has_value());
 }
 
@@ -440,7 +442,7 @@ TEST_F(ImrSpillSinkTest, Crc32EventsRoundTripWithMatchingChecksumFde) {
 
   const std::size_t expected_ident_len = std::strlen(kRotateIdent);
   std::vector<unsigned long long> got_pos;
-  while (sink.wait_next()) {
+  while (sink.wait_next() == Wait_result::ready) {
     auto managed = sink.fetch_next();
     ASSERT_TRUE(managed.has_value());
     auto *rot = dynamic_cast<Rotate_log_event *>(managed->get_event().get());
@@ -488,7 +490,7 @@ TEST_F(ImrSpillSinkTest, CompressedPayloadStreamsBackDecompressed) {
   std::vector<unsigned long long> got_pos;
   std::vector<mysql::binlog::event::Log_event_type> got_types;
   std::uint64_t got_xid = 0;
-  while (sink.wait_next()) {
+  while (sink.wait_next() == Wait_result::ready) {
     auto managed = sink.fetch_next();
     ASSERT_TRUE(managed.has_value()) << sink.get_error_str();
     Log_event *ev = managed->get_event().get();
@@ -531,7 +533,7 @@ TEST_F(ImrSpillSinkTest, WaitBlocksUntilPublishedThenUnblocks) {
   auto future = done.get_future();
   std::thread consumer([&] {
     std::vector<unsigned long long> out;
-    while (sink.wait_next()) {
+    while (sink.wait_next() == Wait_result::ready) {
       auto managed = sink.fetch_next();
       if (!managed.has_value()) break;
       auto *rot = dynamic_cast<Rotate_log_event *>(managed->get_event().get());
@@ -608,7 +610,7 @@ TEST_F(ImrSpillSinkTest, TruncateUnblocksParkedConsumer) {
   auto future = done.get_future();
   std::thread consumer([&] {
     std::size_t n = 0;
-    while (sink.wait_next()) {
+    while (sink.wait_next() == Wait_result::ready) {
       auto managed = sink.fetch_next();
       if (!managed.has_value()) break;
       ++n;
@@ -654,7 +656,7 @@ TEST_F(ImrSpillSinkTest, ReaderFailureLeavesWriterErrorStateUnchanged) {
   append_rotate(sink, 1);
 
   DBUG_SET("+d,imr_force_spill_reader_open_failure");
-  EXPECT_FALSE(sink.wait_next());
+  EXPECT_EQ(sink.wait_next(), Wait_result::error);
   DBUG_SET("-d,imr_force_spill_reader_open_failure");
 
   // The consumer sees its own failure.
@@ -720,7 +722,7 @@ TEST_F(ImrSpillSinkTest, WriterFailureIsVisibleToConsumer) {
   EXPECT_TRUE(env.is_truncated());
   EXPECT_TRUE(sink.is_error());
   EXPECT_EQ(sink.get_error_str(), receiver_view.io_error_message());
-  EXPECT_FALSE(sink.wait_next());
+  EXPECT_EQ(sink.wait_next(), Wait_result::error);
 
   // A consumer reset does not clear receiver state.
   sink.reset(false);
@@ -808,7 +810,7 @@ TEST_F(ImrSpillSinkTest, ReaderAndWriterFailuresKeepSeparateMessages) {
   append_rotate(sink, 1);
 
   DBUG_SET("+d,imr_force_spill_reader_open_failure");
-  EXPECT_FALSE(sink.wait_next());
+  EXPECT_EQ(sink.wait_next(), Wait_result::error);
   DBUG_SET("-d,imr_force_spill_reader_open_failure");
   ASSERT_TRUE(sink.is_error());
   const std::string reader_message = sink.get_error_str();
@@ -1061,7 +1063,7 @@ TEST_F(ImrSpillSinkTest, ApplierStopFlagEndsParkedWait) {
       /*reserved_disk_bytes=*/0, /*stats_instance_id=*/0, &applier_stop);
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
 
-  std::promise<bool> result;
+  std::promise<Wait_result> result;
   auto future = result.get_future();
   std::thread waiter([&] { result.set_value(sink.wait_next()); });
   EXPECT_EQ(future.wait_for(kShortWait), std::future_status::timeout)
@@ -1072,14 +1074,14 @@ TEST_F(ImrSpillSinkTest, ApplierStopFlagEndsParkedWait) {
   if (!ended) sink.set_stream_truncated();  // watchdog: release the waiter
   waiter.join();
   ASSERT_TRUE(ended) << "wait_next() must end within 1 s of the applier stop";
-  EXPECT_FALSE(future.get());
+  EXPECT_EQ(future.get(), Wait_result::cancelled);
   EXPECT_FALSE(sink.is_done()) << "an applier stop is not end-of-stream";
   EXPECT_FALSE(sink.is_error()) << sink.get_error_str();
 
   // Restart: clear the flag and reset, as the next START does.
   applier_stop.store(false);
   sink.reset(false);
-  std::promise<bool> result2;
+  std::promise<Wait_result> result2;
   auto future2 = result2.get_future();
   std::thread waiter2([&] { result2.set_value(sink.wait_next()); });
   EXPECT_EQ(future2.wait_for(kShortWait), std::future_status::timeout)
@@ -1089,7 +1091,7 @@ TEST_F(ImrSpillSinkTest, ApplierStopFlagEndsParkedWait) {
   if (!woke) sink.set_stream_truncated();
   waiter2.join();
   ASSERT_TRUE(woke) << "wait_next() must wake once an event is published";
-  EXPECT_TRUE(future2.get());
+  EXPECT_EQ(future2.get(), Wait_result::ready);
   auto managed = sink.fetch_next();
   ASSERT_TRUE(managed.has_value()) << sink.get_error_str();
   auto *rot = dynamic_cast<Rotate_log_event *>(managed->get_event().get());
@@ -1107,7 +1109,7 @@ TEST_F(ImrSpillSinkTest, FetchPastPublishedEndOnOpenStreamIsNotDone) {
   ASSERT_FALSE(sink.is_error()) << sink.get_error_str();
 
   append_rotate(sink, 5);
-  ASSERT_TRUE(sink.wait_next());
+  ASSERT_EQ(sink.wait_next(), Wait_result::ready);
   auto managed = sink.fetch_next();
   ASSERT_TRUE(managed.has_value()) << sink.get_error_str();
   auto *rot = dynamic_cast<Rotate_log_event *>(managed->get_event().get());
@@ -1119,7 +1121,7 @@ TEST_F(ImrSpillSinkTest, FetchPastPublishedEndOnOpenStreamIsNotDone) {
   EXPECT_FALSE(sink.is_error()) << sink.get_error_str();
 
   sink.seal_stream();
-  EXPECT_FALSE(sink.wait_next());
+  EXPECT_EQ(sink.wait_next(), Wait_result::end);
   EXPECT_TRUE(sink.is_done());
   EXPECT_FALSE(sink.is_error()) << sink.get_error_str();
 }

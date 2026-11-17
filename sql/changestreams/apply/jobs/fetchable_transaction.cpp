@@ -122,30 +122,32 @@ std::optional<Managed_event> Fetchable_transaction::fetch_next() {
 }
 
 bool Fetchable_transaction::wait_next() {
+  using Wait_result = Event_set_fetchable::Wait_result;
   while (true) {
     auto *event_batch = wait_for_current_batch();
     if (event_batch == nullptr) {
       return false;
     }
 
-    if (event_batch->wait_next()) {
-      return true;
-    }
-
-    {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      if (event_batch->is_error()) {
+    switch (event_batch->wait_next()) {
+      case Wait_result::ready:
+        return true;
+      case Wait_result::cancelled:
+        // Applier stop or coordinator kill: the job is aborted, not failed.
+        m_is_aborted.store(true, std::memory_order_release);
+        return false;
+      case Wait_result::error: {
+        std::lock_guard<std::mutex> lock(m_mutex);
         m_status = Return_status::error;
         m_error_message = event_batch->get_error_str();
         return false;
       }
-      if (!event_batch->is_done()) {
-        // Batch returned nothing, not done, no error: applier stop requested.
-        m_is_aborted.store(true, std::memory_order_release);
-        return false;
-      }
-      if (advance_finished_batch_unsafe(event_batch)) {
-        return false;
+      case Wait_result::end: {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (advance_finished_batch_unsafe(event_batch)) {
+          return false;
+        }
+        break;  // Continue with the transaction's next batch.
       }
     }
   }

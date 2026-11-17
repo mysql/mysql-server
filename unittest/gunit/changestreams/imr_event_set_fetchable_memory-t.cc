@@ -72,6 +72,8 @@
 
 namespace mysql::csa::unittests {
 
+using Wait_result = Event_set_fetchable::Wait_result;
+
 namespace {
 
 /// A fake encoded event: it just hands back a preset, already-decoded
@@ -164,7 +166,7 @@ TEST(ImrEventSetFetchableMemoryTest, AppendSealFetchOrder) {
 
   // Drive the consumer surface and collect what comes back.
   std::vector<Log_event *> fetched;
-  while (source.wait_next()) {
+  while (source.wait_next() == Wait_result::ready) {
     auto managed = source.fetch_next();
     ASSERT_TRUE(managed.has_value())
         << "wait_next() returned true so fetch_next() must yield an event";
@@ -175,7 +177,7 @@ TEST(ImrEventSetFetchableMemoryTest, AppendSealFetchOrder) {
   EXPECT_EQ(fetched, expected);
 
   // End-of-stream: no more events, cleanly done, no error.
-  EXPECT_FALSE(source.wait_next());
+  EXPECT_EQ(source.wait_next(), Wait_result::end);
   EXPECT_FALSE(source.fetch_next().has_value());
   EXPECT_TRUE(source.is_done());
   EXPECT_FALSE(source.is_error());
@@ -212,7 +214,7 @@ TEST(ImrEventSetFetchableMemoryTest, ByteOrientedAppendDecodesAndSeals) {
   source.append_event(as_char(extra), extra.size());
 
   int fetched = 0;
-  while (source.wait_next()) {
+  while (source.wait_next() == Wait_result::ready) {
     auto managed = source.fetch_next();
     ASSERT_TRUE(managed.has_value())
         << "wait_next() returned true so fetch_next() must yield an event";
@@ -225,7 +227,7 @@ TEST(ImrEventSetFetchableMemoryTest, ByteOrientedAppendDecodesAndSeals) {
   // Exactly the pre-seal events came back; the post-seal append never became
   // observable; clean end-of-stream.
   EXPECT_EQ(fetched, kEventCount);
-  EXPECT_FALSE(source.wait_next());
+  EXPECT_EQ(source.wait_next(), Wait_result::end);
   EXPECT_TRUE(source.is_done());
   EXPECT_FALSE(source.is_error());
 }
@@ -247,7 +249,7 @@ TEST(ImrEventSetFetchableMemoryTest, UndecodableEventIsByteSourceError) {
   ASSERT_GT(bytes.size(), 5u);
   source.append_event(as_char(bytes), bytes.size() - 5, /*seal_after=*/true);
 
-  ASSERT_TRUE(source.wait_next());
+  ASSERT_EQ(source.wait_next(), Wait_result::ready);
   EXPECT_FALSE(source.fetch_next().has_value());
   EXPECT_TRUE(source.is_error());
   EXPECT_NE(source.get_error_str().find("could not decode event #0"),
@@ -255,7 +257,7 @@ TEST(ImrEventSetFetchableMemoryTest, UndecodableEventIsByteSourceError) {
       << source.get_error_str();
 
   // The error is sticky until a reset: no more events, and not done.
-  EXPECT_FALSE(source.wait_next());
+  EXPECT_EQ(source.wait_next(), Wait_result::error);
   EXPECT_FALSE(source.is_done());
 }
 
@@ -270,13 +272,13 @@ TEST(ImrEventSetFetchableMemoryTest, UndecodableLaterEventNamesItsIndex) {
   source.append_event(as_char(bytes), bytes.size());
   source.append_event(as_char(bytes), bytes.size() - 5, /*seal_after=*/true);
 
-  ASSERT_TRUE(source.wait_next());
+  ASSERT_EQ(source.wait_next(), Wait_result::ready);
   auto first = source.fetch_next();
   ASSERT_TRUE(first.has_value());
   EXPECT_EQ(first->get_event()->get_type_code(),
             mysql::binlog::event::FORMAT_DESCRIPTION_EVENT);
 
-  ASSERT_TRUE(source.wait_next());
+  ASSERT_EQ(source.wait_next(), Wait_result::ready);
   EXPECT_FALSE(source.fetch_next().has_value());
   EXPECT_TRUE(source.is_error());
   EXPECT_NE(source.get_error_str().find("could not decode event #1"),
@@ -316,13 +318,13 @@ TEST(ImrEventSetFetchableMemoryTest, UndecodableEventKeepsReaderCause) {
   source.append_event(as_char(bad), bad.size(), /*seal_after=*/true);
 
   // The well-formed Xid event decodes, so the bytes are right but the body.
-  ASSERT_TRUE(source.wait_next());
+  ASSERT_EQ(source.wait_next(), Wait_result::ready);
   auto first = source.fetch_next();
   ASSERT_TRUE(first.has_value()) << source.get_error_str();
   EXPECT_EQ(first->get_event()->get_type_code(),
             mysql::binlog::event::XID_EVENT);
 
-  ASSERT_TRUE(source.wait_next());
+  ASSERT_EQ(source.wait_next(), Wait_result::ready);
   EXPECT_FALSE(source.fetch_next().has_value());
   EXPECT_TRUE(source.is_error());
   const std::string expected =
@@ -342,7 +344,7 @@ TEST(ImrEventSetFetchableMemoryTest,
                                     /*streaming_open=*/true);
   source.append_reader_event(make_fake(nullptr), /*seal_after=*/true);
 
-  ASSERT_TRUE(source.wait_next());
+  ASSERT_EQ(source.wait_next(), Wait_result::ready);
   EXPECT_FALSE(source.fetch_next().has_value());
   EXPECT_TRUE(source.is_error());
   EXPECT_EQ(
@@ -376,7 +378,7 @@ TEST(ImrEventSetFetchableMemoryTest, AppendRejectedAfterSeal) {
 
   // Drive the consumer surface and collect what comes back.
   std::vector<Log_event *> fetched;
-  while (source.wait_next()) {
+  while (source.wait_next() == Wait_result::ready) {
     auto managed = source.fetch_next();
     ASSERT_TRUE(managed.has_value())
         << "wait_next() returned true so fetch_next() must yield an event";
@@ -389,7 +391,7 @@ TEST(ImrEventSetFetchableMemoryTest, AppendRejectedAfterSeal) {
   EXPECT_EQ(fetched[0], expected);
 
   // End-of-stream: cleanly done, no error.
-  EXPECT_FALSE(source.wait_next());
+  EXPECT_EQ(source.wait_next(), Wait_result::end);
   EXPECT_TRUE(source.is_done());
   EXPECT_FALSE(source.is_error());
 }
@@ -413,7 +415,7 @@ TEST(ImrEventSetFetchableMemoryTest, AppendWithSealAfterSealsStream) {
 
   // Drive the consumer surface and collect what comes back.
   std::vector<Log_event *> fetched;
-  while (source.wait_next()) {
+  while (source.wait_next() == Wait_result::ready) {
     auto managed = source.fetch_next();
     ASSERT_TRUE(managed.has_value())
         << "wait_next() returned true so fetch_next() must yield an event";
@@ -426,7 +428,7 @@ TEST(ImrEventSetFetchableMemoryTest, AppendWithSealAfterSealsStream) {
   EXPECT_EQ(fetched[0], expected);
 
   // End-of-stream: cleanly done, no error.
-  EXPECT_FALSE(source.wait_next());
+  EXPECT_EQ(source.wait_next(), Wait_result::end);
   EXPECT_TRUE(source.is_done());
   EXPECT_FALSE(source.is_error());
 }
@@ -457,8 +459,8 @@ TEST(ImrEventSetFetchableMemoryTest, WaitNextBlocksThenWakesOnAppend) {
                                     /*owner_envelope=*/nullptr,
                                     /*streaming_open=*/true);
 
-  std::promise<bool> result;
-  std::future<bool> future = result.get_future();
+  std::promise<Wait_result> result;
+  std::future<Wait_result> future = result.get_future();
   std::thread waiter(
       [&source, &result]() { result.set_value(source.wait_next()); });
 
@@ -471,7 +473,7 @@ TEST(ImrEventSetFetchableMemoryTest, WaitNextBlocksThenWakesOnAppend) {
 
   ASSERT_EQ(future.wait_for(kWakeTimeout), std::future_status::ready)
       << "wait_next() must wake once an event is appended";
-  EXPECT_TRUE(future.get());
+  EXPECT_EQ(future.get(), Wait_result::ready);
 
   waiter.join();
 }
@@ -484,8 +486,8 @@ TEST(ImrEventSetFetchableMemoryTest, WaitNextBlockedWakesOnSealEmpty) {
                                     /*owner_envelope=*/nullptr,
                                     /*streaming_open=*/true);
 
-  std::promise<bool> result;
-  std::future<bool> future = result.get_future();
+  std::promise<Wait_result> result;
+  std::future<Wait_result> future = result.get_future();
   std::thread waiter(
       [&source, &result]() { result.set_value(source.wait_next()); });
 
@@ -498,7 +500,7 @@ TEST(ImrEventSetFetchableMemoryTest, WaitNextBlockedWakesOnSealEmpty) {
 
   ASSERT_EQ(future.wait_for(kWakeTimeout), std::future_status::ready)
       << "wait_next() must wake when the empty stream is sealed";
-  EXPECT_FALSE(future.get());
+  EXPECT_EQ(future.get(), Wait_result::end);
 
   waiter.join();
 
@@ -533,7 +535,7 @@ TEST(ImrEventSetFetchableMemoryTest, TruncationDrainsBufferedThenReportsDone) {
   source.set_stream_truncated();
 
   std::vector<Log_event *> fetched;
-  while (source.wait_next()) {
+  while (source.wait_next() == Wait_result::ready) {
     auto managed = source.fetch_next();
     ASSERT_TRUE(managed.has_value())
         << "wait_next() returned true so fetch_next() must yield an event";
@@ -544,7 +546,7 @@ TEST(ImrEventSetFetchableMemoryTest, TruncationDrainsBufferedThenReportsDone) {
   EXPECT_EQ(fetched, expected);
 
   // End-of-stream reached without blocking: done, no error.
-  EXPECT_FALSE(source.wait_next());
+  EXPECT_EQ(source.wait_next(), Wait_result::end);
   EXPECT_FALSE(source.fetch_next().has_value());
   EXPECT_TRUE(source.is_done());
   EXPECT_FALSE(source.is_error());
@@ -558,8 +560,8 @@ TEST(ImrEventSetFetchableMemoryTest, WaitNextBlockedWakesOnTruncate) {
                                     /*owner_envelope=*/nullptr,
                                     /*streaming_open=*/true);
 
-  std::promise<bool> result;
-  std::future<bool> future = result.get_future();
+  std::promise<Wait_result> result;
+  std::future<Wait_result> future = result.get_future();
   std::thread waiter(
       [&source, &result]() { result.set_value(source.wait_next()); });
 
@@ -572,7 +574,7 @@ TEST(ImrEventSetFetchableMemoryTest, WaitNextBlockedWakesOnTruncate) {
 
   ASSERT_EQ(future.wait_for(kWakeTimeout), std::future_status::ready)
       << "wait_next() must wake when the empty stream is truncated";
-  EXPECT_FALSE(future.get());
+  EXPECT_EQ(future.get(), Wait_result::end);
 
   waiter.join();
 
@@ -605,7 +607,7 @@ TEST(ImrEventSetFetchableMemoryTest,
   std::future<std::vector<Log_event *>> future = result.get_future();
   std::thread consumer([&source, &result]() {
     std::vector<Log_event *> seen;
-    while (source.wait_next()) {
+    while (source.wait_next() == Wait_result::ready) {
       auto managed = source.fetch_next();
       if (!managed.has_value()) break;
       seen.push_back(managed->get_event().get());
@@ -816,7 +818,7 @@ TEST(ImrEventSetFetchableMemoryTest, PropertyInterfaceParity) {
     // by identity.
     std::vector<Log_event *> fetched;
     fetched.reserve(n);
-    while (src.wait_next()) {
+    while (src.wait_next() == Wait_result::ready) {
       auto managed = src.fetch_next();
       ASSERT_TRUE(managed.has_value())
           << "PropertyInterfaceParity seed=0x" << std::hex << kSeed << std::dec
@@ -1027,8 +1029,8 @@ TEST(ImrEventSetFetchableMemoryTest, ApplierStopFlagEndsParkedWait) {
                                     /*streaming_open=*/true,
                                     /*stats_instance_id=*/0, &applier_stop);
 
-  std::promise<bool> result;
-  std::future<bool> future = result.get_future();
+  std::promise<Wait_result> result;
+  std::future<Wait_result> future = result.get_future();
   std::thread waiter(
       [&source, &result]() { result.set_value(source.wait_next()); });
   EXPECT_EQ(future.wait_for(kBlockProbe), std::future_status::timeout)
@@ -1039,15 +1041,15 @@ TEST(ImrEventSetFetchableMemoryTest, ApplierStopFlagEndsParkedWait) {
   if (!ended) source.seal_stream();  // watchdog: release the waiter
   waiter.join();
   ASSERT_TRUE(ended) << "wait_next() must end within 1 s of the applier stop";
-  EXPECT_FALSE(future.get());
+  EXPECT_EQ(future.get(), Wait_result::cancelled);
   EXPECT_FALSE(source.is_done()) << "an applier stop is not end-of-stream";
   EXPECT_FALSE(source.is_error());
 
   // Restart: clear the flag and reset, as the next START does.
   applier_stop.store(false);
   source.reset(false);
-  std::promise<bool> result2;
-  std::future<bool> future2 = result2.get_future();
+  std::promise<Wait_result> result2;
+  std::future<Wait_result> future2 = result2.get_future();
   std::thread waiter2(
       [&source, &result2]() { result2.set_value(source.wait_next()); });
   EXPECT_EQ(future2.wait_for(kBlockProbe), std::future_status::timeout)
@@ -1058,7 +1060,7 @@ TEST(ImrEventSetFetchableMemoryTest, ApplierStopFlagEndsParkedWait) {
   if (!woke) source.seal_stream();
   waiter2.join();
   ASSERT_TRUE(woke) << "wait_next() must wake once an event is appended";
-  EXPECT_TRUE(future2.get());
+  EXPECT_EQ(future2.get(), Wait_result::ready);
   auto managed = source.fetch_next();
   ASSERT_TRUE(managed.has_value());
   EXPECT_EQ(managed->get_event().get(), decoded.get());
@@ -1110,7 +1112,7 @@ TEST(ImrEventSetFetchableMemoryTest, MaxEventLengthVisibleWhenEventIs) {
   std::promise<std::pair<bool, std::size_t>> result;
   auto future = result.get_future();
   std::thread waiter([&source, &owner, &result]() {
-    const bool has_event = source.wait_next();
+    const bool has_event = source.wait_next() == Wait_result::ready;
     result.set_value({has_event, owner.get_max_event_length()});
   });
   EXPECT_EQ(future.wait_for(kBlockProbe), std::future_status::timeout)

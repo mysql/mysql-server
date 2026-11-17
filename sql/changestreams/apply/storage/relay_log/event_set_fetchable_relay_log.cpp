@@ -118,18 +118,22 @@ bool Event_set_fetchable_relay_log::wait_for_event_availability() {
   }
 }
 
-bool Event_set_fetchable_relay_log::wait_next() {
-  if (is_done() || is_error()) {
+Event_set_fetchable::Wait_result Event_set_fetchable_relay_log::wait_next() {
+  if (is_error()) {
     safe_close_reader();
-    return false;
+    return Wait_result::error;
+  }
+  if (is_done()) {
+    safe_close_reader();
+    return Wait_result::end;
   }
   if (!m_is_initialized) {
     start_reading();
     if (is_error()) {
-      return false;
+      return Wait_result::error;
     }
   }
-  return wait_for_event_availability();
+  return wait_for_event_availability() ? Wait_result::ready : Wait_result::end;
 }
 
 std::optional<Managed_event>

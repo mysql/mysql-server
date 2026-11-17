@@ -264,45 +264,47 @@ void Event_set_fetchable_spill::start_reading() {
   }
 }
 
-bool Event_set_fetchable_spill::wait_for_event_availability() {
+Event_set_fetchable::Wait_result
+Event_set_fetchable_spill::wait_for_event_availability() {
   if (decompressing()) {
-    return true;
+    return Wait_result::ready;
   }
   while (true) {
     std::unique_lock<std::mutex> lock(m_stream_mutex);
     // More bytes have been published than the reader has consumed: readable.
     if (m_reader.position() < m_published_end_file_pos) {
-      return true;
+      return Wait_result::ready;
     }
     if (m_stream_truncated || m_stream_sealed) {
       m_is_done = true;
       safe_close_reader();
-      return false;
+      return Wait_result::end;
     }
-    // Contract: returning false while not done and not in error means the
-    // applier stop was requested or the coordinator was killed
-    // (Fetchable_transaction::wait_next). The reader stays open; reset() or
-    // the destructor closes it.
+    // On cancel the reader stays open; reset() or the destructor closes it.
     if (m_applier_stop == nullptr) {
       m_stream_cv.wait(lock);
     } else if (m_applier_stop->load(std::memory_order_acquire) ||
                Trx_envelope_queue::is_coordinator_killed()) {
-      return false;
+      return Wait_result::cancelled;
     } else {
       m_stream_cv.wait_for(lock, Trx_envelope_queue::kApplierStopPollInterval);
     }
   }
 }
 
-bool Event_set_fetchable_spill::wait_next() {
-  if (is_done() || is_error()) {
+Event_set_fetchable::Wait_result Event_set_fetchable_spill::wait_next() {
+  if (is_error()) {
     safe_close_reader();
-    return false;
+    return Wait_result::error;
+  }
+  if (is_done()) {
+    safe_close_reader();
+    return Wait_result::end;
   }
   if (!m_is_initialized) {
     start_reading();
     if (is_error()) {
-      return false;
+      return Wait_result::error;
     }
   }
   return wait_for_event_availability();

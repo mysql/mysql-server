@@ -91,7 +91,7 @@ class Event_set_fetchable_spill : public Event_set_fetchable,
   /// @brief Destructor (defined out-of-line for the unique_ptr member).
   ~Event_set_fetchable_spill() override;
 
-  bool wait_next() override;
+  Wait_result wait_next() override;
   std::optional<Managed_event> fetch_next() override;
   const std::string &get_error_str() const override;
   bool is_done() const override;
@@ -170,7 +170,7 @@ class Event_set_fetchable_spill : public Event_set_fetchable,
   /// sealed/truncated/errored.
   /// @retval true  At least one more event can be fetched.
   /// @retval false No more events (sealed/truncated/error).
-  bool wait_for_event_availability();
+  Wait_result wait_for_event_availability();
   /// @brief Reads and decodes the next event from the decompressing stream,
   /// handling TPLE decompression and end-of-stream/error.
   std::optional<Managed_event> fetch_from_stream();
