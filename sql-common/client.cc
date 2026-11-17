@@ -3012,6 +3012,7 @@ net_async_status cli_read_rows_nonblocking(MYSQL *mysql,
   */
   while (*(cp = net->read_pos) == 0 || is_data_packet) {
     MYSQL_DATA *result = async_context->rows_result_buffer;
+    ulong packet_left = pkt_len;
     result->rows++;
     if (!(cur = (MYSQL_ROWS *)result->alloc->Alloc(sizeof(MYSQL_ROWS))) ||
         !(cur->data = ((MYSQL_ROW)result->alloc->Alloc(
@@ -3027,12 +3028,23 @@ net_async_status cli_read_rows_nonblocking(MYSQL *mysql,
     to = (char *)(cur->data + fields + 1);
     end_to = to + pkt_len - 1;
     for (field = 0; field < fields; field++) {
+      uint length_len = 0;
+      if (packet_left < 1 ||
+          packet_left < (length_len = net_field_length_size(cp))) {
+        free_rows(result);
+        async_context->rows_result_buffer = nullptr;
+        set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
+        net_async->read_rows_is_first_read = true;
+        return NET_ASYNC_COMPLETE;
+      }
       if ((len = (ulong)net_field_length(&cp)) ==
           NULL_LENGTH) { /* null field */
         cur->data[field] = nullptr;
+        packet_left -= length_len;
       } else {
         cur->data[field] = to;
-        if (to > end_to || len > (ulong)(end_to - to)) {
+        if (to > end_to || len > (ulong)(end_to - to) ||
+            len > packet_left - length_len) {
           free_rows(result);
           async_context->rows_result_buffer = nullptr;
           set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
@@ -3043,6 +3055,7 @@ net_async_status cli_read_rows_nonblocking(MYSQL *mysql,
         to[len] = 0;
         to += len + 1;
         cp += len;
+        packet_left -= len + length_len;
         if (mysql_fields) {
           if (mysql_fields[field].max_length < len)
             mysql_fields[field].max_length = len;
@@ -3163,7 +3176,8 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql, MYSQL_FIELD *mysql_fields,
           to = end_to + 1;
           len = ULONG_MAX - 1;
         });
-        if (to > end_to || len > (ulong)(end_to - to)) {
+        if (to > end_to || len > (ulong)(end_to - to) ||
+            len > packet_left - length_len) {
           free_rows(result);
           set_mysql_error(mysql, CR_MALFORMED_PACKET, unknown_sqlstate);
           return nullptr;
