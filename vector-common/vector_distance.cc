@@ -127,6 +127,12 @@
 #endif
 #endif
 
+// GCC on x86_64 converts floats to doubles with intrinsics, see widen().
+#if defined(VECTOR_DISTANCE_x86_64) && defined(__GNUC__) && !defined(__clang__)
+#define VECTOR_DISTANCE_GCC_x86_64
+#include <immintrin.h>
+#endif
+
 // GCC and Clang (which also defines __GNUC__); MSVC takes the #else branch.
 #if defined(__GNUC__)
 #define VECTOR_DISTANCE_UNROLL _Pragma("GCC unroll 16")
@@ -170,6 +176,39 @@ struct VectorLanes {
   typedef double D __attribute__((vector_size(W * sizeof(double))));
   typedef int64_t DI __attribute__((vector_size(W * sizeof(int64_t))));
 };
+#endif
+
+// out = h converted lane by lane from float to double.
+template <class L>
+MY_ATTRIBUTE((always_inline))
+inline void widen(typename L::D &out, const typename L::H &h) {
+  if constexpr (L::width == 1)
+    out = h;
+  else
+    out = VECTOR_DISTANCE_TO_DOUBLE(h, typename L::D);
+}
+
+#ifdef VECTOR_DISTANCE_GCC_x86_64
+// GCC (11 and 14 at least) splits the generic conversion of 4 or 8 floats
+// into halves and joins the results, which makes the AVX2 and AVX-512F
+// kernels up to 2x slower.  The intrinsics give one vcvtps2pd per register.
+// These have the tier's target attribute, so they are plain inline:
+// always_inline would inline them into the template before it reaches the
+// tier's function, and fail with a target mismatch.  The references keep
+// the wide vectors out of the calling convention until they are inlined.
+template <>
+MY_ATTRIBUTE((target("avx2")))
+inline void widen<VectorLanes<4>>(VectorLanes<4>::D &out,
+                                  const VectorLanes<4>::H &h) {
+  out = _mm256_cvtps_pd(h);
+}
+
+template <>
+MY_ATTRIBUTE((target("avx512f")))
+inline void widen<VectorLanes<8>>(VectorLanes<8>::D &out,
+                                  const VectorLanes<8>::H &h) {
+  out = _mm512_cvtps_pd(h);
+}
 #endif
 
 // acc[s] += term s of the elements x and y: (x - y)² for Euclidean; xy, x²
@@ -253,13 +292,8 @@ inline double lanes_kernel(const char *a_raw, const char *b_raw,
       memcpy(&af, a_raw + (i + r * W) * sizeof(float), sizeof(af));
       memcpy(&bf, b_raw + (i + r * W) * sizeof(float), sizeof(bf));
       D x, y;
-      if constexpr (W == 1) {
-        x = af;
-        y = bf;
-      } else {
-        x = VECTOR_DISTANCE_TO_DOUBLE(af, D);
-        y = VECTOR_DISTANCE_TO_DOUBLE(bf, D);
-      }
+      widen<L>(x, af);
+      widen<L>(y, bf);
       accumulate<L, M>(acc[r], x, y);
     }
   }

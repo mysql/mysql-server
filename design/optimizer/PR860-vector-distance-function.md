@@ -527,6 +527,10 @@ Other interface changes:
 1. `vector-common/vector_distance.{h,cc}`: kernels.
    - Lane types per tier: `ScalarLanes` and `VectorLanes<W>`, with W = 2
      (SSE4.2, NEON), 4 (AVX2) or 8 (AVX-512F) doubles per register.
+   - `widen()`: converts a register's worth of floats to doubles. With GCC
+     on x86_64 the AVX2 and AVX-512F versions use `_mm256_cvtps_pd()` and
+     `_mm512_cvtps_pd()`: GCC 11 and 14 split the generic conversion into
+     halves, which made those kernels up to 2x slower.
    - `accumulate<Metric>()`: adds the terms of one element pair to the sums,
      for a register of lanes in the blocks and for one element in the tail.
      Manhattan clears the sign bit with an integer mask, since `std::fabs`
