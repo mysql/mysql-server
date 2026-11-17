@@ -88,7 +88,7 @@ UDT_Parameters::UDT_Parameters() {
 
   m_target_def.add_foreign_key(FK_METHOD_ID, "FK_METHOD_ID",
                                "FOREIGN KEY (method_id) "
-                               "REFERENCES methods(id)");
+                               "REFERENCES method_specifications(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////

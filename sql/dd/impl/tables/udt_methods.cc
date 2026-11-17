@@ -100,7 +100,7 @@ UDT_Methods::UDT_Methods() {
 
   m_target_def.add_foreign_key(FK_TYPE_ID, "FK_TYPE_ID",
                                "FOREIGN KEY (type_id) "
-                               "REFERENCES types(id)");
+                               "REFERENCES user_defined_types(id)");
 }
 
 ///////////////////////////////////////////////////////////////////////////
