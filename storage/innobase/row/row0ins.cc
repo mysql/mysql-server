@@ -1964,6 +1964,10 @@ static bool row_allow_duplicates(que_thr_t *thr) {
             mtr, UT_LOCATION_HERE);
   allow_duplicates = row_allow_duplicates(thr);
 
+  /* For DD tables, we don't use next-key locking for duplicates
+  found. This means it is possible for another transaction to
+  insert a duplicate key value but MDL protection on DD tables
+  will prevent insertion of duplicates into unique secondary indexes. */
   const bool skip_gap_locks = index->table->skip_gap_locks();
   /* Scan index records and check if there is a duplicate */
 
@@ -2021,7 +2025,11 @@ static bool row_allow_duplicates(que_thr_t *thr) {
       Note: This function will not be even called, and thus will not lock
       anything at all in case there wasn't any matching record, which is fine,
       because the B-tree page latch will be released only after inserting the
-      implicitly locked record, so no protection is needed.*/
+      implicitly locked record, so no protection is needed.
+
+      If the SQL-query will update or replace duplicate key we will take
+      X-lock for duplicates (REPLACE, LOAD DATAFILE REPLACE, INSERT ON
+      DUPLICATE KEY UPDATE). */
       err = row_ins_set_rec_lock(allow_duplicates ? LOCK_X : LOCK_S, lock_type,
                                  block, rec, index, offsets, thr);
     }
