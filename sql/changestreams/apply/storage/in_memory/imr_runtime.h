@@ -126,6 +126,8 @@ class Imr_runtime {
   /// for the same role, possible in the start window, is refused and nothing
   /// changes.
   ///
+  /// @param scope The role to attach: RECEIVER (IO thread) or APPLIER (SQL
+  ///        thread).
   /// @retval false attached; the calling thread owns the role.
   /// @retval true  refused: the role is already attached.
   [[nodiscard]] bool attach_role(Scope scope);
@@ -141,6 +143,8 @@ class Imr_runtime {
   /// fully_detached(). A no-op for a thread that does not own the role, so a
   /// refused thread's exit path leaves the owner's role alone.
   ///
+  /// @param scope The role to detach: RECEIVER (IO thread) or APPLIER (SQL
+  ///        thread).
   /// @param mi The channel's Master_info, for reset(). Unit tests pass
   ///        nullptr, which skips the reset.
   /// @retval true  this call detached the role.
@@ -153,16 +157,22 @@ class Imr_runtime {
   /// always sees its own stores. A recycled thread id cannot match: the owner
   /// clears the field in its exit section under its run lock, and the role's
   /// next thread is started by a START that takes that run lock afterwards.
+  ///
+  /// @param scope The role to check: RECEIVER or APPLIER.
   bool is_role_owner(Scope scope) const;
 
   /// @brief Whether a thread owns the role. For asserts and tests: a decision
   /// that acts on it must hold the role mutex or both run locks.
+  ///
+  /// @param scope The role to check: RECEIVER or APPLIER.
   bool is_attached(Scope scope) const;
 
   /// @brief Set the role's stop flag and wake its parked waiter
   /// (Trx_envelope_queue::stop()). Idempotent, takes no lock, and is safe
   /// before the role's thread joins. A request made before the role attaches
   /// is cleared by that attach.
+  ///
+  /// @param scope The role to stop: RECEIVER or APPLIER.
   void request_stop(Scope scope);
 
   // ---------------------------------------------------------------------------

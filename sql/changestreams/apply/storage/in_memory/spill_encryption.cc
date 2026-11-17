@@ -115,9 +115,18 @@ bool reencrypt_file(const std::string &path, const std::string &current_key_id,
   // area must stay clean.
   const File fd = my_open(path.c_str(), O_RDWR, MYF(0));
   if (fd < 0) {
-    // ENOENT: deleted since the listing. EISDIR: a directory with a spill
-    // prefix, which the startup purge skips too.
-    if (my_errno() == ENOENT || my_errno() == EISDIR) return false;
+    const int open_errno = my_errno();
+    // ENOENT: deleted since the listing.
+    if (open_errno == ENOENT) return false;
+    // A directory with a spill prefix, which the startup purge skips too.
+    // Opening it fails with EISDIR on POSIX and EACCES on Windows, so check
+    // the entry type, as purge_orphan_spill_files() does.
+    MY_STAT stat_info;
+    if (my_stat(path.c_str(), &stat_info, MYF(0)) != nullptr &&
+        MY_S_ISDIR(stat_info.st_mode))
+      return false;
+    // Report the open error, not one left by my_stat().
+    set_my_errno(open_errno);
     *reason = "could not open the file" + errno_suffix();
     return true;
   }

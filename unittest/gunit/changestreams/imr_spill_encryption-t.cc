@@ -35,7 +35,11 @@
 
 #include <gtest/gtest.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#ifdef _WIN32
+#include <process.h>  // getpid
+#else
+#include <unistd.h>  // getpid, geteuid
+#endif
 
 #include <algorithm>
 #include <atomic>
@@ -47,6 +51,8 @@
 #include <string>
 #include <vector>
 
+#include "my_io.h"              // USER_READ
+#include "my_sys.h"             // my_chmod
 #include "sql/basic_istream.h"  // Basic_istream
 #include "sql/basic_ostream.h"  // StringBuffer_ostream
 #include "sql/changestreams/apply/storage/in_memory/spill_encryption.h"
@@ -520,9 +526,11 @@ TEST_F(ImrSpillReencryptTest, MissingDirectoryIsEmpty) {
   EXPECT_TRUE(m_seen.empty());
 }
 
+#ifndef _WIN32
 // ENOENT at open: a name that no longer leads to a file is skipped, and the
 // open does not create one (my_open() without O_CREAT; with O_CREAT the
-// target of the dangling link would be created).
+// target of the dangling link would be created). POSIX-only: creating a
+// symbolic link on Windows needs a privilege.
 TEST_F(ImrSpillReencryptTest, DanglingSymlinkIsNotCreated) {
   fs::create_symlink(m_dir / "absent", m_dir / "imr_sp_link");
   std::string error;
@@ -530,6 +538,7 @@ TEST_F(ImrSpillReencryptTest, DanglingSymlinkIsNotCreated) {
   EXPECT_TRUE(m_seen.empty());
   EXPECT_FALSE(fs::exists(m_dir / "absent"));
 }
+#endif  // _WIN32
 
 // The file is deleted after the pass opened it: the new header goes to the
 // unlinked inode, the pass succeeds and the name is not re-created.
@@ -554,10 +563,13 @@ TEST_F(ImrSpillReencryptTest, DirectoryWithPrefixIsSkipped) {
 }
 
 TEST_F(ImrSpillReencryptTest, ReadOnlyFileFailsThePass) {
+#ifndef _WIN32
   if (::geteuid() == 0) GTEST_SKIP() << "root can open a mode-0400 file";
+#endif
   const Bytes old = valid_header(3);
   write_file(m_dir / "imr_sp_ro", old);
-  ASSERT_EQ(::chmod((m_dir / "imr_sp_ro").c_str(), 0400), 0);
+  ASSERT_FALSE(
+      my_chmod((m_dir / "imr_sp_ro").string().c_str(), USER_READ, MYF(0)));
   std::string error;
   EXPECT_TRUE(run(&error));
   EXPECT_NE(error.find((m_dir / "imr_sp_ro").string()), std::string::npos)
@@ -567,6 +579,9 @@ TEST_F(ImrSpillReencryptTest, ReadOnlyFileFailsThePass) {
   EXPECT_EQ(read_whole_file(m_dir / "imr_sp_ro"), old);
 }
 
+#ifndef _WIN32
+// POSIX-only: Windows has no mode that stops a directory from being listed,
+// and my_dir() there reads an unreadable directory as empty.
 TEST_F(ImrSpillReencryptTest, UnreadableDirectoryFailsThePass) {
   if (::geteuid() == 0) GTEST_SKIP() << "root can list a mode-0000 directory";
   const fs::path sub = m_dir / "locked";
@@ -583,5 +598,6 @@ TEST_F(ImrSpillReencryptTest, UnreadableDirectoryFailsThePass) {
       << error;
   EXPECT_TRUE(m_seen.empty());
 }
+#endif  // _WIN32
 
 }  // namespace mysql::csa::unittests
