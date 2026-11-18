@@ -43,17 +43,29 @@ INSERT INTO t (val,id) VALUES (20,7);
   ROLLBACK;
 
 # The X-lock path must also protect only the gap before the first unequal
+# record. Exercise both callers under REPEATABLE READ and READ COMMITTED,
+# since isolation level can affect inheritance of duplicate-check locks.
 --connect (con1, localhost, root,,)
 --let $i=0
-while ($i < 2)
+while ($i < 4)
 {
+  --let $isolation=REPEATABLE READ
+  if ($i >= 2)
+  {
+    --let $isolation=READ COMMITTED
+  }
   --let $insert=INSERT INTO t (val,id) VALUES (10,3) ON DUPLICATE KEY UPDATE val=10
   if ($i == 1)
   {
     --let $insert=REPLACE INTO t (val,id) VALUES (10,3)
   }
+  if ($i == 3)
+  {
+    --let $insert=REPLACE INTO t (val,id) VALUES (10,3)
+  }
 
   --connection default
+  --eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation
   BEGIN;
   --eval $insert
   --sorted_result
@@ -66,6 +78,7 @@ while ($i < 2)
     GROUP BY 1;
 
   --connection con1
+  --eval SET SESSION TRANSACTION ISOLATION LEVEL $isolation
   BEGIN;
   # The unequal record can be locked and deleted without waiting.
   SELECT * FROM t WHERE val=20 FOR UPDATE NOWAIT;
@@ -87,6 +100,7 @@ while ($i < 2)
 }
 --disconnect con1
 --connection default
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
 --connection read_view_holder
   ROLLBACK;
