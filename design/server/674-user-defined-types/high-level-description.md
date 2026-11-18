@@ -26,3 +26,11 @@ while dynamically loaded components register the type's native operations.
 This deliberately confines type-aware logic to the SQL layer so storage engines
 and replication can handle the serialized representation rather than requiring
 every lower layer to understand every third-party type.
+
+Key architectural decisions for this project:
+
+* Support 'distinct types' user defined types, as defined in the SQL-2023
+  specification,
+* Expose all user defined type metadata in the INFORMATION_SCHEMA,
+* Implement user defined types natively (in C++),
+* Implement user defined types in a MySQL component.
