@@ -97,7 +97,8 @@ COMMIT;
 
 # R5: the spill directory, here in the data directory, is not a schema.
 --let $assert_text= R5: the spill directory is in the data directory
---let $assert_cond= "$spill_dir" = CONCAT(@@GLOBAL.datadir, "#in_memory_relaylog_temp_files.slave-relay-bin")
+# $spill_dir uses '/' separators; datadir uses '\' on Windows.
+--let $assert_cond= "$spill_dir" = CONCAT(REPLACE(@@GLOBAL.datadir, CHAR(92), "/"), "#in_memory_relaylog_temp_files.slave-relay-bin")
 --source include/assert.inc
 --let $assert_text= R5: information_schema.SCHEMATA does not list the spill directory
 --let $assert_cond= [SELECT COUNT(*) AS count FROM information_schema.SCHEMATA WHERE SCHEMA_NAME LIKE "%in\\_memory\\_relaylog\\_temp\\_files%", count, 1] = 0

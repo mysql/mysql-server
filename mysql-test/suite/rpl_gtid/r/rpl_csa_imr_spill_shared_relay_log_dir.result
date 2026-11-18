@@ -14,13 +14,13 @@ Note	####	Storing MySQL user name or password information in the connection meta
 
 include/rpl/restart_server.inc [server_number=2]
 [connection server_2]
-SELECT @@GLOBAL.relay_log_basename AS relay_log_basename, 'SHARED/#in_memory_relaylog_temp_files.a-relay' AS spill_dir;
+SELECT REPLACE(@@GLOBAL.relay_log_basename, CHAR(92), '/') AS relay_log_basename, 'SHARED/#in_memory_relaylog_temp_files.a-relay' AS spill_dir;
 relay_log_basename	spill_dir
 SHARED/a-relay	SHARED/#in_memory_relaylog_temp_files.a-relay
 CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
 include/rpl/restart_server.inc [server_number=3]
 [connection server_3]
-SELECT @@GLOBAL.relay_log_basename AS relay_log_basename, 'SHARED/#in_memory_relaylog_temp_files.b-relay' AS spill_dir;
+SELECT REPLACE(@@GLOBAL.relay_log_basename, CHAR(92), '/') AS relay_log_basename, 'SHARED/#in_memory_relaylog_temp_files.b-relay' AS spill_dir;
 relay_log_basename	spill_dir
 SHARED/b-relay	SHARED/#in_memory_relaylog_temp_files.b-relay
 
@@ -38,7 +38,8 @@ BEGIN;
 COMMIT;
 include/rpl/sync_to_replica.inc
 [connection server_2]
-Spill files of server_2: 1
+# Spill files of server_2:
+imr_sp_<ID>
 
 # 3. Plant a stale spill file in server_3's spill directory and restart
 #    server_3. The stale file is gone (R2); server_2's spill file is still
@@ -47,7 +48,8 @@ Spill files of server_2: 1
 include/rpl/restart_server.inc [server_number=3]
 [connection server_3]
 [connection server_2]
-Spill files of server_2: 1
+# Spill files of server_2:
+imr_sp_<ID>
 include/assert.inc [R3: server_2's receiver is still running]
 
 # 4. Start server_2's applier and server_3's replica. The data matches,

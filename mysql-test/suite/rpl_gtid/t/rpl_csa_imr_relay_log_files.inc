@@ -118,6 +118,10 @@ if ($rlf_mode == verify)
     my $index_file= $ENV{'_RLF_INDEX_FILE'};
     my $datadir= $ENV{'_RLF_DATADIR'};
     my $mysqlbinlog= $ENV{'MYSQL_BINLOG'};
+    # Portable null device and double quotes, so the command also works
+    # under cmd.exe on Windows.
+    use File::Spec;
+    my $devnull= File::Spec->devnull();
     open FILE, "$index_file" or die "Error $? opening $index_file: $!";
     my @failed;
     while (<FILE>) {
@@ -125,7 +129,7 @@ if ($rlf_mode == verify)
       next unless /\S/;
       my $file= $_;
       $file =~ s{^\.[/\\]}{};
-      my $rc= system("$mysqlbinlog --verify-binlog-checksum '$datadir/$file' > /dev/null 2>&1");
+      my $rc= system("$mysqlbinlog --verify-binlog-checksum \"$datadir/$file\" > $devnull 2>&1");
       push @failed, $file if $rc != 0;
     }
     close FILE or die "Error $? closing $index_file: $!";

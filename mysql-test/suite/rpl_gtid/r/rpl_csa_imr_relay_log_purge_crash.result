@@ -34,7 +34,7 @@ include/assert.inc [The relay-log index has stale files before the crash]
 SET SESSION debug = '+d,imr_relay_log_purge_crash_after_index';
 START REPLICA;
 ERROR HY000: Lost connection to MySQL server during query
-include/wait_for_pattern_in_file.inc [SIGKILL myself]
+include/wait_for_pattern_in_file.inc [Injected debug crash point: imr_relay_log_purge_crash_after_index]
 # After the crash the index has one file, and purged files are still on disk.
 # Restart after the crash.
 include/rpl/start_server.inc [server_number=2]
@@ -58,7 +58,7 @@ include/rpl/stop_replica.inc
 include/include/rpl/save_relay_log_file_position.inc
 include/assert.inc [The relay-log index has stale files before the crash]
 include/rpl/stop_server.inc [server_number=2]
-include/wait_for_pattern_in_file.inc [SIGKILL myself]
+include/wait_for_pattern_in_file.inc [Injected debug crash point: imr_relay_log_purge_crash_before_index]
 # After the crash the index has several files, and every file on disk is in the index.
 # Restart after the crash.
 include/rpl/start_server.inc [server_number=2]

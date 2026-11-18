@@ -37,25 +37,12 @@ if (`SELECT '$kc_source' = 'pfs'`)
 }
 if (`SELECT '$kc_source' <> 'pfs'`)
 {
-  --let _KC_KEY= $kc_key
-  --let _KC_FILE= $REPLICA_KEYRING_FILE_PATH
-  --let _KC_OUT= `SELECT CONCAT('$MYSQLTEST_VARDIR/tmp/_kc-', UUID(), '.inc')`
-  perl;
-    my $key= $ENV{'_KC_KEY'};
-    my $file= $ENV{'_KC_FILE'};
-    my $out= $ENV{'_KC_OUT'};
-    open F, '<:raw', $file or die "Error opening $file: $!";
-    local $/;
-    my $data= <F>;
-    close F;
-    my $listed= index($data, "\"$key\"") >= 0 ? 1 : 0;
-    open OUT, "> $out" or die "Error opening $out: $!";
-    print OUT "--let \$kc_listed= $listed\n";
-    close OUT or die "Error closing $out: $!";
-EOF
-  --source $_KC_OUT
-  --remove_file $_KC_OUT
-  --let _KC_KEY=
-  --let _KC_FILE=
-  --let _KC_OUT=
+  --let $grep_file= $REPLICA_KEYRING_FILE_PATH
+  --let $grep_pattern= "$kc_key"
+  --let $grep_output= none
+  --source include/grep_pattern.inc
+  --let $kc_listed= `SELECT $GREP_RESULT > 0`
+  --let $grep_file=
+  --let $grep_pattern=
+  --let $grep_output=
 }

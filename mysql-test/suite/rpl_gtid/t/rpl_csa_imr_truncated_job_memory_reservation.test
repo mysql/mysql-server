@@ -63,7 +63,6 @@ if (!$evidence)
 --source include/rpl/init_source_replica.inc
 
 --let $limit= 33554432
---let $status_fields= Replica_IO_State|Replica_IO_Running|Replica_SQL_Running|Last_IO_Errno|Last_SQL_Errno|In_Memory_Relay_Log_Space|In_Memory_Queue_Length
 --let $threads_query= SELECT t.THREAD_ID, t.NAME, t.PROCESSLIST_ID, t.PROCESSLIST_STATE, (SELECT COUNT(*) FROM performance_schema.data_lock_waits w WHERE w.REQUESTING_THREAD_ID = t.THREAD_ID) AS LOCK_WAITS FROM performance_schema.threads t WHERE t.NAME IN ('thread/sql/replica_io', 'thread/sql/replica_sql') OR t.THREAD_ID IN (SELECT REQUESTING_THREAD_ID FROM performance_schema.data_lock_waits)
 --let $lock_wait_query= SELECT w.REQUESTING_THREAD_ID, t.NAME, w.BLOCKING_THREAD_ID, l.LOCK_MODE, l.LOCK_STATUS, l.LOCK_DATA FROM performance_schema.data_lock_waits w JOIN performance_schema.threads t ON t.THREAD_ID = w.REQUESTING_THREAD_ID JOIN performance_schema.data_locks l ON l.ENGINE_LOCK_ID = w.REQUESTING_ENGINE_LOCK_ID
 
@@ -128,7 +127,7 @@ if (!$success)
 --echo T1 is reserved on the memory path (7 MiB < reservation <= 8 MiB): $is_memory_path
 --echo In_Memory_Queue_Length with T1 dispatched: $qlen
 --exec echo "==== 2. worker blocked on the row lock, receiver paused after WRITE_ROWS (T1 reservation = $t1_reserved) ====" >> $evidence
---exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E 2>&1 | grep -E "$status_fields" >> $evidence
+--exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E >> $evidence 2>&1
 --exec echo "$threads_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
 --exec echo "$lock_wait_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
 
@@ -173,7 +172,7 @@ SET DEBUG_SYNC = 'RESET';
 --let $counts_job= `SELECT $space_after_sweep >= $t1_reserved`
 --echo In_Memory_Relay_Log_Space still counts the blocked job's transaction: $counts_job
 --exec echo "==== 3. after STOP REPLICA IO_THREAD and the sweep (In_Memory_Relay_Log_Space = $space_after_sweep, worker lock waits = $still_blocked) ====" >> $evidence
---exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E 2>&1 | grep -E "$status_fields" >> $evidence
+--exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E >> $evidence 2>&1
 --exec echo "$threads_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
 --exec echo "$lock_wait_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
 
@@ -192,7 +191,7 @@ SET DEBUG_SYNC = 'RESET';
 --let $two_copies= `SELECT $space_refetch = 2 * $t1_reserved`
 --echo In_Memory_Relay_Log_Space after T1 is fetched again counts both copies of T1: $two_copies
 --exec echo "==== 4a. T1 fetched again; the old copy is still held by the blocked worker (In_Memory_Relay_Log_Space = $space_refetch) ====" >> $evidence
---exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E 2>&1 | grep -E "$status_fields" >> $evidence
+--exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E >> $evidence 2>&1
 --exec echo "$threads_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
 
 --source include/rpl/connection_source.inc
@@ -224,7 +223,7 @@ if (!$success)
 --let $covers= `SELECT $space_full >= 2 * $t1_reserved + ($qlen_full - 1) * 1048576`
 --echo In_Memory_Relay_Log_Space covers the stale copy of T1 and every queued transaction: $covers
 --exec echo "==== 4b. receiver waits at the limit (In_Memory_Relay_Log_Space = $space_full, In_Memory_Queue_Length = $qlen_full, stale copy of T1 = $t1_reserved, limit = $limit) ====" >> $evidence
---exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E 2>&1 | grep -E "$status_fields" >> $evidence
+--exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E >> $evidence 2>&1
 --exec echo "$threads_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
 --exec echo "$lock_wait_query" | $MYSQL_SLAVE -t >> $evidence 2>&1
 
@@ -249,7 +248,7 @@ ROLLBACK;
 --let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
 --source include/rpl/diff.inc
 --exec echo "==== 5. after release and sync ====" >> $evidence
---exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E 2>&1 | grep -E "$status_fields" >> $evidence
+--exec echo "SHOW REPLICA STATUS" | $MYSQL_SLAVE -E >> $evidence 2>&1
 
 --source include/rpl/connection_source.inc
 DROP TABLE t1;

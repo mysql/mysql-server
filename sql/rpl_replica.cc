@@ -1265,10 +1265,19 @@ static void imr_purge_stale_relay_logs(THD *thd, Master_info *mi) {
   if (is_autocommit_off(thd) && trans_commit(thd)) error = true;
 
   if (!error) {
-    DBUG_EXECUTE_IF("imr_relay_log_purge_crash_before_index",
-                    DBUG_SET("+d,crash_purge_before_update_index"););
-    DBUG_EXECUTE_IF("imr_relay_log_purge_crash_after_index",
-                    DBUG_SET("+d,crash_purge_critical_after_update_index"););
+    // Log the crash point, so tests can wait for it.
+    DBUG_EXECUTE_IF("imr_relay_log_purge_crash_before_index", {
+      LogErr(INFORMATION_LEVEL, ER_CONDITIONAL_DEBUG,
+             "Injected debug crash point: "
+             "imr_relay_log_purge_crash_before_index");
+      DBUG_SET("+d,crash_purge_before_update_index");
+    });
+    DBUG_EXECUTE_IF("imr_relay_log_purge_crash_after_index", {
+      LogErr(INFORMATION_LEVEL, ER_CONDITIONAL_DEBUG,
+             "Injected debug crash point: "
+             "imr_relay_log_purge_crash_after_index");
+      DBUG_SET("+d,crash_purge_critical_after_update_index");
+    });
     rli->relay_log.lock_index();
     mysql_mutex_lock(&rli->log_space_lock);
     auto log_space = rli->log_space_total.load();

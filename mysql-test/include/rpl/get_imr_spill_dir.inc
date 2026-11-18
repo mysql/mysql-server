@@ -15,6 +15,10 @@
 # Output variable:
 #
 #   $spill_dir
-#     The spill directory path, without a trailing separator.
+#     The spill directory path, without a trailing separator. It always
+#     uses '/' as the directory separator, also on Windows, where the
+#     server reports relay_log_basename with '\'. mysqltest file commands
+#     and Perl accept '/' on Windows, and '/' needs no escaping when the
+#     path is interpolated into an SQL string literal.
 #
---let $spill_dir= `SELECT CONCAT(LEFT(@@GLOBAL.relay_log_basename, LENGTH(@@GLOBAL.relay_log_basename) - LOCATE('/', REVERSE(@@GLOBAL.relay_log_basename))), '/#in_memory_relaylog_temp_files.', SUBSTRING_INDEX(@@GLOBAL.relay_log_basename, '/', -1))`
+--let $spill_dir= `SELECT CONCAT(LEFT(b, LENGTH(b) - LOCATE('/', REVERSE(b))), '/#in_memory_relaylog_temp_files.', SUBSTRING_INDEX(b, '/', -1)) FROM (SELECT REPLACE(@@GLOBAL.relay_log_basename, CHAR(92), '/') AS b) AS t`

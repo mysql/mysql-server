@@ -42,9 +42,9 @@ COMMIT;
 [connection slave]
 include/rpl/wait_for_replica_status.inc [Retrieved_Gtid_Set]
 include/assert.inc [R2: the receiver is still running]
-OLD spill directory exists: 0
-Spill files in OLD: 0
-Spill files in NEW: 1
+# OLD spill directory does not exist.
+# Spill files in NEW:
+imr_sp_<ID>
 
 # 4. Start the applier: the data matches and no spill file is left.
 

@@ -66,7 +66,8 @@ INSERT INTO t1 VALUES (1);
 --let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.2.err
 --let $assert_only_after= starting as process
 --let $expect_file= $MYSQLTEST_VARDIR/tmp/mysqld.2.expect
---let _RDP_BASENAME= `SELECT @@GLOBAL.relay_log_basename`
+# '/' separators, so that Perl glob() needs no backslash handling on Windows.
+--let _RDP_BASENAME= `SELECT REPLACE(@@GLOBAL.relay_log_basename, CHAR(92), '/')`
 --let _RDP_INDEX_FILE= `SELECT @@GLOBAL.relay_log_index`
 
 --let $case= 1
@@ -108,12 +109,16 @@ while ($case <= 2)
     --exec echo "restart_abort: $RPL_PLUGIN_DIR_OPT --binlog_encryption=ON --debug=+d,imr_relay_log_purge_crash_before_index" > $expect_file
   }
 
-  # The crash point kills the server with DBUG_SUICIDE(), which logs
-  # "SIGKILL myself".
+  # The server logs the crash point just before the purge reaches it. Wait
+  # for that note: the "SIGKILL myself" line of DBUG_SUICIDE() is not
+  # logged on Windows. Case 1 has already seen the server go away; in case
+  # 2 the files below are the same whether or not the server has exited.
   --let $grep_file= $assert_file
-  --let $grep_pattern= SIGKILL myself
-  --let $skip_first_x_occurences= $case
-  --dec $skip_first_x_occurences
+  --let $grep_pattern= Injected debug crash point: imr_relay_log_purge_crash_after_index
+  if ($case == 2)
+  {
+    --let $grep_pattern= Injected debug crash point: imr_relay_log_purge_crash_before_index
+  }
   --let $saved_wait_timeout= $wait_timeout
   --let $wait_timeout= 120
   --source include/wait_for_pattern_in_file.inc

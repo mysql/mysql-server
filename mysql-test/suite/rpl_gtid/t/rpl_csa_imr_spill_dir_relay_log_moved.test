@@ -107,13 +107,14 @@ COMMIT;
 --let $assert_text= R2: the receiver is still running
 --let $assert_cond= "[SHOW REPLICA STATUS, Replica_IO_Running, 1]" = "Yes"
 --source include/assert.inc
---perl
-my @old = glob("$ENV{OLD_SPILL_DIR}/imr_sp_*");
-my @new = glob("$ENV{NEW_SPILL_DIR}/imr_sp_*");
-print "OLD spill directory exists: ", (-d $ENV{OLD_SPILL_DIR} ? 1 : 0), "\n";
-print "Spill files in OLD: ", scalar(@old), "\n";
-print "Spill files in NEW: ", scalar(@new), "\n";
-EOF
+# OLD's spill directory, removed in step 2, was not recreated, so no spill
+# file can be in OLD.
+--echo # OLD spill directory does not exist.
+--let $file_does_not_exist= $OLD_SPILL_DIR
+--source include/file_does_not_exist.inc
+--echo # Spill files in NEW:
+--replace_regex /imr_sp_[0-9a-f]+/imr_sp_<ID>/
+--list_files $NEW_SPILL_DIR imr_sp_*
 
 --echo
 --echo # 4. Start the applier: the data matches and no spill file is left.
