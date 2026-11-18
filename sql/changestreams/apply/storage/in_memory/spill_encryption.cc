@@ -30,6 +30,7 @@
 #include <cerrno>
 #include <cstring>  // memcmp, memcpy, strncmp, strlen
 #include <memory>
+#include <utility>  // move
 
 #include "my_dbug.h"  // DBUG_EXECUTE_IF, DBUG_EVALUATE_IF
 #include "my_dir.h"   // my_dir, my_dirend, MY_DONT_SORT
@@ -77,15 +78,6 @@ mysql_rwlock_t &spill_header_lock() {
 /// Size of the v1 encryption header, the only bytes the pass reads or writes.
 constexpr std::size_t kHeaderSize = Rpl_encryption_header_v1::HEADER_SIZE;
 constexpr std::size_t kMagicSize = Rpl_encryption_header::ENCRYPTION_MAGIC_SIZE;
-constexpr std::size_t kPasswordSize =
-    Rpl_encryption_header_v1::PASSWORD_FIELD_SIZE;
-constexpr std::size_t kIvSize = Rpl_encryption_header_v1::IV_FIELD_SIZE;
-
-/// Field types of the v1 header, as Rpl_encryption_header_v1::Field_type.
-constexpr unsigned char kFieldEnd = 0;
-constexpr unsigned char kFieldKeyId = 1;
-constexpr unsigned char kFieldPassword = 2;
-constexpr unsigned char kFieldIv = 3;
 
 void log_warning(const std::string &msg) {
   LogErr(WARNING_LEVEL, ER_LOG_PRINTF_MSG, msg.c_str());
@@ -305,59 +297,20 @@ Spill_header_write_guard::~Spill_header_write_guard() {
 
 Spill_header_kind parse_spill_header(const unsigned char *buf, std::size_t len,
                                      std::string *key_id) {
-  constexpr std::size_t magic_size =
-      Rpl_encryption_header::ENCRYPTION_MAGIC_SIZE;
-
-  // 1-2. An empty file, a partial BINLOG_MAGIC or a plain file.
-  if (len < magic_size) return Spill_header_kind::unencrypted;
-  if (std::memcmp(buf, Rpl_encryption_header::ENCRYPTION_MAGIC, magic_size) !=
+  // An empty file, a partial BINLOG_MAGIC or a plain file.
+  if (len < kMagicSize) return Spill_header_kind::unencrypted;
+  if (std::memcmp(buf, Rpl_encryption_header::ENCRYPTION_MAGIC, kMagicSize) !=
       0)
     return Spill_header_kind::unencrypted;
-
-  // 3-4. The whole v1 header must be there.
+  // The whole v1 header must be there.
   if (len < kHeaderSize) return Spill_header_kind::corrupt;
-  if (buf[magic_size] != 1) return Spill_header_kind::corrupt;
-
-  // 5. The field walk of Rpl_encryption_header_v1::deserialize(): every field
-  // must end inside the header, and reading a type byte at offset 512 is an
-  // error there too.
-  std::size_t pos = magic_size + 1;
-  std::string found_key_id;
-  bool has_password = false;
-  bool has_iv = false;
-  for (;;) {
-    if (pos >= kHeaderSize) return Spill_header_kind::corrupt;
-    const unsigned char type = buf[pos++];
-    if (type == kFieldEnd) break;
-    switch (type) {
-      case kFieldKeyId: {
-        if (pos >= kHeaderSize) return Spill_header_kind::corrupt;
-        const std::size_t length = buf[pos++];
-        if (length > kHeaderSize - pos) return Spill_header_kind::corrupt;
-        // A repeated key id replaces the earlier one, as m_key_id.assign().
-        found_key_id.assign(reinterpret_cast<const char *>(buf + pos), length);
-        pos += length;
-        break;
-      }
-      case kFieldPassword:
-        if (kPasswordSize > kHeaderSize - pos)
-          return Spill_header_kind::corrupt;
-        pos += kPasswordSize;
-        has_password = true;
-        break;
-      case kFieldIv:
-        if (kIvSize > kHeaderSize - pos) return Spill_header_kind::corrupt;
-        pos += kIvSize;
-        has_iv = true;
-        break;
-      default:
-        return Spill_header_kind::corrupt;
-    }
-  }
-  if (found_key_id.empty() || !has_password || !has_iv)
+  if (buf[kMagicSize] != 1) return Spill_header_kind::corrupt;
+  // The fields, checked by the server's own parser.
+  Rpl_encryption_header_v1::Fields fields;
+  if (Rpl_encryption_header_v1::parse_fields(buf, &fields) !=
+      Rpl_encryption_header_v1::Parse_status::ok)
     return Spill_header_kind::corrupt;
-
-  *key_id = found_key_id;
+  *key_id = std::move(fields.key_id);
   return Spill_header_kind::encrypted;
 }
 

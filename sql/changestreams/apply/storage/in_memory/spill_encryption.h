@@ -92,9 +92,9 @@ enum class Spill_header_kind {
 /// @brief Classifies the first bytes of an IMR file and reads the key id of
 /// an encrypted one. Read-only, no logging.
 ///
-/// Follows Rpl_encryption_header_v1::deserialize(), so a header is encrypted
-/// exactly when the server could deserialize it. The key id (which
-/// Rpl_encryption_header does not expose) lets the pass skip current files.
+/// Checks the fields with Rpl_encryption_header_v1::parse_fields(), the
+/// parser deserialize() uses, so a header is encrypted exactly when the
+/// server could deserialize it. The key id lets the pass skip current files.
 ///
 /// @param buf    The first bytes of the file.
 /// @param len    Number of bytes in @p buf; only the first 512 are read.
