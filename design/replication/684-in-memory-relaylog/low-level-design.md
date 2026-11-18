@@ -177,7 +177,7 @@ Paths starting with `in_memory/` are under `sql/changestreams/apply/storage/`; p
      sweep_and_dispatch(): sweep reclaimable head, wait (100 ms poll),
                            ++dispatch_seqno, skip committed / truncated
      new Job_applier(shared_ptr<Fetchable_transaction>)
-     dependencies -> scheduler -> worker pool          (unchanged CSA code)
+     dependencies -> scheduler -> worker pool          (existing CSA code)
                                |
                                v
  worker
@@ -610,7 +610,7 @@ They are fields 18, 19 and 20 of the applier metadata (`APPLIER_METADATA_LINES_W
 
 #### Receiver side
 
-Receiver and queue errors stop the IO thread and are reported through `Last_IO_Errno`, `Last_IO_Error`, `Last_IO_Error_Timestamp` and the error log, as other IO thread errors.
+Receiver errors, including queue admission failures, stop the IO thread and are reported through `Last_IO_Errno`, `Last_IO_Error`, `Last_IO_Error_Timestamp` and the error log, as other IO thread errors.
 
 | Condition | Recoverable | Reported as |
 |---|---|---|
@@ -625,6 +625,8 @@ Receiver and queue errors stop the IO thread and are reported through `Last_IO_E
 In every failure the transaction's GTID is not added to `Retrieved_Gtid_Set`, so it is fetched again at the next start.
 
 #### Applier side
+
+Applier errors stop the applier and are reported through `Last_SQL_Errno`, `Last_SQL_Error`, `Last_SQL_Error_Timestamp` and the error log, as other applier errors.
 
 | Condition | Reported as |
 |---|---|
