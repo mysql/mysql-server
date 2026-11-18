@@ -1,5 +1,7 @@
 
 # SET GLOBAL DEBUG="d,parser_debug";
+# SET debug = '+d,skip_dd_table_access_check';
+
 
 CREATE SCHEMA math;
 CREATE TYPE math.complex_number AS BINARY(16)
@@ -23,6 +25,8 @@ ALTER TYPE math.complex_number ADD
 SELECT * FROM INFORMATION_SCHEMA.USER_DEFINED_TYPES;
 
 SELECT * FROM INFORMATION_SCHEMA.METHOD_SPECIFICATIONS;
+
+SELECT * FROM INFORMATION_SCHEMA.METHOD_SPECIFICATION_PARAMETERS;
 
 ALTER TYPE math.complex_number ADD
   STATIC METHOD `compare` ( math.complex_number, math.complex_number )

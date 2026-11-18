@@ -1,4 +1,6 @@
 
+# SET debug = '+d,skip_dd_table_access_check';
+
 CREATE TYPE test.complex_number AS BINARY(16);
 
 INSTALL COMPONENT "file://component_udt_example";

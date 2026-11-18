@@ -42,9 +42,6 @@ UDT_Parameters::UDT_Parameters() {
       "specific_sch.name" + m_target_def.fs_name_collation());
 #endif
 
-  m_target_def.add_field(FIELD_SPECIFIC_NAME, "SPECIFIC_NAME",
-                         "met.specific_name");
-
   m_target_def.add_field(FIELD_UDT_CATALOG, "UDT_CATALOG",
                          "cat.name" + m_target_def.fs_name_collation());
   m_target_def.add_field(FIELD_UDT_SCHEMA, "UDT_SCHEMA",
@@ -53,32 +50,35 @@ UDT_Parameters::UDT_Parameters() {
                          "typ.name" + m_target_def.fs_name_collation());
 
   m_target_def.add_field(FIELD_METHOD_NAME, "METHOD_NAME", "met.name");
+  m_target_def.add_field(FIELD_PARAMETER_NAME, "PARAMETER_NAME", "par.name");
 
-  m_target_def.add_field(FIELD_IS_STATIC, "IS_STATIC", "met.is_static");
-  m_target_def.add_field(FIELD_IS_OVERRIDING, "IS_OVERRIDING",
-                         "met.is_overriding");
-  m_target_def.add_field(FIELD_IS_CONSTRUCTOR, "IS_CONSTRUCTOR",
-                         "met.is_constructor");
+  m_target_def.add_field(FIELD_IS_RESULT, "IS_RESULT", "par.is_result");
 
   m_target_def.add_field(FIELD_CHARACTER_MAXIMUM_LENGTH,
-                         "CHARACTER_MAXIMUM_LENGTH", "met.char_max_length");
+                         "CHARACTER_MAXIMUM_LENGTH", "par.char_max_length");
+
+#ifdef LATER
   m_target_def.add_field(FIELD_CHARACTER_OCTET_LENGTH, "CHARACTER_OCTET_LENGTH",
-                         "met.char_octet_length");
+                         "par.char_octet_length");
+#endif
+
   m_target_def.add_field(
       FIELD_NUMERIC_PRECISION, "NUMERIC_PRECISION",
-      "IF (met.numeric_precision = 0, NULL, met.numeric_precision)");
+      "IF (par.numeric_precision = 0, NULL, par.numeric_precision)");
   m_target_def.add_field(
       FIELD_NUMERIC_SCALE, "NUMERIC_SCALE",
-      "IF (met.numeric_scale = 0 && met.numeric_precision = 0,"
-      "    NULL, met.numeric_scale)");
+      "IF (par.numeric_scale = 0 && par.numeric_precision = 0,"
+      "    NULL, par.numeric_scale)");
   m_target_def.add_field(FIELD_DATETIME_PRECISION, "DATETIME_PRECISION",
-                         "met.datetime_precision");
+                         "par.datetime_precision");
 
   m_target_def.add_field(FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
                          "cs.name");
   m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "coll.name");
 
-  m_target_def.add_from("mysql.method_specifications met");
+  m_target_def.add_from("mysql.method_specification_parameters par");
+  m_target_def.add_from(
+      "JOIN mysql.method_specifications met ON par.method_id=met.id");
   m_target_def.add_from(
       "JOIN mysql.user_defined_types typ ON met.type_id=typ.id");
   m_target_def.add_from("JOIN mysql.schemata sch ON typ.schema_id=sch.id");
