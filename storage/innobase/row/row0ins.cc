@@ -1964,10 +1964,10 @@ static bool row_allow_duplicates(que_thr_t *thr) {
             mtr, UT_LOCATION_HERE);
   allow_duplicates = row_allow_duplicates(thr);
 
-  /* For DD tables, we don't use next-key locking for duplicates
-  found. This means it is possible for another transaction to
-  insert a duplicate key value but MDL protection on DD tables
-  will prevent insertion of duplicates into unique secondary indexes. */
+  /* For DD tables, we don't use next-key locking for duplicates found. This
+  means it is possible for another transaction to insert a duplicate key value
+  but MDL protection on DD tables will prevent insertion of duplicates into
+  unique secondary indexes. */
   const bool skip_gap_locks = index->table->skip_gap_locks();
   /* Scan index records and check if there is a duplicate */
 
