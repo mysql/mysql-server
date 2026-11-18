@@ -683,6 +683,10 @@ class Item_in_subselect : public Item_exists_subselect {
   AccessPath *root_access_path() const override;
   std::optional<ContainedSubquery> get_contained_subquery(
       const Query_block *outer_query_block) override;
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table) override;
 
   bool in2exists_added_to_where() const {
     return m_in2exists_info != nullptr && m_in2exists_info->added_to_where;

@@ -4692,3 +4692,204 @@ b	c
 3	0
 DROP VIEW v1;
 DROP TABLE t1, t2;
+#
+# Bug#121695: Filtering effect of IN subqueries that are not semijoins
+#
+SET optimizer_switch = 'semijoin=off';
+CREATE TABLE digits (n INT NOT NULL PRIMARY KEY);
+INSERT INTO digits VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+CREATE TABLE t (
+id INT NOT NULL PRIMARY KEY,
+a INT NOT NULL,
+c INT NOT NULL,
+KEY (a)
+);
+INSERT INTO t
+SELECT 100 * x.n + 10 * y.n + z.n, (10 * y.n + z.n), (10 * y.n + z.n)
+FROM digits x, digits y, digits z WHERE x.n < 2;
+CREATE TABLE u (
+id INT NOT NULL PRIMARY KEY,
+b INT NOT NULL,
+KEY (b)
+);
+INSERT INTO u SELECT 10 * x.n + y.n, y.n FROM digits x, digits y WHERE x.n < 2;
+CREATE TABLE sg (
+id INT NOT NULL PRIMARY KEY,
+g INT NOT NULL,
+v INT NOT NULL,
+UNIQUE KEY uv (g, v)
+);
+INSERT INTO sg SELECT id, id DIV 100, 1 + id MOD 100 FROM t;
+ANALYZE TABLE t, u, sg;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	status	OK
+test.u	analyze	status	OK
+test.sg	analyze	status	OK
+# 10 distinct b of 100 distinct a: 10%
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.a IN (SELECT u.b FROM u);
+EXPLAIN
+-> Filter: <in_optimizer>(t.a,t.a in (select #2))  (rows=20)
+    -> Index scan on t using PRIMARY  (rows=200)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t.a = `<materialized_subquery>`.b))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (b = t.a)
+                    -> Materialize with deduplication  (rows=20)
+                        -> Index scan on u using PRIMARY  (rows=20)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`a` AS `a`,`test`.`t`.`c` AS `c` from `test`.`t` where <in_optimizer>(`test`.`t`.`a`,`test`.`t`.`a` in ( <materialize> (/* select#2 */ select `test`.`u`.`b` from `test`.`u` where true ), <primary_index_lookup>(`test`.`t`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`a` = `<materialized_subquery>`.`b`)))))
+# One row without GROUP BY: 1%
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.a IN (SELECT MAX(u.b) FROM u);
+EXPLAIN
+-> Filter: <in_optimizer>(t.a,t.a in (select #2))  (rows=2)
+    -> Index scan on t using PRIMARY  (rows=200)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t.a = `<materialized_subquery>`.`MAX(u.b)`))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (MAX(u.b) = t.a)
+                    -> Materialize with deduplication  (rows=1)
+                        -> Aggregate: max(u.b)  (rows=1)
+                            -> Index scan on u using PRIMARY  (rows=20)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`a` AS `a`,`test`.`t`.`c` AS `c` from `test`.`t` where <in_optimizer>(`test`.`t`.`a`,`test`.`t`.`a` in ( <materialize> (/* select#2 */ select max(`test`.`u`.`b`) from `test`.`u` having (<cache>(`test`.`t`.`a`) = <ref_null_helper>(max(`test`.`u`.`b`))) ), <primary_index_lookup>(`test`.`t`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`a` = `<materialized_subquery>`.`MAX(u.b)`)))))
+# Latest version of each group: 2 groups of 200 rows, 1%
+EXPLAIN FORMAT=TREE
+SELECT * FROM sg p
+WHERE (p.g, p.v) IN (SELECT q.g, MAX(q.v) FROM sg q GROUP BY q.g);
+EXPLAIN
+-> Filter: <in_optimizer>((p.g,p.v),(p.g,p.v) in (select #2))  (rows=2)
+    -> Covering index scan on p using uv  (rows=200)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((p.g = `<materialized_subquery>`.g) and (p.v = `<materialized_subquery>`.`MAX(q.v)`))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (g = p.g, MAX(q.v) = p.v)
+                    -> Materialize with deduplication  (rows=1.41)
+                        -> Covering index skip scan for grouping on q using uv  (rows=1.41)
+
+Warnings:
+Note	1003	/* select#1 */ select `p`.`id` AS `id`,`p`.`g` AS `g`,`p`.`v` AS `v` from `test`.`sg` `p` where <in_optimizer>((`p`.`g`,`p`.`v`),(`p`.`g`,`p`.`v`) in ( <materialize> (/* select#2 */ select `q`.`g`,max(`q`.`v`) from `test`.`sg` `q` group by `q`.`g` having ((<cache>(`p`.`g`) = `q`.`g`) and ((<cache>(`p`.`v`) = max(`q`.`v`)) or (max(`q`.`v`) is null)) and <is_not_null_test>(`q`.`g`) and <is_not_null_test>(max(`q`.`v`))) ), <primary_index_lookup>(`p`.`g` in <temporary table> on <auto_distinct_key> where ((`p`.`g` = `<materialized_subquery>`.`g`) and (`p`.`v` = `<materialized_subquery>`.`MAX(q.v)`)))))
+SELECT * FROM sg p
+WHERE (p.g, p.v) IN (SELECT q.g, MAX(q.v) FROM sg q GROUP BY q.g);
+id	g	v
+199	1	100
+99	0	100
+# No estimate: NOT IN keeps the rows that do not match
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.a NOT IN (SELECT u.b FROM u);
+EXPLAIN
+-> Filter: <in_optimizer>(t.a,t.a in (select #2) is false)  (rows=200)
+    -> Index scan on t using PRIMARY  (rows=200)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t.a = `<materialized_subquery>`.b))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (b = t.a)
+                    -> Materialize with deduplication  (rows=20)
+                        -> Index scan on u using PRIMARY  (rows=20)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`a` AS `a`,`test`.`t`.`c` AS `c` from `test`.`t` where <in_optimizer>(`test`.`t`.`a`,`test`.`t`.`a` in ( <materialize> (/* select#2 */ select `test`.`u`.`b` from `test`.`u` where true ), <primary_index_lookup>(`test`.`t`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`a` = `<materialized_subquery>`.`b`)))) is false)
+# No estimate: the subquery returns other values for each row of t
+EXPLAIN FORMAT=TREE
+SELECT * FROM t WHERE t.a IN (SELECT u.b FROM u WHERE u.id = t.id);
+EXPLAIN
+-> Filter: <in_optimizer>(t.a,<exists>(select #2))  (rows=200)
+    -> Index scan on t using PRIMARY  (rows=200)
+    -> Select #2 (subquery in condition; dependent)
+        -> Single-row covering index lookup on u using b (b = <cache>(t.a), id = t.id)  (rows=0.01)
+
+Warnings:
+Note	1276	Field or reference 'test.t.id' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`a` AS `a`,`test`.`t`.`c` AS `c` from `test`.`t` where <in_optimizer>(`test`.`t`.`a`,<exists>(/* select#2 */ select `test`.`u`.`b` from `test`.`u` where (`test`.`u`.`id` = `test`.`t`.`id`)))
+# No estimate: the left tuple belongs to the outer query
+EXPLAIN FORMAT=TREE
+SELECT o.id,
+(SELECT COUNT(*) FROM t p
+WHERE o.a IN (SELECT u.b FROM u) AND p.id + 0 > 0) AS cnt
+FROM t o WHERE o.id < 3;
+EXPLAIN
+-> Index range scan on o using PRIMARY over (id < 3)  (rows=3)
+-> Select #2 (subquery in projection; dependent)
+    -> Aggregate: count(0)  (rows=1)
+        -> Filter: (((p.id + 0) > 0) and <in_optimizer>(o.a,<exists>(select #3)))  (rows=200)
+            -> Covering index scan on p using a  (rows=200)
+            -> Select #3 (subquery in condition; dependent)
+                -> Covering index lookup on u using b (b = <cache>(o.a))  (rows=2)
+
+Warnings:
+Note	1276	Field or reference 'test.o.a' of SELECT #2 was resolved in SELECT #1
+Note	1003	/* select#1 */ select `o`.`id` AS `id`,(/* select#2 */ select count(0) from `test`.`t` `p` where (<in_optimizer>(`o`.`a`,<exists>(/* select#3 */ select `test`.`u`.`b` from `test`.`u` where true)) and ((`p`.`id` + 0) > 0))) AS `cnt` from `test`.`t` `o` where (`o`.`id` < 3)
+# No estimate: no index statistics for the left tuple
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.c IN (SELECT u.b FROM u);
+EXPLAIN
+-> Filter: <in_optimizer>(t.c,t.c in (select #2))  (rows=200)
+    -> Index scan on t using PRIMARY  (rows=200)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t.c = `<materialized_subquery>`.b))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (b = t.c)
+                    -> Materialize with deduplication  (rows=20)
+                        -> Index scan on u using PRIMARY  (rows=20)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`a` AS `a`,`test`.`t`.`c` AS `c` from `test`.`t` where <in_optimizer>(`test`.`t`.`c`,`test`.`t`.`c` in ( <materialize> (/* select#2 */ select `test`.`u`.`b` from `test`.`u` where true ), <primary_index_lookup>(`test`.`t`.`c` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`c` = `<materialized_subquery>`.`b`)))))
+# No estimate: the left tuple is not a column
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.a + 0 IN (SELECT u.b FROM u);
+EXPLAIN
+-> Filter: <in_optimizer>((t.a + 0),(t.a + 0) in (select #2))  (rows=200)
+    -> Index scan on t using PRIMARY  (rows=200)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: (((t.a + 0) = `<materialized_subquery>`.b))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (b = (t.a + 0))
+                    -> Materialize with deduplication  (rows=20)
+                        -> Index scan on u using PRIMARY  (rows=20)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`a` AS `a`,`test`.`t`.`c` AS `c` from `test`.`t` where <in_optimizer>((`test`.`t`.`a` + 0),(`test`.`t`.`a` + 0) in ( <materialize> (/* select#2 */ select `test`.`u`.`b` from `test`.`u` where true ), <primary_index_lookup>((`test`.`t`.`a` + 0) in <temporary table> on <auto_distinct_key> where (((`test`.`t`.`a` + 0) = `<materialized_subquery>`.`b`)))))
+# No estimate: the subquery returns a computed value
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.a IN (SELECT u.b + 0 FROM u);
+EXPLAIN
+-> Filter: <in_optimizer>(t.a,t.a in (select #2))  (rows=200)
+    -> Index scan on t using PRIMARY  (rows=200)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t.a = `<materialized_subquery>`.`u.b + 0`))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (u.b + 0 = t.a)
+                    -> Materialize with deduplication  (rows=20)
+                        -> Index scan on u using PRIMARY  (rows=20)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`a` AS `a`,`test`.`t`.`c` AS `c` from `test`.`t` where <in_optimizer>(`test`.`t`.`a`,`test`.`t`.`a` in ( <materialize> (/* select#2 */ select (`test`.`u`.`b` + 0) from `test`.`u` where true ), <primary_index_lookup>(`test`.`t`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`a` = `<materialized_subquery>`.`u.b + 0`)))))
+# No estimate: ROLLUP adds rows to the groups
+EXPLAIN FORMAT=TREE
+SELECT * FROM t WHERE t.a IN (SELECT u.b FROM u GROUP BY u.b WITH ROLLUP);
+EXPLAIN
+-> Filter: <in_optimizer>(t.a,t.a in (select #2))  (rows=200)
+    -> Index scan on t using PRIMARY  (rows=200)
+    -> Select #2 (subquery in condition; run only once)
+        -> Filter: ((t.a = `<materialized_subquery>`.b))  (rows=1)
+            -> Limit: 1 row(s)  (rows=1)
+                -> Index lookup on <materialized_subquery> using <auto_distinct_key> (b = t.a)
+                    -> Materialize with deduplication  (rows=11)
+                        -> Group (no aggregates)  (rows=11)
+                            -> Covering index scan on u using b  (rows=20)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`a` AS `a`,`test`.`t`.`c` AS `c` from `test`.`t` where <in_optimizer>(`test`.`t`.`a`,`test`.`t`.`a` in ( <materialize> (/* select#2 */ select rollup_group_item(`test`.`u`.`b`,0) from `test`.`u` group by `test`.`u`.`b` with rollup having (<cache>(`test`.`t`.`a`) = <ref_null_helper>(rollup_group_item(`test`.`u`.`b`,0))) ), <primary_index_lookup>(`test`.`t`.`a` in <temporary table> on <auto_distinct_key> where ((`test`.`t`.`a` = `<materialized_subquery>`.`b`)))))
+# No estimate: UNION
+EXPLAIN FORMAT=TREE
+SELECT * FROM t WHERE t.a IN (SELECT u.b FROM u UNION SELECT u.id FROM u);
+EXPLAIN
+-> Filter: <in_optimizer>(t.a,<exists>(select #2))  (rows=200)
+    -> Index scan on t using PRIMARY  (rows=200)
+    -> Select #2 (subquery in condition; dependent)
+        -> Table scan on <union temporary>  (rows=3)
+            -> Union materialize with deduplication  (rows=3)
+                -> Covering index lookup on u using b (b = <cache>(t.a))  (rows=2)
+                -> Single-row covering index lookup on u using PRIMARY (id = <cache>(t.a))  (rows=1)
+
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t`.`id` AS `id`,`test`.`t`.`a` AS `a`,`test`.`t`.`c` AS `c` from `test`.`t` where <in_optimizer>(`test`.`t`.`a`,<exists>(/* select#2 */ select `test`.`u`.`b` from `test`.`u` where true union /* select#3 */ select `test`.`u`.`id` from `test`.`u` where true))
+DROP TABLE digits, t, u, sg;
+SET optimizer_switch = DEFAULT;

@@ -3673,4 +3673,103 @@ SELECT * FROM t2 WHERE b <= 3 ORDER BY b;
 DROP VIEW v1;
 DROP TABLE t1, t2;
 
+--echo #
+--echo # Bug#121695: Filtering effect of IN subqueries that are not semijoins
+--echo #
+
+# Keep the IN predicates as IN subqueries.
+SET optimizer_switch = 'semijoin=off';
+
+CREATE TABLE digits (n INT NOT NULL PRIMARY KEY);
+INSERT INTO digits VALUES (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+
+# 200 rows, 100 distinct a, no index on c.
+CREATE TABLE t (
+  id INT NOT NULL PRIMARY KEY,
+  a INT NOT NULL,
+  c INT NOT NULL,
+  KEY (a)
+);
+INSERT INTO t
+SELECT 100 * x.n + 10 * y.n + z.n, (10 * y.n + z.n), (10 * y.n + z.n)
+FROM digits x, digits y, digits z WHERE x.n < 2;
+
+# 20 rows, 10 distinct b.
+CREATE TABLE u (
+  id INT NOT NULL PRIMARY KEY,
+  b INT NOT NULL,
+  KEY (b)
+);
+INSERT INTO u SELECT 10 * x.n + y.n, y.n FROM digits x, digits y WHERE x.n < 2;
+
+# 200 rows, 2 groups g, UNIQUE (g, v).
+CREATE TABLE sg (
+  id INT NOT NULL PRIMARY KEY,
+  g INT NOT NULL,
+  v INT NOT NULL,
+  UNIQUE KEY uv (g, v)
+);
+INSERT INTO sg SELECT id, id DIV 100, 1 + id MOD 100 FROM t;
+
+ANALYZE TABLE t, u, sg;
+
+--echo # 10 distinct b of 100 distinct a: 10%
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.a IN (SELECT u.b FROM u);
+
+--echo # One row without GROUP BY: 1%
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.a IN (SELECT MAX(u.b) FROM u);
+
+--echo # Latest version of each group: 2 groups of 200 rows, 1%
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+SELECT * FROM sg p
+WHERE (p.g, p.v) IN (SELECT q.g, MAX(q.v) FROM sg q GROUP BY q.g);
+--sorted_result
+SELECT * FROM sg p
+WHERE (p.g, p.v) IN (SELECT q.g, MAX(q.v) FROM sg q GROUP BY q.g);
+
+--echo # No estimate: NOT IN keeps the rows that do not match
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.a NOT IN (SELECT u.b FROM u);
+
+--echo # No estimate: the subquery returns other values for each row of t
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+SELECT * FROM t WHERE t.a IN (SELECT u.b FROM u WHERE u.id = t.id);
+
+--echo # No estimate: the left tuple belongs to the outer query
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+SELECT o.id,
+       (SELECT COUNT(*) FROM t p
+        WHERE o.a IN (SELECT u.b FROM u) AND p.id + 0 > 0) AS cnt
+FROM t o WHERE o.id < 3;
+
+--echo # No estimate: no index statistics for the left tuple
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.c IN (SELECT u.b FROM u);
+
+--echo # No estimate: the left tuple is not a column
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.a + 0 IN (SELECT u.b FROM u);
+
+--echo # No estimate: the subquery returns a computed value
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE SELECT * FROM t WHERE t.a IN (SELECT u.b + 0 FROM u);
+
+--echo # No estimate: ROLLUP adds rows to the groups
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+SELECT * FROM t WHERE t.a IN (SELECT u.b FROM u GROUP BY u.b WITH ROLLUP);
+
+--echo # No estimate: UNION
+--replace_regex $elide_costs
+EXPLAIN FORMAT=TREE
+SELECT * FROM t WHERE t.a IN (SELECT u.b FROM u UNION SELECT u.id FROM u);
+
+DROP TABLE digits, t, u, sg;
+SET optimizer_switch = DEFAULT;
+
 --source include/disable_hypergraph.inc
