@@ -86,14 +86,25 @@ class Statistics_map {
                                             bool enable_extended_statistics,
                                             bool enable_imr_statistics = false);
 
+  /// @brief Sets the shard that count_imr_completed() uses on the calling
+  /// thread. Threads that do not call it use shard 0.
+  /// @param thread_id The worker id
+  static void set_worker_shard(std::size_t thread_id) {
+    s_worker_shard = thread_id;
+  }
+
   /// @brief Counts one in-memory relay log transaction completed by the
-  /// applier (no-op if the counters are not registered). Adds on the atomic
-  /// shard 0, since the IMR commit hook has no worker id.
+  /// applier, on the calling worker's shard (no-op if the counters are not
+  /// registered).
   /// @param instance_id Channel instance id
   /// @param spill_path True for a spill-path transaction, false for memory
   /// @param trx_length The transaction's declared size
   static void count_imr_completed(std::size_t instance_id, bool spill_path,
                                   std::size_t trx_length);
+
+ private:
+  /// The calling thread's shard.
+  static inline thread_local std::size_t s_worker_shard{0};
 };
 
 }  // namespace mysql::csa

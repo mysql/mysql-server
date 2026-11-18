@@ -59,12 +59,11 @@ bool Statistics_map::init_statistics(std::size_t instance_id,
                              enable_extended_statistics);
   stat_monitor.register_stat(Statistics_map::applied_events_cnt, num_threads,
                              true);
-  // In-memory relay log counters: one shard, since the IMR commit hook that
-  // updates them has no worker id (see count_imr_completed()).
+  // In-memory relay log counters: one shard per worker.
   for (const char *name :
        {Statistics_map::imr_mem_trx_cnt, Statistics_map::imr_mem_trx_len,
         Statistics_map::imr_spl_trx_cnt, Statistics_map::imr_spl_trx_len})
-    stat_monitor.register_stat(name, 1, enable_imr_statistics);
+    stat_monitor.register_stat(name, num_threads, enable_imr_statistics);
   return false;
 }
 
@@ -80,9 +79,10 @@ void Statistics_map::count_imr_completed(std::size_t instance_id,
   auto bytes =
       stat_monitor.find_stat(spill_path ? Statistics_map::imr_spl_trx_len
                                         : Statistics_map::imr_mem_trx_len);
-  if (count.has_value()) count->get().add(1, 0);
+  const std::size_t shard = s_worker_shard;
+  if (count.has_value()) count->get().add(1, shard);
   if (bytes.has_value())
-    bytes->get().add(static_cast<long long>(trx_length), 0);
+    bytes->get().add(static_cast<long long>(trx_length), shard);
 }
 
 }  // namespace mysql::csa
