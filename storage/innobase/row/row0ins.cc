@@ -1974,7 +1974,6 @@ static bool row_allow_duplicates(que_thr_t *thr) {
   do {
     const rec_t *rec = pcur.get_rec();
     const buf_block_t *block = pcur.get_block();
-    ulint lock_type;
 
     if (page_rec_is_infimum(rec)) {
       continue;
@@ -1997,6 +1996,7 @@ static bool row_allow_duplicates(que_thr_t *thr) {
                         ut_ad(!index->table->is_dd_table);
 #endif
 
+      ulint lock_type;
       if (skip_gap_locks) {
         /* Skip GAP lock on supremum */
         if (is_supremum) {
