@@ -1,0 +1,54 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--echo ###########################################################################
+--echo # Prepare
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+SET autocommit = 1;
+CREATE TABLE t1 (
+    id BIGINT NOT NULL,
+    PRIMARY KEY(id)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+
+--echo ###########################################################################
+--echo # Test SHOW VARIABLES & SHOW REPLICA STATUS during DuckDB commit
+--echo ###########################################################################
+--source include/rpl/connection_replica.inc
+STOP REPLICA;
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 values (1);
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL debug="+d,debug_sync_when_duckdb_commit";
+START REPLICA;
+SET debug_sync="now WAIT_FOR commit_signal";
+
+--disable_result_log
+SHOW VARIABLES LIKE '%thread_pool%';
+
+SHOW REPLICA STATUS;
+--enable_result_log
+
+SET GLOBAL debug="-d,debug_sync_when_duckdb_commit";
+SET debug_sync="now SIGNAL resume_signal";
+
+--source include/rpl/sync.inc
+--let $rpl_diff_statement = SELECT id FROM test.t1 ORDER BY id;
+--source include/rpl/diff.inc
+
+--echo ###########################################################################
+--echo # Test Cleanup
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

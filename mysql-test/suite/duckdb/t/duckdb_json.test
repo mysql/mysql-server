@@ -1,0 +1,353 @@
+CREATE TABLE t1_innodb (id INT PRIMARY KEY, col1 JSON) ENGINE=InnoDB;
+CREATE TABLE t1_duckdb (id INT PRIMARY KEY, col1 JSON) ENGINE=DuckDB;
+CREATE TABLE t2_innodb (id INT PRIMARY KEY, col1 VARCHAR(200)) ENGINE=InnoDB;
+CREATE TABLE t2_duckdb (id INT PRIMARY KEY, col1 VARCHAR(200)) ENGINE=DuckDB;
+
+--echo
+--echo 1. JSON_ARRAY
+--echo
+
+INSERT INTO t1_innodb VALUES (1, JSON_OBJECT("test", JSON_ARRAY(1, 1.2, "json", true)));
+INSERT INTO t1_duckdb VALUES (1, JSON_OBJECT("test", JSON_ARRAY(1, 1.2, "json", true)));
+INSERT INTO t2_innodb VALUES (1, JSON_OBJECT("test", JSON_ARRAY(1, 1.2, "json", true)));
+INSERT INTO t2_duckdb VALUES (1, JSON_OBJECT("test", JSON_ARRAY(1, 1.2, "json", true)));
+SELECT * FROM t1_innodb;
+SELECT * FROM t1_duckdb;
+SELECT t1_innodb.col1 =  t2_innodb.col1 FROM t1_innodb, t2_innodb;
+--error ER_DUCKDB_CLIENT
+SELECT t1_duckdb.col1 =  t2_duckdb.col1 FROM t1_duckdb, t2_duckdb;
+
+--echo
+--echo 2. JSON_ARRAY_APPEND()
+--echo
+
+--echo
+--echo 3. JSON_ARRAY_INSERT()
+--echo
+
+--echo
+--echo 4. JSON_CONTAINS()
+--echo
+
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '1') FROM t1_innodb;
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '1') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '1', '$.a') FROM t1_innodb;
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '1', '$.a') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '1', '$.b') FROM t1_innodb;
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '1', '$.b') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '{"d": 4}') FROM t1_innodb;
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '{"d": 4}') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '{"d": 4}', '$.c') FROM t1_innodb;
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '{"d": 4}', '$.c') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '{"d": 4}', '$.c.d') FROM t1_innodb;
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '{"d": 4}', '$.c.d') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '{"d": 4}', '$.c') FROM t1_innodb;
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '{"d": 4}', '$.c') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '[1, 2]', '$.c.e') FROM t1_innodb;
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '[1, 2]', '$.c.e') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '[3, 1]', '$.c.e') FROM t1_innodb;
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '[3, 1]', '$.c.e') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '1', '$.c.e') FROM t1_innodb;
+SELECT JSON_CONTAINS('{"a": 1, "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '1', '$.c.e') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('{"a": [1], "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '1', '$.a') FROM t1_innodb;
+SELECT JSON_CONTAINS('{"a": [1], "b": 2, "c": {"d": 4, "e":[1, 2, 3]}}', '1', '$.a') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('[]', '1') FROM t1_innodb;
+SELECT JSON_CONTAINS('[]', '1') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS('[]', '[1, 2]') FROM t1_innodb;
+SELECT JSON_CONTAINS('[]', '[1, 2]') FROM t1_duckdb;
+
+--echo
+--echo 5. JSON_CONTAINS_PATH()
+--echo
+
+SELECT JSON_CONTAINS_PATH('{"a": 1, "b": 2, "c": {"d": 4}}', 'one', '$.a', '$.e') FROM t1_innodb;
+SELECT JSON_CONTAINS_PATH('{"a": 1, "b": 2, "c": {"d": 4}}', 'one', '$.a', '$.e') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS_PATH('{"a": 1, "b": 2, "c": {"d": 4}}', 'all', '$.a', '$.e') FROM t1_innodb;
+SELECT JSON_CONTAINS_PATH('{"a": 1, "b": 2, "c": {"d": 4}}', 'all', '$.a', '$.e') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS_PATH('{"a": 1, "b": 2, "c": {"d": 4}}', 'one', '$.c.d') FROM t1_innodb;
+SELECT JSON_CONTAINS_PATH('{"a": 1, "b": 2, "c": {"d": 4}}', 'one', '$.c.d') FROM t1_duckdb;
+
+SELECT JSON_CONTAINS_PATH('{"a": 1, "b": 2, "c": {"d": 4}}', 'one', '$.a.d') FROM t1_innodb;
+SELECT JSON_CONTAINS_PATH('{"a": 1, "b": 2, "c": {"d": 4}}', 'one', '$.a.d') FROM t1_duckdb;
+
+--echo
+--echo 6. JSON_DEPTH()
+--echo
+
+SELECT JSON_DEPTH('{}'), JSON_DEPTH('[]'), JSON_DEPTH('true') FROM t1_innodb;
+SELECT JSON_DEPTH('{}'), JSON_DEPTH('[]'), JSON_DEPTH('true') FROM t1_duckdb;
+
+SELECT JSON_DEPTH('[10, 20]'), JSON_DEPTH('[[], {}]') FROM t1_innodb;
+SELECT JSON_DEPTH('[10, 20]'), JSON_DEPTH('[[], {}]') FROM t1_duckdb;
+
+SELECT JSON_DEPTH('[10, {"a": 20}]') FROM t1_innodb;
+SELECT JSON_DEPTH('[10, {"a": 20}]') FROM t1_duckdb;
+
+--echo
+--echo 7. JSON_EXTRACT()
+--echo
+
+SELECT JSON_EXTRACT(col1, '$.test[0]') = 1 FROM t1_innodb;
+SELECT JSON_EXTRACT(col1, '$.test[1]') = 1.2 FROM t1_innodb;
+SELECT JSON_EXTRACT(col1, '$.test[2]') = 'json' FROM t1_innodb;
+
+SELECT JSON_EXTRACT(col1, '$.test[0]') = 1 FROM t1_duckdb;
+SELECT JSON_EXTRACT(col1, '$.test[1]') = 1.2 FROM t1_duckdb;
+SELECT JSON_EXTRACT(col1, '$.test[2]') = 'json' FROM t1_duckdb;
+
+--echo
+--echo 8. JSON_INSERT()
+--echo
+
+--echo
+--echo 9. JSON_KEYS()
+--echo
+
+SELECT JSON_KEYS('{"a": 1, "b": {"c": 30}}') FROM t1_innodb;
+SELECT JSON_KEYS('{"a": 1, "b": {"c": 30}}') FROM t1_duckdb;
+
+SELECT JSON_KEYS('{"a": 1, "b": {"c": 30}}', '$.b') FROM t1_innodb;
+SELECT JSON_KEYS('{"a": 1, "b": {"c": 30}}', '$.b') FROM t1_duckdb;
+
+--echo
+--echo 10. JSON_LENGTH()
+--echo 
+
+SELECT JSON_LENGTH(col1, '$'), JSON_LENGTH(col1, '$.test'), JSON_LENGTH(col1, '$.test[0]') FROM t1_innodb;
+SELECT JSON_LENGTH(col1, '$'), JSON_LENGTH(col1, '$.test'), JSON_LENGTH(col1, '$.test[0]') FROM t1_duckdb;
+
+--echo
+--echo 11. JSON_MERGE()
+--echo 
+
+--echo
+--echo 12. JSON_MERGE_PATCH()
+--echo 
+
+# Only support two arguments
+
+SELECT JSON_MERGE_PATCH('[1, 2]', '[true, false]') FROM t1_innodb;
+SELECT JSON_MERGE_PATCH('[1, 2]', '[true, false]') FROM t1_duckdb;
+
+SELECT JSON_MERGE_PATCH('{"name": "x"}', '{"id": 47}') FROM t1_innodb;
+SELECT JSON_MERGE_PATCH('{"name": "x"}', '{"id": 47}') FROM t1_duckdb;
+
+SELECT JSON_MERGE_PATCH('1', 'true') FROM t1_innodb;
+SELECT JSON_MERGE_PATCH('1', 'true') FROM t1_duckdb;
+
+SELECT JSON_MERGE_PATCH('[1, 2]', '{"id": 47}') FROM t1_innodb;
+SELECT JSON_MERGE_PATCH('[1, 2]', '{"id": 47}') FROM t1_duckdb;
+
+SELECT JSON_MERGE_PATCH('{ "a": 1, "b":2 }', '{ "a": 3, "c":4 }') FROM t1_innodb;
+SELECT JSON_MERGE_PATCH('{ "a": 1, "b":2 }', '{ "a": 3, "c":4 }') FROM t1_duckdb;
+
+SELECT JSON_MERGE_PATCH('{ "a": 1, "b":2 }','{ "a": 3, "c":4 }') FROM t1_innodb;
+SELECT JSON_MERGE_PATCH('{ "a": 1, "b":2 }','{ "a": 3, "c":4 }') FROM t1_duckdb;
+
+--echo
+--echo 13. JSON_MERGE_PRESERVE()
+--echo 
+
+--echo
+--echo 14. JSON_OBJECT()
+--echo 
+
+SELECT JSON_OBJECT('id', 87, 'name', 'carrot') FROM t1_innodb;
+SELECT JSON_OBJECT('id', 87, 'name', 'carrot') FROM t1_duckdb;
+
+--echo
+--echo 15. JSON_OVERLAPS()
+--echo 
+
+SELECT JSON_OVERLAPS("[1,3,5,7]", "[2,5,7]") FROM t1_innodb;
+SELECT JSON_OVERLAPS("[1,3,5,7]", "[2,5,7]") FROM t1_duckdb;
+
+SELECT JSON_OVERLAPS("[1,3,5,7]", "[2,6,7]") FROM t1_innodb;
+SELECT JSON_OVERLAPS("[1,3,5,7]", "[2,6,7]") FROM t1_duckdb;
+
+SELECT JSON_OVERLAPS("[1,3,5,7]", "[2,6,8]") FROM t1_innodb;
+SELECT JSON_OVERLAPS("[1,3,5,7]", "[2,6,8]") FROM t1_duckdb;
+
+SELECT JSON_OVERLAPS('[[1,2],[3,4],5]', '[1,[2,3],[4,5]]') FROM t1_innodb;
+SELECT JSON_OVERLAPS('[[1,2],[3,4],5]', '[1,[2,3],[4,5]]') FROM t1_duckdb;
+
+SELECT JSON_OVERLAPS('{"a":1,"b":10,"d":10}', '{"c":1,"e":10,"f":1,"d":10}') FROM t1_innodb;
+SELECT JSON_OVERLAPS('{"a":1,"b":10,"d":10}', '{"c":1,"e":10,"f":1,"d":10}') FROM t1_duckdb;
+
+SELECT JSON_OVERLAPS('{"a":1,"b":10,"d":10}', '{"a":5,"e":10,"f":1,"d":20}') FROM t1_innodb;
+SELECT JSON_OVERLAPS('{"a":1,"b":10,"d":10}', '{"a":5,"e":10,"f":1,"d":20}') FROM t1_duckdb;
+
+SELECT JSON_OVERLAPS('5', '5') FROM t1_innodb;
+SELECT JSON_OVERLAPS('5', '5') FROM t1_duckdb;
+
+SELECT JSON_OVERLAPS('5', '6') FROM t1_innodb;
+SELECT JSON_OVERLAPS('5', '6') FROM t1_duckdb;
+
+SELECT JSON_OVERLAPS('[4,5,"6",7]', '6') FROM t1_innodb;
+SELECT JSON_OVERLAPS('[4,5,"6",7]', '6') FROM t1_duckdb;
+
+SELECT JSON_OVERLAPS('[4,5,6,7]', '"6"') FROM t1_innodb;
+SELECT JSON_OVERLAPS('[4,5,6,7]', '"6"') FROM t1_duckdb;
+
+--echo
+--echo 16. JSON_PRETTY()
+--echo 
+
+SELECT JSON_PRETTY('{"a":"10","b":"15","x":"25"}') FROM t1_innodb;
+SELECT JSON_PRETTY('{"a":"10","b":"15","x":"25"}') FROM t1_duckdb;
+
+--echo
+--echo 17. JSON_QUOTE()
+--echo
+
+SELECT JSON_QUOTE('null'), JSON_QUOTE('"null"') FROM t1_innodb;
+SELECT JSON_QUOTE('null'), JSON_QUOTE('"null"') FROM t1_duckdb;
+
+SELECT JSON_QUOTE('[1, 2, 3]') FROM t1_innodb;
+SELECT JSON_QUOTE('[1, 2, 3]') FROM t1_duckdb;
+
+SELECT JSON_QUOTE('test') FROM t1_innodb;
+SELECT JSON_QUOTE('test') FROM t1_duckdb;
+
+--echo
+--echo 18. JSON_REMOVE()
+--echo
+
+--echo
+--echo 19. JSON_REPLACE()
+--echo
+
+--echo
+--echo 20. JSON_SCHEMA_VALID()
+--echo
+
+--echo
+--echo 21. JSON_SCHEMA_VALIDATION_REPORT()
+--echo
+
+--echo
+--echo 22. JSON_SEARCH()
+--echo
+
+--echo
+--echo 23. JSON_SET()
+--echo
+
+--echo
+--echo 24. JSON_STORAGE_FREE()
+--echo
+
+--echo
+--echo 25. JSON_STORAGE_SIZE()
+--echo
+
+--echo
+--echo 26. JSON_TABLE()
+--echo
+
+--echo
+--echo 27. JSON_TYPE()
+--echo
+
+# The definition of json_type in duckdb and mysql is different,
+# so this function is not fully compatible.
+
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$')) FROM t1_innodb;
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$')) FROM t1_duckdb;
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$.test')) FROM t1_innodb;
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$.test')) FROM t1_duckdb;
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$.test[0]')) FROM t1_innodb;
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$.test[0]')) FROM t1_duckdb;
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$.test[1]')) FROM t1_innodb;
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$.test[1]')) FROM t1_duckdb;
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$.test[2]')) FROM t1_innodb;
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$.test[2]')) FROM t1_duckdb;
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$.test[3]')) FROM t1_innodb;
+SELECT JSON_TYPE(JSON_EXTRACT(col1, '$.test[3]')) FROM t1_duckdb;
+
+--echo
+--echo 28. JSON_UNQUOTE()
+--echo
+
+SELECT JSON_UNQUOTE('"test"') FROM t1_innodb;
+SELECT JSON_UNQUOTE('"test"') FROM t1_duckdb;
+
+SELECT JSON_UNQUOTE(NULL) FROM t1_innodb;
+SELECT JSON_UNQUOTE(NULL) FROM t1_duckdb;
+
+SELECT JSON_UNQUOTE('[1, 2, 3]') FROM t1_innodb;
+SELECT JSON_UNQUOTE('[1, 2, 3]') FROM t1_duckdb;
+
+SELECT JSON_UNQUOTE('{"a": 1}') FROM t1_innodb;
+SELECT JSON_UNQUOTE('{"a": 1}') FROM t1_duckdb;
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(20)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 'aaa'), (2, 'bbb'), (3, 'ccc');
+
+SELECT JSON_UNQUOTE(col1) FROM t1 WHERE id = 1;
+
+DROP TABLE t1;
+
+--echo
+--echo 29. JSON_VALID()
+--echo
+
+SELECT JSON_VALID('test') FROM t1_innodb;
+SELECT JSON_VALID('test') FROM t1_duckdb;
+SELECT JSON_VALID('"test"') FROM t1_innodb;
+SELECT JSON_VALID('"test"') FROM t1_duckdb;
+
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$')) FROM t1_innodb;
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$')) FROM t1_duckdb;
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$.test')) FROM t1_innodb;
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$.test')) FROM t1_duckdb;
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$.test[0]')) FROM t1_innodb;
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$.test[0]')) FROM t1_duckdb;
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$.test[1]')) FROM t1_innodb;
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$.test[1]')) FROM t1_duckdb;
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$.test[2]')) FROM t1_innodb;
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$.test[2]')) FROM t1_duckdb;
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$.test[3]')) FROM t1_innodb;
+SELECT JSON_VALID(JSON_EXTRACT(col1, '$.test[3]')) FROM t1_duckdb;
+
+--echo
+--echo 30. JSON_VALUE()
+--echo
+
+# Only support JSON_VALUE(json_doc, path)
+
+SELECT JSON_VALUE(col1, '$') FROM t1_innodb;
+SELECT JSON_VALUE(col1, '$') FROM t1_duckdb;
+SELECT JSON_VALUE(col1, '$.test') FROM t1_innodb;
+SELECT JSON_VALUE(col1, '$.test') FROM t1_duckdb;
+SELECT JSON_VALUE(col1, '$.test[0]') FROM t1_innodb;
+SELECT JSON_VALUE(col1, '$.test[0]') FROM t1_duckdb;
+SELECT JSON_VALUE(col1, '$.test[1]') FROM t1_innodb;
+SELECT JSON_VALUE(col1, '$.test[1]') FROM t1_duckdb;
+SELECT JSON_VALUE(col1, '$.test[2]') FROM t1_innodb;
+SELECT JSON_VALUE(col1, '$.test[2]') FROM t1_duckdb;
+SELECT JSON_VALUE(col1, '$.test[3]') FROM t1_innodb;
+SELECT JSON_VALUE(col1, '$.test[3]') FROM t1_duckdb;
+
+--echo
+--echo 31. MEMBER OF()
+--echo
+
+DROP TABLE t1_innodb;
+DROP TABLE t1_duckdb;
+DROP TABLE t2_innodb;
+DROP TABLE t2_duckdb;

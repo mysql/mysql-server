@@ -1,0 +1,54 @@
+--source include/have_debug.inc
+
+--disable_warnings
+--let $rpl_topology= 1->2->3
+--source include/rpl/init.inc
+--enable_warnings
+
+--echo ###########################################################################
+--echo # 0. Prepare, InnoDB (server_1) -> DuckDB (server_2) -> DuckDB (server_3)
+--echo ###########################################################################
+--connection server_1
+--echo [connection server_1]
+
+SET autocommit = 1;
+CREATE TABLE t1 (
+    id BIGINT NOT NULL,
+    c0 VARCHAR(20) NOT NULL,
+    PRIMARY KEY(id)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+
+--source include/rpl/sync.inc
+--connection server_2
+--echo [connection server_2]
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+
+--source include/rpl/sync.inc
+--connection server_3
+--echo [connection server_3]
+SHOW CREATE TABLE t1;
+
+--echo ###########################################################################
+--echo # 1. Test server_2 Crash Before DuckDB commit
+--echo ###########################################################################
+--let $start_id = 1
+--let $crash_point = "+d,crash_before_duckdb_commit"
+--source duckdb_rpl_binlog_multi_trx_with_crash.inc
+
+--echo ###########################################################################
+--echo # 2. Test server_2 Crash After DuckDB commit
+--echo ###########################################################################
+--let $start_id = 4
+--let $crash_point = "+d,crash_after_duckdb_commit"
+--source duckdb_rpl_binlog_multi_trx_with_crash.inc
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+--connection server_1
+--echo [connection server_1]
+DROP TABLE t1;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

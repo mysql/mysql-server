@@ -119,6 +119,10 @@
 #include "template_utils.h"
 #include "thr_mutex.h"
 
+#ifdef HAVE_DUCKDB
+#include "duckdb/duckdb_context.h"
+#endif
+
 class Parse_tree_root;
 
 using std::max;
@@ -898,6 +902,9 @@ THD::THD(bool enable_plugins)
 #ifndef NDEBUG
   debug_binlog_xid_last.reset();
 #endif
+
+  duckdb_context = nullptr;
+
   set_system_user(false);
   set_connection_admin(false);
   m_mem_cnt.set_thd(this);
@@ -1593,6 +1600,13 @@ THD::~THD() {
   }
 
   m_thd_life_cycle_stage = enum_thd_life_cycle_stages::DISPOSED;
+
+#ifdef HAVE_DUCKDB
+  if (duckdb_context != nullptr) {
+    delete duckdb_context;
+    duckdb_context = nullptr;
+  }
+#endif  // HAVE_DUCKDB
 }
 
 /**
@@ -1638,6 +1652,15 @@ void THD::awake(THD::killed_state state_to_set) {
   } else {
     killed = state_to_set;
   }
+
+  /* Interrupt duckdb query. Note that duckdb_context is created without
+  LOCK_thd_data lock, so there may be a minor gap in which con cannot be killed,
+  which is not a big problem. */
+#ifdef HAVE_DUCKDB
+  if (this->get_duckdb_context(false) != nullptr && this->killed) {
+    this->get_duckdb_context(false)->interrupt();
+  }
+#endif  // HAVE_DUCKDB
 
   if (state_to_set != THD::KILL_QUERY && state_to_set != THD::KILL_TIMEOUT) {
     if (this != current_thd || kill_immunizer) {
@@ -3392,6 +3415,30 @@ bool THD::add_external(unsigned int slot, void *data) {
 
 void *THD::fetch_external(unsigned int slot) {
   return external_store_.at(slot) ? external_store_.at(slot) : nullptr;
+}
+
+#ifdef HAVE_DUCKDB
+myduck::DuckdbThdContext *THD::get_duckdb_context(bool create) {
+  if (duckdb_context == nullptr && create) {
+    duckdb_context = new myduck::DuckdbThdContext(this);
+  }
+
+  /* Currently, thd's duckdb_context is created once and the creation is not
+  under LOCK_thd_data lock. */
+  if (duckdb_context != nullptr && this->killed) {
+    duckdb_context->interrupt();
+  }
+
+  return duckdb_context;
+}
+#endif  // HAVE_DUCKDB
+
+bool THD::multi_trx_in_batch() {
+#ifdef HAVE_DUCKDB
+  return (duckdb_context != nullptr && duckdb_context->multi_trx_in_batch());
+#else
+  return false;
+#endif
 }
 
 /**

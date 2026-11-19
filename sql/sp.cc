@@ -102,6 +102,8 @@
 #include "string_with_len.h"
 #include "template_utils.h"
 
+#include "sql/package/package_interface.h"
+
 class sp_rcontext;
 
 /* Used in error handling only */
@@ -654,11 +656,14 @@ static bool check_routine_already_exists(THD *thd, sp_head *sp,
   else
     assert(false);
 
+  bool exists = sp->m_type == enum_sp_type::PROCEDURE &&
+                im::exist_native_proc(sp->m_db.str, sp->m_name.str);
   if (error) {
     // Error is reported by DD API framework.
     return true;
   }
-  if (sr == nullptr) {
+
+  if (sr == nullptr && !exists) {
     // Routine with same name does not exist.
     return false;
   }

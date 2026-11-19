@@ -1,0 +1,110 @@
+# ===========================================================
+# Test: bugfix_specify_engine_in_partition
+# Description:
+#   When force_innodb_to_duckdb is ON, partition-level and
+#   subpartition-level engine=innodb specifications should
+#   also be converted to DuckDB, avoiding ERROR 1497
+#   "mix of handlers in the partitions".
+# ===========================================================
+
+SET GLOBAL force_innodb_to_duckdb = ON;
+
+--echo #
+--echo # Case 1: Partitions explicitly specify engine=innodb
+--echo #
+CREATE TABLE t1 (id INT PRIMARY KEY) engine=innodb
+   PARTITION BY RANGE COLUMNS (id) (
+   PARTITION p0 VALUES LESS THAN (100) engine=innodb,
+   PARTITION p1 VALUES LESS THAN (1000) engine=innodb,
+   PARTITION p2 VALUES LESS THAN MAXVALUE engine=innodb);
+
+SHOW CREATE TABLE t1;
+
+INSERT INTO t1 VALUES (1), (500), (2000);
+SELECT * FROM t1 ORDER BY id;
+
+--echo #
+--echo # Case 2: Partitions without explicit engine (table-level only)
+--echo #
+CREATE TABLE t2 (id INT PRIMARY KEY) engine=innodb
+   PARTITION BY RANGE COLUMNS (id) (
+   PARTITION p0 VALUES LESS THAN (100),
+   PARTITION p1 VALUES LESS THAN (1000),
+   PARTITION p2 VALUES LESS THAN MAXVALUE);
+
+SHOW CREATE TABLE t2;
+
+INSERT INTO t2 VALUES (50), (999), (10000);
+SELECT * FROM t2 ORDER BY id;
+
+--echo #
+--echo # Case 3: Subpartitions explicitly specify engine=innodb
+--echo #
+CREATE TABLE t3 (id INT PRIMARY KEY) engine=innodb
+   PARTITION BY RANGE COLUMNS (id)
+   SUBPARTITION BY HASH (id) (
+   PARTITION p0 VALUES LESS THAN (100) engine=innodb (
+     SUBPARTITION sp00 engine=innodb,
+     SUBPARTITION sp01 engine=innodb),
+   PARTITION p1 VALUES LESS THAN MAXVALUE engine=innodb (
+     SUBPARTITION sp10 engine=innodb,
+     SUBPARTITION sp11 engine=innodb));
+
+SHOW CREATE TABLE t3;
+
+INSERT INTO t3 VALUES (1), (50), (200), (500);
+SELECT * FROM t3 ORDER BY id;
+
+--echo #
+--echo # Case 4: Mixed - some partitions specify engine, some don't
+--echo #
+CREATE TABLE t4 (id INT PRIMARY KEY) engine=innodb
+   PARTITION BY RANGE COLUMNS (id) (
+   PARTITION p0 VALUES LESS THAN (100) engine=innodb,
+   PARTITION p1 VALUES LESS THAN (1000),
+   PARTITION p2 VALUES LESS THAN MAXVALUE engine=innodb);
+
+SHOW CREATE TABLE t4;
+
+INSERT INTO t4 VALUES (10), (500), (5000);
+SELECT * FROM t4 ORDER BY id;
+
+--echo #
+--echo # Case 5: ALTER TABLE ADD PARTITION with engine=innodb
+--echo #
+CREATE TABLE t5 (id INT PRIMARY KEY) engine=innodb
+   PARTITION BY RANGE COLUMNS (id) (
+   PARTITION p0 VALUES LESS THAN (100) engine=innodb,
+   PARTITION p1 VALUES LESS THAN (1000) engine=innodb);
+
+ALTER TABLE t5 ADD PARTITION (
+   PARTITION p2 VALUES LESS THAN (10000) engine=innodb,
+   PARTITION p3 VALUES LESS THAN (100000) engine=innodb);
+
+SHOW CREATE TABLE t5;
+
+INSERT INTO t5 VALUES (1), (500), (5000), (50000);
+SELECT * FROM t5 ORDER BY id;
+
+--echo #
+--echo # Case 6: ALTER TABLE ADD PARTITION without explicit engine
+--echo #
+CREATE TABLE t6 (id INT PRIMARY KEY) engine=innodb
+   PARTITION BY RANGE COLUMNS (id) (
+   PARTITION p0 VALUES LESS THAN (100),
+   PARTITION p1 VALUES LESS THAN (1000));
+
+ALTER TABLE t6 ADD PARTITION (
+   PARTITION p2 VALUES LESS THAN (10000),
+   PARTITION p3 VALUES LESS THAN (100000));
+
+SHOW CREATE TABLE t6;
+
+INSERT INTO t6 VALUES (1), (500), (5000), (50000);
+SELECT * FROM t6 ORDER BY id;
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t1, t2, t3, t4, t5, t6;
+SET GLOBAL force_innodb_to_duckdb = default;

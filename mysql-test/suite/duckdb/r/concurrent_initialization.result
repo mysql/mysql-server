@@ -1,0 +1,26 @@
+# restart
+SET DEBUG_SYNC='duckdb_before_initialize_publish SIGNAL initializing WAIT_FOR publish';
+CALL dbms_duckdb.query('SELECT json_depth(''{"a":1}'') AS depth');
+SET DEBUG_SYNC='now WAIT_FOR initializing';
+SET DEBUG_SYNC='duckdb_before_initialize_lock SIGNAL waiter_entered';
+CALL dbms_duckdb.query('SELECT json_depth(''{"a":1}'') AS depth');
+SET DEBUG_SYNC='now WAIT_FOR waiter_entered';
+SET DEBUG_SYNC='now SIGNAL publish';
+RESULT
+depth	
+BIGINT	
+[ Rows: 1]
+2
+
+
+SET DEBUG_SYNC='RESET';
+RESULT
+depth	
+BIGINT	
+[ Rows: 1]
+2
+
+
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='RESET';
+# restart

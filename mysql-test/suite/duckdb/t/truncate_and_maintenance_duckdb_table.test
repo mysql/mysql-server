@@ -1,0 +1,31 @@
+--echo #
+--echo # 1) PREPARE
+--echo #
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t VALUES (1, 1, 1, 1);
+INSERT INTO t VALUES (2, 2, 2, 2);
+INSERT INTO t VALUES (3, 3, 3, 3);
+
+
+--echo #
+--echo # 2) MAINTENANCE STATEMENTS
+--echo #
+ANALYZE TABLE t;
+CHECK TABLE t;
+CHECKSUM TABLE t;
+OPTIMIZE TABLE t;
+REPAIR TABLE t;
+
+
+--echo #
+--echo # 3) TRUNCATE TABLE
+--echo #
+SELECT * FROM t;
+TRUNCATE TABLE t;
+SELECT * FROM t;
+
+
+--echo #
+--echo # 4) CLEANUP
+--echo #
+DROP TABLE t;

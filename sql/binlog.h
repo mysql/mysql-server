@@ -110,6 +110,7 @@ class MYSQL_BIN_LOG : public TC_LOG {
   class Binlog_ofile;
 
  private:
+  friend class Binlog_ext;
   enum enum_log_state { LOG_OPENED, LOG_CLOSED, LOG_TO_BE_OPENED };
 
   /* LOCK_log is inited by init_pthread_objects() */

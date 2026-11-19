@@ -119,6 +119,12 @@ enum class Explain_format_type : ulong {
   JSON = 3
 };
 
+enum class Duckdb_explain_output_type : ulong {
+  ALL_ = 0,
+  OPTIMIZED_ONLY_ = 1,
+  PHYSICAL_ONLY_ = 2
+};
+
 /* Bits for different SQL modes modes (including ANSI mode) */
 inline constexpr sql_mode_t MODE_REAL_AS_FLOAT = 1;
 inline constexpr sql_mode_t MODE_PIPES_AS_CONCAT = 2;
@@ -524,6 +530,29 @@ struct System_variables {
     @sa Sys_enable_cascade_triggers
   */
   bool enable_cascade_triggers;
+  bool duckdb_force_no_collation;
+  /**
+    Used to specify the explain query type in duckdb engine.
+   */
+  Duckdb_explain_output_type duckdb_explain_output_type;
+
+  uint duckdb_copy_ddl_threads;
+
+  ulonglong duckdb_disabled_optimizers;
+
+  ulonglong duckdb_merge_join_threshold;
+
+  bool duckdb_data_import_mode;
+
+  bool duckdb_sql_normalization;
+
+  bool duckdb_copy_data_between_tables_use_ins_sel;
+
+  ulonglong duckdb_max_threads_per_query;
+
+  bool duckdb_psmt_cursor_send_extra_eof;
+
+  bool duckdb_prefer_high_precision;
 };
 
 static_assert(std::is_trivially_copyable<System_variables>::value);
@@ -600,6 +629,13 @@ struct System_status_var {
 
   /* Number of statements sent from the client. */
   ulonglong questions;
+
+  ulonglong com_duckdb_select;
+  ulonglong com_duckdb_insert;
+  ulonglong com_duckdb_update;
+  ulonglong com_duckdb_delete;
+  ulonglong com_duckdb_insert_select;
+  ulonglong com_duckdb_explain;
 
   /// How many queries have been executed on a secondary storage engine.
   ulonglong secondary_engine_execution_count;

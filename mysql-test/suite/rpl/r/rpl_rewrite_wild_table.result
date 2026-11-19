@@ -1,0 +1,110 @@
+#
+# Set up masters server_1, server_3
+# server_2 being a slave.
+#
+include/rpl/init.inc [topology=1->2,3->2]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server_2]
+call mtr.add_suppression("There are per-channel replication filter.s. configured for channel '' which does not exist. The filter.s. have been discarded.");
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_WILD_TABLE=(('db_%.t_%','db.t')) FOR CHANNEL 'channel_3';
+ERROR HY000: This operation cannot be performed with a running replica sql thread; run STOP REPLICA SQL_THREAD FOR CHANNEL 'channel_3' first.
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+channel_1	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_3	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+channel_1	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_3	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+[connection server_3]
+CREATE DATABASE db_3;
+CREATE TABLE db_3.t_3 (id int primary key, v varchar(32));
+CREATE DATABASE dt_3;
+CREATE TABLE dt_3.t_x_3(id int primary key, v varchar(32));
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
+[connection server_2]
+SET GLOBAL force_innodb_to_duckdb = ON;
+SHOW TABLES IN db_3;
+Tables_in_db_3
+t_3
+CREATE DATABASE db;
+CREATE TABLE db.t(id int primary key, v varchar(32));
+CREATE DATABASE dt;
+CREATE TABLE dt.t_x(id int primary key, v varchar(32));
+SHOW CREATE TABLE db.t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `id` int NOT NULL,
+  `v` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+STOP REPLICA;
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_WILD_TABLE=(('db__.t__','db.t'), ('dt_%.t_x_%','dt.t_x')) FOR CHANNEL 'channel_3';
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_3';
+START REPLICA;
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+CHANNEL_NAME	FILTER_NAME	FILTER_RULE	CONFIGURED_BY	COUNTER
+channel_1	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_3	REPLICATE_DO_DB	db1	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+channel_3	REPLICATE_IGNORE_TABLE	global_db.t1	STARTUP_OPTIONS	0
+channel_3	REPLICATE_REWRITE_WILD_TABLE	db__.t__,db.t,dt_%.t_x_%,dt.t_x	CHANGE_REPLICATION_FILTER_FOR_CHANNEL	0
+[connection server_3]
+INSERT INTO db_3.t_3 VALUES (1, '1');
+INSERT INTO db_3.t_3 VALUES (2, '2');
+INSERT INTO db_3.t_3 VALUES (3, '3');
+INSERT INTO dt_3.t_x_3 VALUES (1, '1');
+INSERT INTO dt_3.t_x_3 VALUES (2, '2');
+INSERT INTO dt_3.t_x_3 VALUES (3, '3');
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
+[connection server_2]
+SHOW CREATE TABLE db.t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `id` int NOT NULL,
+  `v` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+"should not empty"
+select * from db.t;
+id	v
+"should empty"
+select * from db_3.t_3;
+id	v
+[connection server_3]
+DELETE FROM db_3.t_3 WHERE id = 2;
+UPDATE db_3.t_3 SET v = '3-1' WHERE id = 3;
+DELETE FROM dt_3.t_x_3 WHERE id = 2;
+UPDATE dt_3.t_x_3 SET v = '3-1' WHERE id = 3;
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
+[connection server_2]
+"should not empty"
+select * from db.t;
+id	v
+"should empty"
+select * from db_3.t_3;
+id	v
+"should not empty"
+select * from dt.t_x;
+id	v
+"should empty"
+select * from dt_3.t_x_3;
+id	v
+[connection server_3]
+DROP DATABASE db_3;
+DROP DATABASE dt_3;
+include/rpl/sync_to_replica.inc [FOR CHANNEL 'channel_3']
+[connection server_2]
+USE db;
+SHOW TABLES;
+Tables_in_db
+t
+DROP DATABASE db;
+DROP DATABASE dt;
+include/rpl/deinit.inc
+RESET REPLICA ALL FOR CHANNEL 'channel_1';
+RESET REPLICA ALL FOR CHANNEL 'channel_3';

@@ -1,0 +1,253 @@
+# name: test/sql/function/generic/hash_func.test
+# description: Test HASH function
+# group: [generic]
+
+# Unsupported types
+
+foreach datatype ANY HASH POINTER
+
+statement error
+SELECT HASH(NULL::${datatype});
+----
+
+endloop
+
+# NULLS of all scalar types should produce the same value on all platforms
+
+foreach datatype <alltypes> CHAR BLOB DATE TIME TIMETZ TIMESTAMP TIMESTAMPTZ DECIMAL(16,4) UUID
+
+query I
+SELECT HASH(NULL::${datatype});
+----
+13787848793156543929
+
+endloop
+
+#
+# Nested types
+#
+
+# Structs
+statement ok
+CREATE TABLE structs AS
+	SELECT * FROM (VALUES
+		({'i': 5, 's': 'string'}),
+		({'i': -2, 's': NULL}),
+		({'i': NULL, 's': 'not null'}),
+		({'i': NULL, 's': NULL}),
+		(NULL)
+) tbl(s);
+
+query II
+SELECT s, HASH(s) FROM structs
+----
+{'i': 5, 's': string}	312378390946197788
+{'i': -2, 's': NULL}	13311620765177879553
+{'i': NULL, 's': not null}	12187543307399756733
+{'i': NULL, 's': NULL}	18212156630472451589
+NULL	18212156630472451589
+
+# Lists
+statement ok
+CREATE TABLE lists AS
+	SELECT * FROM (VALUES
+		([1], ['TGTA']),
+		([1, 2], ['CGGT']),
+		([], ['CCTC']),
+		([1, 2, 3], ['TCTA']),
+		([1, 2, 3, 4, 5], ['AGGG']),
+		(NULL, NULL)
+) tbl(li, lg);
+
+query II
+SELECT li, HASH(li) FROM lists
+----
+[1]	4717996019076358352
+[1, 2]	6530802887144669425
+[]	13787848793156543929
+[1, 2, 3]	12722334483198565868
+[1, 2, 3, 4, 5]	6649915151332802727
+NULL	13787848793156543929
+
+# These should all be different
+query II
+SELECT lg, HASH(lg) FROM lists
+----
+[TGTA]	2473061308111828075
+[CGGT]	17252230290449032892
+[CCTC]	12469451733100292545
+[TCTA]	16441147910138644840
+[AGGG]	6734708784738468094
+NULL	13787848793156543929
+
+# Maps
+statement ok
+CREATE TABLE maps AS
+	SELECT * FROM (VALUES
+		(MAP([1], ['TGTA'])),
+		(MAP([1, 2], ['CGGT', 'CCTC'])),
+		(MAP([], [])),
+		(MAP([1, 2, 3], ['TCTA', NULL, 'CGGT'])),
+		(MAP([1, 2, 3, 4, 5], ['TGTA', 'CGGT', 'CCTC', 'TCTA', 'AGGG'])),
+		(NULL)
+) tbl(m);
+
+query II
+SELECT m, HASH(m) FROM maps
+----
+{1=TGTA}	7235425910004250312
+{1=CGGT, 2=CCTC}	1011047862598495049
+{}	13787848793156543929
+{1=TCTA, 2=NULL, 3=CGGT}	6001596667924474868
+{1=TGTA, 2=CGGT, 3=CCTC, 4=TCTA, 5=AGGG}	16287978232011168685
+NULL	13787848793156543929
+
+statement ok
+CREATE TABLE map_as_list AS
+	SELECT * FROM (VALUES
+		([{'key':1, 'value':'TGTA'}]),
+		([{'key':1, 'value':'CGGT'}, {'key':2, 'value':'CCTC'}]),
+		([]),
+		([{'key':1, 'value':'TCTA'}, {'key':2, 'value':NULL}, {'key':3, 'value':'CGGT'}]),
+		([{'key':1, 'value':'TGTA'}, {'key':2, 'value':'CGGT'}, {'key':3, 'value':'CCTC'}, {'key':4, 'value':'TCTA'}, {'key':5, 'value':'AGGG'}]),
+		(NULL)
+) tbl(m);
+
+# Because the map has physical type LIST, it creates an identical hash when the same values are stored as list of key/val structs
+query I nosort map_hashes
+SELECT HASH(m) FROM maps
+
+query I nosort map_hashes
+SELECT HASH(m) FROM map_as_list
+
+
+# Enums
+statement ok
+CREATE TYPE resistor AS ENUM (
+	'black',
+	'brown',
+	'red',
+	'orange',
+	'yellow',
+	'green',
+	'blue',
+	'violet',
+	'grey',
+	'white'
+);
+
+statement ok
+CREATE TABLE enums (r resistor);
+
+statement ok
+INSERT INTO enums VALUES
+	('black'),
+	('brown'),
+	('red'),
+	('orange'),
+	('yellow'),
+	('green'),
+	('blue'),
+	('violet'),
+	('grey'),
+	('white'),
+	(NULL)
+;
+
+query II
+SELECT r, HASH(r) FROM enums;
+----
+black	0
+brown	4717996019076358352
+red	2060787363917578834
+orange	8131803788478518982
+yellow	8535942711051191036
+green	4244145009296420692
+blue	8888402906861678137
+violet	8736873150706563146
+grey	14111048738911615569
+white	17319221087726947361
+NULL	13787848793156543929
+
+#
+# Variadic arguments
+#
+
+# Zero arguments are not allowed
+statement error
+SELECT HASH();
+----
+
+statement error
+SELECT r, HASH() FROM enums;
+----
+
+# Multiple arguments of any kind are accepted
+query II
+SELECT r, HASH(r, 'capacitor') FROM enums;
+----
+black	16797622758688705282
+brown	12620868779234625953
+red	17584344400128560708
+orange	268160620305560594
+yellow	895888387990267895
+green	16089427619650030004
+blue	10156864916169405730
+violet	3549084991787980581
+grey	17281098274178594641
+white	1655957553588749778
+NULL	12320705626460735678
+
+query II
+SELECT r, HASH('2022-02-12'::DATE, r) FROM enums;
+----
+black	4250466044961212059
+brown	8900520483163022923
+red	2766849995292148937
+orange	5342755900462846045
+yellow	5515065604690625639
+green	7471453529827791
+blue	4730260654388144290
+violet	4882794310426623697
+grey	17953657405078846666
+white	14602512259699608250
+NULL	9630093706189153058
+
+query II
+SELECT r, HASH(r, r) FROM enums;
+----
+black	0
+brown	523193599206204019
+red	111573794787247892
+orange	11131893570948557270
+yellow	10594212293773127177
+green	914862583577390562
+blue	2211471294594404377
+violet	11628961430775669869
+grey	14203064203985765890
+white	1133846801649713905
+NULL	18212156630472451589
+
+#
+# Bugs
+#
+
+# Issue #2498: Identical nested lists should have the same hash
+statement ok
+CREATE TABLE issue2498 AS SELECT * FROM (VALUES
+	(24, {'x': [{'l4': [52, 53]}, {'l4': [54, 55]}]}),
+	(34, {'x': [{'l4': [52, 53]}, {'l4': [54, 55]}]})
+) tbl(v, k);
+
+query II
+SELECT k, HASH(k) FROM issue2498
+----
+{'x': [{'l4': [52, 53]}, {'l4': [54, 55]}]}	14225696893928945203
+{'x': [{'l4': [52, 53]}, {'l4': [54, 55]}]}	14225696893928945203
+
+# CombineHashScalar used to have an issue that made combining a hash with itself yield hashes that all have
+# a similar number of trailing zero's, so approx_count_distinct was off by a lot (and we had more collisions in HTs)
+query I
+select approx_count_distinct((range, range)) > 800_000 from range(1_000_000)
+----
+1

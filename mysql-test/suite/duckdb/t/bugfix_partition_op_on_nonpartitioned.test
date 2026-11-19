@@ -1,0 +1,38 @@
+# ===========================================================
+# Test: bugfix_partition_op_on_nonpartitioned
+# Description:
+#   Partition-level operations on a non-partitioned DuckDB table
+#   should return an error instead of crashing the server.
+#
+# Related source: storage/duckdb/ha_duckdb.h (get_partition_handler)
+# ===========================================================
+
+--echo # === Setup ===
+
+CREATE TABLE t1 (id INT PRIMARY KEY, val VARCHAR(100)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b'), (3, 'c');
+
+--echo # === Partition operations should fail with error, not crash ===
+
+--error ER_PARTITION_MGMT_ON_NONPARTITIONED
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+
+--error ER_PARTITION_MGMT_ON_NONPARTITIONED
+ALTER TABLE t1 DROP PARTITION p1;
+
+--error ER_PARTITION_MGMT_ON_NONPARTITIONED
+ALTER TABLE t1 REBUILD PARTITION p1;
+
+# OPTIMIZE/ANALYZE/CHECK/REPAIR PARTITION return result sets
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
+ALTER TABLE t1 ANALYZE PARTITION p1;
+ALTER TABLE t1 CHECK PARTITION p1;
+ALTER TABLE t1 REPAIR PARTITION p1;
+
+--echo # === Verify table is still intact ===
+
+SELECT * FROM t1 ORDER BY id;
+
+--echo # === Cleanup ===
+
+DROP TABLE t1;

@@ -925,6 +925,8 @@ class Item_func_conv final : public Item_str_func {
   const char *func_name() const override { return "conv"; }
   String *val_str(String *) override;
   bool resolve_type(THD *) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_hex : public Item_str_ascii_func {

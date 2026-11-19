@@ -1,0 +1,390 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Test Crashsafe on DuckDB table
+#
+CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY, c2 VARCHAR(200)) ENGINE = DuckDB;
+INSERT INTO t1 VALUES(1, "1"), (2, "2"), (3, "3");
+#
+# Multiple statement transaction crashs after binlogged but before
+# DuckDB engine is committed.
+#
+BEGIN;
+UPDATE t1 SET c2 = "test" WHERE c1 = 2;
+DELETE FROM t1 WHERE c1 = 3;
+SET debug = "d,crash_after_binlog_sync";
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Previous_gtids	#	#	
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY, c2 VARCHAR(200)) ENGINE = DuckDB
+master-bin.000001	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(1, "1"), (2, "2"), (3, "3")
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	3
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+#
+# Single statement transaction crashs after binlogged but before
+# DuckDB engine is committed.
+#
+SET debug = "d,crash_after_binlog_sync";
+INSERT INTO t1 VALUES(4, "4"), (5, "5");
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000002	#	Previous_gtids	#	#	Gtid_set
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	3
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+SET debug = "d,crash_after_binlog_sync";
+UPDATE t1 SET c2 = "test";
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000003	#	Previous_gtids	#	#	Gtid_set
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	3
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+SET debug = "d,crash_after_binlog_sync";
+DELETE FROM t1 WHERE c1 = 1;
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000004	#	Previous_gtids	#	#	Gtid_set
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	3
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+#
+# After binlog rotation, it should work well.
+#
+INSERT INTO t1 VALUES(4, "4"), (5, "5");
+FLUSH BINARY LOGS;
+SET debug = "d,crash_after_binlog_sync";
+INSERT INTO t1 VALUES(6, "6"), (7, "7");
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000006	#	Previous_gtids	#	#	Gtid_set
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	3
+4	4
+5	5
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+#
+# DDL crashs after binlogged but before DuckDB engine committed.
+#
+INSERT INTO t1 VALUES(6, "6");
+SET debug = "d,crash_after_binlog_sync";
+TRUNCATE TABLE t1;
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000007	#	Previous_gtids	#	#	Gtid_set
+master-bin.000007	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000007	#	Query	#	#	BEGIN
+master-bin.000007	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(6, "6")
+master-bin.000007	#	Xid	#	#	COMMIT /* XID */
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+INSERT INTO t1 VALUES(7, "7");
+SET debug = "d,crash_after_binlog_sync";
+ALTER TABLE t1 ADD COLUMN c3 VARCHAR(10);
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000008	#	Previous_gtids	#	#	Gtid_set
+master-bin.000008	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000008	#	Query	#	#	BEGIN
+master-bin.000008	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(7, "7")
+master-bin.000008	#	Xid	#	#	COMMIT /* XID */
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int NOT NULL,
+  `c2` varchar(200) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET debug = "d,crash_after_binlog_sync";
+ALTER TABLE t1;;
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000009	#	Previous_gtids	#	#	Gtid_set
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+7	7
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+#
+# Multiple statement transaction crashs after binlogged and
+# DuckDB engine is committed.
+#
+BEGIN;
+UPDATE t1 SET c2 = "test commit" WHERE c1 = 3;
+DELETE FROM t1 WHERE c1 >= 4;
+SET debug = "d,crash_after_duckdb_commit";
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000010	#	Previous_gtids	#	#	Gtid_set
+master-bin.000010	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000010	#	Query	#	#	BEGIN
+master-bin.000010	#	Query	#	#	use `test`; UPDATE t1 SET c2 = "test commit" WHERE c1 = 3
+master-bin.000010	#	Query	#	#	use `test`; DELETE FROM t1 WHERE c1 >= 4
+master-bin.000010	#	Query	#	#	COMMIT
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	test commit
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+#
+# Single statement transaction crashs after binlogged and
+# DuckDB engine is committed.
+#
+SET debug = "d,crash_after_duckdb_commit";
+INSERT INTO t1 VALUES(4, "4 commit"), (5, "5");
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000011	#	Previous_gtids	#	#	Gtid_set
+master-bin.000011	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000011	#	Query	#	#	BEGIN
+master-bin.000011	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(4, "4 commit"), (5, "5")
+master-bin.000011	#	Xid	#	#	COMMIT /* XID */
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	test commit
+4	4 commit
+5	5
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+SET debug = "d,crash_after_duckdb_commit";
+UPDATE t1 SET c2 = "test commit" WHERE c1 = 2;
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000012	#	Previous_gtids	#	#	Gtid_set
+master-bin.000012	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000012	#	Query	#	#	BEGIN
+master-bin.000012	#	Query	#	#	use `test`; UPDATE t1 SET c2 = "test commit" WHERE c1 = 2
+master-bin.000012	#	Query	#	#	COMMIT
+SELECT * FROM t1;
+c1	c2
+1	1
+2	test commit
+3	test commit
+4	4 commit
+5	5
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+SET debug = "d,crash_after_duckdb_commit";
+DELETE FROM t1 WHERE c1 = 5;
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000013	#	Previous_gtids	#	#	Gtid_set
+master-bin.000013	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000013	#	Query	#	#	BEGIN
+master-bin.000013	#	Query	#	#	use `test`; DELETE FROM t1 WHERE c1 = 5
+master-bin.000013	#	Query	#	#	COMMIT
+SELECT * FROM t1;
+c1	c2
+1	1
+2	test commit
+3	test commit
+4	4 commit
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+#
+# After binlog rotation, it should work well.
+#
+INSERT INTO t1 VALUES(6, "6"), (7, "7");
+FLUSH BINARY LOGS;
+SET debug = "d,crash_after_duckdb_commit";
+INSERT INTO t1 VALUES(8, "8 commit"), (9, "9");
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000015	#	Previous_gtids	#	#	Gtid_set
+master-bin.000015	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000015	#	Query	#	#	BEGIN
+master-bin.000015	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(8, "8 commit"), (9, "9")
+master-bin.000015	#	Xid	#	#	COMMIT /* XID */
+SELECT * FROM t1;
+c1	c2
+1	1
+2	test commit
+3	test commit
+4	4 commit
+6	6
+7	7
+8	8 commit
+9	9
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+#
+# DDL crashs after binlogged ander DuckDB engine committed.
+#
+INSERT INTO t1 VALUES(10, "10");
+SET debug = "d,crash_after_duckdb_commit";
+TRUNCATE TABLE t1;
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000016	#	Previous_gtids	#	#	Gtid_set
+master-bin.000016	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000016	#	Query	#	#	BEGIN
+master-bin.000016	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(10, "10")
+master-bin.000016	#	Xid	#	#	COMMIT /* XID */
+master-bin.000016	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000016	#	Query	#	#	use `test`; TRUNCATE TABLE t1
+SELECT * FROM t1;
+c1	c2
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+INSERT INTO t1 VALUES(1, "1");
+SET debug = "d,crash_after_duckdb_commit";
+ALTER TABLE t1 ADD COLUMN c3 VARCHAR(100);;
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000017	#	Previous_gtids	#	#	Gtid_set
+master-bin.000017	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000017	#	Query	#	#	BEGIN
+master-bin.000017	#	Query	#	#	use `test`; INSERT INTO t1 VALUES(1, "1")
+master-bin.000017	#	Xid	#	#	COMMIT /* XID */
+master-bin.000017	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000017	#	Query	#	#	use `test`; ALTER TABLE t1 ADD COLUMN c3 VARCHAR(100)
+SELECT * FROM t1;
+c1	c2	c3
+1	1	NULL
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int NOT NULL,
+  `c2` varchar(200) DEFAULT NULL,
+  `c3` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET debug = "d,crash_after_duckdb_commit";
+ALTER TABLE t1;;
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000018	#	Previous_gtids	#	#	Gtid_set
+master-bin.000018	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'Gtid_set'
+master-bin.000018	#	Query	#	#	use `test`; ALTER TABLE t1
+SELECT * FROM t1;
+c1	c2	c3
+1	1	NULL
+[connection slave]
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/diff.inc
+DROP TABLE t1;
+include/rpl/deinit.inc

@@ -35,6 +35,10 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
+#ifdef HAVE_DUCKDB
+#include "duckdb/common/exception.hpp"
+#endif
+
 namespace regexp {
 
 CHARSET_INFO *regexp_lib_charset = nullptr;
@@ -64,7 +68,8 @@ static const CHARSET_INFO *faux_binary_charset = &my_charset_latin1;
 
   @return false on success, true on error.
 */
-static bool EvalExprToCharset(Item *expr, std::u16string *out, int skip = 0) {
+static bool EvalExprToCharset(Item *expr, std::u16string *out, int skip = 0,
+                              bool caller_is_duckdb [[maybe_unused]] = false) {
   alignas(sizeof(UChar)) char aligned_buff[MAX_FIELD_WIDTH];
   String aligned_str(aligned_buff, sizeof(aligned_buff), &my_charset_bin);
   String *s = expr->val_str(&aligned_str);
@@ -84,6 +89,12 @@ static bool EvalExprToCharset(Item *expr, std::u16string *out, int skip = 0) {
       the portion of the string that is skipped - we have to raise it
       ourselves.
     */
+#ifdef HAVE_DUCKDB
+    if (caller_is_duckdb) {
+      throw duckdb::InvalidInputException(
+          "Index out of bounds in regular expression search");
+    }
+#endif
     my_error(ER_REGEXP_INDEX_OUTOFBOUNDS_ERROR, MYF(0));
     out->clear();
     return true;
@@ -127,7 +138,8 @@ static bool EvalExprToCharset(Item *expr, std::u16string *out, int skip = 0) {
   return false;
 }
 
-bool Regexp_facade::SetPattern(Item *pattern_expr, uint32_t flags) {
+bool Regexp_facade::SetPattern(Item *pattern_expr, uint32_t flags,
+                               MEM_ROOT *mem_root) {
   if (pattern_expr == nullptr) {
     m_engine = nullptr;
     return true;
@@ -140,7 +152,7 @@ bool Regexp_facade::SetPattern(Item *pattern_expr, uint32_t flags) {
   */
   if (m_engine == nullptr || !pattern_expr->const_for_execution() ||
       flags != m_engine->flags()) {
-    return SetupEngine(pattern_expr, flags);
+    return SetupEngine(pattern_expr, flags, mem_root);
   }
   return false;
 }
@@ -148,8 +160,8 @@ bool Regexp_facade::SetPattern(Item *pattern_expr, uint32_t flags) {
 bool Regexp_facade::Reset(Item *subject_expr, int start) {
   DBUG_TRACE;
 
-  if (m_engine == nullptr ||
-      EvalExprToCharset(subject_expr, &m_current_subject, start - 1))
+  if (m_engine == nullptr || EvalExprToCharset(subject_expr, &m_current_subject,
+                                               start - 1, m_caller_is_duckdb))
     return true;
 
   m_engine->Reset(m_current_subject);
@@ -200,7 +212,8 @@ String *Regexp_facade::Replace(Item *subject_expr, Item *replacement_expr,
   String replacement_buf;
   std::u16string replacement(MAX_FIELD_WIDTH, '\0');
 
-  if (EvalExprToCharset(replacement_expr, &replacement)) return nullptr;
+  if (EvalExprToCharset(replacement_expr, &replacement, 0, m_caller_is_duckdb))
+    return nullptr;
 
   if (Reset(subject_expr)) return nullptr;
 
@@ -253,19 +266,26 @@ String *Regexp_facade::Substr(Item *subject_expr, int start, int occurrence,
   return AssignResult(substartptr, sublength, result);
 }
 
-bool Regexp_facade::SetupEngine(Item *pattern_expr, uint flags) {
+bool Regexp_facade::SetupEngine(Item *pattern_expr, uint flags,
+                                MEM_ROOT *mem_root) {
   DBUG_TRACE;
 
   std::u16string pattern;
-  if (EvalExprToCharset(pattern_expr, &pattern)) {
+  if (EvalExprToCharset(pattern_expr, &pattern, 0, m_caller_is_duckdb)) {
     m_engine = nullptr;
     return false;
   }
 
   // Actually compile the regular expression.
-  m_engine = make_unique_destroy_only<Regexp_engine>(
-      *THR_MALLOC, pattern, flags, opt_regexp_stack_limit,
-      opt_regexp_time_limit);
+  if (mem_root == nullptr) {
+    m_engine = make_unique_destroy_only<Regexp_engine>(
+        *THR_MALLOC, pattern, flags, opt_regexp_stack_limit,
+        opt_regexp_time_limit, m_caller_is_duckdb);
+  } else {
+    m_engine = make_unique_destroy_only<Regexp_engine>(
+        mem_root, pattern, flags, opt_regexp_stack_limit, opt_regexp_time_limit,
+        m_caller_is_duckdb);
+  }
 
   // If something went wrong, an error was raised.
   return m_engine->IsError();

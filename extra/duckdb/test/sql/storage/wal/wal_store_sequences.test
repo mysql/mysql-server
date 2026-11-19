@@ -1,0 +1,86 @@
+# name: test/sql/storage/wal/wal_store_sequences.test
+# description: Use sequences over different runs
+# group: [wal]
+
+load __TEST_DIR__/store_sequences.db
+
+statement ok
+PRAGMA disable_checkpoint_on_shutdown
+
+statement ok
+PRAGMA wal_autocheckpoint='1TB';
+
+# standard sequence
+statement ok
+CREATE SEQUENCE seq
+
+# more complex sequence
+statement ok
+CREATE SEQUENCE seq_cycle INCREMENT 1 MAXVALUE 3 START 2 CYCLE;
+
+query I
+SELECT nextval('seq')
+----
+1
+
+query I
+SELECT nextval('seq_cycle')
+----
+2
+
+statement ok
+CREATE SEQUENCE seq2
+
+statement ok
+DROP SEQUENCE seq2
+
+# restart and check that sequence still works
+restart
+
+statement ok
+PRAGMA disable_checkpoint_on_shutdown
+
+statement ok
+PRAGMA wal_autocheckpoint='1TB';
+
+query I
+SELECT nextval('seq')
+----
+2
+
+query I
+SELECT nextval('seq_cycle')
+----
+3
+
+statement error
+SELECT nextval('seq2')
+----
+
+# again
+restart
+
+query II
+SELECT nextval('seq'), nextval('seq')
+----
+3	4
+
+query I
+SELECT nextval('seq_cycle')
+----
+1
+
+# drop sequence
+statement ok
+DROP SEQUENCE seq;
+
+restart
+
+# verify that sequence is gone
+statement error
+SELECT nextval('seq')
+----
+
+# other sequence is still there
+statement ok
+SELECT nextval('seq_cycle')

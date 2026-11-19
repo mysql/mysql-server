@@ -1,0 +1,185 @@
+# Aone#79750803 BUGFIX: Rename failed for binary column default value
+--echo #
+--echo # 1) Rename and modify binary column default value
+--echo #
+CREATE TABLE `t_innodb` (
+  `id` int NOT NULL DEFAULT '0',
+  `k` int NOT NULL DEFAULT '0',
+  `c` char(120) NOT NULL DEFAULT '',
+  `pad` char(60) NOT NULL DEFAULT '',
+  `bin_col` binary(8) DEFAULT '\0\0\0\0\0\0\0\0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+
+CREATE TABLE `t_duckdb` (
+  `id` int NOT NULL DEFAULT '0',
+  `k` int NOT NULL DEFAULT '0',
+  `c` char(120) NOT NULL DEFAULT '',
+  `pad` char(60) NOT NULL DEFAULT '',
+  `bin_col` binary(8) DEFAULT '\0\0\0\0\0\0\0\0',
+  PRIMARY KEY (`id`)
+) ENGINE=DuckDB;
+INSERT INTO t_innodb(id) VALUES (1);
+INSERT INTO t_duckdb(id) VALUES (1);
+
+ALTER TABLE t_innodb RENAME COLUMN bin_col TO bin_col_new;
+ALTER TABLE t_duckdb RENAME COLUMN bin_col TO bin_col_new;
+INSERT INTO t_innodb(id) VALUES (2);
+INSERT INTO t_duckdb(id) VALUES (2);
+
+ALTER TABLE t_innodb MODIFY COLUMN bin_col_new binary(8) DEFAULT '\0\0\0\0\0\0\0\1';
+ALTER TABLE t_duckdb MODIFY COLUMN bin_col_new binary(8) DEFAULT '\0\0\0\0\0\0\0\1';
+INSERT INTO t_innodb(id) VALUES (3);
+INSERT INTO t_duckdb(id) VALUES (3);
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+
+--echo #
+--echo # 2) Add binary column default value
+--echo #
+CREATE TABLE `t_innodb` (
+  `id` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+
+CREATE TABLE `t_duckdb` (
+  `id` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=DuckDB;
+
+INSERT INTO t_innodb(id) VALUES (1);
+INSERT INTO t_duckdb(id) VALUES (1);
+
+ALTER TABLE t_innodb
+ADD COLUMN bin_col binary(8) DEFAULT '\0\0\0\0\0\0\0\0',
+ADD COLUMN varbin_col varbinary(4) DEFAULT '\0\0\0\0',
+ADD COLUMN bit_col BIT(64) NOT NULL DEFAULT b'11111',
+ADD COLUMN tblob_col TINYBLOB DEFAULT (repeat('b', 20)),
+ADD COLUMN blob_col BLOB DEFAULT (repeat('b', 30)),
+ADD COLUMN mblob_col BLOB DEFAULT (repeat('b', 40)),
+ADD COLUMN lblob_col BLOB DEFAULT (repeat('b', 50)),
+ADD COLUMN ttext_col TINYTEXT CHARACTER SET binary DEFAULT (repeat('b', 20)),
+ADD COLUMN text_col TEXT CHARACTER SET binary DEFAULT (repeat('b', 30)),
+ADD COLUMN mtext_col MEDIUMTEXT CHARACTER SET binary DEFAULT (repeat('b', 40)),
+ADD COLUMN ltext_col LONGTEXT CHARACTER SET binary DEFAULT (repeat('b', 50)),
+ADD COLUMN char_col CHAR(32) CHARSET BINARY DEFAULT 'CHAR(32)',
+ADD COLUMN vchar_col VARCHAR(32) CHARSET BINARY DEFAULT 'CHAR(32)';
+
+ALTER TABLE t_duckdb
+ADD COLUMN bin_col binary(8) DEFAULT '\0\0\0\0\0\0\0\0',
+ADD COLUMN varbin_col varbinary(4) DEFAULT '\0\0\0\0',
+ADD COLUMN bit_col BIT(64) NOT NULL DEFAULT b'11111',
+ADD COLUMN tblob_col TINYBLOB DEFAULT (repeat('b', 20)),
+ADD COLUMN blob_col BLOB DEFAULT (repeat('b', 30)),
+ADD COLUMN mblob_col BLOB DEFAULT (repeat('b', 40)),
+ADD COLUMN lblob_col BLOB DEFAULT (repeat('b', 50)),
+ADD COLUMN ttext_col TINYTEXT CHARACTER SET binary DEFAULT (repeat('b', 20)),
+ADD COLUMN text_col TEXT CHARACTER SET binary DEFAULT (repeat('b', 30)),
+ADD COLUMN mtext_col MEDIUMTEXT CHARACTER SET binary DEFAULT (repeat('b', 40)),
+ADD COLUMN ltext_col LONGTEXT CHARACTER SET binary DEFAULT (repeat('b', 50)),
+ADD COLUMN char_col CHAR(32) CHARSET BINARY DEFAULT 'CHAR(32)',
+ADD COLUMN vchar_col VARCHAR(32) CHARSET BINARY DEFAULT 'CHAR(32)';
+
+INSERT INTO t_innodb(id) VALUES (2);
+INSERT INTO t_duckdb(id) VALUES (2);
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+
+--echo #
+--echo # 3) Add non-binary column default value
+--echo #
+CREATE TABLE `t_innodb` (
+  `id` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+
+CREATE TABLE `t_duckdb` (
+  `id` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=DuckDB;
+
+INSERT INTO t_innodb(id) VALUES (1);
+INSERT INTO t_duckdb(id) VALUES (1);
+
+ALTER TABLE t_innodb
+ADD COLUMN ttext_col TINYTEXT CHARACTER SET utf8mb4 DEFAULT (repeat('b', 20)),
+ADD COLUMN text_col TEXT CHARACTER SET utf8mb4 DEFAULT (repeat('b', 30)),
+ADD COLUMN mtext_col MEDIUMTEXT CHARACTER SET utf8mb4 DEFAULT (repeat('b', 40)),
+ADD COLUMN ltext_col LONGTEXT CHARACTER SET utf8mb4 DEFAULT (repeat('b', 50)),
+ADD COLUMN char_col CHAR(32) CHARSET utf8mb4 DEFAULT 'CHAR(32)',
+ADD COLUMN vchar_col VARCHAR(32) CHARSET utf8mb4 DEFAULT 'CHAR(32)';
+
+ALTER TABLE t_duckdb
+ADD COLUMN ttext_col TINYTEXT CHARACTER SET utf8mb4 DEFAULT (repeat('b', 20)),
+ADD COLUMN text_col TEXT CHARACTER SET utf8mb4 DEFAULT (repeat('b', 30)),
+ADD COLUMN mtext_col MEDIUMTEXT CHARACTER SET utf8mb4 DEFAULT (repeat('b', 40)),
+ADD COLUMN ltext_col LONGTEXT CHARACTER SET utf8mb4 DEFAULT (repeat('b', 50)),
+ADD COLUMN char_col CHAR(32) CHARSET utf8mb4 DEFAULT 'CHAR(32)',
+ADD COLUMN vchar_col VARCHAR(32) CHARSET utf8mb4 DEFAULT 'CHAR(32)';
+
+INSERT INTO t_innodb(id) VALUES (2);
+INSERT INTO t_duckdb(id) VALUES (2);
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+
+--echo #
+--echo # 4) Add time default value
+--echo #
+CREATE TABLE `t_innodb` (
+  `id` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+
+CREATE TABLE `t_duckdb` (
+  `id` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`id`)
+) ENGINE=DuckDB;
+
+INSERT INTO t_innodb(id) VALUES (1);
+INSERT INTO t_duckdb(id) VALUES (1);
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2026-03-01 00:00:00');
+ALTER TABLE t_innodb
+ADD COLUMN dt_colq DATETIME DEFAULT '2025-01-01 00:00:00',
+ADD COLUMN dt_col2 DATETIME DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN dt_col3 DATETIME DEFAULT now(),
+ADD COLUMN ts_col TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+ALTER TABLE t_duckdb
+ADD COLUMN dt_colq DATETIME DEFAULT '2025-01-01 00:00:00',
+ADD COLUMN dt_col2 DATETIME DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN dt_col3 DATETIME DEFAULT now(),
+ADD COLUMN ts_col TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+INSERT INTO t_innodb(id) VALUES (2);
+INSERT INTO t_duckdb(id) VALUES (2);
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+

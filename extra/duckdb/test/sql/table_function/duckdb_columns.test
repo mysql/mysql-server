@@ -1,0 +1,92 @@
+# name: test/sql/table_function/duckdb_columns.test
+# description: Test duckdb_columns function
+# group: [table_function]
+
+statement ok
+set storage_compatibility_version='v0.10.2'
+
+statement ok
+PRAGMA enable_verification
+
+statement ok nosort duckdb_col
+SELECT * FROM duckdb_columns();
+
+statement ok nosort duckdb_col
+SELECT * FROM duckdb_columns;
+
+statement ok
+CREATE TABLE integers(i INTEGER)
+
+statement ok
+CREATE TABLE test(i INTEGER NOT NULL, j DECIMAL(18, 3), k VARCHAR DEFAULT 'hello')
+
+query IIIIIIII
+SELECT tables.table_name, column_name, data_type, column_default, is_nullable, numeric_precision, numeric_precision_radix, numeric_scale
+FROM duckdb_columns cols JOIN duckdb_tables tables USING (table_oid) ORDER BY 1, 2, 3;
+----
+integers	i	INTEGER	NULL	True	32	2	0
+test	i	INTEGER	NULL	False	32	2	0
+test	j	DECIMAL(18,3)	NULL	True	18	10	3
+test	k	VARCHAR	'hello'	True	NULL	NULL	NULL
+
+query I
+SELECT DISTINCT(cols.database_name) = current_database()
+FROM duckdb_columns cols JOIN duckdb_tables tables USING (table_oid);
+----
+True
+
+statement ok
+create view v1 as select * from test
+
+query II
+select table_name, column_name from duckdb_columns where table_name = 'v1'
+----
+v1	i
+v1	j
+v1	k
+
+statement ok
+alter table test rename column j to renamed
+
+# Rename of the base table is not reflected in the view's info
+query II
+select table_name, column_name from duckdb_columns where table_name = 'v1'
+----
+v1	i
+v1	j
+v1	k
+
+statement ok
+alter table test rename column renamed to j
+
+statement ok
+create or replace view v1 (a, b) as select * from test;
+
+query II
+select table_name, column_name from duckdb_columns where table_name = 'v1'
+----
+v1	a
+v1	b
+v1	k
+
+statement ok
+alter table test rename column j to renamed
+
+# The rename of 'j' is not reflected in the view's info because it was aliased to 'b'
+query II
+select table_name, column_name from duckdb_columns where table_name = 'v1'
+----
+v1	a
+v1	b
+v1	k
+
+statement ok
+alter table test rename column k to not_k
+
+# The rename of 'k' is also not reflected in the view's info even though it was not aliased
+query II
+select table_name, column_name from duckdb_columns where table_name = 'v1'
+----
+v1	a
+v1	b
+v1	k

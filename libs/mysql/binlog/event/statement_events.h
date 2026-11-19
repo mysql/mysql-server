@@ -446,6 +446,12 @@ bool is_user_var_decimal_metadata_valid(const char *val, std::size_t val_len,
     <td>1 byte boolean</td>
     <td>Value of the config variable enable_cascade_triggers</td>
   </tr>
+  <tr>
+    <td>duckdb_data_import_mode</td>
+    <td>Q_DUCKDB_DATA_IMPORT_MODE</td>
+    <td>1 byte boolean</td>
+    <td>Stores master connection @@session.duckdb_data_import_mode</td>
+  </tr>
   </table>
 
   @subsection Query_event_notes_on_previous_versions Notes on Previous Versions
@@ -553,7 +559,9 @@ class Query_event : public Binary_log_event {
     /*
       Replicate enable_cascade_triggers.
     */
-    Q_ENABLE_CASCADE_TRIGGERS
+    Q_ENABLE_CASCADE_TRIGGERS,
+    /* RDS DuckDB: Replicate duckdb_data_import_mode */
+    Q_DUCKDB_DATA_IMPORT_MODE = 200
   };
   const char *query;
   const char *db;
@@ -672,6 +680,7 @@ class Query_event : public Binary_log_event {
   uint8_t default_table_encryption;
 
   uint8_t enable_cascade_triggers;
+  uint8_t duckdb_data_import_mode;
 
   /**
     The constructor will be used while creating a Query_event, to be

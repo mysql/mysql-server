@@ -1,0 +1,32 @@
+SET @saved = @@global.duckdb_background_checkpoint_full_interval;
+SELECT @@global.duckdb_background_checkpoint_full_interval;
+@@global.duckdb_background_checkpoint_full_interval
+0
+SHOW GLOBAL VARIABLES LIKE 'duckdb_background_checkpoint_full_interval';
+Variable_name	Value
+duckdb_background_checkpoint_full_interval	0
+SELECT @@session.duckdb_background_checkpoint_full_interval;
+ERROR HY000: Variable 'duckdb_background_checkpoint_full_interval' is a GLOBAL variable
+SET SESSION duckdb_background_checkpoint_full_interval = 1;
+ERROR HY000: Variable 'duckdb_background_checkpoint_full_interval' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL duckdb_background_checkpoint_full_interval = 'invalid';
+ERROR 42000: Incorrect argument type to variable 'duckdb_background_checkpoint_full_interval'
+SET GLOBAL duckdb_background_checkpoint_full_interval = 1.5;
+ERROR 42000: Incorrect argument type to variable 'duckdb_background_checkpoint_full_interval'
+SET GLOBAL duckdb_background_checkpoint_full_interval = 18446744073709551615;
+SELECT @@global.duckdb_background_checkpoint_full_interval;
+@@global.duckdb_background_checkpoint_full_interval
+18446744073709551615
+CALL dbms_duckdb.query("SELECT current_setting('background_checkpoint_full_interval') AS checkpoint_interval");
+RESULT
+checkpoint_interval	
+UBIGINT	
+[ Rows: 1]
+18446744073709551615
+
+
+SET GLOBAL duckdb_background_checkpoint_full_interval = DEFAULT;
+SELECT @@global.duckdb_background_checkpoint_full_interval;
+@@global.duckdb_background_checkpoint_full_interval
+0
+SET GLOBAL duckdb_background_checkpoint_full_interval = @saved;

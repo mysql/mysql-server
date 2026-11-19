@@ -1,0 +1,809 @@
+#
+# check collation config when execute
+#
+CREATE TABLE t_duckdb  (a varchar(32) PRIMARY KEY, b varchar(32), c varchar(32)) engine=duckdb;
+CREATE TABLE t_innodb  (a varchar(32) PRIMARY KEY, b varchar(32), c varchar(32)) engine=innodb;
+INSERT INTO t_duckdb VALUES ('a', 'A', 'á');
+INSERT INTO t_innodb VALUES ('a', 'A', 'á');
+# 1.1 Test for utf8mb4
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_0900_ai_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+1	1	1
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+1	1	1
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_0900_as_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+0	1	0
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+0	1	0
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_0900_as_cs';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+0	0	0
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+0	0	0
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_0900_bin';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+0	0	0
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+0	0	0
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_general_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+1	1	1
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+1	1	1
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+1	1	1
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+1	1	1
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_520_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+1	1	1
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+1	1	1
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_bin';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+0	0	0
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+0	0	0
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_zh_0900_as_cs';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+0	0	0
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+0	0	0
+SET NAMES 'utf8mb4' COLLATE 'utf8mb4_ja_0900_as_cs_ks';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+0	0	0
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+0	0	0
+# 1.2 Test for utf8mb3
+SET NAMES 'utf8mb3' COLLATE 'utf8mb3_general_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+1	1	1
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+1	1	1
+SET NAMES 'utf8mb3' COLLATE 'utf8mb3_general_mysql500_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+1	1	1
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+1	1	1
+SET NAMES 'utf8mb3' COLLATE 'utf8mb3_bin';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+0	0	0
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+0	0	0
+SET NAMES 'utf8mb3' COLLATE 'utf8mb3_tolower_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+0	1	0
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+0	1	0
+SET NAMES 'utf8mb3' COLLATE 'utf8mb3_unicode_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+1	1	1
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+1	1	1
+SET NAMES 'utf8mb3' COLLATE 'utf8mb3_unicode_520_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+1	1	1
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+1	1	1
+SET NAMES 'utf8mb3' COLLATE 'utf8mb3_swedish_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+1	1	1
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+1	1	1
+SET NAMES 'utf8' COLLATE 'utf8_general_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+1	1	1
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+1	1	1
+SET NAMES 'utf8' COLLATE 'utf8_bin';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+0	0	0
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+0	0	0
+SET NAMES 'utf8' COLLATE 'utf8_tolower_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+0	1	0
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+0	1	0
+# 1.3 Test for latin1
+SET NAMES 'latin1' COLLATE 'latin1_general_ci';
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_duckdb;
+ai	ci	ai_ci
+0	1	0
+SELECT 'a'='á' AS ai, 'a'='A' AS ci, 'A'='á' AS ai_ci FROM t_innodb;
+ai	ci	ai_ci
+0	1	0
+SET NAMES 'utf8mb4';
+DROP TABLE t_duckdb, t_innodb;
+#
+# Test 2. SELECT col = 'a'
+#
+# 2.1 define collation for table with utf8mb4
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, a varchar(32), b varchar(32) COLLATE utf8mb4_general_ci, c varchar(32) COLLATE utf8mb4_0900_as_cs, d varchar(32) COLLATE utf8mb4_0900_as_ci) engine=duckdb CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;
+CREATE TABLE t_innodb (id INT PRIMARY KEY, a varchar(32), b varchar(32) COLLATE utf8mb4_general_ci, c varchar(32) COLLATE utf8mb4_0900_as_cs, d varchar(32) COLLATE utf8mb4_0900_as_ci) engine=innodb CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;
+INSERT INTO t_duckdb VALUES (1, 'a', 'a', 'a', 'a');
+INSERT INTO t_innodb VALUES (1, 'a', 'a', 'a', 'a');
+SELECT a FROM t_duckdb where a = 'a';
+a
+a
+SELECT a FROM t_innodb where a = 'a';
+a
+a
+SELECT a FROM t_duckdb where a = 'A';
+a
+SELECT a FROM t_innodb where a = 'A';
+a
+SELECT a FROM t_duckdb where a = 'á';
+a
+SELECT a FROM t_innodb where a = 'á';
+a
+SELECT b FROM t_duckdb where b = 'a';
+b
+a
+SELECT b FROM t_innodb where b = 'a';
+b
+a
+SELECT b FROM t_duckdb where b = 'A';
+b
+a
+SELECT b FROM t_innodb where b = 'A';
+b
+a
+SELECT b FROM t_duckdb where b = 'á';
+b
+a
+SELECT b FROM t_innodb where b = 'á';
+b
+a
+SELECT c FROM t_duckdb where c = 'a';
+c
+a
+SELECT c FROM t_innodb where c = 'a';
+c
+a
+SELECT c FROM t_duckdb where c = 'A';
+c
+SELECT c FROM t_innodb where c = 'A';
+c
+SELECT c FROM t_duckdb where c = 'á';
+c
+SELECT c FROM t_innodb where c = 'á';
+c
+SELECT d FROM t_duckdb where d = 'a';
+d
+a
+SELECT d FROM t_innodb where d = 'a';
+d
+a
+SELECT d FROM t_duckdb where d = 'A';
+d
+a
+SELECT d FROM t_innodb where d = 'A';
+d
+a
+SELECT d FROM t_duckdb where d = 'á';
+d
+SELECT d FROM t_innodb where d = 'á';
+d
+DROP TABLE t_duckdb, t_innodb;
+# 2.2 define collation for table with utf8mb3
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, a varchar(32), b varchar(32) COLLATE utf8mb3_general_mysql500_ci, c varchar(32) COLLATE utf8mb3_bin, d varchar(32) COLLATE utf8mb3_unicode_ci, e varchar(32) COLLATE utf8_tolower_ci) engine=duckdb CHARSET=utf8mb3 COLLATE=utf8_general_ci;
+Warnings:
+Warning	3778	'utf8mb3_general_mysql500_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_tolower_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+CREATE TABLE t_innodb (id INT PRIMARY KEY, a varchar(32), b varchar(32) COLLATE utf8mb3_general_mysql500_ci, c varchar(32) COLLATE utf8mb3_bin, d varchar(32) COLLATE utf8mb3_unicode_ci, e varchar(32) COLLATE utf8_tolower_ci) engine=innodb CHARSET=utf8mb3 COLLATE=utf8_general_ci;
+Warnings:
+Warning	3778	'utf8mb3_general_mysql500_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_tolower_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_duckdb VALUES (1, 'a', 'a', 'a', 'a', 'a');
+INSERT INTO t_innodb VALUES (1, 'a', 'a', 'a', 'a', 'a');
+SELECT a FROM t_duckdb where a = 'a';
+a
+a
+SELECT a FROM t_innodb where a = 'a';
+a
+a
+SELECT a FROM t_duckdb where a = 'A';
+a
+a
+SELECT a FROM t_innodb where a = 'A';
+a
+a
+SELECT a FROM t_duckdb where a = 'á';
+a
+a
+SELECT a FROM t_innodb where a = 'á';
+a
+a
+SELECT b FROM t_duckdb where b = 'a';
+b
+a
+SELECT b FROM t_innodb where b = 'a';
+b
+a
+SELECT b FROM t_duckdb where b = 'A';
+b
+a
+SELECT b FROM t_innodb where b = 'A';
+b
+a
+SELECT b FROM t_duckdb where b = 'á';
+b
+a
+SELECT b FROM t_innodb where b = 'á';
+b
+a
+SELECT c FROM t_duckdb where c = 'a';
+c
+a
+SELECT c FROM t_innodb where c = 'a';
+c
+a
+SELECT c FROM t_duckdb where c = 'A';
+c
+SELECT c FROM t_innodb where c = 'A';
+c
+SELECT c FROM t_duckdb where c = 'á';
+c
+SELECT c FROM t_innodb where c = 'á';
+c
+SELECT d FROM t_duckdb where d = 'a';
+d
+a
+SELECT d FROM t_innodb where d = 'a';
+d
+a
+SELECT d FROM t_duckdb where d = 'A';
+d
+a
+SELECT d FROM t_innodb where d = 'A';
+d
+a
+SELECT d FROM t_duckdb where d = 'á';
+d
+a
+SELECT d FROM t_innodb where d = 'á';
+d
+a
+SELECT e FROM t_duckdb where e = 'a';
+e
+a
+SELECT e FROM t_innodb where e = 'a';
+e
+a
+SELECT e FROM t_duckdb where e = 'A';
+e
+a
+SELECT e FROM t_innodb where e = 'A';
+e
+a
+SELECT e FROM t_duckdb where e = 'á';
+e
+SELECT e FROM t_innodb where e = 'á';
+e
+DROP TABLE t_duckdb, t_innodb;
+#
+# Test 3. ALTER COLUMN COLLATION
+#
+# 3.1 define collation for table with utf8mb4
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, a varchar(32) COLLATE utf8mb4_general_ci) engine=duckdb CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;
+CREATE TABLE t_innodb (id INT PRIMARY KEY, a varchar(32) COLLATE utf8mb4_general_ci) engine=innodb CHARSET=utf8mb4 COLLATE=utf8mb4_0900_as_cs;
+INSERT INTO t_duckdb VALUES (1, 'a');
+INSERT INTO t_innodb VALUES (1, 'a');
+SELECT a FROM t_duckdb where a = 'a';
+a
+a
+SELECT a FROM t_innodb where a = 'a';
+a
+a
+SELECT a FROM t_duckdb where a = 'A';
+a
+a
+SELECT a FROM t_innodb where a = 'A';
+a
+a
+SELECT a FROM t_duckdb where a = 'á';
+a
+a
+SELECT a FROM t_innodb where a = 'á';
+a
+a
+CALL dbms_duckdb.query("DELETE FROM test.t_duckdb");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+DELETE FROM t_innodb;
+ALTER TABLE t_duckdb MODIFY COLUMN a varchar(32),
+ADD COLUMN b varchar(32) COLLATE utf8mb4_general_ci,
+ADD COLUMN c varchar(32) COLLATE utf8mb4_0900_as_cs,
+ADD COLUMN d varchar(32) COLLATE utf8mb4_0900_as_ci;
+ALTER TABLE t_innodb MODIFY COLUMN a varchar(32),
+ADD COLUMN b varchar(32) COLLATE utf8mb4_general_ci,
+ADD COLUMN c varchar(32) COLLATE utf8mb4_0900_as_cs,
+ADD COLUMN d varchar(32) COLLATE utf8mb4_0900_as_ci;
+INSERT INTO t_duckdb VALUES (1, 'a', 'a', 'a', 'a');
+INSERT INTO t_innodb VALUES (1, 'a', 'a', 'a', 'a');
+SELECT a FROM t_duckdb where a = 'a';
+a
+a
+SELECT a FROM t_innodb where a = 'a';
+a
+a
+SELECT a FROM t_duckdb where a = 'A';
+a
+SELECT a FROM t_innodb where a = 'A';
+a
+SELECT a FROM t_duckdb where a = 'á';
+a
+SELECT a FROM t_innodb where a = 'á';
+a
+SELECT b FROM t_duckdb where b = 'a';
+b
+a
+SELECT b FROM t_innodb where b = 'a';
+b
+a
+SELECT b FROM t_duckdb where b = 'A';
+b
+a
+SELECT b FROM t_innodb where b = 'A';
+b
+a
+SELECT b FROM t_duckdb where b = 'á';
+b
+a
+SELECT b FROM t_innodb where b = 'á';
+b
+a
+SELECT c FROM t_duckdb where c = 'a';
+c
+a
+SELECT c FROM t_innodb where c = 'a';
+c
+a
+SELECT c FROM t_duckdb where c = 'A';
+c
+SELECT c FROM t_innodb where c = 'A';
+c
+SELECT c FROM t_duckdb where c = 'á';
+c
+SELECT c FROM t_innodb where c = 'á';
+c
+SELECT d FROM t_duckdb where d = 'a';
+d
+a
+SELECT d FROM t_innodb where d = 'a';
+d
+a
+SELECT d FROM t_duckdb where d = 'A';
+d
+a
+SELECT d FROM t_innodb where d = 'A';
+d
+a
+SELECT d FROM t_duckdb where d = 'á';
+d
+SELECT d FROM t_innodb where d = 'á';
+d
+DROP TABLE t_duckdb, t_innodb;
+# 3.2 define collation for table with utf8mb3
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, a varchar(32) COLLATE utf8_general_ci) engine=duckdb CHARSET=utf8mb3 COLLATE=utf8_general_ci;
+Warnings:
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+CREATE TABLE t_innodb (id INT PRIMARY KEY, a varchar(32) COLLATE utf8_general_ci) engine=innodb CHARSET=utf8mb3 COLLATE=utf8_general_ci;
+Warnings:
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_duckdb VALUES (1, 'a');
+INSERT INTO t_innodb VALUES (1, 'a');
+SELECT a FROM t_duckdb where a = 'a';
+a
+a
+SELECT a FROM t_innodb where a = 'a';
+a
+a
+SELECT a FROM t_duckdb where a = 'A';
+a
+a
+SELECT a FROM t_innodb where a = 'A';
+a
+a
+SELECT a FROM t_duckdb where a = 'á';
+a
+a
+SELECT a FROM t_innodb where a = 'á';
+a
+a
+CALL dbms_duckdb.query("DELETE FROM test.t_duckdb");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+DELETE FROM t_innodb;
+ALTER TABLE t_duckdb MODIFY a varchar(32),
+ADD COLUMN b varchar(32) COLLATE utf8mb3_general_mysql500_ci,
+ADD COLUMN c varchar(32) COLLATE utf8mb3_bin,
+ADD COLUMN d varchar(32) COLLATE utf8mb3_unicode_ci,
+ADD COLUMN e varchar(32) COLLATE utf8_tolower_ci;
+Warnings:
+Warning	3778	'utf8mb3_general_mysql500_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_tolower_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+ALTER TABLE t_innodb MODIFY a varchar(32),
+ADD COLUMN b varchar(32) COLLATE utf8mb3_general_mysql500_ci,
+ADD COLUMN c varchar(32) COLLATE utf8mb3_bin,
+ADD COLUMN d varchar(32) COLLATE utf8mb3_unicode_ci,
+ADD COLUMN e varchar(32) COLLATE utf8_tolower_ci;
+Warnings:
+Warning	3778	'utf8mb3_general_mysql500_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	3778	'utf8mb3_tolower_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t_duckdb VALUES (1, 'a', 'a', 'a', 'a', 'a');
+INSERT INTO t_innodb VALUES (1, 'a', 'a', 'a', 'a', 'a');
+SELECT a FROM t_duckdb where a = 'a';
+a
+a
+SELECT a FROM t_innodb where a = 'a';
+a
+a
+SELECT a FROM t_duckdb where a = 'A';
+a
+a
+SELECT a FROM t_innodb where a = 'A';
+a
+a
+SELECT a FROM t_duckdb where a = 'á';
+a
+a
+SELECT a FROM t_innodb where a = 'á';
+a
+a
+SELECT b FROM t_duckdb where b = 'a';
+b
+a
+SELECT b FROM t_innodb where b = 'a';
+b
+a
+SELECT b FROM t_duckdb where b = 'A';
+b
+a
+SELECT b FROM t_innodb where b = 'A';
+b
+a
+SELECT b FROM t_duckdb where b = 'á';
+b
+a
+SELECT b FROM t_innodb where b = 'á';
+b
+a
+SELECT c FROM t_duckdb where c = 'a';
+c
+a
+SELECT c FROM t_innodb where c = 'a';
+c
+a
+SELECT c FROM t_duckdb where c = 'A';
+c
+SELECT c FROM t_innodb where c = 'A';
+c
+SELECT c FROM t_innodb where c = 'á';
+c
+SELECT d FROM t_duckdb where d = 'a';
+d
+a
+SELECT d FROM t_innodb where d = 'a';
+d
+a
+SELECT d FROM t_duckdb where d = 'A';
+d
+a
+SELECT d FROM t_innodb where d = 'A';
+d
+a
+SELECT d FROM t_duckdb where d = 'á';
+d
+a
+SELECT d FROM t_innodb where d = 'á';
+d
+a
+SELECT e FROM t_duckdb where e = 'a';
+e
+a
+SELECT e FROM t_innodb where e = 'a';
+e
+a
+SELECT e FROM t_duckdb where e = 'A';
+e
+a
+SELECT e FROM t_innodb where e = 'A';
+e
+a
+SELECT e FROM t_duckdb where e = 'á';
+e
+SELECT e FROM t_innodb where e = 'á';
+e
+DROP TABLE t_duckdb, t_innodb;
+# 3.3 define collation for table with ascii
+set names ascii;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, a varchar(32) COLLATE ascii_general_ci) engine=duckdb CHARSET=ascii COLLATE=ascii_general_ci;
+CREATE TABLE t_innodb (id INT PRIMARY KEY, a varchar(32) COLLATE ascii_general_ci) engine=innodb CHARSET=ascii COLLATE=ascii_general_ci;
+INSERT INTO t_duckdb VALUES (1, 'a');
+INSERT INTO t_innodb VALUES (1, 'a');
+SELECT a FROM t_duckdb where a = 'a';
+a
+a
+SELECT a FROM t_innodb where a = 'a';
+a
+a
+SELECT a FROM t_duckdb where a = 'A';
+a
+a
+SELECT a FROM t_innodb where a = 'A';
+a
+a
+CALL dbms_duckdb.query("DELETE FROM test.t_duckdb");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+DELETE FROM t_innodb;
+ALTER TABLE t_duckdb ADD COLUMN b varchar(32) COLLATE ascii_general_ci,
+ADD COLUMN c varchar(32) COLLATE ascii_bin;
+ALTER TABLE t_innodb ADD COLUMN b varchar(32) COLLATE ascii_general_ci,
+ADD COLUMN c varchar(32) COLLATE ascii_bin;
+INSERT INTO t_duckdb VALUES (1, 'a', 'a', 'a');
+INSERT INTO t_innodb VALUES (1, 'a', 'a', 'a');
+SELECT a FROM t_duckdb where a = 'a';
+a
+a
+SELECT a FROM t_innodb where a = 'a';
+a
+a
+SELECT a FROM t_duckdb where a = 'A';
+a
+a
+SELECT a FROM t_innodb where a = 'A';
+a
+a
+SELECT b FROM t_duckdb where b = 'a';
+b
+a
+SELECT b FROM t_innodb where b = 'a';
+b
+a
+SELECT b FROM t_duckdb where b = 'A';
+b
+a
+SELECT b FROM t_innodb where b = 'A';
+b
+a
+SELECT c FROM t_duckdb where c = 'a';
+c
+a
+SELECT c FROM t_innodb where c = 'a';
+c
+a
+SELECT c FROM t_duckdb where c = 'A';
+c
+SELECT c FROM t_innodb where c = 'A';
+c
+DROP TABLE t_duckdb, t_innodb;
+SET NAMES utf8mb4;
+# 3.4 define collation for table with latin1
+set names latin1;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, a varchar(32) COLLATE latin1_general_ci) engine=duckdb CHARSET=latin1 COLLATE=latin1_general_ci;
+CREATE TABLE t_innodb (id INT PRIMARY KEY, a varchar(32) COLLATE latin1_general_ci) engine=innodb CHARSET=latin1 COLLATE=latin1_general_ci;
+INSERT INTO t_duckdb VALUES (1, 'a');
+INSERT INTO t_innodb VALUES (1, 'a');
+SELECT a FROM t_duckdb where a = 'a';
+a
+a
+SELECT a FROM t_innodb where a = 'a';
+a
+a
+SELECT a FROM t_duckdb where a = 'A';
+a
+a
+SELECT a FROM t_innodb where a = 'A';
+a
+a
+CALL dbms_duckdb.query("DELETE FROM test.t_duckdb");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+DELETE FROM t_innodb;
+ALTER TABLE t_duckdb ADD COLUMN b varchar(32) COLLATE latin1_general_ci,
+ADD COLUMN c varchar(32) COLLATE latin1_bin,
+ADD COLUMN d varchar(32) COLLATE latin1_general_cs;
+ALTER TABLE t_innodb ADD COLUMN b varchar(32) COLLATE latin1_general_ci,
+ADD COLUMN c varchar(32) COLLATE latin1_bin,
+ADD COLUMN d varchar(32) COLLATE latin1_general_cs;
+INSERT INTO t_duckdb VALUES (1, 'a', 'a', 'a', 'a');
+INSERT INTO t_innodb VALUES (1, 'a', 'a', 'a', 'a');
+SELECT a FROM t_duckdb where a = 'a';
+a
+a
+SELECT a FROM t_innodb where a = 'a';
+a
+a
+SELECT a FROM t_duckdb where a = 'A';
+a
+a
+SELECT a FROM t_innodb where a = 'A';
+a
+a
+SELECT a FROM t_duckdb where a = 'á';
+a
+SELECT a FROM t_innodb where a = 'á';
+a
+SELECT b FROM t_duckdb where b = 'a';
+b
+a
+SELECT b FROM t_innodb where b = 'a';
+b
+a
+SELECT b FROM t_duckdb where b = 'A';
+b
+a
+SELECT b FROM t_innodb where b = 'A';
+b
+a
+SELECT b FROM t_duckdb where b = 'á';
+b
+SELECT b FROM t_innodb where b = 'á';
+b
+SELECT c FROM t_duckdb where c = 'a';
+c
+a
+SELECT c FROM t_innodb where c = 'a';
+c
+a
+SELECT c FROM t_duckdb where c = 'A';
+c
+SELECT c FROM t_innodb where c = 'A';
+c
+SELECT c FROM t_duckdb where c = 'á';
+c
+SELECT c FROM t_innodb where c = 'á';
+c
+SELECT d FROM t_duckdb where d = 'a';
+d
+a
+SELECT d FROM t_innodb where d = 'a';
+d
+a
+SELECT d FROM t_duckdb where d = 'A';
+d
+SELECT d FROM t_innodb where d = 'A';
+d
+SELECT d FROM t_duckdb where d = 'á';
+d
+SELECT d FROM t_innodb where d = 'á';
+d
+DROP TABLE t_duckdb, t_innodb;
+SET NAMES utf8mb4;
+#
+# Test 4. Not-Supported CHARSET
+#
+# 4.1 CREATE TABLE
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, a varchar(32)) engine=duckdb CHARSET=gbk;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: DuckDB only supports utf8, utf8mb4, ascii, and latin1 character sets.
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, a varchar(32) CHARSET gbk) engine=duckdb CHARSET=utf8mb4;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: DuckDB only supports utf8, utf8mb4, ascii, and latin1 character sets.
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, a varchar(32) COLLATE gbk_chinese_ci) engine=duckdb CHARSET=utf8mb4;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: DuckDB only supports utf8, utf8mb4, ascii, and latin1 character sets.
+# 4.2 ALTER TABLE
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, a varchar(32) CHARSET utf8mb3, b varchar(32) CHARSET utf8mb4) engine=duckdb CHARSET=gbk;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t_duckdb ADD COLUMN c varchar(32);
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: DuckDB only supports utf8, utf8mb4, ascii, and latin1 character sets.
+ALTER TABLE t_duckdb ADD COLUMN c varchar(32) CHARSET utf8mb3, ADD COLUMN d varchar(32) CHARSET utf8mb4;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+ALTER TABLE t_duckdb MODIFY COLUMN a varchar(32);
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: DuckDB only supports utf8, utf8mb4, ascii, and latin1 character sets.
+ALTER TABLE t_duckdb MODIFY COLUMN b varchar(32) CHARSET gbk;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: DuckDB only supports utf8, utf8mb4, ascii, and latin1 character sets.
+#
+# Test 5. UTF8MB4 with Emoji
+#
+CREATE TABLE t_mb4 (
+id int primary key,
+a varchar(32) CHARSET utf8mb4,
+b char(32) CHARSET utf8mb4,
+c text(32) CHARSET utf8mb4,
+d varchar(32) CHARSET utf8mb4
+) ENGINE=duckdb;
+INSERT INTO t_mb4 VALUES (1, 'a', 'b', 'c', 'd');
+INSERT INTO t_mb4 VALUES (2, UNHEX('F09F9884'), UNHEX('F09F9884'), UNHEX('F09F9884'), '😭h😄h😭');
+SET GLOBAL duckdb_dml_in_batch = on;
+INSERT INTO t_mb4 VALUES (3, UNHEX('F09F9884'), UNHEX('F09F9884'), UNHEX('F09F9884'), '😭h😄h😭');
+SET GLOBAL duckdb_dml_in_batch = default;
+SELECT * from t_mb4;
+id	a	b	c	d
+1	a	b	c	d
+2	😄	😄	😄	😭h😄h😭
+3	😄	😄	😄	😭h😄h😭
+ALTER TABLE t_mb4 ADD e varchar(32) AFTER a, algorithm=copy;
+SELECT * from t_mb4;
+id	a	e	b	c	d
+1	a	NULL	b	c	d
+2	😄	NULL	😄	😄	😭h😄h😭
+3	😄	NULL	😄	😄	😭h😄h😭
+ALTER TABLE t_mb4 ENGINE=innodb;
+SELECT * from t_mb4;
+id	a	e	b	c	d
+1	a	NULL	b	c	d
+2	😄	NULL	😄	😄	😭h😄h😭
+3	😄	NULL	😄	😄	😭h😄h😭
+DROP TABLE t_duckdb, t_mb4;

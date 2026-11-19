@@ -1,0 +1,43 @@
+--source include/have_debug_sync.inc
+
+# Force lazy initialization even when this worker previously opened DuckDB.
+--let $duckdb_datadir= `SELECT @@datadir`
+--source include/shutdown_mysqld.inc
+--remove_files_wildcard $duckdb_datadir duckdb.db*
+--let $do_not_echo_parameters= 1
+--let $restart_parameters= restart: --duckdb-mode=NONE
+--source include/start_mysqld.inc
+
+--connect (initializer,localhost,root,,test)
+--connect (waiter,localhost,root,,test)
+
+--connection initializer
+SET DEBUG_SYNC='duckdb_before_initialize_publish SIGNAL initializing WAIT_FOR publish';
+--send CALL dbms_duckdb.query('SELECT json_depth(''{"a":1}'') AS depth')
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR initializing';
+
+--connection waiter
+SET DEBUG_SYNC='duckdb_before_initialize_lock SIGNAL waiter_entered';
+--send CALL dbms_duckdb.query('SELECT json_depth(''{"a":1}'') AS depth')
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR waiter_entered';
+SET DEBUG_SYNC='now SIGNAL publish';
+
+--connection initializer
+--reap
+SET DEBUG_SYNC='RESET';
+--connection waiter
+--reap
+SET DEBUG_SYNC='RESET';
+
+--disconnect initializer
+--disconnect waiter
+--connection default
+SET DEBUG_SYNC='RESET';
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc
+--let $do_not_echo_parameters= 0

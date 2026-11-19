@@ -1,0 +1,20 @@
+# name: test/sql/attach/attach_database_size.test
+# description: Test ATTACH mixed with database size
+# group: [attach]
+
+statement ok
+ATTACH '__TEST_DIR__/attach_database_size.db' AS db1
+
+query I
+SELECT database_name FROM pragma_database_size() WHERE database_name = 'db1';
+----
+db1
+
+statement ok
+ATTACH ':memory:' AS db2
+
+query I
+SELECT database_name FROM pragma_database_size() WHERE database_name = 'db1' OR database_name = 'db2' ORDER BY ALL;
+----
+db1
+db2

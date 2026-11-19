@@ -1,0 +1,33 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # 1) Parallel copy ddl thread failed, but the master thread succeeded, which leads to data loss
+--echo #
+CREATE TABLE `t_gcol` (
+  `id` int NOT NULL,
+  `type` varchar(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO `t_gcol` (`id`, `type`) VALUES
+(1, 'public'), (2, NULL), (3, 'ods'), (4, 'dw'), (5, ''), (6, 'archive');
+
+--error ER_DUCKDB_CLIENT
+ALTER TABLE t_gcol ENGINE = DuckDB;
+
+CALL dbms_duckdb.query("SELECT * FROM information_schema.tables");
+SHOW CREATE TABLE t_gcol;
+SELECT COUNT(*) FROM t_gcol;
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_count= 1
+--let $assert_select= Parallel copy DDL failed, table:
+--let $assert_text= Found parallel copy ddl failed.
+--source include/assert_grep.inc
+
+--echo #
+--echo # 2) Cleanup
+--echo #
+DROP TABLE t_gcol;
+SET GLOBAL duckdb_convert_tables_with_generated_columns = default;
+call mtr.add_suppression(".*Parallel copy DDL failed, table:.*");

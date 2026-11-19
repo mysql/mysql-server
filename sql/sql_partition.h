@@ -165,4 +165,8 @@ enum enum_partition_keywords {
 
 extern const LEX_CSTRING partition_keywords[];
 
+char *generate_partition_syntax_for_delete(
+    partition_info *part_info, std::vector<partition_element *> &parts,
+    uint *buf_length);
+
 #endif /* SQL_PARTITION_INCLUDED */

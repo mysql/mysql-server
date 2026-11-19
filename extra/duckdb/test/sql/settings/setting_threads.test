@@ -1,0 +1,20 @@
+# name: test/sql/settings/setting_threads.test
+# description: Test THREADS setting
+# group: [settings]
+
+foreach thread_type threads worker_threads
+
+statement ok
+SET ${thread_type} TO '3'
+
+statement error
+SET ${thread_type} TO '-1'
+----
+<REGEX>:Syntax Error.*Must have at least 1 thread.*
+
+statement error
+SET ${thread_type} TO 'blabla'
+----
+<REGEX>:Invalid Input Error.*Failed to cast value.*
+
+endloop

@@ -1,0 +1,15 @@
+# name: benchmark/tpch/join/integer_join.benchmark
+# description: COUNT aggregate over join on integer keys
+# group: [join]
+
+include benchmark/tpch/tpch_load.benchmark.in
+
+name Join Integer Keys
+group join
+subgroup tpch
+
+run
+SELECT COUNT(*) from lineitem join orders on (l_orderkey=o_orderkey);
+
+result I sf=1
+6001215

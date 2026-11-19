@@ -1,0 +1,138 @@
+# name: test/sql/projection/select_star_like.test
+# description: SELECT * LIKE
+# group: [projection]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+CREATE TABLE integers(col1 INTEGER, col2 INTEGER, k INTEGER)
+
+statement ok
+INSERT INTO integers VALUES (1, 2, 3)
+
+query II
+SELECT COLUMNS(lambda x: x LIKE 'col%') FROM integers
+----
+1	2
+
+query II
+SELECT * LIKE 'col%' FROM integers
+----
+1	2
+
+# not like
+query I
+SELECT * NOT LIKE 'col%' FROM integers
+----
+3
+
+# ilike
+query II
+SELECT * ILIKE 'COL%' FROM integers
+----
+1	2
+
+# regex
+query II
+SELECT * SIMILAR TO '.*col.*' FROM integers
+----
+1	2
+
+# exclude
+query I
+SELECT * EXCLUDE (col1) SIMILAR TO '.*col.*' FROM integers
+----
+2
+
+# SIMILAR TO alias can use regex groups
+query II
+SELECT c2, c1 FROM (
+SELECT * SIMILAR TO 'number(\d+)' AS 'c\1' FROM (SELECT 1 AS number1, 2 AS number2, 3 AS end)
+)
+----
+2	1
+
+# LIKE
+query I
+SELECT val FROM (
+SELECT * NOT LIKE '%number%' AS val FROM (SELECT 1 AS number1, 2 AS number2, 3 AS end)
+)
+----
+3
+
+# ESCAPE
+query I
+SELECT * LIKE '\_%' ESCAPE '\' AS val FROM (SELECT 1 AS number1, 2 AS _number2)
+----
+2
+
+query I
+SELECT * NOT LIKE '\_%' ESCAPE '\' AS val FROM (SELECT 1 AS number1, 2 AS _number2)
+----
+1
+
+query I
+SELECT * ILIKE '\_NUM%' ESCAPE '\' AS val FROM (SELECT 1 AS number1, 2 AS _number2)
+----
+2
+
+query I
+SELECT * NOT ILIKE '\_NUM%' ESCAPE '\' AS val FROM (SELECT 1 AS number1, 2 AS _number2)
+----
+1
+
+# non-constant pattern
+statement error
+SELECT * SIMILAR TO pattern FROM integers, (SELECT '.*col.*') t(pattern)
+----
+must be a constant
+
+# unsupported function
+statement error
+SELECT * + 42 FROM integers
+----
+cannot be applied to a star expression
+
+# replace
+statement error
+SELECT * REPLACE (col1 + 42 AS col1) SIMILAR TO '.*col.*' FROM integers
+----
+Replace list cannot be combined with a filtering operation
+
+# rename
+statement error
+SELECT * RENAME (col1 AS other_) SIMILAR TO '.*col.*' FROM integers
+----
+Rename list cannot be combined with a filtering operation
+
+# Create two tables with overlapping column name
+statement ok
+CREATE TABLE t1(id INTEGER, col1 INTEGER, col2 INTEGER)
+
+statement ok
+INSERT INTO t1 VALUES (1, 10, 20)
+
+statement ok
+CREATE TABLE t2(name VARCHAR, category VARCHAR, col2 INTEGER)
+
+statement ok
+INSERT INTO t2 VALUES ('foo', 'bar', 30)
+
+# t1.* LIKE should only select from t1 table
+query II
+SELECT t1.* LIKE 'col%' FROM t1, t2
+----
+10	20
+
+# t2.* LIKE should only select from t2 table
+query I
+SELECT t2.* LIKE 'col%' FROM t1, t2
+----
+30
+
+# Combining both tables - each should only select from its own table
+query III
+SELECT t1.* LIKE 'col%', t2.* LIKE 'col%' FROM t1, t2
+----
+10	20	30

@@ -151,6 +151,11 @@
 #include "string_with_len.h"
 #include "thr_lock.h"
 
+#include "sql/binlog_ext.h"
+#include "sql/duckdb/duckdb_config.h"
+#include "sql/duckdb/duckdb_table.h"
+bool duckdb_source_set_insert_only_to_binlog = false;
+
 class Item;
 
 using mysql::binlog::event::enum_binlog_checksum_alg;
@@ -431,6 +436,8 @@ class binlog_cache_data {
       state.with_start = flags.with_start;
       state.with_end = flags.with_end;
       state.with_content = flags.with_content;
+      state.with_update_delete = flags.with_update_delete;
+      state.with_insert = flags.with_insert;
       state.event_counter = m_event_counter;
       cache_state_map[pos_to_checkpoint] = state;
     }
@@ -446,6 +453,8 @@ class binlog_cache_data {
         flags.with_start = it->second.with_start;
         flags.with_end = it->second.with_end;
         flags.with_content = it->second.with_content;
+        flags.with_update_delete = it->second.with_update_delete;
+        flags.with_insert = it->second.with_insert;
         m_event_counter = it->second.event_counter;
       } else
         assert(it == cache_state_map.end());
@@ -457,6 +466,8 @@ class binlog_cache_data {
       flags.with_start = false;
       flags.with_end = false;
       flags.with_content = false;
+      flags.with_update_delete = false;
+      flags.with_insert = false;
       m_event_counter = 0;
     }
   }
@@ -481,6 +492,8 @@ class binlog_cache_data {
     flags.with_start = false;
     flags.with_end = false;
     flags.with_content = false;
+    flags.with_update_delete = false;
+    flags.with_insert = false;
 
     /*
       The truncate function calls reinit_io_cache that calls my_b_flush_io_cache
@@ -518,6 +531,10 @@ class binlog_cache_data {
     @return false The cache contains a transaction with no SBR events.
    */
   bool may_have_sbr_stmts() { return flags.with_sbr || !flags.with_rbr; }
+
+  bool has_insert_only() {
+    return flags.with_insert && !flags.with_update_delete;
+  }
 
   /**
     Check if the binlog cache contains an empty transaction, which has
@@ -568,6 +585,8 @@ class binlog_cache_data {
     bool with_start;
     bool with_end;
     bool with_content;
+    bool with_update_delete;
+    bool with_insert;
     size_t event_counter;
   };
   /*
@@ -674,6 +693,16 @@ class binlog_cache_data {
       This indicates that the cache contain content other than START/END.
     */
     bool with_content : 1;
+
+    /*
+      This indicates that the cache contain UPDATE or DELETE ROWS_EVENT.
+    */
+    bool with_update_delete : 1;
+
+    /*
+      This indicates that the cache contain INSERT ROWS_EVENT.
+    */
+    bool with_insert : 1;
   } flags;
 
   /// Compress the current transaction "in-place", if possible
@@ -1246,9 +1275,24 @@ int binlog_cache_data::write_event(Log_event *ev) {
       });
       return 1;
     }
-    if (ev->get_type_code() == mysql::binlog::event::XID_EVENT ||
-        ev->get_type_code() == mysql::binlog::event::XA_PREPARE_LOG_EVENT)
-      flags.with_xid = true;
+
+    switch (ev->get_type_code()) {
+      case mysql::binlog::event::XID_EVENT:
+      case mysql::binlog::event::XA_PREPARE_LOG_EVENT:
+        flags.with_xid = true;
+        break;
+      case mysql::binlog::event::UPDATE_ROWS_EVENT:
+      case mysql::binlog::event::PARTIAL_UPDATE_ROWS_EVENT:
+      case mysql::binlog::event::DELETE_ROWS_EVENT:
+        flags.with_update_delete = true;
+        break;
+      case mysql::binlog::event::WRITE_ROWS_EVENT:
+        flags.with_insert = true;
+        break;
+      default:
+        break;
+    }
+
     if (ev->is_using_immediate_logging()) flags.immediate = true;
     /* DDL gets marked as xid-requiring at its caching. */
     if (is_atomic_ddl_event(ev)) flags.with_xid = true;
@@ -1456,6 +1500,13 @@ bool MYSQL_BIN_LOG::write_transaction(THD *thd, binlog_cache_data *cache_data,
       cache_data->may_have_sbr_stmts(), original_commit_timestamp,
       immediate_commit_timestamp, trx_original_server_version,
       trx_immediate_server_version);
+
+  if (duckdb_source_set_insert_only_to_binlog) {
+    gtid_event.set_has_insert_only(cache_data->has_insert_only());
+    DBUG_PRINT("check_insert_only_flag",
+               ("Set insert_only_flag = %u in GTID Event.",
+                cache_data->has_insert_only()));
+  }
 
   // Set the transaction length, based on cache info
   gtid_event.set_trx_length_by_cache_size(cache_data->get_byte_position(),
@@ -3544,6 +3595,10 @@ bool MYSQL_BIN_LOG::open(PSI_file_key log_file_key, const char *log_name,
 
   ret = m_binlog_file->open(log_file_key, log_file_name, flags);
 
+#ifdef HAVE_DUCKDB
+  if (!ret && !is_relay_log) ret = mysql_bin_log_ext.open_binlog_file();
+#endif  // HAVE_DUCKDB
+
   if (!is_relay_log) mysql_mutex_unlock(&LOCK_sync);
 
   if (ret) goto err;
@@ -4004,6 +4059,16 @@ static enum_read_gtids_from_binlog_status read_gtids_from_binlog(
               /* If the first_gtid was the only thing requested, we are done */
               if (all_gtids == nullptr) ret = GOT_GTIDS, done = true;
             }
+          }
+        }
+        break;
+      }
+      case mysql::binlog::event::TRANSACTION_CONTEXT_EVENT: {
+        if (all_gtids) {
+          Transaction_context_log_event *tcle =
+              (Transaction_context_log_event *)ev;
+          if (all_gtids->add_gtid_set(tcle->get_snapshot_version())) {
+            ret = ERROR, done = true;
           }
         }
         break;
@@ -4746,6 +4811,17 @@ bool MYSQL_BIN_LOG::open_binlog(
   m_binlog_index_monitor.close_purge_index_file();
 
   update_binlog_end_pos();
+
+  /*
+    For startup, writting Previous_gtid_log_event is skipped, so
+    duckdb_binlog_rotate is skipped too. It will be called just after
+    Previous_gtid_log_event is written into binlog file in mysqld.cc
+  */
+#ifdef HAVE_DUCKDB
+  if (!is_relay_log && current_thd && mysql_bin_log_ext.duckdb_binlog_rotate())
+    goto err;
+#endif  // HAVE_DUCKDB
+
   return false;
 
 err:
@@ -5442,7 +5518,8 @@ int MYSQL_BIN_LOG::new_file_impl(
     goto end;
   }
 
-  if (!is_relay_log) {
+  /* We have saved gtid for DuckDB in `commit_owned_gtids`, skip for DuckDB */
+  if (!is_relay_log && !myduck::global_mode_on()) {
     /* Save set of GTIDs of the last binlog into table on binlog rotation */
     if ((error = gtid_state->save_gtids_of_last_binlog_into_table())) {
       if (error == ER_RPL_GTID_TABLE_CANNOT_OPEN) {
@@ -5684,6 +5761,9 @@ bool MYSQL_BIN_LOG::after_write_to_relay_log(Master_info *mi) {
         mi->rli->add_logged_gtid(last_gtid_queued->sidno,
                                  last_gtid_queued->gno);
         mi->rli->get_tsid_lock()->unlock();
+
+        mi->rli->add_gtid_set(mi->rli->get_tcle_gtid_set());
+        mi->rli->clear_tcle_gtid_set();
       }
 
       if (mi->is_queueing_trx()) {
@@ -6601,6 +6681,7 @@ bool MYSQL_BIN_LOG::read_binlog_in_use_flag(
 }
 
 int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
+  DBUG_TRACE;
   Log_info log_info;
   int error = 1;
 
@@ -6611,6 +6692,11 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
   assert(!is_relay_log);
   assert(total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log));
   assert(opt_name && opt_name[0]);
+
+#ifdef HAVE_DUCKDB
+  if (myduck::global_mode_on() && mysql_bin_log_ext.duckdb_binlog_init())
+    return 1;
+#endif  // HAVE_DUCKDB
 
   if (!m_binlog_index_monitor.is_inited_index_file()) {
     /* There was a failure to open the index file, can't open the binlog */
@@ -6651,6 +6737,11 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name) {
     LogErr(ERROR_LEVEL, ER_BINLOG_CANT_FIND_LOG_IN_INDEX, error);
     return error;
   }
+
+#ifdef HAVE_DUCKDB
+  if (myduck::global_mode_on() && mysql_bin_log_ext.duckdb_recover(log_name))
+    return 1;
+#endif  // HAVE_DUCKDB
 
   Binlog_file_reader binlog_file_reader(opt_source_verify_checksum);
   if (binlog_file_reader.open(log_name)) {
@@ -7141,7 +7232,8 @@ void MYSQL_BIN_LOG::init_thd_variables(THD *thd, bool all, bool skip_commit) {
   thd->tx_commit_pending = true;
   thd->commit_error = THD::CE_NONE;
   thd->next_to_commit = nullptr;
-  thd->durability_property = HA_IGNORE_DURABILITY;
+  if (!myduck::global_mode_on())
+    thd->durability_property = HA_IGNORE_DURABILITY;
   thd->get_transaction()->m_flags.real_commit = all;
   thd->get_transaction()->m_flags.xid_written = false;
   thd->get_transaction()->m_flags.commit_low = !skip_commit;
@@ -7389,8 +7481,9 @@ int MYSQL_BIN_LOG::finish_commit(THD *thd) {
   auto all = thd->get_transaction()->m_flags.real_commit;
   auto committed_low = thd->get_transaction()->m_flags.commit_low;
 
-  assert(thd->commit_error != THD::CE_COMMIT_ERROR);
-  finish_transaction_in_engines(thd, all, false);
+  assert(thd->commit_error != THD::CE_COMMIT_ERROR || myduck::global_mode_on());
+  if (thd->commit_error != THD::CE_COMMIT_ERROR)
+    finish_transaction_in_engines(thd, all, false);
 
   // If the ordered commit didn't update the GTIDs for this thd yet
   // at process_commit_stage_queue (i.e. --binlog-order-commits=0)
@@ -7570,6 +7663,12 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit) {
       return thd->commit_error;
     }
   }
+
+#ifdef HAVE_DUCKDB
+  if (myduck::global_mode_on() && !thd_get_cache_mngr(thd)->has_incident()) {
+    return mysql_bin_log_ext.duckdb_commit(thd);
+  }
+#endif  // HAVE_DUCKDB
 
   /*
     Stage #1: flushing transactions to binary log
@@ -8481,6 +8580,18 @@ static bool has_write_table_auto_increment_not_first_in_pk(Table_ref *tables) {
   return false;
 }
 
+static bool has_write_table_is_duckdb(Table_ref *tables) {
+  for (Table_ref *table = tables; table; table = table->next_global) {
+    /* we must do preliminary checks as table->table may be NULL */
+    if (!table->is_placeholder() &&
+        (table->lock_descriptor().type >= TL_WRITE_ALLOW_WRITE) &&
+        myduck::is_duckdb_table(tables->table))
+      return true;
+  }
+
+  return false;
+}
+
 /**
   Checks if a table has a column with a non-deterministic DEFAULT expression.
 */
@@ -9215,7 +9326,11 @@ int THD::decide_logging_format(Table_ref *tables) {
                               lex->is_stmt_unsafe_with_mixed_mode()));
 #endif
           /* log in row format! */
-          set_current_stmt_binlog_format_row_if_mixed();
+          /* duckdb UPDATE/DELETE cannot generate row events. */
+          if (!myduck::global_mode_on() || lex->is_stmt_row_injection() ||
+              lex->sql_command == SQLCOM_INSERT ||
+              !has_write_table_is_duckdb(tables))
+            set_current_stmt_binlog_format_row_if_mixed();
         }
       }
     }
@@ -10424,3 +10539,7 @@ mysql_declare_plugin(binlog){
     nullptr, /* config options                  */
     0,
 } mysql_declare_plugin_end;
+
+#ifdef HAVE_DUCKDB
+#include "sql/binlog_ext.cc"
+#endif  // HAVE_DUCKDB

@@ -1,0 +1,263 @@
+
+CREATE DATABASE IF NOT EXISTS test_partition;
+USE test_partition;
+
+--echo #
+--echo # 1) Convert engine between InnoDB and DuckDB
+--echo #
+# Create InnoDB partition table
+CREATE TABLE t_hash (id INT KEY) PARTITION BY HASH (id) PARTITIONS 4;
+INSERT INTO t_hash VALUES (1), (2), (3), (4);
+
+# Convert to DuckDB
+ALTER TABLE t_hash ENGINE = DuckDB;
+SHOW CREATE TABLE t_hash;
+INSERT INTO t_hash VALUES (5), (6), (7), (8);
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_hash, Checksum, 1)
+ALTER TABLE t_hash ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_hash, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_hash PARTITION(p0) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p1) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p2) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p3) ORDER BY id;
+
+
+--echo #
+--echo # 2) Add partition, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_hash ENGINE = DuckDB;
+ALTER TABLE t_hash ADD PARTITION PARTITIONS 1;
+SHOW CREATE TABLE t_hash;
+
+INSERT INTO t_hash VALUES(9), (10);
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_hash, Checksum, 1)
+ALTER TABLE t_hash ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_hash, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_hash PARTITION(p0) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p1) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p2) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p3) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p4) ORDER BY id;
+
+
+--echo #
+--echo # 3) Coalesce partition, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_hash ENGINE = DuckDB;
+ALTER TABLE t_hash COALESCE PARTITION 1;
+
+INSERT INTO t_hash VALUES(11), (12);
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_hash, Checksum, 1)
+ALTER TABLE t_hash ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_hash, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_hash PARTITION(p0) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p1) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p2) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p3) ORDER BY id;
+
+
+--echo #
+--echo # 4) Reorganize partition, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_hash ENGINE = DuckDB;
+ALTER TABLE t_hash REORGANIZE PARTITION;
+SHOW CREATE TABLE t_hash;
+
+INSERT INTO t_hash VALUES (13), (14), (15), (16);
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_hash, Checksum, 1)
+ALTER TABLE t_hash ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_hash, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_hash PARTITION(p0) ORDER BY id;
+
+
+--echo #
+--echo # 5) Rebuild partition, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_hash ENGINE = DuckDB;
+ALTER TABLE t_hash PARTITION BY HASH(id) PARTITIONS 4;
+ALTER TABLE t_hash REBUILD PARTITION ALL;
+SHOW CREATE TABLE t_hash;
+
+INSERT INTO t_hash VALUES (17), (18), (19), (20);
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_hash, Checksum, 1)
+ALTER TABLE t_hash ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_hash, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_hash PARTITION(p0) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p1) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p2) ORDER BY id;
+SELECT * FROM t_hash PARTITION(p3) ORDER BY id;
+
+
+--echo #
+--echo # 5) Remove partitioning, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_hash ENGINE = DuckDB;
+CREATE TABLE t_hash_2 LIKE t_hash;
+ALTER TABLE t_hash_2 REMOVE PARTITIONING;
+SHOW CREATE TABLE t_hash_2;
+
+INSERT INTO t_hash_2 SELECT * FROM t_hash;
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_hash_2, Checksum, 1)
+ALTER TABLE t_hash_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash_2;
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_hash_2, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+
+--echo #
+--echo # 6) Exchange partition, which is not implemented
+--echo #
+ALTER TABLE t_hash_2 ENGINE = DuckDB;
+--error ER_PARTITION_MGMT_ON_NONPARTITIONED # SHXTODO: check_if_incompatible_data is not implemented 
+ALTER TABLE t_hash EXCHANGE PARTITION p1 WITH TABLE t_hash_2;
+
+
+--echo #
+--echo # 7) Partitioning, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_hash_2 PARTITION BY HASH(id) PARTITIONS 4;
+SHOW CREATE TABLE t_hash_2;
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_hash_2, Checksum, 1)
+ALTER TABLE t_hash_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash_2;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_hash_2, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_hash_2 PARTITION(p0) ORDER BY id;
+SELECT * FROM t_hash_2 PARTITION(p1) ORDER BY id;
+SELECT * FROM t_hash_2 PARTITION(p2) ORDER BY id;
+SELECT * FROM t_hash_2 PARTITION(p3) ORDER BY id;
+
+
+--echo #
+--echo # 8) Truncate partition, HASH/KEY partition is not supported
+--echo #
+--error ER_DUCKDB_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t_hash TRUNCATE PARTITION p3;
+
+
+--echo #
+--echo # 9) Drop partition, HASH/KEY partition is not supported
+--echo #
+--error ER_DUCKDB_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t_hash DROP PARTITION p3;
+
+
+--echo #
+--echo # 10) ADMIN PARTITION
+--echo #
+# Optimize partition
+ALTER TABLE t_hash OPTIMIZE PARTITION p0;
+
+# Analyze partition
+ALTER TABLE t_hash ANALYZE PARTITION p0;
+
+# Check partition
+ALTER TABLE t_hash CHECK PARTITION p0;
+
+# Repair partition
+ALTER TABLE t_hash REPAIR PARTITION p0;
+
+
+--echo #
+--echo # 11) DML which specify partition
+--echo #
+--error ER_DUCKDB_CLIENT
+SELECT * FROM t_hash PARTITION(p0);
+
+# non batch mode + non data import mode
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = OFF;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_hash PARTITION(p0) VALUES (16);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_hash PARTITION(p0) WHERE id = 4;
+--error ER_DUCKDB_CLIENT
+UPDATE t_hash PARTITION (p0) SET id = 16 WHERE id = 4;
+
+# non batch mode + data import mode
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = ON;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_hash PARTITION(p0) VALUES (16);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_hash PARTITION(p0) WHERE id = 4;
+--error ER_DUCKDB_DATA_IMPORT_MODE
+UPDATE t_hash PARTITION (p0) SET id = 16 WHERE id = 4;
+
+# batch mode + data import mode
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = ON;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_hash PARTITION(p0) VALUES (16);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_hash PARTITION(p0) WHERE id = 4;
+--error ER_DUCKDB_DATA_IMPORT_MODE
+UPDATE t_hash PARTITION (p0) SET id = 16 WHERE id = 4;
+
+# batch mode + non data import mode
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = OFF;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_hash PARTITION(p0) VALUES (16);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_hash PARTITION(p0) WHERE id = 4;
+--error ER_DUCKDB_CLIENT
+UPDATE t_hash PARTITION (p0) SET id = 16 WHERE id = 4;
+
+
+--echo #
+--echo # 12) Cleanup
+--echo #
+SET GLOBAL duckdb_dml_in_batch = default;
+DROP DATABASE test_partition;

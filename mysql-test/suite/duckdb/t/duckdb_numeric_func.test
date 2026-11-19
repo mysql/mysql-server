@@ -1,0 +1,199 @@
+# 1. CONV(), CRC32(), MOD, DIV, TRUNCATE() is not support yet.
+# 2. The RAND() function in duckdb and mysql uses different random number generation algorithms, so it cannot support the seed argument.
+
+CREATE DATABASE test_duckdb;
+USE test_duckdb;
+CREATE TABLE t_innodb (id int PRIMARY KEY, col1 TINYINT, col2 INT, col3 BIGINT, col4 DECIMAL(38, 10), col5 DOUBLE ) ENGINE=Innodb;
+CREATE TABLE t_duckdb (id int PRIMARY KEY, col1 TINYINT, col2 INT, col3 BIGINT, col4 DECIMAL(38, 10), col5 DOUBLE ) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, 10, 12345678, 23372036854775808, 123456789101112131415161718.1234567891, 123456789101112131415161718.1234567891);
+INSERT INTO t_innodb VALUES (2, -10, -12345678, -12345678910111213, -123456789101112131415161718.1234567891, -123456789101112131415161718.1234567891);
+INSERT INTO t_duckdb VALUES (1, 10, 12345678, 23372036854775808, 123456789101112131415161718.1234567891, 123456789101112131415161718.1234567891);
+INSERT INTO t_duckdb VALUES (2, -10, -12345678, -12345678910111213, -123456789101112131415161718.1234567891, -123456789101112131415161718.1234567891);
+
+--echo ---------------------------
+--echo 1. ABS()
+--echo ---------------------------
+
+SELECT ABS(col1), ABS(col2), ABS(col3), ABS(col4), ABS(col5) FROM t_innodb;
+SELECT ABS(col1), ABS(col2), ABS(col3), ABS(col4), ABS(col5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 2. ACOS()
+--echo ---------------------------
+
+SELECT ACOS(COS(col1)), ACOS(COS(col2)), ACOS(COS(col3)), ACOS(COS(col4)), ACOS(COS(col5)), ACOS(col1) FROM t_innodb;
+SELECT ACOS(COS(col1)), ACOS(COS(col2)), ACOS(COS(col3)), ACOS(COS(col4)), ACOS(COS(col5)), ACOS(col1) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 3. ASIN()
+--echo ---------------------------
+
+SELECT ASIN(SIN(col1)), ASIN(SIN(col2)), ASIN(SIN(col3)), ASIN(SIN(col4)), ASIN(SIN(col5)), ASIN(col1) FROM t_innodb;
+SELECT ASIN(SIN(col1)), ASIN(SIN(col2)), ASIN(SIN(col3)), ASIN(SIN(col4)), ASIN(SIN(col5)), ASIN(col1) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 3. ATAN()
+--echo ---------------------------
+
+SELECT ATAN(TAN(col1)), ATAN(TAN(col2)), ATAN(TAN(col3)), ATAN(TAN(col4)), ATAN(TAN(col5)) FROM t_innodb;
+SELECT ATAN(TAN(col1)), ATAN(TAN(col2)), ATAN(TAN(col3)), ATAN(TAN(col4)), ATAN(TAN(col5)) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 4. ATAN2()
+--echo ---------------------------
+
+SELECT ATAN2(TAN(col1), 2), ATAN2(TAN(col2), 2), ATAN2(TAN(col3), 2), ATAN2(TAN(col4), 2), ATAN2(TAN(col5), 2) FROM t_innodb;
+SELECT ATAN2(TAN(col1), 2), ATAN2(TAN(col2), 2), ATAN2(TAN(col3), 2), ATAN2(TAN(col4), 2), ATAN2(TAN(col5), 2) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 5. CEIL(), CEILING()
+--echo ---------------------------
+
+SELECT CEIL(col1), CEIL(col2), CEIL(col3), CEIL(col4), CEIL(col5) FROM t_innodb;
+SELECT CEIL(col1), CEIL(col2), CEIL(col3), CEIL(col4), CEIL(col5) FROM t_duckdb;
+
+SELECT CEILING(col1), CEILING(col2), CEILING(col3), CEILING(col4), CEILING(col5) FROM t_innodb;
+SELECT CEILING(col1), CEILING(col2), CEILING(col3), CEILING(col4), CEILING(col5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 6. COS()
+--echo ---------------------------
+
+SELECT COS(col1), COS(col2), COS(col3), COS(col4), COS(col5) FROM t_innodb;
+SELECT COS(col1), COS(col2), COS(col3), COS(col4), COS(col5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 7. COT()
+--echo ---------------------------
+
+SELECT COT(col1), COT(col2), COT(col3), COT(col4), COT(col5) FROM t_innodb;
+SELECT COT(col1), COT(col2), COT(col3), COT(col4), COT(col5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 8. DEGREES()
+--echo ---------------------------
+
+SELECT DEGREES(col1), DEGREES(col2), DEGREES(col3), DEGREES(col4), DEGREES(col5) FROM t_innodb;
+SELECT DEGREES(col1), DEGREES(col2), DEGREES(col3), DEGREES(col4), DEGREES(col5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 9. EXP()
+--echo ---------------------------
+
+SELECT EXP(LN(ABS(col1))), EXP(LN(ABS(col2))), EXP(LN(ABS(col3))), EXP(LN(ABS(col4))), EXP(LN(ABS(col5))) FROM t_innodb;
+SELECT EXP(LN(ABS(col1))), EXP(LN(ABS(col2))), EXP(LN(ABS(col3))), EXP(LN(ABS(col4))), EXP(LN(ABS(col5))) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 10. FLOOR()
+--echo ---------------------------
+
+SELECT FLOOR(col1), FLOOR(col2), FLOOR(col3), FLOOR(col4), FLOOR(col5) FROM t_innodb;
+SELECT FLOOR(col1), FLOOR(col2), FLOOR(col3), FLOOR(col4), FLOOR(col5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 11. FLOOR()
+--echo ---------------------------
+
+SELECT FLOOR(col1), FLOOR(col2), FLOOR(col3), FLOOR(col4), FLOOR(col5) FROM t_innodb;
+SELECT FLOOR(col1), FLOOR(col2), FLOOR(col3), FLOOR(col4), FLOOR(col5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 12. LN()
+--echo ---------------------------
+
+SELECT LN(ABS(col1)), LN(ABS(col2)), LN(ABS(col3)), LN(ABS(col4)), LN(ABS(col5)), LN(col1) FROM t_innodb;
+SELECT LN(ABS(col1)), LN(ABS(col2)), LN(ABS(col3)), LN(ABS(col4)), LN(ABS(col5)), LN(col1) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 13. LOG()
+--echo ---------------------------
+
+SELECT LOG(ABS(col1)), LOG(ABS(col2)), LOG(ABS(col3)), LOG(ABS(col4)), LOG(ABS(col5)), LOG(col1) FROM t_innodb;
+SELECT LOG(ABS(col1)), LOG(ABS(col2)), LOG(ABS(col3)), LOG(ABS(col4)), LOG(ABS(col5)), LOG(col1) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 14. LOG10()
+--echo ---------------------------
+
+SELECT LOG10(ABS(col1)), LOG10(ABS(col2)), LOG10(ABS(col3)), LOG10(ABS(col4)), LOG10(ABS(col5)), LOG10(col1) FROM t_innodb;
+SELECT LOG10(ABS(col1)), LOG10(ABS(col2)), LOG10(ABS(col3)), LOG10(ABS(col4)), LOG10(ABS(col5)), LOG10(col1) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 15. LOG2()
+--echo ---------------------------
+
+SELECT LOG2(ABS(col1)), LOG2(ABS(col2)), LOG2(ABS(col3)), LOG2(ABS(col4)), LOG2(ABS(col5)), LOG2(col1) FROM t_innodb;
+SELECT LOG2(ABS(col1)), LOG2(ABS(col2)), LOG2(ABS(col3)), LOG2(ABS(col4)), LOG2(ABS(col5)), LOG2(col1) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 16. PI()
+--echo ---------------------------
+
+SELECT PI() FROM t_innodb;
+SELECT PI() FROM t_duckdb;
+
+--echo ---------------------------
+--echo 17. POW(), POWER()
+--echo ---------------------------
+
+SELECT POW(ABS(col1), 0.5), POW(ABS(col2), 0.5), POW(ABS(col3), 0.5), POW(ABS(col4), 0.5), POW(ABS(col5), 0.5) FROM t_innodb;
+SELECT POW(ABS(col1), 0.5), POW(ABS(col2), 0.5), POW(ABS(col3), 0.5), POW(ABS(col4), 0.5), POW(ABS(col5), 0.5) FROM t_duckdb;
+
+SELECT POWER(ABS(col1), 0.5), POWER(ABS(col2), 0.5), POWER(ABS(col3), 0.5), POWER(ABS(col4), 0.5), POWER(ABS(col5), 0.5) FROM t_innodb;
+SELECT POWER(ABS(col1), 0.5), POWER(ABS(col2), 0.5), POWER(ABS(col3), 0.5), POWER(ABS(col4), 0.5), POWER(ABS(col5), 0.5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 18. RADIANS()
+--echo ---------------------------
+
+SELECT RADIANS(col1), RADIANS(col2), RADIANS(col3), RADIANS(col4), RADIANS(col5) FROM t_innodb;
+SELECT RADIANS(col1), RADIANS(col2), RADIANS(col3), RADIANS(col4), RADIANS(col5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 19. RAND()
+--echo ---------------------------
+
+# SELECT RAND() FROM t_innodb;
+# SELECT RAND() FROM t_duckdb;
+
+--echo ---------------------------
+--echo 20. ROUND()
+--echo ---------------------------
+
+SELECT ROUND(col1), ROUND(col1, 0), ROUND(col2), ROUND(col2, 0), ROUND(col3), ROUND(col3, 0), ROUND(col4), ROUND(col4, 0), ROUND(col5), ROUND(col5, 0) FROM t_innodb;
+SELECT ROUND(col1), ROUND(col1, 0), ROUND(col2), ROUND(col2, 0), ROUND(col3), ROUND(col3, 0), ROUND(col4), ROUND(col4, 0), ROUND(col5), ROUND(col5, 0) FROM t_duckdb;
+
+SELECT ROUND(col1, 3), ROUND(col1, -3), ROUND(col2, 6), ROUND(col2, -6), ROUND(col3, 6), ROUND(col3, -6), ROUND(col4, 6), ROUND(col4, 6), ROUND(col5, 6), ROUND(col5, 6) FROM t_innodb;
+SELECT ROUND(col1, 3), ROUND(col1, -3), ROUND(col2, 6), ROUND(col2, -6), ROUND(col3, 6), ROUND(col3, -6), ROUND(col4, 6), ROUND(col4, 6), ROUND(col5, 6), ROUND(col5, 6) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 21. SIGN()
+--echo ---------------------------
+
+SELECT SIGN(col1), SIGN(col2), SIGN(col3), SIGN(col4), SIGN(col5) FROM t_innodb;
+SELECT SIGN(col1), SIGN(col2), SIGN(col3), SIGN(col4), SIGN(col5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 22. SIN()
+--echo ---------------------------
+
+SELECT SIN(col1), SIN(col2), SIN(col3), SIN(col4), SIN(col5) FROM t_innodb;
+SELECT SIN(col1), SIN(col2), SIN(col3), SIN(col4), SIN(col5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 23. SQRT()
+--echo ---------------------------
+
+SELECT SQRT(col1), SQRT(col2), SQRT(col3), SQRT(col4), SQRT(col5) FROM t_innodb;
+SELECT SQRT(col1), SQRT(col2), SQRT(col3), SQRT(col4), SQRT(col5) FROM t_duckdb;
+
+--echo ---------------------------
+--echo 24. TAN()
+--echo ---------------------------
+
+SELECT TAN(col1), TAN(col2), TAN(col3), TAN(col4), TAN(col5) FROM t_innodb;
+SELECT TAN(col1), TAN(col2), TAN(col3), TAN(col4), TAN(col5) FROM t_duckdb;
+
+DROP TABLE t_innodb;
+DROP TABLE t_duckdb;
+DROP DATABASE test_duckdb;

@@ -1,0 +1,138 @@
+# Test in this file only makes sense in standard replication,
+# so it is skipped in group replication.
+--source include/have_duckdb.inc
+--source include/not_group_replication_plugin.inc
+--source include/not_parallel.inc
+
+# Test in this file is binlog format agnostic, thus no need
+# to rerun it for every format.
+--source include/have_binlog_format_row.inc
+# Test requires master-info-repository=TABLE, relay-log-info-repository=TABLE
+# Trunk always stores replication metadata in transactional tables.
+# Clean all configuration changes after running the test.
+--source include/force_restart.inc
+
+--echo #
+--echo # Set up masters server_1, server_3
+--echo # server_2 being a slave.
+--echo #
+--let $rpl_topology= 1->2,3->2
+--let $rpl_multi_source= 1
+--source include/rpl/init.inc
+
+# select sleep(3600);
+
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+call mtr.add_suppression("There are per-channel replication filter.s. configured for channel '' which does not exist. The filter.s. have been discarded.");
+
+--error ER_REPLICA_CHANNEL_SQL_THREAD_MUST_STOP
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_WILD_TABLE=(('db_%.t_%','db.t')) FOR CHANNEL 'channel_3';
+
+
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+CREATE DATABASE db_3;
+CREATE TABLE db_3.t_3 (id int primary key, v varchar(32));
+
+CREATE DATABASE dt_3;
+CREATE TABLE dt_3.t_x_3(id int primary key, v varchar(32));
+
+--let $rpl_channel_name= 'channel_3'
+--let $sync_slave_connection= server_2
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+SET GLOBAL force_innodb_to_duckdb = ON;
+
+SHOW TABLES IN db_3;
+
+CREATE DATABASE db;
+CREATE TABLE db.t(id int primary key, v varchar(32));
+
+CREATE DATABASE dt;
+CREATE TABLE dt.t_x(id int primary key, v varchar(32));
+
+SHOW CREATE TABLE db.t;
+
+STOP REPLICA;
+
+CHANGE REPLICATION FILTER REPLICATE_REWRITE_WILD_TABLE=(('db__.t__','db.t'), ('dt_%.t_x_%','dt.t_x')) FOR CHANNEL 'channel_3';
+CHANGE REPLICATION FILTER REPLICATE_DO_DB=(db1) FOR CHANNEL 'channel_3';
+START REPLICA;
+
+SELECT CHANNEL_NAME, FILTER_NAME, FILTER_RULE, CONFIGURED_BY, COUNTER FROM performance_schema.replication_applier_filters;
+
+
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+INSERT INTO db_3.t_3 VALUES (1, '1');
+INSERT INTO db_3.t_3 VALUES (2, '2');
+INSERT INTO db_3.t_3 VALUES (3, '3');
+
+INSERT INTO dt_3.t_x_3 VALUES (1, '1');
+INSERT INTO dt_3.t_x_3 VALUES (2, '2');
+INSERT INTO dt_3.t_x_3 VALUES (3, '3');
+
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+
+SHOW CREATE TABLE db.t;
+--echo "should not empty"
+select * from db.t;
+
+--echo "should empty"
+select * from db_3.t_3;
+
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+DELETE FROM db_3.t_3 WHERE id = 2;
+UPDATE db_3.t_3 SET v = '3-1' WHERE id = 3;
+
+DELETE FROM dt_3.t_x_3 WHERE id = 2;
+UPDATE dt_3.t_x_3 SET v = '3-1' WHERE id = 3;
+
+--source include/rpl/sync_to_replica.inc
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+
+--echo "should not empty"
+select * from db.t;
+
+--echo "should empty"
+select * from db_3.t_3;
+
+--echo "should not empty"
+select * from dt.t_x;
+
+--echo "should empty"
+select * from dt_3.t_x_3;
+
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+
+DROP DATABASE db_3;
+DROP DATABASE dt_3;
+--source include/rpl/sync_to_replica.inc
+
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+
+USE db;
+SHOW TABLES;
+
+DROP DATABASE db;
+DROP DATABASE dt;
+
+--let $rpl_skip_sync= 1
+--source include/rpl/deinit.inc

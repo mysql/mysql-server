@@ -1,0 +1,53 @@
+--echo #
+--echo # 1) CREATE TABLES
+--echo #
+CREATE TABLE customers (
+    customer_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE
+) ENGINE=InnoDB;
+
+CREATE TABLE orders (
+    order_id INT PRIMARY KEY AUTO_INCREMENT,
+    order_date DATE NOT NULL,
+    customer_id INT,
+    total_amount DECIMAL(10, 2),
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+INSERT INTO customers (name, email) VALUES
+('Alice', 'alice@example.com'),
+('Bob', 'bob@example.com');
+
+INSERT INTO orders (order_date, customer_id, total_amount) VALUES
+('2024-04-05', 1, 100.50),
+('2024-04-06', 2, 200.75);
+
+--let $checksum_c1 = query_get_value(CHECKSUM TABLE customers, Checksum, 1)
+--let $checksum_o1 = query_get_value(CHECKSUM TABLE orders, Checksum, 1)
+
+--echo #
+--echo # 2) RESTART WITH duckdb_convert_all_at_startup=ON
+--echo #
+--let restart_parameters="restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON"
+--source include/restart_mysqld.inc
+
+--let $wait_condition= SELECT VARIABLE_VALUE = "FINISHED" FROM performance_schema.global_status WHERE VARIABLE_NAME = 'DuckDB_convert_stage_at_startup'
+--source include/wait_condition.inc
+
+SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_NAME is not NULL;
+SHOW CREATE TABLE customers;
+SHOW CREATE TABLE orders;
+--let $checksum_c2 = query_get_value(CHECKSUM TABLE customers, Checksum, 1)
+--let $checksum_o2 = query_get_value(CHECKSUM TABLE orders, Checksum, 1)
+
+--let $assert_cond = "$checksum_c1" = "$checksum_c2" AND "$checksum_o1" = "$checksum_o2"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+--echo #
+--echo # 3) CLEANUP
+--echo #
+DROP TABLE customers, orders;

@@ -1,0 +1,135 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # 1. Execute parallel COPY DDL from InnoDB to DuckDB.
+--echo #
+CREATE TABLE `t1` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+  col1 VARCHAR(20) NOT NULL,
+  col2 CHAR(10) DEFAULT 'duckdb',
+  col3 DECIMAL(5,2) DEFAULT NULL,
+  col4 DATETIME DEFAULT NULL,
+  col5 TIMESTAMP NULL DEFAULT NULL,
+  col6 BLOB
+) ENGINE = InnoDB;
+
+INSERT INTO t1 (col1, col2, col3, col4, col5, col6) VALUES ('abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+
+--let $i=10
+--let $insert_stmt = INSERT INTO t1 (col1, col2, col3, col4, col5, col6)  SELECT col1, col2, col3, col4, col5, col6 FROM t1
+--disable_query_log
+while ($i)
+{
+  --eval $insert_stmt
+  --dec $i
+}
+--enable_query_log
+SET SESSION duckdb_copy_ddl_threads = 4;
+ALTER TABLE t1 ENGINE = DuckDB;
+
+# Check error log
+--let $assert_text = Found multi-threads copy data.
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_select = id: .*, n_rows: .*
+--let $assert_count = 4
+--source include/assert_grep.inc
+
+
+--echo #
+--echo # 2. Simulate error happens when execute parallel COPY DDL, committed tmp table should be deleted explicitly.
+--echo #
+DROP TABLE t1;
+CREATE TABLE `t1` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+  col1 VARCHAR(20) NOT NULL,
+  col2 CHAR(10) DEFAULT 'duckdb',
+  col3 DECIMAL(5,2) DEFAULT NULL,
+  col4 DATETIME DEFAULT NULL,
+  col5 TIMESTAMP NULL DEFAULT NULL,
+  col6 BLOB
+) ENGINE = InnoDB;
+
+INSERT INTO t1 (col1, col2, col3, col4, col5, col6) VALUES ('abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+
+SET SESSION DEBUG = '+d, simulate_parallel_copy_ddl_failed';
+--error ER_UNKNOWN_ERROR
+ALTER TABLE t1 ENGINE = DuckDB;
+
+SET SESSION DEBUG = 'reset';
+SET SESSION DEBUG = '+d, simulate_parallel_copy_ddl_rename_failed';
+--error ER_UNKNOWN_ERROR
+ALTER TABLE t1 ENGINE = DuckDB;
+
+# t1 is still InnoDB table
+SHOW CREATE TABLE t1;
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema != 'mysql'");
+
+# Check error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text = Found drop committed tmp table.
+--let $assert_select = DROP TABLE IF EXISTS `#sql.*
+--let $assert_count = 2
+--source include/assert_grep.inc
+--let $assert_text = Found parallel copy ddl failed.
+--let $assert_select = .* Parallel copy DDL failed, table: #sql-.*
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--exec echo "" > $assert_file
+SET SESSION DEBUG = 'reset';
+SET SESSION DEBUG = '+d, simulate_parallel_copy_ddl_failed_after_rename';
+--error ER_UNKNOWN_ERROR
+ALTER TABLE t1 ENGINE = DuckDB;
+
+# t1 is still InnoDB table
+SHOW CREATE TABLE t1;
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema != 'mysql'");
+
+# Check error log
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text = Found drop committed tmp table.
+--let $assert_select = DROP TABLE IF EXISTS `#sql.*
+--let $assert_count = 1
+--source include/assert_grep.inc
+--let $assert_text = Found drop committed t1 table.
+--let $assert_select = DROP TABLE IF EXISTS `t1`
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+
+--echo #
+--echo # 3. Simulate crash when execute parallel COPY DDL, tmp table will be committed and left in DuckDB.
+--echo #
+DROP TABLE t1;
+CREATE TABLE `t1` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+  col1 VARCHAR(20) NOT NULL,
+  col2 CHAR(10) DEFAULT 'duckdb',
+  col3 DECIMAL(5,2) DEFAULT NULL,
+  col4 DATETIME DEFAULT NULL,
+  col5 TIMESTAMP NULL DEFAULT NULL,
+  col6 BLOB
+) ENGINE = InnoDB;
+
+INSERT INTO t1 (col1, col2, col3, col4, col5, col6) VALUES ('abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+
+SET SESSION DEBUG = 'reset';
+SET SESSION DEBUG = '+d, simulate_parallel_copy_ddl_crash';
+--source include/expect_crash.inc
+--error 2013
+ALTER TABLE t1 ENGINE = DuckDB;
+
+--source include/start_mysqld.inc
+
+# t1 is still InnoDB table but #sql- is left in DuckDB, and we should do a manual cleanup
+SHOW CREATE TABLE t1;
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_NAME = 't1'");
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_NAME LIKE '#sql-%'");
+
+DROP TABLE t1;
+CALL dbms_duckdb.query("DROP SCHEMA `test` CASCADE");
+CALL dbms_duckdb.query("CREATE SCHEMA `test`");
+
+--disable_query_log
+call mtr.add_suppression(".* Parallel copy DDL failed.*");
+--enable_query_log

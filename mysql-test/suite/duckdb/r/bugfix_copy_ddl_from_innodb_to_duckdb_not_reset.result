@@ -1,0 +1,105 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1) IN THE SLAVE, DISABLE THE 'force_innodb_to_duckdb' VARIABLE.
+#
+include/rpl/sync.inc
+[connection slave]
+SET GLOBAL force_innodb_to_duckdb = OFF;
+#
+# 2) IN THE MASTER, CREATE INNODB TABLE IN MASTER, AND INSERT SOME DATA
+#
+[connection master]
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT, name CHAR(120), PRIMARY KEY (id)) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` char(120) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (1, 'one');
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2048
+#
+# 3) IN THE SLAVE, ENABLE THE 'force_innodb_to_duckdb' VARIABLE
+#
+include/rpl/sync.inc
+[connection slave]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` char(120) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3062 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2048
+SET GLOBAL force_innodb_to_duckdb = ON;
+#
+# 4) IN THE MASTER, ISSUE A COPY DDL
+#
+[connection master]
+ALTER TABLE t1 MODIFY COLUMN name VARCHAR(512);
+#
+# 4) IN THE SLAVE, DISABLE THE 'force_innodb_to_duckdb' VARIABLE
+#
+include/rpl/sync.inc
+[connection slave]
+SET GLOBAL force_innodb_to_duckdb = OFF;
+#
+# 5) IN THE MASTER, REPEAT THE 'create table + insert data + copy ddl' ROUTINE
+#
+[connection master]
+DROP TABLE t1;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT, name CHAR(120), PRIMARY KEY (id)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+ALTER TABLE t1 MODIFY COLUMN name VARCHAR(512);
+#
+# 6) IN THE SLAVE, CHECK THE TABLE AND DATA
+#
+include/rpl/sync.inc
+[connection slave]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(512) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=3062 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+2048
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+SET GLOBAL force_innodb_to_duckdb = default;
+include/rpl/sync.inc
+include/rpl/deinit.inc

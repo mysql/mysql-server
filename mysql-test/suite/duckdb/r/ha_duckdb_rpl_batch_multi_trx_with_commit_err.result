@@ -1,0 +1,80 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+###########################################################################
+# 0. Prepare
+###########################################################################
+[connection master]
+SET autocommit = 1;
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+c0 VARCHAR(20) NOT NULL,
+c1 CHAR(10) DEFAULT 'duckdb',
+PRIMARY KEY(id, c0)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  PRIMARY KEY (`id`,`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+ALTER TABLE t1 ENGINE=DuckDB;
+CALL dbms_duckdb.query("ALTER TABLE test.t1 ADD PRIMARY KEY (id, c0)");
+RESULT
+Success	
+BOOLEAN	
+[ Rows: 0]
+
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  PRIMARY KEY (`id`,`c0`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# 1. Test Slave SQL Thread encountered an error during commit
+###########################################################################
+# 1.1 Insert some data and sync
+[connection master]
+INSERT INTO t1 (id, c0, c1) VALUES (1, 'abc', NULL);
+FLUSH LOGS;
+UPDATE t1 SET c1='AliSQL' WHERE id=1;
+FLUSH LOGS;
+# 1.2 Sync and stop replica, then inject commit error
+include/rpl/sync.inc
+[connection slave]
+STOP REPLICA;
+[connection master]
+UPDATE t1 SET c1='DuckDB' WHERE id=1;
+FLUSH LOGS;
+# 1.3 DuckDB fails when committing due to injected error
+[connection slave]
+CALL mtr.add_suppression("MY-010583");
+CALL mtr.add_suppression("MY-010584");
+CALL mtr.add_suppression("MY-010586");
+SET GLOBAL DEBUG='+d,duckdb_inject_commit_error';
+START REPLICA;
+include/rpl/wait_for_applier_to_stop.inc
+# 1.4 Remove the error injection and restart replica
+[connection slave]
+SET GLOBAL DEBUG='-d,duckdb_inject_commit_error';
+START REPLICA;
+include/rpl/sync.inc
+# 1.5 Check the result
+include/rpl/diff.inc
+###########################################################################
+# 2. Cleanup
+###########################################################################
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

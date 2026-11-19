@@ -1,0 +1,105 @@
+
+# Test for multiple tables and multiple threads
+--echo #
+--echo # 1) Prepare
+--echo #
+perl;
+use strict;
+use warnings;
+
+my $num_dbs = 10;
+my $num_tables_per_db = 50;
+my $dir = $ENV{'MYSQL_TMP_DIR'};
+my $output_file_1 = "$dir/create_databases_and_tables.inc";
+my $output_file_2 = "$dir/drop_duckdb_schema.inc";
+my $output_file_3 = "$dir/drop_database.inc";
+
+open(my $fh1, '>', $output_file_1) or die "fail to create '$output_file_1': $!";
+print $fh1 "--disable_query_log\n";
+for my $db_idx (1..$num_dbs) {
+    my $db_name = "db$db_idx";
+    print $fh1 "CREATE DATABASE $db_name;\n";
+    print $fh1 "USE $db_name;\n";
+
+    for my $table_idx (0..$num_tables_per_db-1) {
+        my $table_name = "t$table_idx";
+        print $fh1 "CREATE TABLE $table_name(a INT PRIMARY KEY);\n";
+    }
+
+    print $fh1 "\n";
+}
+print $fh1 "--enable_query_log\n";
+print $fh1 "--echo Create table done.\n";
+close($fh1);
+
+open(my $fh2, '>', $output_file_2) or die "fail to create '$output_file_2': $!";
+print $fh2 "--disable_query_log\n";
+print $fh2 "--disable_result_log\n";
+for my $db_idx (1..$num_dbs) {
+    my $db_name = "db$db_idx";
+    print $fh2 "CALL dbms_duckdb.query(\"DROP SCHEMA IF EXISTS $db_name\");\n"
+}
+print $fh2 "--enable_result_log\n";
+print $fh2 "--enable_query_log\n";
+print $fh2 "--echo Drop DuckDB schema done.\n";
+close($fh2);
+
+open(my $fh3, '>', $output_file_3) or die "fail to create '$output_file_3': $!";
+print $fh3 "--disable_query_log\n";
+for my $db_idx (1..$num_dbs) {
+    my $db_name = "db$db_idx";
+    print $fh3 "DROP DATABASE $db_name;\n"
+}
+print $fh3 "--enable_query_log\n";
+print $fh3 "--echo Drop database done.\n";
+close($fh3);
+EOF
+
+--write_file $MYSQL_TMP_DIR/get_duckdb_tables.inc
+  SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name LIKE 'db%';
+  CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name LIKE 'db%'");
+  SELECT COUNT(*) FROM information_schema.tables WHERE ENGINE = 'DuckDB';
+  CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema LIKE 'db%'");
+EOF
+
+
+--echo #
+--echo # 2) RESTART WITH duckdb_convert_all_at_startup=ON, DuckDB schemas will not be created because of they already exist.
+--echo #
+--source $MYSQL_TMP_DIR/create_databases_and_tables.inc
+--source $MYSQL_TMP_DIR/get_duckdb_tables.inc
+--let restart_parameters="restart: --duckdb_convert_all_at_startup=ON"
+--source include/restart_mysqld.inc
+
+--let $wait_condition= SELECT VARIABLE_VALUE = "FINISHED" FROM performance_schema.global_status WHERE VARIABLE_NAME = 'DuckDB_convert_stage_at_startup'
+--source include/wait_condition.inc
+
+--source $MYSQL_TMP_DIR/get_duckdb_tables.inc
+
+--source $MYSQL_TMP_DIR/drop_database.inc
+
+
+--echo #
+--echo # 3) RESTART WITH duckdb_convert_all_at_startup=ON, we drop all DuckDB schemas and they will be created.
+--echo #
+--source $MYSQL_TMP_DIR/create_databases_and_tables.inc
+--source $MYSQL_TMP_DIR/drop_duckdb_schema.inc
+--source $MYSQL_TMP_DIR/get_duckdb_tables.inc
+--let restart_parameters="restart: --duckdb_convert_all_at_startup=ON"
+--source include/restart_mysqld.inc
+
+--let $wait_condition= SELECT VARIABLE_VALUE = "FINISHED" FROM performance_schema.global_status WHERE VARIABLE_NAME = 'DuckDB_convert_stage_at_startup'
+--source include/wait_condition.inc
+
+--source $MYSQL_TMP_DIR/get_duckdb_tables.inc
+
+--source $MYSQL_TMP_DIR/drop_database.inc
+
+
+--echo #
+--echo # 4) CLEANUP
+--echo #
+--remove_file $MYSQL_TMP_DIR/create_databases_and_tables.inc
+--remove_file $MYSQL_TMP_DIR/drop_duckdb_schema.inc
+--remove_file $MYSQL_TMP_DIR/drop_database.inc
+--remove_file $MYSQL_TMP_DIR/get_duckdb_tables.inc

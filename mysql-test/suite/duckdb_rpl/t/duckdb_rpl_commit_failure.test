@@ -1,0 +1,260 @@
+--source include/have_binlog_format_mixed.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # Init
+--echo #
+CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY, c2 VARCHAR(200)) ENGINE = DUCKDB;
+
+# MySQL removed the primary key for duckdb engine automatically, we need to
+# add the primary key back. Thus it can trigger an error at commit
+call dbms_duckdb.query("DROP TABLE test.t1");
+call dbms_duckdb.query("CREATE TABLE test.t1(c1 INT NOT NULL PRIMARY KEY, c2 VARCHAR(200))");
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+call dbms_duckdb.query("DROP TABLE test.t1");
+call dbms_duckdb.query("CREATE TABLE test.t1(c1 INT NOT NULL PRIMARY KEY, c2 VARCHAR(200))");
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES(1, "1"), (2, "2"), (3, "3");
+
+--echo #
+--echo # Use a single INSERT transaction to trigger duplicate key error at
+--echo # commit, when error happens at DuckDB engine commit, the generated
+--echo # binlog events are truncated from binlog file and the
+--echo # transaction is rolled back.
+--echo #
+--let $binlog_file = query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $binlog_start = query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+
+--source include/rpl/connection_source1.inc
+
+SET debug = "d,duckdb_prepare_skip_flush";
+SET debug_sync = "after_binlog_sync SIGNAL binlog_flushed WAIT_FOR continue";
+--send INSERT INTO t1 VALUES(3, "duplicate key")
+
+--source include/rpl/connection_source.inc
+SET debug_sync = "now WAIT_FOR binlog_flushed";
+# Though the transaction's events is written, it should not see it.
+# Note: Since there is a bug on show binlog events, so show binlog events will
+# show the events of the uncommented transaction.
+--source include/rpl/deprecated/show_binlog_events.inc
+
+--echo
+--echo # mysqlbinlog can see the events.
+--let $MYSQLD_DATADIR = `select @@datadir`
+--let $binlog_position = $binlog_start
+--let $binlog_fullpath = $MYSQLD_DATADIR/$binlog_file
+--let $mysqlbinlog_parameters= --short-form
+--source include/rpl/mysqlbinlog.inc
+--echo
+SET debug_sync = "now SIGNAL continue";
+
+--source include/rpl/connection_source1.inc
+--error ER_DUCKDB_COMMIT_ERROR # DuckDB Duplicate Key
+--reap
+SELECT * FROM t1;
+
+--echo
+--echo # The binlog events is truncated.
+--let $binlog_position = $binlog_start
+--let $binlog_fullpath = $MYSQLD_DATADIR/$binlog_file
+--source include/rpl/mysqlbinlog.inc
+--echo
+
+--let $rpl_diff_statement= SELECT * FROM t1 ORDER BY c1
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_source1.inc
+INSERT INTO t1 VALUES(4, "4");
+SELECT * FROM t1;
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES(5, "5");
+SELECT * FROM t1;
+
+--let $server_uuid=`SELECT @@server_uuid`
+--replace_column 4 #
+--replace_result $server_uuid SERVER_UUID
+--replace_regex /Server ver.*/Server ver: #.#.#/ /xid=[0-9]* /xid=#/
+SHOW BINLOG EVENTS;
+
+--source include/rpl/diff.inc
+
+--echo #
+--echo # Same to above test but the INSERT in a multiple statement transaction.
+--echo # COMMIT will trigger the duplicate key error.
+--echo # when error happens at DuckDB engine commit, the generated binlog events
+--echo # is truncated from binlog file and the transaction is rolled back.
+--echo #
+--source include/rpl/connection_source1.inc
+--let $binlog_file = query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $binlog_start = query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+
+BEGIN;
+UPDATE t1 SET c2 = "test";
+INSERT INTO t1 VALUES(4, "duplicate key");
+SELECT * FROM t1;
+
+SET debug = "d,duckdb_prepare_skip_flush";
+SET debug_sync = "after_binlog_sync SIGNAL binlog_flushed WAIT_FOR continue";
+--send COMMIT
+
+--source include/rpl/connection_source.inc
+SET debug_sync = "now WAIT_FOR binlog_flushed";
+# Though the transaction's events is written, it should not see it.
+# Note: Since there is a bug on show binlog events, so show binlog events will
+# show the events of the uncommented transaction.
+--source include/rpl/deprecated/show_binlog_events.inc
+--echo
+--echo # mysqlbinlog can see the events.
+--let $binlog_position = $binlog_start
+--let $binlog_fullpath = $MYSQLD_DATADIR/$binlog_file
+--source include/rpl/mysqlbinlog.inc
+--echo
+
+SET debug_sync = "now SIGNAL continue";
+
+--source include/rpl/connection_source1.inc
+--error ER_DUCKDB_COMMIT_ERROR # DuckDB Duplicate Key
+--reap
+SELECT * FROM t1;
+--echo
+--echo # The binlog events is truncated.
+--let $binlog_position = $binlog_start
+--let $binlog_fullpath = $MYSQLD_DATADIR/$binlog_file
+--source include/rpl/mysqlbinlog.inc
+--echo
+--source include/rpl/diff.inc
+
+# Test FLUSH BINARY LOGS works well.
+FLUSH BINARY LOGS;
+
+INSERT INTO t1 VALUES(6, "6");
+SELECT * FROM t1;
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES(7, "7");
+SELECT * FROM t1;
+
+--let $binlog_file = query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--replace_column 4 #
+--replace_result $server_uuid SERVER_UUID
+--replace_regex /Server ver.*/Server ver: #.#.#/ /xid=[0-9]*/xid=#/
+eval SHOW BINLOG EVENTS IN '$binlog_file';
+
+--source include/rpl/diff.inc
+
+SET debug = "+d,simulate_duckdb_commit_failed";
+--error ER_DUCKDB_COMMIT_ERROR # duckdb commit failure
+ALTER TABLE t1 ADD COLUMN c3 INT;
+SHOW CREATE TABLE t1;
+SET debug = "-d,simulate_duckdb_commit_failed";
+--source include/rpl/diff.inc
+
+--echo #
+--echo # Simulate failed to insert duckdb_binlog_position on master
+--echo #
+--let $binlog_file = query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $binlog_start = query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+
+CALL dbms_duckdb.query("ALTER TABLE mysql.duckdb_binlog_position RENAME TO duckdb_binlog_position_bk");
+--error ER_DUCKDB_COMMIT_ERROR
+INSERT INTO t1 VALUES(8, "8");
+SELECT * FROM t1 WHERE c1 = 8;
+
+--source include/rpl/deprecated/show_binlog_events.inc
+--echo
+--echo # mysqlbinlog can see the events.
+--let $binlog_position = $binlog_start
+--let $binlog_fullpath = $MYSQLD_DATADIR/$binlog_file
+--source include/rpl/mysqlbinlog.inc
+--echo
+
+CALL dbms_duckdb.query("ALTER TABLE mysql.duckdb_binlog_position_bk RENAME TO duckdb_binlog_position");
+
+SET debug = "-d,simulate_insert_duckdb_binlog_position_failed";
+--source include/rpl/sync.inc
+
+--echo #
+--echo # Simulate failed to insert duckdb_binlog_position on slave
+--echo #
+--source include/rpl/connection_replica.inc
+--let $MYSQLD_DATADIR = `select @@datadir`
+--let $binlog_file = query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $binlog_start = query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+
+CALL dbms_duckdb.query("ALTER TABLE mysql.duckdb_binlog_position RENAME TO duckdb_binlog_position_bk");
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES(8, "8");
+
+--source include/rpl/connection_replica.inc
+--let $slave_sql_errno = 7511
+--source include/rpl/wait_for_applier_error.inc
+SELECT * FROM t1 WHERE c1 = 8;
+--source include/rpl/deprecated/show_binlog_events.inc
+--echo
+--echo # mysqlbinlog can see the events.
+--let $binlog_position = $binlog_start
+--let $binlog_fullpath = $MYSQLD_DATADIR/$binlog_file
+--source include/rpl/mysqlbinlog.inc
+--echo
+
+CALL dbms_duckdb.query("ALTER TABLE mysql.duckdb_binlog_position_bk RENAME TO duckdb_binlog_position");
+--source include/rpl/start_applier.inc
+--source include/rpl/sync.inc
+SELECT * FROM t1 WHERE c1 = 8;
+--source include/rpl/deprecated/show_binlog_events.inc
+--echo
+--echo # mysqlbinlog can see the events.
+--let $binlog_position = $binlog_start
+--let $binlog_fullpath = $MYSQLD_DATADIR/$binlog_file
+--source include/rpl/mysqlbinlog.inc
+--echo
+
+
+--echo #
+--echo # Simulate failed to commit duckdb engine on slave
+--echo #
+--source include/rpl/stop_applier.inc
+SET GLOBAL debug = "+d,simulate_duckdb_commit_failed";
+--source include/rpl/start_applier.inc
+--let $binlog_file = query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $binlog_start = query_get_value("SHOW BINARY LOG STATUS", Position, 1)
+
+--source include/rpl/connection_source.inc
+ALTER TABLE t1 ADD COLUMN c3 INT;
+
+--source include/rpl/connection_replica.inc
+--let $slave_sql_errno = 7511
+--source include/rpl/wait_for_applier_error.inc
+SHOW CREATE TABLE t1;
+--source include/rpl/deprecated/show_binlog_events.inc
+--echo
+--echo # mysqlbinlog can see the events.
+--let $binlog_position = $binlog_start
+--let $binlog_fullpath = $MYSQLD_DATADIR/$binlog_file
+--source include/rpl/mysqlbinlog.inc
+--echo
+
+SET GLOBAL debug = "-d,simulate_duckdb_commit_failed";
+--source include/rpl/start_applier.inc
+--source include/rpl/sync.inc
+SHOW CREATE TABLE t1;
+--source include/rpl/deprecated/show_binlog_events.inc
+--echo
+--echo # mysqlbinlog can see the events.
+--let $binlog_position = $binlog_start
+--let $binlog_fullpath = $MYSQLD_DATADIR/$binlog_file
+--source include/rpl/mysqlbinlog.inc
+--echo
+
+CALL mtr.add_suppression("Worker 1 failed executing transaction");
+CALL mtr.add_suppression("The replica coordinator and worker threads are stopped");
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/deinit.inc

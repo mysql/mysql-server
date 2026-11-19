@@ -1,0 +1,113 @@
+#
+# 1) DROP generated column and its dependency together
+#
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+col1 INT,
+col2 INT,
+vcol1 INT GENERATED ALWAYS AS (col1 + col2) STORED
+) ENGINE=DuckDB;
+INSERT INTO t1 (id, col1, col2) VALUES (1, 10, 20), (2, 30, 40);
+SELECT * FROM t1;
+id	col1	col2	vcol1
+1	10	20	30
+2	30	40	70
+ALTER TABLE t1 DROP COLUMN vcol1, DROP COLUMN col1;
+SELECT * FROM t1;
+id	col2
+1	20
+2	40
+INSERT INTO t1 (id, col2) VALUES (3, 50);
+SELECT * FROM t1;
+id	col2
+1	20
+2	40
+3	50
+DROP TABLE t1;
+#
+# 2) Drop base column listed before generated column (main bug scenario)
+#
+CREATE TABLE t2 (
+id INT PRIMARY KEY,
+a INT,
+b INT,
+gc INT GENERATED ALWAYS AS (a + b) STORED
+) ENGINE=DuckDB;
+INSERT INTO t2 (id, a, b) VALUES (1, 1, 2), (2, 3, 4);
+SELECT * FROM t2;
+id	a	b	gc
+1	1	2	3
+2	3	4	7
+ALTER TABLE t2 DROP COLUMN a, DROP COLUMN gc;
+SELECT * FROM t2;
+id	b
+1	2
+2	4
+DROP TABLE t2;
+#
+# 3) Drop multiple generated columns and their shared dependency
+#
+CREATE TABLE t3 (
+id INT PRIMARY KEY,
+x INT,
+y INT,
+gc1 INT GENERATED ALWAYS AS (x + y) STORED,
+gc2 INT GENERATED ALWAYS AS (x * y) STORED,
+gc3 VARCHAR(100) GENERATED ALWAYS AS (CONCAT(x, '_', y)) STORED
+) ENGINE=DuckDB;
+INSERT INTO t3 (id, x, y) VALUES (1, 5, 6), (2, 7, 8);
+SELECT * FROM t3;
+id	x	y	gc1	gc2	gc3
+1	5	6	11	30	5_6
+2	7	8	15	56	7_8
+ALTER TABLE t3 DROP COLUMN x, DROP COLUMN gc1,
+DROP COLUMN gc2, DROP COLUMN gc3;
+SELECT * FROM t3;
+id	y
+1	6
+2	8
+DROP TABLE t3;
+#
+# 4) Drop only generated columns (no base column dropped)
+#
+CREATE TABLE t4 (
+id INT PRIMARY KEY,
+a INT,
+b INT,
+gc1 INT GENERATED ALWAYS AS (a + b) STORED,
+gc2 INT GENERATED ALWAYS AS (a - b) STORED
+) ENGINE=DuckDB;
+INSERT INTO t4 (id, a, b) VALUES (1, 10, 3);
+SELECT * FROM t4;
+id	a	b	gc1	gc2
+1	10	3	13	7
+ALTER TABLE t4 DROP COLUMN gc1, DROP COLUMN gc2;
+SELECT * FROM t4;
+id	a	b
+1	10	3
+DROP TABLE t4;
+#
+# 5) Drop all generated and all base columns except PK
+#
+CREATE TABLE t5 (
+id INT PRIMARY KEY,
+c1 INT,
+c2 INT,
+vc1 INT GENERATED ALWAYS AS (c1 + c2) STORED,
+vc2 INT GENERATED ALWAYS AS (c1 - c2) STORED
+) ENGINE=DuckDB;
+INSERT INTO t5 (id, c1, c2) VALUES (1, 100, 200);
+SELECT * FROM t5;
+id	c1	c2	vc1	vc2
+1	100	200	300	-100
+ALTER TABLE t5 DROP COLUMN c1, DROP COLUMN c2,
+DROP COLUMN vc1, DROP COLUMN vc2;
+SELECT * FROM t5;
+id
+1
+INSERT INTO t5 (id) VALUES (2);
+SELECT * FROM t5;
+id
+1
+2
+DROP TABLE t5;

@@ -46,6 +46,7 @@
 #include "prealloced_array.h"  // Prealloced_array
 #include "sql/current_thd.h"
 #include "sql/derror.h"
+#include "sql/duckdb/duckdb_table.h"
 #include "sql/item_func.h"
 #include "sql/item_subselect.h"
 #include "sql/lex_symbol.h"
@@ -511,6 +512,8 @@ void LEX::reset() {
       SUPPORTED_IN_BOTH_OPTIMIZERS);
 
   sp_chistics.reset();
+  use_duckdb_computation_engine = false;
+  optimizer_rewrite_enabled = true;
 }
 
 /**
@@ -2979,6 +2982,25 @@ bool db_is_default_db(const char *db, size_t db_len, const THD *thd) {
          thd->db().length == db_len && !memcmp(db, thd->db().str, db_len);
 }
 
+static void swap_column_names_of_unit_and_tmp_table(
+    const mem_root_deque<Item *> &unit_items,
+    const Create_col_name_list &tmp_table_col_names) {
+  if (CountVisibleFields(unit_items) != tmp_table_col_names.size())
+    // check_duplicate_names() will find and report error
+    return;
+  uint fieldnr = 0;
+  for (Item *item : VisibleFields(unit_items)) {
+    const char *s = item->item_name.ptr();
+    size_t l = item->item_name.length();
+    LEX_CSTRING &other_name =
+        const_cast<LEX_CSTRING &>(tmp_table_col_names[fieldnr]);
+    item->item_name.set(other_name.str, other_name.length);
+    other_name.str = s;
+    other_name.length = l;
+    fieldnr++;
+  }
+}
+
 /*.*
   Print table as it should be in join list.
 
@@ -3004,6 +3026,19 @@ void Table_ref::print(const THD *thd, String *str,
         str->append('(');
         derived->print(thd, str, query_type);
         str->append(')');
+      }
+      cmp_name = "";  // Force printing of alias
+    } else if (is_view() && (query_type & QT_DUCKDB_REWRITE)) {
+      if (m_derived_column_names) {
+        swap_column_names_of_unit_and_tmp_table(
+            *derived->get_unit_column_types(), *m_derived_column_names);
+      }
+      str->append('(');
+      derived->print(thd, str, query_type);
+      str->append(')');
+      if (m_derived_column_names) {
+        swap_column_names_of_unit_and_tmp_table(
+            *derived->get_unit_column_types(), *m_derived_column_names);
       }
       cmp_name = "";  // Force printing of alias
     } else {
@@ -3070,7 +3105,7 @@ void Table_ref::print(const THD *thd, String *str,
     if (is_derived() && !common_table_expr())
       print_derived_column_names(thd, str, m_derived_column_names);
 
-    if (index_hints) {
+    if (index_hints && !(query_type & QT_DUCKDB_REWRITE)) {
       List_iterator<Index_hint> it(*index_hints);
       Index_hint *hint;
 
@@ -3455,7 +3490,8 @@ void Query_block::print_values(
     else
       str->append(',');
 
-    if (prefix != nullptr) str->append(prefix);
+    if (prefix != nullptr && !(query_type & QT_DUCKDB_REWRITE))
+      str->append(prefix);
 
     str->append('(');
     bool col_first = true;
@@ -3480,7 +3516,7 @@ void Query_block::print_from_clause(const THD *thd, String *str,
     str->append(STRING_WITH_LEN(" from "));
     /* go through join tree */
     print_join(thd, str, &m_table_nest, query_type);
-  } else if (m_where_cond) {
+  } else if (m_where_cond && !(query_type & QT_DUCKDB_REWRITE)) {
     /*
       "SELECT 1 FROM DUAL WHERE 2" should not be printed as
       "SELECT 1 WHERE 2": the 1st syntax is valid, but the 2nd is not.
@@ -3506,6 +3542,17 @@ void Query_block::print_where_cond(const THD *thd, String *str,
 
 void Query_block::print_group_by(const THD *thd, String *str,
                                  enum_query_type query_type) {
+  if (group_list.elements && (query_type & QT_DUCKDB_REWRITE)) {
+    str->append(STRING_WITH_LEN(" group by "));
+    if (olap == ROLLUP_TYPE) {
+      str->append(STRING_WITH_LEN("rollup("));
+    }
+    print_order(thd, str, group_list.first, query_type);
+    if (olap == ROLLUP_TYPE) {
+      str->append(STRING_WITH_LEN(")"));
+    }
+    return;
+  }
   // group by & olap
   if (group_list.elements) {
     str->append(STRING_WITH_LEN(" group by "));

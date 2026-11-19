@@ -1,0 +1,143 @@
+# name: test/sql/overflow/bigint_overflow.test
+# description: Test handling of overflow bigint; this is tested extra because the multiply overflow detection code is tricky
+# group: [overflow]
+
+statement ok
+PRAGMA enable_verification
+
+query I
+SELECT 251658240::BIGINT * 251658240::BIGINT
+----
+63331869759897600
+
+statement error
+SELECT 251658240::BIGINT * 1080863910568919040::BIGINT
+----
+Out of Range Error: Overflow
+
+statement error
+SELECT 1080863910568919040::BIGINT * 251658240::BIGINT
+----
+Out of Range Error: Overflow
+
+statement error
+SELECT 1080863910568919040::BIGINT * 1080863910568919040::BIGINT
+----
+Out of Range Error: Overflow
+
+query I
+SELECT -1::BIGINT * 9223372036854775807::BIGINT
+----
+-9223372036854775807
+
+statement error
+SELECT -2::BIGINT * 4611686018427387905::BIGINT
+----
+Out of Range Error: Overflow
+
+query I
+SELECT 8589934592::BIGINT * 1073741823::BIGINT
+----
+9223372028264841216
+
+statement error
+SELECT 10737418240::BIGINT * 1073741823::BIGINT
+----
+Out of Range Error: Overflow
+
+query I
+SELECT 1073741823::BIGINT * 8589934592::BIGINT
+----
+9223372028264841216
+
+statement error
+SELECT 1073741823::BIGINT * 10737418240::BIGINT
+----
+Out of Range Error: Overflow
+
+query I
+SELECT 1073741823::BIGINT * 8589934592::BIGINT
+----
+9223372028264841216
+
+# int64_min
+statement error
+SELECT (-9223372036854775808)::BIGINT * 2::BIGINT
+----
+Out of Range Error: Overflow
+
+statement error
+SELECT (-9223372036854775808)::BIGINT * -1::BIGINT
+----
+Out of Range Error: Overflow
+
+statement error
+SELECT -1::BIGINT * (-9223372036854775808)::BIGINT
+----
+Out of Range Error: Overflow
+
+statement error
+SELECT -2::BIGINT * (-9223372036854775808)::BIGINT
+----
+Out of Range Error: Overflow
+
+query I
+SELECT (-9223372036854775808)::BIGINT * 0::BIGINT
+----
+0
+
+query I
+SELECT (-9223372036854775808)::BIGINT * 1::BIGINT
+----
+-9223372036854775808
+
+query I
+SELECT 0::BIGINT * (-9223372036854775808)::BIGINT
+----
+0
+
+query I
+SELECT 1::BIGINT * (-9223372036854775808)::BIGINT
+----
+-9223372036854775808
+
+# int64_min + 1
+statement error
+SELECT (-9223372036854775807)::BIGINT * 2::BIGINT
+----
+Out of Range Error: Overflow
+
+query I
+SELECT (-9223372036854775807)::BIGINT * -1::BIGINT
+----
+9223372036854775807
+
+query I
+SELECT -1::BIGINT * (-9223372036854775807)::BIGINT
+----
+9223372036854775807
+
+statement error
+SELECT -2::BIGINT * (-9223372036854775807)::BIGINT
+----
+Out of Range Error: Overflow
+
+query I
+SELECT (-9223372036854775807)::BIGINT * 0::BIGINT
+----
+0
+
+query I
+SELECT (-9223372036854775807)::BIGINT * 1::BIGINT
+----
+-9223372036854775807
+
+query I
+SELECT 0::BIGINT * (-9223372036854775807)::BIGINT
+----
+0
+
+query I
+SELECT 1::BIGINT * (-9223372036854775807)::BIGINT
+----
+-9223372036854775807

@@ -29,9 +29,14 @@ REPO_ROOT="$(git rev-parse --show-toplevel)"
 CF="$(command -v clang-format-15 || command -v clang-format)"
 
 if [ "$#" -gt 0 ]; then files="$*";
-else files="$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(c|cc|cpp|h|hpp)$' || true)"; fi
+else files="$(git diff --cached --name-only --diff-filter=ACM -- \
+  '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' ':(exclude)extra/duckdb/**')"; fi
 
 [ -z "${files// }" ] && { echo "format: nothing to do"; exit 0; }
-for f in $files; do [ -f "$REPO_ROOT/$f" ] && "$CF" -i --style=file "$REPO_ROOT/$f"; done
+for f in $files; do
+  # The DuckDB archive retains upstream formatting and has a pinned tree hash.
+  case "$f" in extra/duckdb/*) continue ;; esac
+  [ -f "$REPO_ROOT/$f" ] && "$CF" -i --style=file "$REPO_ROOT/$f"
+done
 git add $files 2>/dev/null || true
 echo "format: applied .clang-format to changed C/C++ files"

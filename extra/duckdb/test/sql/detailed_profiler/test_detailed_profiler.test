@@ -1,0 +1,47 @@
+# name: test/sql/detailed_profiler/test_detailed_profiler.test
+# description: Detailed Profiler
+# group: [detailed_profiler]
+
+statement ok
+PRAGMA enable_profiling
+
+statement ok
+PRAGMA profiling_output='__TEST_DIR__/test.txt'
+
+statement ok
+PRAGMA profiling_mode = detailed
+
+statement ok
+CREATE TABLE integers(i INTEGER)
+
+statement ok
+INSERT INTO integers VALUES (3)
+
+statement ok
+SELECT min (i + i) FROM integers
+
+statement ok
+CREATE TABLE exprtest (a INTEGER, b INTEGER)
+
+statement ok
+INSERT INTO exprtest VALUES (42, 10), (43, 100), (NULL, 1), (45, -1)
+
+statement ok
+SELECT min (a + a ) FROM exprtest
+
+statement ok
+SELECT a FROM exprtest WHERE a BETWEEN 43 AND 44
+
+statement ok
+SELECT CASE a WHEN 42 THEN 100 WHEN 43 THEN 200 ELSE 300 END FROM exprtest
+
+statement ok
+PRAGMA profiling_output='__TEST_DIR__/test_2.txt'
+
+# At least one of the lines should contain the word "Optimizer" to verify that we're getting optimizer timings
+query T
+SELECT COUNT(*) > 0
+FROM read_csv('__TEST_DIR__/test.txt', columns={'c': 'VARCHAR'}, delim=NULL, header=0, quote=NULL, escape=NULL, auto_detect = false)
+WHERE contains(c, 'Optimizer');
+----
+true

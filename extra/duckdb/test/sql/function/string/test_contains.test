@@ -1,0 +1,152 @@
+# name: test/sql/function/string/test_contains.test
+# description: Contains test
+# group: [string]
+
+statement ok
+PRAGMA enable_verification
+
+# contains of various lengths
+query IIIIIIIIII
+SELECT CONTAINS('hello world', 'h'),
+       CONTAINS('hello world', 'he'),
+       CONTAINS('hello world', 'hel'),
+       CONTAINS('hello world', 'hell'),
+       CONTAINS('hello world', 'hello'),
+       CONTAINS('hello world', 'hello '),
+       CONTAINS('hello world', 'hello w'),
+       CONTAINS('hello world', 'hello wo'),
+       CONTAINS('hello world', 'hello wor'),
+       CONTAINS('hello world', 'hello worl')
+----
+1	1	1	1	1	1	1	1	1	1
+
+query IIIIIIIIII
+SELECT CONTAINS('hello world', 'a'),
+       CONTAINS('hello world', 'ha'),
+       CONTAINS('hello world', 'hea'),
+       CONTAINS('hello world', 'hela'),
+       CONTAINS('hello world', 'hella'),
+       CONTAINS('hello world', 'helloa'),
+       CONTAINS('hello world', 'hello a'),
+       CONTAINS('hello world', 'hello wa'),
+       CONTAINS('hello world', 'hello woa'),
+       CONTAINS('hello world', 'hello wora')
+----
+0	0	0	0	0	0	0	0	0	0
+
+# empty contains
+query III
+select contains('hello', ''), contains('', ''), contains(NULL, '')
+----
+1	1	NULL
+
+statement ok
+CREATE TABLE strings(s VARCHAR, off INTEGER, length INTEGER);
+
+statement ok
+INSERT INTO strings VALUES ('hello', 1, 2), ('world', 2, 3), ('b', 1, 1), (NULL, 2, 2)
+
+# Test first letter
+query T
+SELECT contains(s,'h') FROM strings
+----
+1
+0
+0
+NULL
+
+# Test second letter
+query T
+SELECT contains(s,'e') FROM strings
+----
+1
+0
+0
+NULL
+
+# Test last letter
+query T
+SELECT contains(s,'d') FROM strings
+----
+0
+1
+0
+NULL
+
+# Test multiple letters
+query T
+SELECT contains(s,'he') FROM strings
+----
+1
+0
+0
+NULL
+
+# Test multiple letters in the middle
+query T
+SELECT contains(s,'ello') FROM strings
+----
+1
+0
+0
+NULL
+
+# Test multiple letters at the end
+query T
+SELECT contains(s,'lo') FROM strings
+----
+1
+0
+0
+NULL
+
+# Test no match
+query T
+SELECT contains(s,'he-man') FROM strings
+----
+0
+0
+0
+NULL
+
+# Test matching needle in multiple rows
+query T
+SELECT contains(s,'o') FROM strings
+----
+1
+1
+0
+NULL
+
+# Test NULL constant in different places
+query T
+SELECT contains(NULL,'o') FROM strings
+----
+NULL
+NULL
+NULL
+NULL
+
+query T
+SELECT contains(s,NULL) FROM strings
+----
+NULL
+NULL
+NULL
+NULL
+
+statement error
+SELECT contains(NULL,NULL) FROM strings
+----
+Binder Error: Could not choose a best candidate function
+
+
+# Test empty pattern
+query T
+SELECT contains(s,'') FROM strings
+----
+1
+1
+1
+NULL
+

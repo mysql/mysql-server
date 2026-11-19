@@ -1,0 +1,41 @@
+# === Setup: Create tables and a shared view ===
+CREATE TABLE t1 (id INT PRIMARY KEY, val VARCHAR(100))
+ENGINE=InnoDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, val VARCHAR(100))
+ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
+INSERT INTO t2 VALUES (1, 'c'), (2, 'd');
+CREATE VIEW v1 AS
+SELECT a.id, a.val, b.val AS val2
+FROM t1 a JOIN t2 b ON a.id = b.id;
+# === Restart with debug barrier to trigger deadlock ===
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_at_startup_ignore_error=ON --duckdb_convert_all_at_startup_threads=2 --duckdb_convert_all_skip_mtr_db=ON --log-error=MYSQLD_ERROR_LOG --debug=+d,sync_before_update_view_metadata
+# === Verify all tables converted to DuckDB ===
+SELECT TABLE_NAME, ENGINE
+FROM information_schema.tables
+WHERE TABLE_SCHEMA = 'test'
+    AND TABLE_TYPE = 'BASE TABLE'
+  ORDER BY TABLE_NAME;
+TABLE_NAME	ENGINE
+t1	DUCKDB
+t2	DUCKDB
+SELECT * FROM t1 ORDER BY id;
+id	val
+1	a
+2	b
+SELECT * FROM t2 ORDER BY id;
+id	val
+1	c
+2	d
+SET duckdb_sql_normalization = on;
+SELECT * FROM v1 ORDER BY id;
+id	val	val2
+1	a	c
+2	b	d
+# === Verify error log ===
+include/assert_grep.inc [MDL deadlock detected during parallel conversion]
+include/assert_grep.inc [Retry was triggered for failed tables]
+include/assert_grep.inc [No tables failed after retry]
+# === Cleanup ===
+DROP VIEW v1;
+DROP TABLE t1, t2;

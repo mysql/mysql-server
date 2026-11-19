@@ -1,0 +1,548 @@
+# name: test/sql/window/test_streaming_window.test
+# description: Streaming window functions
+# group: [window]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+PRAGMA explain_output = PHYSICAL_ONLY;
+
+statement ok
+create table integers (i int, j int)
+
+statement ok
+insert into integers values (2, 2), (2, 1), (1, 2), (1, NULL)
+
+# Unsupported aggregates
+query TT
+EXPLAIN
+SELECT i, COUNT(*) OVER() FROM integers;
+----
+physical_plan	<!REGEX>:.*STREAMING_WINDOW.*
+
+query TT
+EXPLAIN
+SELECT i, SUM(i) OVER() FROM integers;
+----
+physical_plan	<!REGEX>:.*STREAMING_WINDOW.*
+
+query TT
+EXPLAIN
+SELECT j, COUNT(j) FILTER(WHERE i = 2) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query TT
+EXPLAIN
+SELECT j, COUNT(*) FILTER(WHERE i = 2) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query TT
+EXPLAIN
+SELECT j, SUM(j) FILTER(WHERE i = 2) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+# Test each of the streaming window functions
+query TT
+explain select row_number() over (), i, j from integers
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query TTT
+select row_number() over (), i, j from integers
+----
+1	2	2
+2	2	1
+3	1	2
+4	1	NULL
+
+query TT
+explain select rank() over (), i, j from integers
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query TTT
+select rank() over (), i, j from integers
+----
+1	2	2
+1	2	1
+1	1	2
+1	1	NULL
+
+query TT
+explain select dense_rank() over (), i, j from integers
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query TTT
+select dense_rank() over (), i, j from integers
+----
+1	2	2
+1	2	1
+1	1	2
+1	1	NULL
+
+query TT
+explain select percent_rank() over (), i, j from integers
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query TTT
+select percent_rank() over (), i, j from integers
+----
+0.0	2	2
+0.0	2	1
+0.0	1	2
+0.0	1	NULL
+
+query TT
+EXPLAIN
+SELECT i, LAG(i, 1) OVER() AS i1
+FROM range(10) tbl(i);
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query II
+SELECT i, LAG(i, 1) OVER() AS i1
+FROM range(10) tbl(i);
+----
+0	NULL
+1	0
+2	1
+3	2
+4	3
+5	4
+6	5
+7	6
+8	7
+9	8
+
+query TT
+EXPLAIN
+SELECT i, LAG(i, -1) OVER() AS i1
+FROM range(10) tbl(i);
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query TT
+SELECT i, LAG(i, -1) OVER() AS i1
+FROM range(10) tbl(i);
+----
+0	1
+1	2
+2	3
+3	4
+4	5
+5	6
+6	7
+7	8
+8	9
+9	NULL
+
+query TT
+EXPLAIN
+SELECT i, LEAD(i, -1) OVER() AS i1
+FROM range(10) tbl(i);
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query II
+SELECT i, LEAD(i, -1) OVER() AS i1
+FROM range(10) tbl(i);
+----
+0	NULL
+1	0
+2	1
+3	2
+4	3
+5	4
+6	5
+7	6
+8	7
+9	8
+
+query TT
+EXPLAIN
+SELECT i, LEAD(i, 1) OVER() AS i1
+FROM range(10) tbl(i);
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query TT
+SELECT i, LEAD(i, 1) OVER() AS i1
+FROM range(10) tbl(i);
+----
+0	1
+1	2
+2	3
+3	4
+4	5
+5	6
+6	7
+7	8
+8	9
+9	NULL
+
+# Test running aggregates
+query TT
+EXPLAIN
+SELECT i, COUNT(*) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query II
+SELECT i, COUNT(*) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+2	1
+2	2
+1	3
+1	4
+
+query TT
+EXPLAIN
+SELECT i, COUNT(*) FILTER(WHERE i = 2) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query II
+SELECT i, COUNT(*) FILTER(WHERE i = 2) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+2	1
+2	2
+1	2
+1	2
+
+query TT
+EXPLAIN
+SELECT j, COUNT(j) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query II
+SELECT j, COUNT(j) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+2	1
+1	2
+2	3
+NULL	3
+
+query TT
+EXPLAIN
+SELECT i, SUM(i) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query TT
+EXPLAIN
+SELECT i, SUM(i) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query II
+SELECT i, SUM(i) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) FROM integers;
+----
+2	2
+2	4
+1	5
+1	6
+
+query TT
+EXPLAIN
+SELECT SUM(s) FROM (
+	SELECT SUM(i) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) s
+	FROM range(5000) tbl(i)
+);
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query I
+SELECT SUM(s) FROM (
+	SELECT SUM(i) OVER(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) s
+	FROM range(5000) tbl(i)
+);
+----
+20833332500
+
+# Some combinations of compatible window functions
+query TT
+explain select i, j, first_value(i) over (), first_value(j) over () from integers
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query TTTT
+select i, j, first_value(i) over (), first_value(j) over () from integers
+----
+2	2	2	2
+2	1	2	2
+1	2	2	2
+1	NULL	2	2
+
+query TTT
+select row_number() over (), first_value(i) over (), first_value(j) over () from integers
+----
+1	2	2
+2	2	2
+3	2	2
+4	2	2
+
+query TT
+select row_number() over (), row_number() over () from integers
+----
+1	1
+2	2
+3	3
+4	4
+
+# Ignore nulls is not supported for streaming windows except for running totals
+query TT
+explain select first_value(i IGNORE NULLS) over () from integers
+----
+physical_plan	<!REGEX>:.*STREAMING_WINDOW.*
+
+query TT
+explain select first_value(i IGNORE NULLS) over (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+from integers
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+query TT
+explain select last_value(i IGNORE NULLS) over () from integers
+----
+physical_plan	<!REGEX>:.*STREAMING_WINDOW.*
+
+query TT
+explain select last_value(i IGNORE NULLS) over (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) 
+from integers
+----
+physical_plan	<REGEX>:.*STREAMING_WINDOW.*
+
+
+# First value NULL
+query II
+SELECT s,
+	first(s IGNORE NULLS) over(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+FROM (VALUES (NULL), ('A'), (NULL), ('B')) t(s)
+----
+NULL	NULL
+A	A
+NULL	A
+B	A
+
+query II
+SELECT s,
+	last(s IGNORE NULLS) over(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+FROM (VALUES (NULL), ('A'), (NULL), ('B')) t(s)
+----
+NULL	NULL
+A	A
+NULL	A
+B	B
+
+# First value defined
+query II
+SELECT s,
+	last(s IGNORE NULLS) over(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+FROM (VALUES ('A'), (NULL), ('B'), (NULL)) t(s)
+----
+A	A
+NULL	A
+B	B
+NULL	B
+
+query II
+SELECT s,
+	first(s IGNORE NULLS) over(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+FROM (VALUES ('A'), (NULL), ('B'), (NULL)) t(s)
+----
+A	A
+NULL	A
+B	A
+NULL	A
+
+# Multiple blocks
+query III
+WITH alternate AS (
+	SELECT 
+		range r,
+		IF(range % 2, range, NULL) s
+	FROM range(3000)
+)
+SELECT 
+	r,
+	s,
+	last(s IGNORE NULLS) over(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) l
+FROM alternate
+QUALIFY l <> r - ((r + 1) % 2)
+----
+
+query III
+WITH alternate AS (
+	SELECT 
+		range r,
+		IF(range < 2100, NULL, range) s
+	FROM range(3000)
+)
+SELECT 
+	r,
+	s,
+	first(s IGNORE NULLS) over(ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) f
+FROM alternate
+QUALIFY (f IS NOT NULL AND r < 2100)
+     OR (f IS NULL AND r >= 2100)
+----
+
+#
+query TT
+explain select first_value(i) over (), last_value(i) over () from integers
+----
+physical_plan	<REGEX>:.* WINDOW .*STREAMING_WINDOW.*
+
+query TT
+explain select last_value(i) over (), first_value(i) over () from integers
+----
+physical_plan	<REGEX>:.* WINDOW .*STREAMING_WINDOW.*
+
+query TT
+explain select first_value(i) over (), last_value(i) over (order by j) from integers
+----
+physical_plan	<REGEX>:.* WINDOW .*STREAMING_WINDOW.*
+
+query TT
+explain select last_value(i) over (order by j), first_value(i) over () from integers
+----
+physical_plan	<REGEX>:.* WINDOW .*STREAMING_WINDOW.*
+
+#
+# Global state tests from #3275
+#
+
+# Original UNION ALL bug
+statement ok
+CREATE TABLE v1(id bigint);
+
+statement ok
+CREATE TABLE v2(id bigint);
+
+statement ok
+INSERT INTO v1 VALUES (11),  (12),  (13);
+
+statement ok
+INSERT INTO v2 VALUES (21),  (22);
+
+statement ok
+CREATE VIEW vertices_view AS
+  SELECT * FROM v1
+  UNION ALL
+  SELECT * FROM v2;
+
+query II
+SELECT id AS sparse_id, row_number() OVER () AS rnum
+FROM vertices_view;
+----
+11	1
+12	2
+13	3
+21	4
+22	5
+
+# Recursive CTE
+query II
+WITH RECURSIVE rte AS (
+	SELECT 1 l, 1::BIGINT r
+	UNION  ALL
+	SELECT l+1, row_number() OVER()
+	FROM rte
+	WHERE l < 3
+)
+SELECT * FROM rte;
+----
+1	1
+2	1
+3	1
+
+# In a prepared statement that is executed multiple times
+statement ok
+PREPARE sw1 AS
+	SELECT i, row_number() OVER() AS row_no
+	FROM range(10, 20) tbl(i)
+	QUALIFY row_no <= ?::BIGINT
+;
+
+query II
+EXECUTE sw1(10);
+----
+10	1
+11	2
+12	3
+13	4
+14	5
+15	6
+16	7
+17	8
+18	9
+19	10
+
+query II
+EXECUTE sw1(2);
+----
+10	1
+11	2
+
+# Struct Slicing
+query I
+from (values ({'key': 'A'}), ({'key': 'B'}), ({'key': 'C'}))
+select
+   list(col0) over (rows between unbounded preceding and current row) as result
+----
+[{'key': A}]
+[{'key': A}, {'key': B}]
+[{'key': A}, {'key': B}, {'key': C}]
+
+# Reset argument test (fails in debug)
+statement ok
+CREATE TABLE issue17621(i INT, j INT, k INT);
+
+statement ok
+INSERT INTO issue17621 VALUES (1,1,1),
+	(1,4,1),
+	(1,2,1),
+	(1,4,1),
+	(1,4,1),
+	(1,1,2),
+	(1,4,2),
+	(1,2,2),
+	(1,4,2),
+	(1,1,3),
+	(1,4,3),
+	(1,2,3),
+	(1,4,3),
+	(1,1,4),
+	(1,4,4),
+	(1,2,4),
+	(1,4,4);
+
+# No data because scan order is non-deterministic.
+statement ok
+SELECT 
+	k, 
+	STDDEV_POP(i), 
+	SUM(j), 
+	STDDEV_SAMP(k) OVER (ROWS UNBOUNDED PRECEDING) std_wf 
+FROM issue17621 
+GROUP BY ROLLUP(k)
+
+# UNION multiple local states
+query II
+WITH start_and_inputs AS (
+    SELECT 50 AS moves
+    UNION ALL
+    SELECT 50 AS moves
+)
+SELECT moves, sum(moves) OVER (ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS sum
+FROM start_and_inputs;
+----
+50	50
+50	100

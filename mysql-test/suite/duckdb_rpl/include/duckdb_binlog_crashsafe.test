@@ -1,0 +1,118 @@
+################################################################################
+#
+# It verify that binlog, InnoDB and DuckDB data are consistent, after crash
+# happens.
+# This test crashes transaction or single statement just after binlog
+# is generated. then restart the server, and show binlog events.
+################################################################################
+--echo #
+--echo # Multiple statement transaction crashs after binlogged but before
+--echo # DuckDB engine is committed.
+--echo #
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+
+BEGIN;
+UPDATE t1 SET c2 = "test" WHERE c1 = 2;
+DELETE FROM t1 WHERE c1 = 3;
+
+--let $crash_stmt = COMMIT
+--let $dbug_point = crash_after_binlog_sync
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+--echo #
+--echo # Single statement transaction crashs after binlogged but before
+--echo # DuckDB engine is committed.
+--echo #
+--let $crash_stmt = INSERT INTO t1 VALUES(4, "4"), (5, "5")
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+--let $crash_stmt = UPDATE t1 SET c2 = "test"
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+--let $crash_stmt = DELETE FROM t1 WHERE c1 = 1
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+--echo #
+--echo # After binlog rotation, it should work well.
+--echo #
+INSERT INTO t1 VALUES(4, "4"), (5, "5");
+FLUSH BINARY LOGS;
+
+--let $crash_stmt = INSERT INTO t1 VALUES(6, "6"), (7, "7")
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+--echo #
+--echo # DDL crashs after binlogged but before DuckDB engine committed.
+--echo #
+INSERT INTO t1 VALUES(6, "6");
+
+--let $crash_stmt = TRUNCATE TABLE t1
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+INSERT INTO t1 VALUES(7, "7");
+
+--let $crash_stmt = ALTER TABLE t1 ADD COLUMN c3 VARCHAR(10)
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+SHOW CREATE TABLE t1;
+
+# This DDL does nothing, it even doesn't open table. so
+# both transaction and statement is inactive state. It will not
+# go through the normal ddl commit logic.
+--let $crash_stmt = ALTER TABLE t1;
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+--echo #
+--echo # Multiple statement transaction crashs after binlogged and
+--echo # DuckDB engine is committed.
+--echo #
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+
+BEGIN;
+UPDATE t1 SET c2 = "test commit" WHERE c1 = 3;
+DELETE FROM t1 WHERE c1 >= 4;
+
+--let $crash_stmt = COMMIT
+--let $dbug_point = crash_after_duckdb_commit
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+--echo #
+--echo # Single statement transaction crashs after binlogged and
+--echo # DuckDB engine is committed.
+--echo #
+--let $crash_stmt = INSERT INTO t1 VALUES(4, "4 commit"), (5, "5")
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+--let $crash_stmt = UPDATE t1 SET c2 = "test commit" WHERE c1 = 2
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+--let $crash_stmt = DELETE FROM t1 WHERE c1 = 5
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+--echo #
+--echo # After binlog rotation, it should work well.
+--echo #
+INSERT INTO t1 VALUES(6, "6"), (7, "7");
+FLUSH BINARY LOGS;
+
+--let $crash_stmt = INSERT INTO t1 VALUES(8, "8 commit"), (9, "9")
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+--echo #
+--echo # DDL crashs after binlogged ander DuckDB engine committed.
+--echo #
+INSERT INTO t1 VALUES(10, "10");
+
+--let $crash_stmt = TRUNCATE TABLE t1
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+
+INSERT INTO t1 VALUES(1, "1");
+
+--let $crash_stmt = ALTER TABLE t1 ADD COLUMN c3 VARCHAR(100);
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc
+SHOW CREATE TABLE t1;
+
+# This DDL does nothing, it even doesn't open table. so
+# both transaction and statement is inactive state. It will not
+# go through the normal ddl commit logic.
+--let $crash_stmt = ALTER TABLE t1;
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.inc

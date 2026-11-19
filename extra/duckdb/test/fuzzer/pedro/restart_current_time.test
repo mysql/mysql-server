@@ -1,0 +1,10 @@
+# name: test/fuzzer/pedro/restart_current_time.test
+# description: Segfault when restarting a system with current time in a check constraint
+# group: [pedro]
+
+load __TEST_DIR__/restart_current_time.db
+
+statement error
+CREATE TABLE t0 (c1 INT, CHECK (CURRENT_TIME >= TIME '00:00:00'));
+----
+Table does not contain column CURRENT_TIME

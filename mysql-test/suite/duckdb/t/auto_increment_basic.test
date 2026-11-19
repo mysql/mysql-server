@@ -1,0 +1,16 @@
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = ON;
+--enable_query_log
+
+--echo ##################################
+--echo # TEST FOR NON-PARTITIONED TABLE #
+--echo ##################################
+--let $extra_def = ENGINE = DuckDB
+--source suite/duckdb/include/auto_increment_basic.inc
+
+--echo
+--echo ##############################
+--echo # TEST FOR PARTITIONED TABLE #
+--echo ##############################
+--let $extra_def = ENGINE = DuckDB PARTITION BY HASH(id) PARTITIONS 4
+--source suite/duckdb/include/auto_increment_basic.inc

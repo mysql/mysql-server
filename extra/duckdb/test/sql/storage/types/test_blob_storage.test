@@ -1,0 +1,32 @@
+# name: test/sql/storage/types/test_blob_storage.test
+# description: Test BLOB with persistent storage
+# group: [types]
+
+# load the DB from disk
+load __TEST_DIR__/blob_storage_test.db
+
+# create a table with hugeints
+statement ok
+CREATE TABLE blobs (b BLOB);
+
+statement ok
+INSERT INTO blobs VALUES('a'), ('\xAA'), ('\xAA\xFF\xAA'),  (''), (NULL), ('\x55\xAA\xFF\x55\xAA\xFF\x55\xAA\xFF\x01'), ('\x55\xAA\xFF\x55\xAA\xFF\x55\xAA\xFF\x01')
+
+# reload the database from disk a few times, and check that the data is still there
+loop i 0 2
+
+restart
+
+query I
+SELECT * FROM blobs
+----
+a
+\xAA
+\xAA\xFF\xAA
+(empty)
+NULL
+U\xAA\xFFU\xAA\xFFU\xAA\xFF\x01
+U\xAA\xFFU\xAA\xFFU\xAA\xFF\x01
+
+endloop
+

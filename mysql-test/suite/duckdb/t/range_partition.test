@@ -1,0 +1,393 @@
+
+CREATE DATABASE IF NOT EXISTS test_partition;
+USE test_partition;
+
+--echo #
+--echo # 1) Convert engine between InnoDB and DuckDB
+--echo #
+# Create InnoDB partition table
+CREATE TABLE t_range (
+    id INT NOT NULL,
+    sale_date DATE NOT NULL,
+    amount DECIMAL(10,2),
+    PRIMARY KEY (id, sale_date)
+)
+PARTITION BY RANGE (YEAR(sale_date)) (
+    PARTITION p0 VALUES LESS THAN (1995),
+    PARTITION p1 VALUES LESS THAN (2005),
+    PARTITION p2 VALUES LESS THAN (2015),
+    PARTITION p3 VALUES LESS THAN (2025)
+);
+
+INSERT INTO t_range VALUES
+(1, '1990-01-01', 100.00),
+(2, '2000-02-01', 200.00),
+(3, '2010-02-01', 300.00),
+(4, '2020-02-01', 400.00);
+
+# Convert to DuckDB
+ALTER TABLE t_range ENGINE = DuckDB;
+SHOW CREATE TABLE t_range;
+
+INSERT INTO t_range VALUES
+(5, '1991-01-01', 500.00),
+(6, '2001-02-01', 600.00),
+(7, '2011-02-01', 700.00),
+(8, '2021-02-01', 800.00);
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+SELECT * FROM t_range PARTITION(p3) ORDER BY id;
+
+
+--echo #
+--echo # 2) Add partition, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_range ENGINE = DuckDB;
+ALTER TABLE t_range ADD PARTITION (
+  PARTITION p4 VALUES LESS THAN (2035)
+);
+SHOW CREATE TABLE t_range;
+
+INSERT INTO t_range VALUES
+(9, '2031-01-01', 900.00);
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+SELECT * FROM t_range PARTITION(p3) ORDER BY id;
+SELECT * FROM t_range PARTITION(p4) ORDER BY id;
+
+
+--echo #
+--echo # 3) Reorganize partition into, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_range ENGINE = DuckDB;
+ALTER TABLE t_range REORGANIZE PARTITION p3, p4 INTO (
+    PARTITION p3_new VALUES LESS THAN (2026),
+    PARTITION p4_new VALUES LESS THAN (2036)
+);
+SHOW CREATE TABLE t_range;
+
+INSERT INTO t_range VALUES
+(10, '2025-01-01', 1000.00),
+(11, '2035-01-01', 1100.00);
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+SELECT * FROM t_range PARTITION(p3_new) ORDER BY id;
+SELECT * FROM t_range PARTITION(p4_new) ORDER BY id;
+
+
+--echo #
+--echo # 4) Rebuild partition, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_range ENGINE = DuckDB;
+ALTER TABLE t_range REBUILD PARTITION ALL;
+SHOW CREATE TABLE t_range;
+
+INSERT INTO t_range VALUES
+(12, '2025-01-02', 1200.00),
+(13, '2035-01-02', 1300.00);
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+SELECT * FROM t_range PARTITION(p3_new) ORDER BY id;
+SELECT * FROM t_range PARTITION(p4_new) ORDER BY id;
+
+
+--echo #
+--echo # 5) Remove partitioning, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_range ENGINE = DuckDB;
+CREATE TABLE t_range_2 LIKE t_range;
+ALTER TABLE t_range_2 REMOVE PARTITIONING;
+SHOW CREATE TABLE t_range_2;
+
+INSERT INTO t_range_2 SELECT * FROM t_range;
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_range_2, Checksum, 1)
+ALTER TABLE t_range_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_range_2;
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_range_2, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+
+--echo #
+--echo # 6) Exchange partition, which is not implemented
+--echo #
+ALTER TABLE t_range_2 ENGINE = DuckDB;
+--error ER_PARTITION_MGMT_ON_NONPARTITIONED # SHXTODO: check_if_incompatible_data is not implemented 
+ALTER TABLE t_range EXCHANGE PARTITION p1 WITH TABLE t_range_2;
+
+
+--echo #
+--echo # 7) Partitioning, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_range_2 PARTITION BY RANGE (YEAR(sale_date)) (
+    PARTITION p0 VALUES LESS THAN (1995),
+    PARTITION p1 VALUES LESS THAN (2005),
+    PARTITION p2 VALUES LESS THAN (2015),
+    PARTITION p3 VALUES LESS THAN (2026),
+    PARTITION p4 VALUES LESS THAN (2036)
+);
+SHOW CREATE TABLE t_range_2;
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_range_2, Checksum, 1)
+ALTER TABLE t_range_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_range_2;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_range_2, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_range_2 PARTITION(p0) ORDER BY id;
+SELECT * FROM t_range_2 PARTITION(p1) ORDER BY id;
+SELECT * FROM t_range_2 PARTITION(p2) ORDER BY id;
+SELECT * FROM t_range_2 PARTITION(p3) ORDER BY id;
+SELECT * FROM t_range_2 PARTITION(p4) ORDER BY id;
+
+
+--echo #
+--echo # 8) Truncate partition, which is deleting all rows in the partition
+--echo #
+ALTER TABLE t_range TRUNCATE PARTITION p4_new;
+SHOW CREATE TABLE t_range;
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+SELECT * FROM t_range PARTITION(p3_new) ORDER BY id;
+SELECT * FROM t_range PARTITION(p4_new) ORDER BY id;
+
+
+--echo #
+--echo # 9) Drop partition, which is deleting all rows in the partition
+--echo #
+ALTER TABLE t_range ENGINE = DuckDB;
+ALTER TABLE t_range DROP PARTITION p3_new;
+SHOW CREATE TABLE t_range;
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+SELECT * FROM t_range PARTITION(p4_new) ORDER BY id;
+
+
+--echo #
+--echo # 10) ADMIN PARTITION
+--echo #
+ALTER TABLE t_range ENGINE = DuckDB;
+# Optimize partition
+ALTER TABLE t_range OPTIMIZE PARTITION p0;
+
+# Analyze partition
+ALTER TABLE t_range ANALYZE PARTITION p0;
+
+# Check partition
+ALTER TABLE t_range CHECK PARTITION p0;
+
+# Repair partition
+ALTER TABLE t_range REPAIR PARTITION p0;
+
+--echo #
+--echo # 11) DML which specify partition
+--echo #
+--error ER_DUCKDB_CLIENT
+SELECT * FROM t_range PARTITION(p0);
+
+# non batch mode + non data import mode
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = OFF;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_range PARTITION(p0) VALUES (999, '2035-01-03', 999.99);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_range PARTITION(p0) WHERE id=1 AND sale_date='1990-01-01';
+--error ER_DUCKDB_CLIENT
+UPDATE t_range PARTITION (p0) SET amount = 999.00 WHERE id = 1;
+
+# non batch mode + data import mode
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = ON;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_range PARTITION(p0) VALUES (999, '2035-01-03', 999.99);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_range PARTITION(p0) WHERE id=1 AND sale_date='1990-01-01';
+--error ER_DUCKDB_DATA_IMPORT_MODE
+UPDATE t_range PARTITION (p0) SET amount = 999.00 WHERE id = 1;
+
+# batch mode + data import mode
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = ON;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_range PARTITION(p0) VALUES (999, '2035-01-03', 999.99);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_range PARTITION(p0) WHERE id=1 AND sale_date='1990-01-01';
+--error ER_DUCKDB_DATA_IMPORT_MODE
+UPDATE t_range PARTITION (p0) SET amount = 999.00 WHERE id = 1;
+
+# batch mode + non data import mode
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = OFF;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_range PARTITION(p0) VALUES (999, '2035-01-03', 999.99);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_range PARTITION(p0) WHERE id=1 AND sale_date='1990-01-01';
+--error ER_DUCKDB_CLIENT
+UPDATE t_range PARTITION (p0) SET amount = 999.00 WHERE id = 1;
+
+
+--echo #
+--echo # 12) Multiple columns range partition is not supported to truncate/drop the medium partition
+--echo #
+--write_file $MYSQL_TMP_DIR/create_multi_cols.inc
+    --disable_query_log
+    --disable_result_log
+    --echo # Create table t_multi_cols;
+    DROP TABLE IF EXISTS t_multi_cols;
+    CREATE TABLE t_multi_cols (a INT, b INT, PRIMARY KEY (a,b)) ENGINE = DuckDB
+    PARTITION BY RANGE COLUMNS (a,b) (
+    PARTITION p0 VALUES LESS THAN (1, 10),
+    PARTITION p1 VALUES LESS THAN (10, 100),
+    PARTITION p2 VALUES LESS THAN (100, MAXVALUE)
+    );
+    INSERT INTO t_multi_cols VALUES (0, 11), (1, 9), (9, 1001), (10, 99), (99, 10001), (100, 9999);
+    --enable_query_log
+    --enable_result_log
+EOF
+
+# The medium partition
+--source $MYSQL_TMP_DIR/create_multi_cols.inc
+--error ER_DUCKDB_QUERY_ERROR
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p1;
+
+# The first/last partition
+--source $MYSQL_TMP_DIR/create_multi_cols.inc
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p0;
+
+--source $MYSQL_TMP_DIR/create_multi_cols.inc
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p2;
+
+--source $MYSQL_TMP_DIR/create_multi_cols.inc
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p0, p2;
+
+# All partitions
+--source $MYSQL_TMP_DIR/create_multi_cols.inc
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p0, p1, p2;
+
+--source $MYSQL_TMP_DIR/create_multi_cols.inc
+ALTER TABLE t_multi_cols TRUNCATE PARTITION ALL;
+
+# The medium partition
+--source $MYSQL_TMP_DIR/create_multi_cols.inc
+--error ER_DUCKDB_QUERY_ERROR
+ALTER TABLE t_multi_cols DROP PARTITION p1;
+
+# The first/last partition
+--source $MYSQL_TMP_DIR/create_multi_cols.inc
+ALTER TABLE t_multi_cols DROP PARTITION p0;
+
+--source $MYSQL_TMP_DIR/create_multi_cols.inc
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p2;
+
+--source $MYSQL_TMP_DIR/create_multi_cols.inc
+ALTER TABLE t_multi_cols DROP PARTITION p0, p2;
+
+
+--echo #
+--echo # 13) Bugfix for convert partition in DDL
+--echo #
+DROP TABLE t_range;
+CREATE TABLE t_range (
+    id INT NOT NULL,
+    sale_date DATE NOT NULL,
+    amount DECIMAL(10,2),
+    PRIMARY KEY (id, sale_date)
+)
+PARTITION BY RANGE (YEAR(sale_date)) (
+    PARTITION p0 VALUES LESS THAN (1995),
+    PARTITION p1 VALUES LESS THAN (2005),
+    PARTITION p2 VALUES LESS THAN (2015),
+    PARTITION p3 VALUES LESS THAN (2025)
+);
+
+SET GLOBAL force_innodb_to_duckdb = ON;
+ALTER TABLE t_range ADD COLUMN a INT;
+SHOW CREATE TABLE t_range;
+SET GLOBAL force_innodb_to_duckdb = OFF;
+
+
+--echo #
+--echo # 14) Cleanup
+--echo #
+--remove_file $MYSQL_TMP_DIR/create_multi_cols.inc
+SET GLOBAL duckdb_dml_in_batch = default;
+DROP DATABASE test_partition;

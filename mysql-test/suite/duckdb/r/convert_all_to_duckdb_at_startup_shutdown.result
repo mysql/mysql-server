@@ -1,0 +1,84 @@
+#
+# 1) CREATE TABLES
+#
+CREATE TABLE customers (
+customer_id INT PRIMARY KEY AUTO_INCREMENT,
+name VARCHAR(100) NOT NULL,
+email VARCHAR(100) UNIQUE
+) ENGINE=InnoDB;
+CREATE TABLE orders (
+order_id INT PRIMARY KEY AUTO_INCREMENT,
+order_date DATE NOT NULL,
+customer_id INT,
+total_amount DECIMAL(10, 2),
+FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+ON DELETE CASCADE
+ON UPDATE CASCADE
+) ENGINE=InnoDB;
+#
+# 2) RESTART WITH duckdb_convert_all_at_startup=ON, shutdown during different stages.
+#
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON --log-error=MYSQLD_ERROR_LOG --debug=+d,duckdb_convert_sleep_0 --duckdb_convert_all_at_startup_threads=1
+# restart:
+# Drop and recreate tables
+include/assert_grep.inc [Found 1 duckdb_convert_sleep_0]
+include/assert_grep.inc [Found DuckDB convert thread exit]
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON --log-error=MYSQLD_ERROR_LOG --debug=+d,duckdb_convert_sleep_1 --duckdb_convert_all_at_startup_threads=1
+# restart:
+# Drop and recreate tables
+include/assert_grep.inc [Found 1 duckdb_convert_sleep_1]
+include/assert_grep.inc [Found DuckDB convert thread exit]
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON --log-error=MYSQLD_ERROR_LOG --debug=+d,duckdb_convert_sleep_2 --duckdb_convert_all_at_startup_threads=1
+# restart:
+# Drop and recreate tables
+include/assert_grep.inc [Found 1 duckdb_convert_sleep_2]
+include/assert_grep.inc [Found DuckDB convert thread exit]
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON --log-error=MYSQLD_ERROR_LOG --debug=+d,duckdb_convert_sleep_3 --duckdb_convert_all_at_startup_threads=1
+# restart:
+# Drop and recreate tables
+include/assert_grep.inc [Found 1 duckdb_convert_sleep_3]
+include/assert_grep.inc [Found DuckDB convert thread exit]
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON --log-error=MYSQLD_ERROR_LOG --debug=+d,duckdb_convert_sleep_4 --duckdb_convert_all_at_startup_threads=1
+# restart:
+# Drop and recreate tables
+include/assert_grep.inc [Found 1 duckdb_convert_sleep_4]
+include/assert_grep.inc [Found DuckDB convert thread exit]
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON --log-error=MYSQLD_ERROR_LOG --debug=+d,duckdb_convert_sleep_5 --duckdb_convert_all_at_startup_threads=1
+# restart:
+# Drop and recreate tables
+include/assert_grep.inc [Found 1 duckdb_convert_sleep_5]
+include/assert_grep.inc [Found DuckDB convert thread exit]
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON --log-error=MYSQLD_ERROR_LOG --debug=+d,duckdb_convert_sleep_6 --duckdb_convert_all_at_startup_threads=1
+# restart:
+# Drop and recreate tables
+include/assert_grep.inc [Found 1 duckdb_convert_sleep_6]
+include/assert_grep.inc [Found DuckDB convert thread exit]
+DROP TABLE customers, orders;
+CREATE TABLE t1(a INT AUTO_INCREMENT KEY, b int) ENGINE = InnoDB;
+INSERT INTO t1(b) VALUES(1), (2);
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+INSERT INTO t1(b) SELECT b FROM t1;
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3 SELECT * FROM t1;
+CREATE TABLE t4 LIKE t1;
+INSERT INTO t4 SELECT * FROM t1;
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON --log-error=MYSQLD_ERROR_LOG --debug=+d,duckdb_convert_sleep_during_parallel_alter --duckdb_convert_all_at_startup_threads=2
+# restart:
+include/assert_grep.inc [Found duckdb_convert_sleep_during_parallel_alter]
+SELECT COUNT(*) > 0 FROM information_schema.tables WHERE ENGINE = 'InnoDB' AND TABLE_SCHEMA = 'test';
+COUNT(*) > 0
+1
+#
+# 3) CLEANUP
+#
+DROP TABLE t1, t2, t3, t4;

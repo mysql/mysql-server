@@ -1,0 +1,7 @@
+--duckdb_convert_all_at_startup=ON
+--duckdb_convert_all_at_startup_ignore_error=ON
+--duckdb_convert_all_skip_mtr_db=ON
+--force_innodb_to_duckdb=ON
+--duckdb_mode=ON
+--gtid_mode=ON
+--enforce_gtid_consistency

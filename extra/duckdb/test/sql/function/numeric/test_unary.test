@@ -1,0 +1,88 @@
+# name: test/sql/function/numeric/test_unary.test
+# description: Test unary operators
+# group: [numeric]
+
+statement ok
+CREATE TABLE test(i INTEGER)
+
+statement ok
+INSERT INTO test VALUES (2)
+
+query I
+SELECT ++-++-+i FROM test
+----
+2
+
+# test simple unary operators
+query I
+SELECT +i FROM test
+----
+2
+
+query I
+SELECT -i FROM test
+----
+-2
+
+# we can also stack unary functions
+query I
+SELECT +++++++i FROM test
+----
+2
+
+query I
+SELECT ++-++-+i FROM test
+----
+2
+
+query I
+SELECT -+-+-+-+-i FROM test
+----
+-2
+
+# Test negation of minima
+statement ok
+CREATE TABLE minima (t TINYINT, s SMALLINT, i INTEGER, b BIGINT);
+
+statement ok
+INSERT INTO minima VALUES (-128, -32768, -2147483648, -9223372036854775808);
+
+statement error
+SELECT -t from minima;
+----
+
+statement error
+SELECT -s from minima;
+----
+
+statement error
+SELECT -i from minima;
+----
+
+statement error
+SELECT -b from minima;
+----
+
+# cannot apply these to a string
+statement error
+SELECT +'hello'
+----
+
+statement error
+SELECT -'hello'
+----
+
+# cannot apply these to a date either
+statement ok
+CREATE TABLE dates(d DATE)
+
+statement ok
+INSERT INTO dates VALUES ('1992-02-02')
+
+statement error
+SELECT +d FROM dates
+----
+
+statement error
+SELECT -d FROM dates
+----

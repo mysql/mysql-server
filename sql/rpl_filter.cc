@@ -126,12 +126,14 @@ Rpl_filter::Rpl_filter()
       ignore_table_array(key_memory_TABLE_RULE_ENT),
       wild_do_table(key_memory_TABLE_RULE_ENT),
       wild_ignore_table(key_memory_TABLE_RULE_ENT),
+      wild_rewrite_table(key_memory_TABLE_RULE_ENT),
       do_table_hash_inited(false),
       ignore_table_hash_inited(false),
       do_table_array_inited(false),
       ignore_table_array_inited(false),
       wild_do_table_inited(false),
-      wild_ignore_table_inited(false) {
+      wild_ignore_table_inited(false),
+      wild_rewrite_table_inited(false) {
   do_db.clear();
   ignore_db.clear();
   rewrite_db.clear();
@@ -158,12 +160,14 @@ void Rpl_filter::reset() {
   ignore_table_array_inited = false;
   wild_do_table_inited = false;
   wild_ignore_table_inited = false;
+  wild_rewrite_table_inited = false;
   table_rules_on = false;
 
   free_string_array(&do_table_array);
   free_string_array(&ignore_table_array);
   free_string_array(&wild_do_table);
   free_string_array(&wild_ignore_table);
+  free_string_array(&wild_rewrite_table);
   free_string_list(&do_db);
   free_string_list(&ignore_db);
   free_string_pair_list(&rewrite_db);
@@ -175,6 +179,7 @@ void Rpl_filter::reset() {
   do_db_statistics.reset();
   ignore_db_statistics.reset();
   rewrite_db_statistics.reset();
+  rewrite_wild_table_statistics.reset();
 }
 
 bool Rpl_filter::is_empty() {
@@ -182,7 +187,8 @@ bool Rpl_filter::is_empty() {
   bool res = do_table_hash_inited == 0 && ignore_table_hash_inited == 0 &&
              do_table_array_inited == 0 && ignore_table_array_inited == 0 &&
              wild_do_table_inited == 0 && wild_ignore_table_inited == 0 &&
-             do_db.is_empty() && ignore_db.is_empty() && rewrite_db.is_empty();
+             wild_rewrite_table_inited == 0 && do_db.is_empty() &&
+             ignore_db.is_empty() && rewrite_db.is_empty();
 
   unlock();
   return res;
@@ -338,6 +344,20 @@ int Rpl_filter::copy_global_replication_filters() {
 
     rewrite_db_statistics.set_all(
         rpl_global_filter.rewrite_db_statistics.get_configured_by());
+  }
+
+  if (!wild_rewrite_table_inited &&
+      rpl_global_filter.wild_rewrite_table_inited) {
+    res = table_rule_ent_array_to_array(
+        &wild_rewrite_table, &rpl_global_filter.wild_rewrite_table,
+        rpl_global_filter.wild_rewrite_table_inited);
+    if (res != 0) goto err;
+
+    assert(!wild_rewrite_table.empty());
+    wild_rewrite_table_inited = true;
+
+    rewrite_wild_table_statistics.set_all(
+        rpl_global_filter.rewrite_wild_table_statistics.get_configured_by());
   }
 
   if (need_unlock) unlock();
@@ -609,6 +629,32 @@ int Rpl_filter::add_db_rewrite(const char *from_db, const char *to_db) {
   return ret;
 }
 
+int Rpl_filter::add_wild_table_rewrite(const char *from_tbl_spec,
+                                       const char *to_tbl) {
+  if (!wild_rewrite_table_inited)
+    init_table_rule_array(&wild_rewrite_table, &wild_rewrite_table_inited);
+  return add_table_rule_to_array(&wild_rewrite_table, from_tbl_spec, to_tbl);
+}
+
+char *Rpl_filter::get_rewrite_table(const char *db, const char *tbl,
+                                    size_t *new_len) {
+  if (!wild_rewrite_table_inited) return nullptr;
+
+  char hash_key[2 * NAME_LEN + 2];
+  char *end;
+
+  end = my_stpcpy(hash_key, db);
+  *end++ = '.';
+  uint len = (uint)(my_stpcpy(end, tbl) - hash_key);
+
+  TABLE_RULE_ENT *e = find_wild(&wild_rewrite_table, hash_key, len);
+
+  if (!e || !e->target_tbl) return nullptr;
+
+  *new_len = strlen(e->target_tbl);
+  return e->target_tbl;
+}
+
 /*
   Build do_table rules to hash from dynamic array
   for faster filter checking.
@@ -723,17 +769,29 @@ int Rpl_filter::add_table_rule_to_hash(Table_rule_hash *h,
 */
 
 int Rpl_filter::add_table_rule_to_array(Table_rule_array *a,
-                                        const char *table_spec) {
+                                        const char *table_spec,
+                                        const char *target_tbl) {
+  size_t target_len = target_tbl ? strlen(target_tbl) : 0;
+
   const char *dot = strchr(table_spec, '.');
   if (!dot) return 1;
   size_t len = strlen(table_spec);
   TABLE_RULE_ENT *e = (TABLE_RULE_ENT *)my_malloc(
-      key_memory_TABLE_RULE_ENT, sizeof(TABLE_RULE_ENT) + len, MYF(MY_WME));
+      key_memory_TABLE_RULE_ENT, sizeof(TABLE_RULE_ENT) + len + target_len + 1,
+      MYF(MY_WME));
+
   if (!e) return 1;
   e->db = (char *)e + sizeof(TABLE_RULE_ENT);
   e->tbl_name = e->db + (dot - table_spec) + 1;
   e->key_len = len;
   memcpy(e->db, table_spec, len);
+
+  if (target_len) {
+    e->target_tbl = e->db + len;
+    memcpy(e->target_tbl, target_tbl, target_len + 1);
+  } else {
+    e->target_tbl = nullptr;
+  }
 
   if (a->push_back(e)) {
     my_free(e);
@@ -903,6 +961,29 @@ int Rpl_filter::set_db_rewrite(mem_root_deque<Item *> *rewrite_db_pair_list,
                             db_val->val_str(&buf2)->c_ptr());
   }
   rewrite_db_statistics.set_all(configured_by);
+  return status;
+}
+
+int Rpl_filter::set_wild_table_rewrite(mem_root_deque<Item *> *table_pair_list,
+                                       enum_configured_by configured_by) {
+  DBUG_TRACE;
+  m_rpl_filter_lock->assert_some_wrlock();
+  if (!table_pair_list) return 0;
+  int status = 0;
+  // free_string_pair_list(&rewrite_db);
+
+  auto it = table_pair_list->begin();
+
+  /* Please note that grammar itself allows only even number of db values. So
+   * it is ok to do it++ twice without checking anything. */
+  while (status == 0 && it != table_pair_list->end()) {
+    Item *tbl_key = *it++;
+    Item *tbl_val = *it++;
+    String buf1, buf2;
+    status = add_wild_table_rewrite(tbl_key->val_str(&buf1)->c_ptr(),
+                                    tbl_val->val_str(&buf2)->c_ptr());
+  }
+  rewrite_wild_table_statistics.set_all(configured_by);
   return status;
 }
 
@@ -1080,6 +1161,7 @@ int Rpl_filter::table_rule_ent_hash_to_array(Table_rule_array *table_array,
       e->db = (char *)e + sizeof(TABLE_RULE_ENT);
       e->tbl_name = e->db + (dot - ori_e->db) + 1;
       e->key_len = len;
+      e->target_tbl = nullptr;
       memcpy(e->db, ori_e->db, len);
 
       if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_copy_do_table", 1, 0) ||
@@ -1100,17 +1182,26 @@ int Rpl_filter::table_rule_ent_array_to_array(Table_rule_array *dest_array,
     size_t array_size = source_array->size();
     for (size_t i = 0; i < array_size; i++) {
       TABLE_RULE_ENT *ori_e = source_array->at(i);
+      size_t target_len = ori_e->target_tbl ? strlen(ori_e->target_tbl) : 0;
 
       const char *dot = strchr(ori_e->db, '.');
       if (!dot) return 1;
       size_t len = ori_e->key_len;
       TABLE_RULE_ENT *e = (TABLE_RULE_ENT *)my_malloc(
-          key_memory_TABLE_RULE_ENT, sizeof(TABLE_RULE_ENT) + len, MYF(MY_WME));
+          key_memory_TABLE_RULE_ENT,
+          sizeof(TABLE_RULE_ENT) + len + target_len + 1, MYF(MY_WME));
       if (!e) return 1;
       e->db = (char *)e + sizeof(TABLE_RULE_ENT);
       e->tbl_name = e->db + (dot - ori_e->db) + 1;
       e->key_len = len;
       memcpy(e->db, ori_e->db, len);
+
+      if (target_len) {
+        e->target_tbl = e->db + len;
+        memcpy(e->target_tbl, ori_e->target_tbl, target_len + 1);
+      } else {
+        e->target_tbl = nullptr;
+      }
 
       if (DBUG_EVALUATE_IF("simulate_out_of_memory_on_copy_wild_do_table", 1,
                            0) ||
@@ -1133,6 +1224,10 @@ void Rpl_filter::table_rule_ent_dynamic_array_to_str(String *s,
       TABLE_RULE_ENT *e = a->at(i);
       if (s->length()) s->append(',');
       s->append(e->db, e->key_len);
+      if (e->target_tbl) {
+        s->append(',');
+        s->append(e->target_tbl, strlen(e->target_tbl));
+      }
     }
   }
 }
@@ -1171,6 +1266,11 @@ void Rpl_filter::get_rewrite_db(String *str) {
     // Remove last ',' str->chop();
     str->chop();
   }
+}
+
+void Rpl_filter::get_rewrite_table(String *str) {
+  table_rule_ent_dynamic_array_to_str(str, &wild_rewrite_table,
+                                      wild_rewrite_table_inited);
 }
 
 const char *Rpl_filter::get_rewrite_db(const char *db, size_t *new_len) {
@@ -1281,6 +1381,14 @@ void Rpl_filter::put_filters_into_vector(
     rpl_pfs_filter_vec.emplace_back(channel_name, "REPLICATE_REWRITE_DB",
                                     filter_rule, &rewrite_db_statistics);
   }
+
+  if (rewrite_wild_table_statistics.get_active_since() > 0) {
+    // Fill REPLICATE_REWRITE_DB filter.
+    get_rewrite_table(&filter_rule);
+    rpl_pfs_filter_vec.emplace_back(channel_name,
+                                    "REPLICATE_REWRITE_WILD_TABLE", filter_rule,
+                                    &rewrite_wild_table_statistics);
+  }
 }
 
 void Rpl_global_filter::reset_pfs_view() {
@@ -1342,6 +1450,9 @@ void Sql_cmd_change_repl_filter::set_filter_value(
       break;
     case OPT_REPLICATE_REWRITE_DB:
       rewrite_db_pair_list = item_list;
+      break;
+    case OPT_REPLICATE_WILD_REWRITE_TABLE:
+      rewrite_wild_table_pair_list = item_list;
       break;
     default:
       /* purecov: begin deadcode */
@@ -1445,6 +1556,9 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD *thd) {
                     CONFIGURED_BY_CHANGE_REPLICATION_FILTER) ||
                 rpl_filter->set_db_rewrite(
                     rewrite_db_pair_list,
+                    CONFIGURED_BY_CHANGE_REPLICATION_FILTER) ||
+                rpl_filter->set_wild_table_rewrite(
+                    rewrite_wild_table_pair_list,
                     CONFIGURED_BY_CHANGE_REPLICATION_FILTER)) {
               my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
               ret = true;
@@ -1472,7 +1586,10 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD *thd) {
               wild_ignore_table_list,
               CONFIGURED_BY_CHANGE_REPLICATION_FILTER) ||
           rpl_global_filter.set_db_rewrite(
-              rewrite_db_pair_list, CONFIGURED_BY_CHANGE_REPLICATION_FILTER)) {
+              rewrite_db_pair_list, CONFIGURED_BY_CHANGE_REPLICATION_FILTER) ||
+          rpl_global_filter.set_wild_table_rewrite(
+              rewrite_wild_table_pair_list,
+              CONFIGURED_BY_CHANGE_REPLICATION_FILTER)) {
         my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);
         ret = true;
       }
@@ -1554,6 +1671,9 @@ bool Sql_cmd_change_repl_filter::change_rpl_filter(THD *thd) {
                 CONFIGURED_BY_CHANGE_REPLICATION_FILTER_FOR_CHANNEL) ||
             rpl_filter->set_db_rewrite(
                 rewrite_db_pair_list,
+                CONFIGURED_BY_CHANGE_REPLICATION_FILTER_FOR_CHANNEL) ||
+            rpl_filter->set_wild_table_rewrite(
+                rewrite_wild_table_pair_list,
                 CONFIGURED_BY_CHANGE_REPLICATION_FILTER_FOR_CHANNEL)) {
           /* purecov: begin inspected */
           my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR), 0);

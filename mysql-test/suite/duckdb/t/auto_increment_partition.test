@@ -1,0 +1,450 @@
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = ON;
+--enable_query_log
+
+CREATE DATABASE IF NOT EXISTS test_auto_inc_part;
+USE test_auto_inc_part;
+
+--echo #
+--echo # 1) RANGE PARTITION + AUTO_INCREMENT
+--echo #    Counter should be table-wide (not per-partition) and span partitions.
+--echo #
+CREATE TABLE t_range (
+    id INT NOT NULL AUTO_INCREMENT,
+    sale_year INT NOT NULL,
+    PRIMARY KEY (id, sale_year)
+) ENGINE = DuckDB
+PARTITION BY RANGE (sale_year) (
+    PARTITION p0 VALUES LESS THAN (2000),
+    PARTITION p1 VALUES LESS THAN (2010),
+    PARTITION p2 VALUES LESS THAN (2020),
+    PARTITION p3 VALUES LESS THAN (2030)
+);
+
+INSERT INTO t_range(sale_year) VALUES (1995), (2005), (2015), (2025);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+
+--echo # explicit value > current counter must bump counter
+INSERT INTO t_range VALUES (100, 1996), (200, 2025);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+
+--echo # next NULL allocation should be 201
+INSERT INTO t_range(sale_year) VALUES (2005);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+DROP TABLE t_range;
+
+
+--echo #
+--echo # 2) LIST PARTITION + AUTO_INCREMENT
+--echo #
+CREATE TABLE t_list (
+    id INT NOT NULL AUTO_INCREMENT,
+    region INT NOT NULL,
+    PRIMARY KEY (id, region)
+) ENGINE = DuckDB
+PARTITION BY LIST (region) (
+    PARTITION p_east VALUES IN (1, 2, 3),
+    PARTITION p_west VALUES IN (4, 5, 6)
+);
+INSERT INTO t_list(region) VALUES (1), (4), (2), (5), (3), (6);
+SELECT * FROM t_list ORDER BY id;
+SHOW CREATE TABLE t_list;
+DROP TABLE t_list;
+
+
+--echo #
+--echo # 3) KEY PARTITION + AUTO_INCREMENT
+--echo #
+CREATE TABLE t_key (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE = DuckDB
+PARTITION BY KEY(id) PARTITIONS 4;
+INSERT INTO t_key VALUES(), (), (), (), (), (), (), ();
+SELECT * FROM t_key ORDER BY id;
+SHOW CREATE TABLE t_key;
+DROP TABLE t_key;
+
+
+--echo #
+--echo # 4) RANGE COLUMNS PARTITION + AUTO_INCREMENT
+--echo #
+CREATE TABLE t_range_cols (
+    id INT NOT NULL AUTO_INCREMENT,
+    a INT NOT NULL,
+    b INT NOT NULL,
+    PRIMARY KEY (id, a, b)
+) ENGINE = DuckDB
+PARTITION BY RANGE COLUMNS (a, b) (
+    PARTITION p0 VALUES LESS THAN (1, 10),
+    PARTITION p1 VALUES LESS THAN (10, 100),
+    PARTITION p2 VALUES LESS THAN (100, MAXVALUE)
+);
+INSERT INTO t_range_cols(a, b) VALUES (0, 5), (5, 50), (50, 500);
+SELECT * FROM t_range_cols ORDER BY id;
+SHOW CREATE TABLE t_range_cols;
+DROP TABLE t_range_cols;
+
+
+--echo #
+--echo # 5) KNOWN BUG: AUTO_INCREMENT counter regresses after TRUNCATE PARTITION
+--echo #    Expected (matches InnoDB monotonic semantics): counter stays at 4.
+--echo #    Actual: TRUNCATE PARTITION triggers Duckdb_share rebuild; get_share()
+--echo #    re-derives counter from SELECT MAX(id) (=2) -> 3, losing peak 4.
+--echo #    DROP PARTITION (case 6) does NOT have this issue because it goes
+--echo #    through inplace alter and preserves the share.
+--echo #
+CREATE TABLE t_range (
+    id INT NOT NULL AUTO_INCREMENT,
+    sale_year INT NOT NULL,
+    PRIMARY KEY (id, sale_year)
+) ENGINE = DuckDB
+PARTITION BY RANGE (sale_year) (
+    PARTITION p0 VALUES LESS THAN (2000),
+    PARTITION p1 VALUES LESS THAN (2010),
+    PARTITION p2 VALUES LESS THAN (2020)
+);
+INSERT INTO t_range(sale_year) VALUES (1995), (2005), (2015);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+
+ALTER TABLE t_range TRUNCATE PARTITION p2;
+SELECT * FROM t_range ORDER BY id;
+--echo # KNOWN BUG: AUTO_INCREMENT below should be 4, not 3
+SHOW CREATE TABLE t_range;
+
+--echo # KNOWN BUG: next allocation reuses id=3 (the deleted row's id)
+INSERT INTO t_range(sale_year) VALUES (2015);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+DROP TABLE t_range;
+
+
+--echo #
+--echo # 6) AUTO_INCREMENT counter after DROP PARTITION must NOT regress
+--echo #
+CREATE TABLE t_range (
+    id INT NOT NULL AUTO_INCREMENT,
+    sale_year INT NOT NULL,
+    PRIMARY KEY (id, sale_year)
+) ENGINE = DuckDB
+PARTITION BY RANGE (sale_year) (
+    PARTITION p0 VALUES LESS THAN (2000),
+    PARTITION p1 VALUES LESS THAN (2010),
+    PARTITION p2 VALUES LESS THAN (2020)
+);
+INSERT INTO t_range(sale_year) VALUES (1995), (2005), (2015);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+
+ALTER TABLE t_range DROP PARTITION p2;
+SHOW CREATE TABLE t_range;
+
+INSERT INTO t_range(sale_year) VALUES (1996), (2006);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+DROP TABLE t_range;
+
+
+--echo #
+--echo # 7) Full TRUNCATE TABLE on partitioned table resets counter
+--echo #
+CREATE TABLE t_range (
+    id INT NOT NULL AUTO_INCREMENT,
+    sale_year INT NOT NULL,
+    PRIMARY KEY (id, sale_year)
+) ENGINE = DuckDB
+PARTITION BY RANGE (sale_year) (
+    PARTITION p0 VALUES LESS THAN (2000),
+    PARTITION p1 VALUES LESS THAN (2010)
+);
+INSERT INTO t_range(sale_year) VALUES (1995), (2005), (1996), (2006);
+SHOW CREATE TABLE t_range;
+
+TRUNCATE TABLE t_range;
+SHOW CREATE TABLE t_range;
+INSERT INTO t_range(sale_year) VALUES (1995);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+DROP TABLE t_range;
+
+
+--echo #
+--echo # 8) ALTER TABLE AUTO_INCREMENT = N on partitioned table
+--echo #
+CREATE TABLE t_range (
+    id INT NOT NULL AUTO_INCREMENT,
+    sale_year INT NOT NULL,
+    PRIMARY KEY (id, sale_year)
+) ENGINE = DuckDB
+PARTITION BY RANGE (sale_year) (
+    PARTITION p0 VALUES LESS THAN (2000),
+    PARTITION p1 VALUES LESS THAN (2010)
+);
+INSERT INTO t_range(sale_year) VALUES (1995), (2005);
+SHOW CREATE TABLE t_range;
+
+ALTER TABLE t_range AUTO_INCREMENT = 1000;
+SHOW CREATE TABLE t_range;
+INSERT INTO t_range(sale_year) VALUES (1996), (2006);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+DROP TABLE t_range;
+
+
+--echo #
+--echo # 9) CREATE TABLE with explicit AUTO_INCREMENT = N + partitions
+--echo #
+CREATE TABLE t_range (
+    id INT NOT NULL AUTO_INCREMENT,
+    sale_year INT NOT NULL,
+    PRIMARY KEY (id, sale_year)
+) ENGINE = DuckDB AUTO_INCREMENT = 5000
+PARTITION BY RANGE (sale_year) (
+    PARTITION p0 VALUES LESS THAN (2000),
+    PARTITION p1 VALUES LESS THAN (2010)
+);
+INSERT INTO t_range(sale_year) VALUES (1995), (2005);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+DROP TABLE t_range;
+
+
+--echo #
+--echo # 10) Engine conversion InnoDB <-> DuckDB preserves AUTO_INCREMENT counter
+--echo #
+CREATE TABLE t_range (
+    id INT NOT NULL AUTO_INCREMENT,
+    sale_year INT NOT NULL,
+    PRIMARY KEY (id, sale_year)
+) ENGINE = InnoDB
+PARTITION BY RANGE (sale_year) (
+    PARTITION p0 VALUES LESS THAN (2000),
+    PARTITION p1 VALUES LESS THAN (2010),
+    PARTITION p2 VALUES LESS THAN (2020)
+);
+INSERT INTO t_range(sale_year) VALUES (1995), (2005), (2015);
+SHOW CREATE TABLE t_range;
+
+ALTER TABLE t_range ENGINE = DuckDB;
+SHOW CREATE TABLE t_range;
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_range, Checksum, 1)
+
+INSERT INTO t_range(sale_year) VALUES (1995), (2005), (2015);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+
+--echo # next NULL allocation under InnoDB should continue from 7
+INSERT INTO t_range(sale_year) VALUES (1995);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+DROP TABLE t_range;
+
+
+--echo #
+--echo # 11) RESTART preserves AUTO_INCREMENT counter for partitioned table
+--echo #     Recovery path uses MAX(SELECT MAX(col), DD value).
+--echo #
+CREATE TABLE t_range (
+    id INT NOT NULL AUTO_INCREMENT,
+    sale_year INT NOT NULL,
+    PRIMARY KEY (id, sale_year)
+) ENGINE = DuckDB AUTO_INCREMENT = 100
+PARTITION BY RANGE (sale_year) (
+    PARTITION p0 VALUES LESS THAN (2000),
+    PARTITION p1 VALUES LESS THAN (2010)
+);
+INSERT INTO t_range(sale_year) VALUES (1995), (2005);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = ON;
+--enable_query_log
+USE test_auto_inc_part;
+SHOW CREATE TABLE t_range;
+INSERT INTO t_range(sale_year) VALUES (1995), (2005);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+DROP TABLE t_range;
+
+
+--echo #
+--echo # 12) UPDATE that bumps PK on partitioned table refreshes counter
+--echo #
+CREATE TABLE t_range (
+    id INT NOT NULL AUTO_INCREMENT,
+    sale_year INT NOT NULL,
+    PRIMARY KEY (id, sale_year)
+) ENGINE = DuckDB
+PARTITION BY RANGE (sale_year) (
+    PARTITION p0 VALUES LESS THAN (2000),
+    PARTITION p1 VALUES LESS THAN (2010)
+);
+INSERT INTO t_range(sale_year) VALUES (1995), (2005);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+
+UPDATE t_range SET id = 500 WHERE id = 1;
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+
+INSERT INTO t_range(sale_year) VALUES (1995);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+DROP TABLE t_range;
+
+
+--echo #
+--echo # 13) Concurrent insert across partitions yields contiguous counter
+--echo #     (auto_increment_increment / offset interplay with partitioned table)
+--echo #
+CREATE TABLE t_range (
+    id INT NOT NULL AUTO_INCREMENT,
+    sale_year INT NOT NULL,
+    PRIMARY KEY (id, sale_year)
+) ENGINE = DuckDB
+PARTITION BY RANGE (sale_year) (
+    PARTITION p0 VALUES LESS THAN (2000),
+    PARTITION p1 VALUES LESS THAN (2010),
+    PARTITION p2 VALUES LESS THAN (2020)
+);
+
+SET @@SESSION.AUTO_INCREMENT_INCREMENT = 5;
+SET @@SESSION.AUTO_INCREMENT_OFFSET = 2;
+INSERT INTO t_range(sale_year) VALUES (1995), (2005), (2015), (1996), (2006);
+SELECT * FROM t_range ORDER BY id;
+SHOW CREATE TABLE t_range;
+
+SET @@SESSION.AUTO_INCREMENT_INCREMENT = default;
+SET @@SESSION.AUTO_INCREMENT_OFFSET = default;
+DROP TABLE t_range;
+
+
+--echo #
+--echo # 14) AUTO_INCREMENT column IS the partition key: PARTITION BY RANGE(id)
+--echo #
+--echo # KNOWN BUG: DuckDB native partitioning does NOT enforce RANGE partition
+--echo # bounds at INSERT time (the underlying DuckDB table is non-partitioned).
+--echo # id values outside any partition definition are silently accepted.
+--echo # Compare with InnoDB which would reject with ER_NO_PARTITION_FOR_GIVEN_VALUE.
+--echo #
+CREATE TABLE t_range_id (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE = DuckDB
+PARTITION BY RANGE (id) (
+    PARTITION p0 VALUES LESS THAN (3),
+    PARTITION p1 VALUES LESS THAN (6),
+    PARTITION p2 VALUES LESS THAN (10)
+);
+INSERT INTO t_range_id VALUES(), (), (), (), (), (), (), (), ();
+SELECT * FROM t_range_id ORDER BY id;
+SHOW CREATE TABLE t_range_id;
+
+--echo # KNOWN BUG: id=10 silently accepted (should be ER_NO_PARTITION_FOR_GIVEN_VALUE)
+INSERT INTO t_range_id VALUES();
+SELECT * FROM t_range_id ORDER BY id;
+SHOW CREATE TABLE t_range_id;
+
+--echo # KNOWN BUG: explicit out-of-range value also silently accepted
+INSERT INTO t_range_id VALUES(100);
+SELECT * FROM t_range_id ORDER BY id;
+SHOW CREATE TABLE t_range_id;
+DROP TABLE t_range_id;
+
+
+--echo #
+--echo # 15) PARTITION BY LIST(id): same enforcement gap
+--echo #
+CREATE TABLE t_list_id (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE = DuckDB
+PARTITION BY LIST (id) (
+    PARTITION p0 VALUES IN (1, 2, 3),
+    PARTITION p1 VALUES IN (4, 5, 6)
+);
+INSERT INTO t_list_id VALUES(), (), (), (), (), ();
+SELECT * FROM t_list_id ORDER BY id;
+SHOW CREATE TABLE t_list_id;
+
+--echo # KNOWN BUG: id=7 silently accepted, not in any list partition
+INSERT INTO t_list_id VALUES();
+SELECT * FROM t_list_id ORDER BY id;
+SHOW CREATE TABLE t_list_id;
+DROP TABLE t_list_id;
+
+
+--echo #
+--echo # 16) KNOWN BUG (more severe variant of case 5):
+--echo #     TRUNCATE PARTITION on RANGE(id) where the partition contains the
+--echo #     highest ids. Counter regresses AND id is the partition key, so
+--echo #     the next auto-allocated id falls into the truncated range and
+--echo #     reuses an id that was just deleted (composite PK or no UNIQUE
+--echo #     would mask this; with only PK on id, DuckDB still inserts since
+--echo #     it does not enforce PK uniqueness).
+--echo #
+CREATE TABLE t_range_id (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE = DuckDB
+PARTITION BY RANGE (id) (
+    PARTITION p0 VALUES LESS THAN (5),
+    PARTITION p1 VALUES LESS THAN (10),
+    PARTITION p2 VALUES LESS THAN (15)
+);
+INSERT INTO t_range_id VALUES(), (), (), (), (), (), (), (), (), (), (), ();
+SELECT * FROM t_range_id ORDER BY id;
+SHOW CREATE TABLE t_range_id;
+
+--echo # Truncate the top partition (ids 10-12)
+ALTER TABLE t_range_id TRUNCATE PARTITION p2;
+SELECT * FROM t_range_id ORDER BY id;
+--echo # KNOWN BUG: counter regresses from 13 to 10
+SHOW CREATE TABLE t_range_id;
+
+--echo # KNOWN BUG: next auto-allocated id = 10, which was just deleted
+INSERT INTO t_range_id VALUES();
+SELECT * FROM t_range_id ORDER BY id;
+SHOW CREATE TABLE t_range_id;
+DROP TABLE t_range_id;
+
+
+--echo #
+--echo # 17) PARTITION BY HASH(id) does not allow DROP/TRUNCATE PARTITION,
+--echo #     so the case-5/16 bug cannot be triggered for HASH-partitioned
+--echo #     auto_increment tables.
+--echo #
+CREATE TABLE t_hash_id (
+    id INT NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE = DuckDB
+PARTITION BY HASH(id) PARTITIONS 4;
+INSERT INTO t_hash_id VALUES(), (), (), ();
+SELECT * FROM t_hash_id ORDER BY id;
+
+--error ER_DUCKDB_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t_hash_id TRUNCATE PARTITION p0;
+--error ER_DUCKDB_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t_hash_id DROP PARTITION p0;
+
+--echo # full TRUNCATE TABLE still works and resets counter
+TRUNCATE TABLE t_hash_id;
+SHOW CREATE TABLE t_hash_id;
+INSERT INTO t_hash_id VALUES(), ();
+SELECT * FROM t_hash_id ORDER BY id;
+DROP TABLE t_hash_id;
+
+
+--echo #
+--echo # 18) Cleanup
+--echo #
+DROP DATABASE test_auto_inc_part;
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = default;
+--enable_query_log

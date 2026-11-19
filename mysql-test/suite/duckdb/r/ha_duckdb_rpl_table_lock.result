@@ -1,0 +1,52 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+###########################################################################
+# Prepare
+###########################################################################
+[connection master]
+SET autocommit = 1;
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+PRIMARY KEY(id)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# Test slow SELECT query will not block Replication
+###########################################################################
+[connection slave]
+SET debug_sync = "wait_duckdb_send_result SIGNAL wait_signal WAIT_FOR resume_signal";
+SELECT * FROM t1;
+[connection slave1]
+SET debug_sync = "now WAIT_FOR wait_signal";
+[connection master]
+INSERT INTO t1 values (1);
+include/rpl/sync.inc
+include/rpl/diff.inc
+[connection slave1]
+SET debug_sync = "now SIGNAL resume_signal";
+[connection slave]
+id
+###########################################################################
+# Test Cleanup
+###########################################################################
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

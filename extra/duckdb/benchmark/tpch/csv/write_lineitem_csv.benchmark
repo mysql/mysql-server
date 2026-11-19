@@ -1,0 +1,14 @@
+# name: benchmark/tpch/csv/write_lineitem_csv.benchmark
+# description: Write the lineitem of TPC-H SF1 to a CSV file
+# group: [csv]
+
+include benchmark/tpch/tpch_load.benchmark.in
+
+name Write Lineitem CSV
+group csv
+
+run
+COPY lineitem TO '${BENCHMARK_DIR}/lineitem.csv' (FORMAT CSV, DELIMITER '|', HEADER);
+
+result I sf=1
+6001215

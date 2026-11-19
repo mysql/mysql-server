@@ -1,0 +1,2 @@
+--gtid-mode=ON
+--enforce-gtid-consistency=ON

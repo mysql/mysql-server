@@ -1,0 +1,178 @@
+#
+# 1) Prepare
+#
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+c0 VARCHAR(20) NOT NULL,
+c1 CHAR(10) DEFAULT 'duckdb',
+c2 DECIMAL(5,2),
+c3 DATETIME,
+c4 TIMESTAMP,
+c5 BLOB,
+PRIMARY KEY(id, c0)
+) ENGINE=DuckDB;
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES
+(1, 'abc', NULL, 1.23, '1997-01-01', NULL, X'e18080ff8a'),
+(1, 'd', NULL, 2.34, '1998-01-01', NULL, X'e18080ff8b'),
+(2, 'd', NULL, NULL, '1999-01-01', '1999-01-01 12:00:00', NULL),
+(2, 'efg', NULL, NULL, '2000-01-01', '2000-01-01 13:00:00', NULL),
+(3, 'efg', 'RSA', 5.2, NULL, '2001-01-01 14:00:00', NULL),
+(3, 'hijk', 'RSB', 5.2, NULL, '2002-01-01 15:00:00', NULL),
+(4, 'hijk', 'RSC', 5.3, NULL, '2003-01-01 16:00:00', NULL),
+(4, 'lmn', NULL, 6, '2004-01-01', NULL, X'1a53aa890ee6'),
+(5, 'lmn', NULL, 7, '2005-01-01', NULL, X'1a53aa890ee7'),
+(5, 'opq', 'RSD', 10.5, NULL, '2006-01-01 17:00:00', NULL);
+#
+# 2) duckdb_data_import_mode is not settable in transaction.
+#
+BEGIN;
+SET SESSION duckdb_data_import_mode = ON;
+ERROR HY000: The system variable duckdb_data_import_mode cannot be set when there is an ongoing transaction.
+SET SESSION duckdb_data_import_mode = OFF;
+ERROR HY000: The system variable duckdb_data_import_mode cannot be set when there is an ongoing transaction.
+COMMIT;
+SET SESSION duckdb_data_import_mode = OFF;
+SET SESSION duckdb_data_import_mode = ON;
+#
+# 3) Update can not be executed when duckdb_data_import_mode is ON.
+#
+UPDATE t1 SET c0 = 'abcc' WHERE id = 1 AND c0 = 'abc';
+ERROR HY000: [DuckDB] Data import mode: update is not allowed.
+SET SESSION duckdb_data_import_mode = OFF;
+UPDATE t1 SET c0 = 'abcc' WHERE id = 1 AND c0 = 'abc';
+SELECT id, c0, c1, c2, c3, c4, HEX(c5) FROM t1;
+id	c0	c1	c2	c3	c4	HEX(c5)
+1	abcc	NULL	1.23	1997-01-01 00:00:00	NULL	E18080FF8A
+1	d	NULL	2.34	1998-01-01 00:00:00	NULL	E18080FF8B
+2	d	NULL	NULL	1999-01-01 00:00:00	1999-01-01 12:00:00	NULL
+2	efg	NULL	NULL	2000-01-01 00:00:00	2000-01-01 13:00:00	NULL
+3	efg	RSA	5.20	NULL	2001-01-01 14:00:00	NULL
+3	hijk	RSB	5.20	NULL	2002-01-01 15:00:00	NULL
+4	hijk	RSC	5.30	NULL	2003-01-01 16:00:00	NULL
+4	lmn	NULL	6.00	2004-01-01 00:00:00	NULL	1A53AA890EE6
+5	lmn	NULL	7.00	2005-01-01 00:00:00	NULL	1A53AA890EE7
+5	opq	RSD	10.50	NULL	2006-01-01 17:00:00	NULL
+#
+# 4) Only delete operations with equality conditions on the primary key
+#    are permitted, where the right-hand side is a constant value.
+#
+SET SESSION duckdb_data_import_mode = ON;
+DELETE FROM t1 WHERE id = 1;
+ERROR HY000: [DuckDB] Data import mode: The full primary key value needs to be specified.
+DELETE FROM t1 WHERE c0 = 'abcc';
+ERROR HY000: [DuckDB] Data import mode: The full primary key value needs to be specified.
+DELETE FROM t1 WHERE c1 = 'abcd';
+ERROR HY000: [DuckDB] Data import mode: The specified fields include non-primary key fields or the field is specified multiple times.
+DELETE FROM t1 WHERE id = 1 AND c0 = 'abcc' AND c1 = 'abcd';
+ERROR HY000: [DuckDB] Data import mode: The specified fields include non-primary key fields or the field is specified multiple times.
+DELETE FROM t1 WHERE id = 1 AND c0 = 'abc' AND c0 = 'dddd';
+ERROR HY000: [DuckDB] Data import mode: The specified fields include non-primary key fields or the field is specified multiple times.
+DELETE FROM t1 WHERE id = 1 AND c0 = 'dddd' AND c0 = 'abc';
+ERROR HY000: [DuckDB] Data import mode: The specified fields include non-primary key fields or the field is specified multiple times.
+DELETE FROM t1;
+ERROR HY000: [DuckDB] Data import mode: Only DELETE operations with equality conditions on the primary key are permitted, where the right-hand side is a constant value.
+DELETE FROM t1 WHERE id > 1;
+ERROR HY000: [DuckDB] Data import mode: Only DELETE operations with equality conditions on the primary key are permitted, where the right-hand side is a constant value.
+DELETE FROM t1 WHERE 1 = 1;
+ERROR HY000: [DuckDB] Data import mode: Only DELETE operations with equality conditions on the primary key are permitted, where the right-hand side is a constant value.
+DELETE FROM t1 WHERE id = c0;
+ERROR HY000: [DuckDB] Data import mode: Only DELETE operations with equality conditions on the primary key are permitted, where the right-hand side is a constant value.
+CREATE TABLE t2 (id INT KEY, col1 INT) ENGINE = DuckDB;
+DELETE FROM t1 WHERE id = 'abc';
+ERROR 22007: Truncated incorrect DOUBLE value: 'abc'
+DROP TABLE t2;
+#
+# 5) Batch inserts and deletes.
+#
+BEGIN;
+DELETE FROM t1 WHERE id = 1 AND c0 = 'abcc';
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES
+(1, 'abcc', 'duckdb', 9.99, '2025-01-01', '2025-01-01 00:00:00', X'deadbeef');
+DELETE FROM t1 WHERE id = 3 AND c0 = 'efg';
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES
+(3, 'gfe', 'NEW', 9.99, NULL, '2026-02-02 01:00:00', NULL);
+DELETE FROM t1 WHERE id = 5 AND c0 = 'lmn';
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES
+(6, 'nml', NULL, 77, '2027-03-03', '2027-03-03 02:00:00', X'1a53aa890ee9');
+INSERT INTO t1 VALUES
+(7, 'rst', 'duckdb', 1.00, '2028-04-04', '2028-04-04 03:00:00', X'1a53aa890e78'),
+(8, 'uvw', NULL, 8.88, NULL, NULL, X'1a53aa890e66');
+DELETE FROM t1 WHERE id = 2 AND c0 = 'efg';
+DELETE FROM t1 WHERE c0 = 'lmn' AND id = 4;
+SELECT id, c0, c1, c2, c3, c4, HEX(c5) FROM t1;
+id	c0	c1	c2	c3	c4	HEX(c5)
+1	abcc	NULL	1.23	1997-01-01 00:00:00	NULL	E18080FF8A
+1	d	NULL	2.34	1998-01-01 00:00:00	NULL	E18080FF8B
+2	d	NULL	NULL	1999-01-01 00:00:00	1999-01-01 12:00:00	NULL
+2	efg	NULL	NULL	2000-01-01 00:00:00	2000-01-01 13:00:00	NULL
+3	efg	RSA	5.20	NULL	2001-01-01 14:00:00	NULL
+3	hijk	RSB	5.20	NULL	2002-01-01 15:00:00	NULL
+4	hijk	RSC	5.30	NULL	2003-01-01 16:00:00	NULL
+4	lmn	NULL	6.00	2004-01-01 00:00:00	NULL	1A53AA890EE6
+5	lmn	NULL	7.00	2005-01-01 00:00:00	NULL	1A53AA890EE7
+5	opq	RSD	10.50	NULL	2006-01-01 17:00:00	NULL
+COMMIT;
+SELECT id, c0, c1, c2, c3, c4, HEX(c5) FROM t1;
+id	c0	c1	c2	c3	c4	HEX(c5)
+1	abcc	duckdb	9.99	2025-01-01 00:00:00	2025-01-01 00:00:00	DEADBEEF
+1	d	NULL	2.34	1998-01-01 00:00:00	NULL	E18080FF8B
+2	d	NULL	NULL	1999-01-01 00:00:00	1999-01-01 12:00:00	NULL
+3	gfe	NEW	9.99	NULL	2026-02-02 01:00:00	NULL
+3	hijk	RSB	5.20	NULL	2002-01-01 15:00:00	NULL
+4	hijk	RSC	5.30	NULL	2003-01-01 16:00:00	NULL
+5	opq	RSD	10.50	NULL	2006-01-01 17:00:00	NULL
+6	nml	NULL	77.00	2027-03-03 00:00:00	2027-03-03 02:00:00	1A53AA890EE9
+7	rst	duckdb	1.00	2028-04-04 00:00:00	2028-04-04 03:00:00	1A53AA890E78
+8	uvw	NULL	8.88	NULL	NULL	1A53AA890E66
+#
+# 6) Test for variable duckdb_idempotent_data_import_enabled
+#
+SET GLOBAL duckdb_log_options = 'DUCKDB_MULTI_TRX_BATCH_COMMIT,DUCKDB_MULTI_TRX_BATCH_DETAIL,DUCKDB_QUERY,DUCKDB_QUERY_RESULT';
+SET SESSION duckdb_data_import_mode = ON;
+SET GLOBAL duckdb_idempotent_data_import_enabled = ON;
+BEGIN;
+INSERT INTO t1 VALUES
+(9, 'rst', 'duckdb', 1.00, '2028-04-04', '2028-04-04 03:00:00', X'1a53aa890e78');
+COMMIT;
+SELECT id, c0, c1, c2, c3, c4, HEX(c5) FROM t1;
+id	c0	c1	c2	c3	c4	HEX(c5)
+1	abcc	duckdb	9.99	2025-01-01 00:00:00	2025-01-01 00:00:00	DEADBEEF
+1	d	NULL	2.34	1998-01-01 00:00:00	NULL	E18080FF8B
+2	d	NULL	NULL	1999-01-01 00:00:00	1999-01-01 12:00:00	NULL
+3	gfe	NEW	9.99	NULL	2026-02-02 01:00:00	NULL
+3	hijk	RSB	5.20	NULL	2002-01-01 15:00:00	NULL
+4	hijk	RSC	5.30	NULL	2003-01-01 16:00:00	NULL
+5	opq	RSD	10.50	NULL	2006-01-01 17:00:00	NULL
+6	nml	NULL	77.00	2027-03-03 00:00:00	2027-03-03 02:00:00	1A53AA890EE9
+7	rst	duckdb	1.00	2028-04-04 00:00:00	2028-04-04 03:00:00	1A53AA890E78
+8	uvw	NULL	8.88	NULL	NULL	1A53AA890E66
+9	rst	duckdb	1.00	2028-04-04 00:00:00	2028-04-04 03:00:00	1A53AA890E78
+include/assert_grep.inc [Find delete action in log]
+include/assert_grep.inc [Find insert action in log]
+SET GLOBAL duckdb_idempotent_data_import_enabled = OFF;
+BEGIN;
+INSERT INTO t1 VALUES
+(10, 'rst', 'duckdb', 1.00, '2028-04-04', '2028-04-04 03:00:00', X'1a53aa890e78');
+COMMIT;
+SELECT id, c0, c1, c2, c3, c4, HEX(c5) FROM t1;
+id	c0	c1	c2	c3	c4	HEX(c5)
+1	abcc	duckdb	9.99	2025-01-01 00:00:00	2025-01-01 00:00:00	DEADBEEF
+1	d	NULL	2.34	1998-01-01 00:00:00	NULL	E18080FF8B
+10	rst	duckdb	1.00	2028-04-04 00:00:00	2028-04-04 03:00:00	1A53AA890E78
+2	d	NULL	NULL	1999-01-01 00:00:00	1999-01-01 12:00:00	NULL
+3	gfe	NEW	9.99	NULL	2026-02-02 01:00:00	NULL
+3	hijk	RSB	5.20	NULL	2002-01-01 15:00:00	NULL
+4	hijk	RSC	5.30	NULL	2003-01-01 16:00:00	NULL
+5	opq	RSD	10.50	NULL	2006-01-01 17:00:00	NULL
+6	nml	NULL	77.00	2027-03-03 00:00:00	2027-03-03 02:00:00	1A53AA890EE9
+7	rst	duckdb	1.00	2028-04-04 00:00:00	2028-04-04 03:00:00	1A53AA890E78
+8	uvw	NULL	8.88	NULL	NULL	1A53AA890E66
+9	rst	duckdb	1.00	2028-04-04 00:00:00	2028-04-04 03:00:00	1A53AA890E78
+include/assert_grep.inc [Not find delete action in log]
+include/assert_grep.inc [Find insert action in log]
+#
+# 7) Cleanup
+#
+SET GLOBAL duckdb_idempotent_data_import_enabled = default;
+SET GLOBAL duckdb_log_options = default;
+DROP TABLE t1;

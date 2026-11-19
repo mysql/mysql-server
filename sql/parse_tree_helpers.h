@@ -113,6 +113,7 @@ class PT_item_list : public Parse_tree_node {
   explicit PT_item_list(const POS &pos) : super(pos), value(*THR_MALLOC) {}
   explicit PT_item_list(const POS &start_pos, const POS &end_pos)
       : super(start_pos, end_pos), value(*THR_MALLOC) {}
+  explicit PT_item_list(MEM_ROOT *mem_root) : super(POS()), value(mem_root) {}
 
   mem_root_deque<Item *> value;
 

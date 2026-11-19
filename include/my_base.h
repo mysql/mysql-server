@@ -1081,8 +1081,22 @@ Information in the data-dictionary needs to be updated. */
 #define HA_ERR_SAMPLING_INIT_FAILED 208
 /** Too many sub-expression in search string */
 #define HA_ERR_FTS_TOO_MANY_NESTED_EXP 209
+
+/* Duckdb errors begin */
+#define HA_DUCKDB_CREATE_ERROR 210
+#define HA_DUCKDB_DML_ERROR 211
+#define HA_DUCKDB_OPEN_ERROR 212
+#define HA_DUCKDB_UNSUPPORTED_DATA_TYPE 213
+#define HA_DUCKDB_RENAME_ERROR 214
+#define HA_DUCKDB_DROP_TABLE_ERROR 215
+#define HA_DUCKDB_TRUNCATE_TABLE_ERROR 216
+#define HA_DUCKDB_REGISTER_TRX_ERROR 217
+#define HA_DUCKDB_APPEND_ERROR 218
+#define HA_DUCKDB_SPECIFY_PARTITION_ERROR 219
+/* Duckdb errors end */
+
 /** Copy of last error number */
-#define HA_ERR_LAST 209
+#define HA_ERR_LAST 219
 
 /* Number of different errors */
 #define HA_ERR_ERRORS (HA_ERR_LAST - HA_ERR_FIRST + 1)

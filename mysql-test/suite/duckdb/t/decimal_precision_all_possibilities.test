@@ -1,0 +1,7 @@
+set global duckdb_dml_in_batch = OFF;
+--source suite/duckdb/include/decimal_precision_all_possibilities.inc
+
+set global duckdb_dml_in_batch = ON;
+--source suite/duckdb/include/decimal_precision_all_possibilities.inc
+
+set global duckdb_dml_in_batch = default;

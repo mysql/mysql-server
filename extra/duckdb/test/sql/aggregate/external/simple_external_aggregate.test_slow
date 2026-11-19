@@ -1,0 +1,48 @@
+# name: test/sql/aggregate/external/simple_external_aggregate.test_slow
+# description: Test simple external aggregate
+# group: [external]
+
+load __TEST_DIR__/simple_external_aggregate.db
+
+statement ok
+create table random as select hash(range + 42) % 10_000_000 rand from range(10_000_000)
+
+statement ok
+pragma threads=4
+
+statement ok
+create table t1 (c0 bigint, c1 bigint, c2 bigint, c3 varchar)
+
+# materialized rows should be >1GB
+statement ok
+insert into t1 select rand c0,
+                      rand c1,
+                      rand c2,
+                      concat(rand::VARCHAR, repeat('0', 50)) c3
+from random
+
+# we don't want to compress to smaller sizes,
+# otherwise the size estimates (and therefore this test) won't test what we want it to
+statement ok
+set disabled_optimizers to 'compressed_materialization'
+
+statement ok
+pragma memory_limit='1.5GB'
+
+query I
+select count(*) from (select distinct * from t1)
+----
+6322366
+
+# add some strings that are longer than Storage::BLOCK_SIZE (+ ~30MB)
+statement ok
+insert into t1 select range c0,
+                      range c1,
+                      range c2,
+                      concat(range::VARCHAR, repeat('0', 300000)) c3
+from range(100)
+
+query I
+select count(*) from (select distinct * from t1)
+----
+6322466

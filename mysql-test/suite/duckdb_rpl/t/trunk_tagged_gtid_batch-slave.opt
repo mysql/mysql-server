@@ -1,0 +1,4 @@
+--replica-parallel-workers=1
+--duckdb-multi-trx-in-batch=ON
+--duckdb-multi-trx-timeout=100
+--force-innodb-to-duckdb=ON

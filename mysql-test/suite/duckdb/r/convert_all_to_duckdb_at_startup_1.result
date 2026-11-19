@@ -1,0 +1,69 @@
+#
+# 1) CREATE TABLES
+#
+CREATE TABLE t1 (id INT, name VARCHAR(255), PRIMARY KEY (id)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+CREATE TABLE t2 (id INT, name VARCHAR(255), PRIMARY KEY (id)) ENGINE = DuckDB;
+INSERT INTO t2 VALUES (1, 'one');
+#
+# 2) RESTART WITH duckdb_convert_all_at_startup=ON
+#
+# restart: --duckdb_convert_all_at_startup=ON
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+id	name
+1	one
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t2;
+id	name
+1	one
+include/assert_grep.inc [Found converting InnoDB table 't1']
+include/assert_grep.inc [No found converting DuckDB table 't2']
+#
+# 3) CREATE INNODB TABLES, WHICH CAN NOT BE CONVERTED TO DUCKDB.
+#
+DROP TABLE t1, t2;
+CREATE TABLE t1 (id INT, name VARCHAR(255)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+CREATE TABLE t2(a INT, name VARCHAR(255), PRIMARY KEY (name), UNIQUE INDEX uk_a((ABS(a)))) ENGINE = InnoDB;
+INSERT INTO t2 VALUES (1, 'one');
+CREATE TABLE t3 (id INT, name VARCHAR(255), age INT INVISIBLE, PRIMARY KEY (id)) ENGINE = InnoDB;
+INSERT INTO t3 VALUES (1, 'one');
+CREATE TABLE t4 (fid INT PRIMARY KEY, g POINT) ENGINE = InnoDB;
+INSERT INTO t4 VALUES (101, ST_PointFromText('POINT(10 10)'));
+#
+# 4) RESTART WITH duckdb_convert_all_at_startup=ON, duckdb_convert_all_at_startup_ignore_error=OFF, FAILED.
+#
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_at_startup_ignore_error=OFF
+SHOW GLOBAL STATUS LIKE 'DuckDB_convert_stage_at_startup';
+Variable_name	Value
+DuckDB_convert_stage_at_startup	CHECK_FAILED
+include/assert_grep.inc [Found no primary key error.]
+include/assert_grep.inc [Found functional index error.]
+include/assert_grep.inc [Found invisible column error.]
+include/assert_grep.inc [Found geometry column error.]
+#
+# 5) RESTART WITH duckdb_convert_all_at_startup=ON, duckdb_convert_all_at_startup_ignore_error=ON, SUCCESSFUL.
+#
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_at_startup_ignore_error=ON
+SELECT * FROM information_schema.tables WHERE ENGINE = 'DuckDB';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	TABLE_TYPE	ENGINE	VERSION	ROW_FORMAT	TABLE_ROWS	AVG_ROW_LENGTH	DATA_LENGTH	MAX_DATA_LENGTH	INDEX_LENGTH	DATA_FREE	AUTO_INCREMENT	CREATE_TIME	UPDATE_TIME	CHECK_TIME	TABLE_COLLATION	CHECKSUM	CREATE_OPTIONS	TABLE_COMMENT
+SHOW GLOBAL STATUS LIKE 'DuckDB_convert_stage_at_startup';
+Variable_name	Value
+DuckDB_convert_stage_at_startup	FINISHED
+#
+# 6) CLEANUP
+#
+DROP TABLE t1, t2, t3, t4;

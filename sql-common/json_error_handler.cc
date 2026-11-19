@@ -35,6 +35,9 @@
 
 void JsonParseDefaultErrorHandler::operator()(const char *parse_err,
                                               size_t err_offset) const {
+  if (m_caller_is_duckdb) {
+    throw std::exception();
+  }
   my_error(ER_INVALID_JSON_TEXT_IN_PARAM, MYF(0), m_arg_idx + 1, m_func_name,
            parse_err, err_offset, "");
 }
@@ -107,3 +110,4 @@ void JsonSchemaDefaultErrorHandler::HandleStdExceptions() const {
 void JsonSchemaDefaultErrorHandler::InvalidJsonType() const {
   my_error(ER_INVALID_JSON_TYPE, MYF(0), 1, m_calling_function_name, "object");
 }
+void JsonDocumentDefaultDepthHandlerDuckDB() { throw std::exception(); }

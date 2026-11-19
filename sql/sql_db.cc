@@ -567,6 +567,9 @@ bool mysql_create_db(THD *thd, const char *db, HA_CREATE_INFO *create_info) {
   if (store_in_dd) {
     set_db_default_charset(thd, create_info);
 
+    char *db_str = strdup_root(thd->mem_root, db);
+    ha_create_database(db_str);
+
     if (dd::create_schema(thd, db, create_info->default_table_charset,
                           encrypt_schema)) {
       /*

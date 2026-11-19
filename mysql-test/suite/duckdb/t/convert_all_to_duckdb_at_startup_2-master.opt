@@ -1,0 +1,2 @@
+--duckdb_convert_all_skip_mtr_db=ON
+--duckdb_convert_all_at_startup_threads=16

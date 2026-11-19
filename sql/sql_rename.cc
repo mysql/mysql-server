@@ -37,6 +37,7 @@
 #include "my_sys.h"
 #include "mysql/components/services/log_shared.h"
 #include "mysqld_error.h"
+#include "scope_guard.h"                     // create_scope_guard
 #include "sql/dd/cache/dictionary_client.h"  // dd::cache::Dictionary_client
 #include "sql/dd/dd_table.h"                 // dd::table_storage_engine
 #include "sql/dd/properties.h"               // dd::Properties
@@ -44,16 +45,19 @@
 #include "sql/dd/types/table.h"              // dd::Table
 #include "sql/dd_sql_view.h"                 // View_metadata_updater
 #include "sql/derror.h"                      // ER_THD
+#include "sql/duckdb/duckdb_config.h"
+#include "sql/duckdb/duckdb_table.h"  // myduck::report_duckdb_table_struct_error
 #include "sql/handler.h"
 #include "sql/log.h"          // query_logger
-#include "sql/mysqld.h"       // lower_case_table_names
+#include "sql/mysqld.h"       // lower_case_table_names, table_alias_charset
 #include "sql/sp_cache.h"     // sp_cache_invalidate
+#include "sql/sql_alter.h"    // Alter_info
 #include "sql/sql_base.h"     // tdc_remove_table,
                               // lock_table_names,
 #include "sql/sql_class.h"    // THD
 #include "sql/sql_handler.h"  // mysql_ha_rm_tables
 #include "sql/sql_table.h"    // write_bin_log,
-                              // build_table_filename
+                              // build_table_filename, mysql_alter_table
 #include "sql/sql_trigger.h"  // change_trigger_table_name
 #include "sql/system_variables.h"
 #include "sql/table.h"
@@ -144,6 +148,48 @@ static void find_and_set_explicit_duration_for_schema_mdl(
 }
 
 /**
+  Redirect a single-pair cross-schema RENAME TABLE on a DuckDB table to
+  mysql_alter_table(), so that the existing copy-DDL path used by
+  ALTER TABLE ... RENAME TO is taken. DuckDB does not support a native
+  cross-schema rename; the copy-DDL path rebuilds the table in the new
+  schema via the appender batch path.
+
+  The HA_CREATE_INFO / Alter_info / Table_ref values built here mirror the
+  parser output for "ALTER TABLE old_db.old_t RENAME TO new_db.new_t",
+  see sql/parse_tree_nodes.cc init_alter_table_stmt and
+  PT_alter_table_rename::contextualize.
+
+  @return True on failure, false on success (same as mysql_alter_table).
+*/
+
+static bool redirect_duckdb_cross_schema_rename_to_alter(
+    THD *thd, const Table_ref *old_t, const Table_ref *new_t) {
+  Table_ref *alter_t = new (thd->mem_root) Table_ref(
+      old_t->db, old_t->db_length, old_t->table_name, old_t->table_name_length,
+      TL_READ_NO_INSERT, MDL_SHARED_UPGRADABLE);
+  if (alter_t == nullptr) return true;
+  alter_t->required_type = dd::enum_table_type::BASE_TABLE;
+
+  HA_CREATE_INFO create_info;
+  create_info.db_type = nullptr;
+  create_info.default_table_charset = nullptr;
+  create_info.row_type = ROW_TYPE_NOT_USED;
+  create_info.storage_media = HA_SM_DEFAULT;
+
+  Alter_info alter_info(thd->mem_root);
+  alter_info.flags = Alter_info::ALTER_RENAME;
+  alter_info.requested_algorithm = Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT;
+  alter_info.requested_lock = Alter_info::ALTER_TABLE_LOCK_DEFAULT;
+  alter_info.with_validation = Alter_info::ALTER_VALIDATION_DEFAULT;
+  alter_info.new_db_name = LEX_CSTRING{new_t->db, new_t->db_length};
+  alter_info.new_table_name =
+      LEX_CSTRING{new_t->table_name, new_t->table_name_length};
+
+  return mysql_alter_table(thd, new_t->db, new_t->table_name, &create_info,
+                           alter_t, &alter_info);
+}
+
+/**
   Rename tables from the list.
 
   @param thd          Thread context.
@@ -158,6 +204,75 @@ bool mysql_rename_tables(THD *thd, Table_ref *table_list) {
   DBUG_TRACE;
 
   mysql_ha_rm_tables(thd, table_list);
+
+  /*
+    DuckDB does not support a native cross-schema rename. For ALTER TABLE ...
+    RENAME the copy-DDL path is taken via mysql_alter_table; RENAME TABLE
+    bypasses that path. Detect cross-schema RENAME TABLE on a DuckDB base
+    table here, before any MDL upgrade or DD modification, and either
+    redirect to mysql_alter_table (single-pair) or fail the whole statement
+    (multi-pair).
+  */
+  if (myduck::global_mode == myduck::DUCKDB_ON) {
+    bool any_duckdb_cross_schema = false;
+    Table_ref *cross_old = nullptr;
+    Table_ref *cross_new = nullptr;
+    size_t pair_count = 0;
+    {
+      /*
+        Roll back the MDL_SHARED locks taken below (required by
+        Dictionary_client::acquire) before leaving this block.
+      */
+      const MDL_savepoint precheck_svp = thd->mdl_context.mdl_savepoint();
+      auto rollback_precheck_mdl = create_scope_guard(
+          [&] { thd->mdl_context.rollback_to_savepoint(precheck_svp); });
+      dd::cache::Dictionary_client::Auto_releaser pre_releaser(
+          thd->dd_client());
+      for (Table_ref *old_t = table_list; old_t != nullptr;
+           old_t = old_t->next_local->next_local) {
+        Table_ref *new_t = old_t->next_local;
+        ++pair_count;
+
+        MDL_request src_mdl;
+        MDL_REQUEST_INIT(&src_mdl, MDL_key::TABLE, old_t->db, old_t->table_name,
+                         MDL_SHARED, MDL_STATEMENT);
+        if (thd->mdl_context.acquire_lock(&src_mdl,
+                                          thd->variables.lock_wait_timeout))
+          return true;
+
+        const dd::Abstract_table *src_at = nullptr;
+        if (thd->dd_client()->acquire(old_t->db, old_t->table_name, &src_at))
+          return true;
+        if (src_at == nullptr ||
+            src_at->type() != dd::enum_table_type::BASE_TABLE)
+          continue;
+
+        const dd::Table *src_table = dynamic_cast<const dd::Table *>(src_at);
+        if (src_table == nullptr) continue;
+
+        handlerton *hton = nullptr;
+        if (dd::table_storage_engine(thd, src_table, &hton)) return true;
+        if (hton == nullptr || hton->db_type != DB_TYPE_DUCKDB ||
+            my_strcasecmp(table_alias_charset, old_t->db, new_t->db) == 0)
+          continue;
+
+        any_duckdb_cross_schema = true;
+        if (cross_old == nullptr) {
+          cross_old = old_t;
+          cross_new = new_t;
+        }
+      }
+    }
+    if (any_duckdb_cross_schema) {
+      if (pair_count == 1) {
+        return redirect_duckdb_cross_schema_rename_to_alter(thd, cross_old,
+                                                            cross_new);
+      }
+      return myduck::report_duckdb_table_struct_error(
+          "DuckDB does not support rename between different schemas in a "
+          "multi-pair RENAME TABLE");
+    }
+  }
 
   /*
     The below Auto_releaser allows to keep uncommitted versions of data-

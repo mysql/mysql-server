@@ -1,0 +1,572 @@
+# ===========================================================
+# Test: bugfix_modify_column_not_null_no_default
+# Description:
+#   MODIFY/CHANGE COLUMN c TYPE NOT NULL on a non-empty DuckDB table
+#   containing NULL rows used to fail at SET NOT NULL because DuckDB's
+#   SET DEFAULT does not back-fill existing rows. The fix emits an
+#   UPDATE before SET NOT NULL with the type's implicit default
+#   (UPDATE-based because the column already exists, unlike the
+#   ADD COLUMN path which injects DEFAULT into the DDL).
+#
+#   Behavior by sql_mode:
+#     strict   : SQL layer rejects with ER_BAD_NULL_ERROR.
+#     ''       : InnoDB back-fills NULL with implicit default and
+#                emits Warning 1265. DuckDB used to fail; the fix
+#                now mirrors InnoDB (no warning -- we go through
+#                a plain UPDATE, not a truncation event).
+#   Cases below run under sql_mode='' since that is the path the
+#   fix actually addresses.
+#
+#   Excluded types (known divergence / deferred):
+#     DATE / DATETIME / TIMESTAMP.
+#
+#   Style: each case pairs an InnoDB control table (t_innodb) with
+#   the DuckDB table (t_duckdb), runs the same ALTER on both, and
+#   uses CHECKSUM TABLE to assert data parity.
+#
+# Related: Aone#81035240
+# Fix:     storage/duckdb/ddl_convertor.cc
+#          - MODIFY/CHANGE: emit UPDATE SET col = <default> WHERE col IS NULL
+#            before SET NOT NULL, skip in strict mode to match InnoDB rejection
+#            (append_stmt_update_null_with_default, ChangeColumnConvertor::translate)
+#          - ENUM: MODIFY uses '' (index 0 sentinel)
+#          - Numeric-to-ENUM CHANGE: map integer index to enum name via CASE
+# ===========================================================
+
+SET @saved_sql_mode = @@session.sql_mode;
+SET SESSION sql_mode = '';
+
+--echo #
+--echo # 1) Type matrix — MODIFY nullable -> NOT NULL on table with NULL rows
+--echo #
+# Each column starts nullable, holds one NULL row plus one non-NULL row,
+# then is MODIFY'd to NOT NULL in a single multi-column ALTER. CHECKSUM
+# parity proves the UPDATE back-fill matches InnoDB's implicit default
+# for every supported type.
+
+CREATE TABLE t_innodb (
+  id INT PRIMARY KEY,
+  c_int INT,
+  c_bigint BIGINT,
+  c_tinyint TINYINT,
+  c_bool BOOL,
+  c_smallint SMALLINT,
+  c_mediumint MEDIUMINT,
+  c_float FLOAT,
+  c_double DOUBLE,
+  c_decimal DECIMAL(12,2),
+  c_varchar VARCHAR(100),
+  c_char CHAR(10),
+  c_text TEXT,
+  c_tinytext TINYTEXT,
+  c_mediumtext MEDIUMTEXT,
+  c_longtext LONGTEXT,
+  c_blob BLOB,
+  c_tinyblob TINYBLOB,
+  c_mediumblob MEDIUMBLOB,
+  c_longblob LONGBLOB,
+  c_varbinary VARBINARY(100),
+  c_time TIME,
+  c_time6 TIME(6),
+  c_json JSON,
+  c_bit BIT(8),
+  c_bit64 BIT(64),
+  c_set SET('x','y','z'),
+  c_enum ENUM('a','b','c')
+) ENGINE=InnoDB;
+
+CREATE TABLE t_duckdb (
+  id INT PRIMARY KEY,
+  c_int INT,
+  c_bigint BIGINT,
+  c_tinyint TINYINT,
+  c_bool BOOL,
+  c_smallint SMALLINT,
+  c_mediumint MEDIUMINT,
+  c_float FLOAT,
+  c_double DOUBLE,
+  c_decimal DECIMAL(12,2),
+  c_varchar VARCHAR(100),
+  c_char CHAR(10),
+  c_text TEXT,
+  c_tinytext TINYTEXT,
+  c_mediumtext MEDIUMTEXT,
+  c_longtext LONGTEXT,
+  c_blob BLOB,
+  c_tinyblob TINYBLOB,
+  c_mediumblob MEDIUMBLOB,
+  c_longblob LONGBLOB,
+  c_varbinary VARBINARY(100),
+  c_time TIME,
+  c_time6 TIME(6),
+  c_json JSON,
+  c_bit BIT(8),
+  c_bit64 BIT(64),
+  c_set SET('x','y','z'),
+  c_enum ENUM('a','b','c')
+) ENGINE=DuckDB;
+
+# row 1: all NULL (will be back-filled by the fix)
+# row 2: explicit values (control to verify non-NULL rows are untouched)
+INSERT INTO t_innodb VALUES (1, NULL, NULL,NULL,NULL,NULL,NULL, NULL,NULL,NULL, NULL,NULL, NULL,NULL,NULL,NULL, NULL,NULL,NULL,NULL,NULL, NULL,NULL, NULL, NULL,NULL, NULL, NULL);
+INSERT INTO t_duckdb VALUES (1, NULL, NULL,NULL,NULL,NULL,NULL, NULL,NULL,NULL, NULL,NULL, NULL,NULL,NULL,NULL, NULL,NULL,NULL,NULL,NULL, NULL,NULL, NULL, NULL,NULL, NULL, NULL);
+INSERT INTO t_innodb VALUES (2, 1,1,1,1,1,1, 1,1,1.00, 'a','a', 'a','a','a','a', 'a','a','a','a','a', '01:00:00','01:00:00.000000', '1', 1, 1, 'x', 'b');
+INSERT INTO t_duckdb VALUES (2, 1,1,1,1,1,1, 1,1,1.00, 'a','a', 'a','a','a','a', 'a','a','a','a','a', '01:00:00','01:00:00.000000', '1', 1, 1, 'x', 'b');
+
+--disable_warnings
+ALTER TABLE t_innodb MODIFY COLUMN c_int INT NOT NULL,
+                     MODIFY COLUMN c_bigint BIGINT NOT NULL,
+                     MODIFY COLUMN c_tinyint TINYINT NOT NULL,
+                     MODIFY COLUMN c_bool BOOL NOT NULL,
+                     MODIFY COLUMN c_smallint SMALLINT NOT NULL,
+                     MODIFY COLUMN c_mediumint MEDIUMINT NOT NULL,
+                     MODIFY COLUMN c_float FLOAT NOT NULL,
+                     MODIFY COLUMN c_double DOUBLE NOT NULL,
+                     MODIFY COLUMN c_decimal DECIMAL(12,2) NOT NULL,
+                     MODIFY COLUMN c_varchar VARCHAR(100) NOT NULL,
+                     MODIFY COLUMN c_char CHAR(10) NOT NULL,
+                     MODIFY COLUMN c_text TEXT NOT NULL,
+                     MODIFY COLUMN c_tinytext TINYTEXT NOT NULL,
+                     MODIFY COLUMN c_mediumtext MEDIUMTEXT NOT NULL,
+                     MODIFY COLUMN c_longtext LONGTEXT NOT NULL,
+                     MODIFY COLUMN c_blob BLOB NOT NULL,
+                     MODIFY COLUMN c_tinyblob TINYBLOB NOT NULL,
+                     MODIFY COLUMN c_mediumblob MEDIUMBLOB NOT NULL,
+                     MODIFY COLUMN c_longblob LONGBLOB NOT NULL,
+                     MODIFY COLUMN c_varbinary VARBINARY(100) NOT NULL,
+                     MODIFY COLUMN c_time TIME NOT NULL,
+                     MODIFY COLUMN c_time6 TIME(6) NOT NULL,
+                     MODIFY COLUMN c_json JSON NOT NULL,
+                     MODIFY COLUMN c_bit BIT(8) NOT NULL,
+                     MODIFY COLUMN c_bit64 BIT(64) NOT NULL,
+                     MODIFY COLUMN c_set SET('x','y','z') NOT NULL,
+                     MODIFY COLUMN c_enum ENUM('a','b','c') NOT NULL;
+--enable_warnings
+
+ALTER TABLE t_duckdb MODIFY COLUMN c_int INT NOT NULL,
+                     MODIFY COLUMN c_bigint BIGINT NOT NULL,
+                     MODIFY COLUMN c_tinyint TINYINT NOT NULL,
+                     MODIFY COLUMN c_bool BOOL NOT NULL,
+                     MODIFY COLUMN c_smallint SMALLINT NOT NULL,
+                     MODIFY COLUMN c_mediumint MEDIUMINT NOT NULL,
+                     MODIFY COLUMN c_float FLOAT NOT NULL,
+                     MODIFY COLUMN c_double DOUBLE NOT NULL,
+                     MODIFY COLUMN c_decimal DECIMAL(12,2) NOT NULL,
+                     MODIFY COLUMN c_varchar VARCHAR(100) NOT NULL,
+                     MODIFY COLUMN c_char CHAR(10) NOT NULL,
+                     MODIFY COLUMN c_text TEXT NOT NULL,
+                     MODIFY COLUMN c_tinytext TINYTEXT NOT NULL,
+                     MODIFY COLUMN c_mediumtext MEDIUMTEXT NOT NULL,
+                     MODIFY COLUMN c_longtext LONGTEXT NOT NULL,
+                     MODIFY COLUMN c_blob BLOB NOT NULL,
+                     MODIFY COLUMN c_tinyblob TINYBLOB NOT NULL,
+                     MODIFY COLUMN c_mediumblob MEDIUMBLOB NOT NULL,
+                     MODIFY COLUMN c_longblob LONGBLOB NOT NULL,
+                     MODIFY COLUMN c_varbinary VARBINARY(100) NOT NULL,
+                     MODIFY COLUMN c_time TIME NOT NULL,
+                     MODIFY COLUMN c_time6 TIME(6) NOT NULL,
+                     MODIFY COLUMN c_json JSON NOT NULL,
+                     MODIFY COLUMN c_bit BIT(8) NOT NULL,
+                     MODIFY COLUMN c_bit64 BIT(64) NOT NULL,
+                     MODIFY COLUMN c_set SET('x','y','z') NOT NULL,
+                     MODIFY COLUMN c_enum ENUM('a','b','c') NOT NULL;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = Checksum parity after MODIFY back-fill
+--source include/assert.inc
+
+# After the MODIFY, the columns must be NOT NULL — inserting NULL must fail.
+--error ER_BAD_NULL_ERROR
+INSERT INTO t_innodb (id, c_int) VALUES (3, NULL);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t_duckdb (id, c_int) VALUES (3, NULL);
+
+# Layer 1: MySQL DD records the same column metadata for both engines.
+# COLUMN_DEFAULT is NULL for NOT-NULL-without-DEFAULT columns on both
+# sides because MySQL doesn't track implicit defaults — proves the
+# UPDATE back-fill does not pollute MySQL's view of the column definition.
+SELECT column_name, column_default, is_nullable
+  FROM information_schema.columns
+ WHERE table_schema='test' AND table_name='t_innodb'
+ ORDER BY ordinal_position;
+SELECT column_name, column_default, is_nullable
+  FROM information_schema.columns
+ WHERE table_schema='test' AND table_name='t_duckdb'
+ ORDER BY ordinal_position;
+
+# Layer 2: DuckDB catalog must NOT show injected defaults — unlike the
+# ADD COLUMN path (which injects DEFAULT into the DDL), the MODIFY path
+# uses UPDATE to back-fill. Verify column_default stays NULL.
+CALL dbms_duckdb.query("SELECT column_name, column_default, is_nullable FROM information_schema.columns WHERE table_name='t_duckdb' ORDER BY ordinal_position");
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 2) MODIFY nullable -> NOT NULL on empty table (control)
+--echo #
+# Boundary case: no NULL rows means the UPDATE is a no-op. The
+# constraint must still be installed.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, c INT) ENGINE=DuckDB;
+
+ALTER TABLE t_innodb MODIFY COLUMN c INT NOT NULL;
+ALTER TABLE t_duckdb MODIFY COLUMN c INT NOT NULL;
+
+INSERT INTO t_innodb VALUES (1, 100);
+INSERT INTO t_duckdb VALUES (1, 100);
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t_innodb VALUES (2, NULL);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t_duckdb VALUES (2, NULL);
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = Empty-table MODIFY checksum parity
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 3) MODIFY nullable -> NOT NULL on table with no NULL rows (control)
+--echo #
+# Confirms the UPDATE is harmless when all rows already non-NULL.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, c INT) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t_duckdb VALUES (1, 1), (2, 2), (3, 3);
+
+ALTER TABLE t_innodb MODIFY COLUMN c INT NOT NULL;
+ALTER TABLE t_duckdb MODIFY COLUMN c INT NOT NULL;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = No-NULL-rows MODIFY checksum parity
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 4) MODIFY with explicit DEFAULT — InnoDB ignores user DEFAULT and
+--echo #    fills NULLs with the type's implicit default. The fix matches.
+--echo #
+# Verifies the fix uses get_implicit_default_for_duckdb (always returns
+# 0/'' for INT/VARCHAR), NOT the user's DEFAULT clause. InnoDB does
+# the same -- a probe confirmed NULL rows filled with 0, not 7.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, c INT) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, NULL), (2, 10), (3, NULL);
+INSERT INTO t_duckdb VALUES (1, NULL), (2, 10), (3, NULL);
+
+--disable_warnings
+ALTER TABLE t_innodb MODIFY COLUMN c INT NOT NULL DEFAULT 7;
+--enable_warnings
+ALTER TABLE t_duckdb MODIFY COLUMN c INT NOT NULL DEFAULT 7;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = User DEFAULT does not bypass implicit fill
+--source include/assert.inc
+
+# Verify: NULLs become 0 (implicit), not 7 (user DEFAULT).
+SELECT * FROM t_duckdb ORDER BY id;
+
+# Verify the user DEFAULT 7 still applies to future inserts.
+INSERT INTO t_innodb (id) VALUES (4);
+INSERT INTO t_duckdb (id) VALUES (4);
+SELECT id, c FROM t_duckdb WHERE id = 4;
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 5) CHANGE rename + nullable -> NOT NULL (column referenced by new name)
+--echo #
+# CHANGE COLUMN c d INT NOT NULL: convertor emits RENAME first, then our
+# UPDATE/SET NOT NULL. Confirms we use the new column name (`d`), not
+# the old (`c`).
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, c INT) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, NULL), (2, 10);
+INSERT INTO t_duckdb VALUES (1, NULL), (2, 10);
+
+--disable_warnings
+ALTER TABLE t_innodb CHANGE COLUMN c d INT NOT NULL;
+--enable_warnings
+ALTER TABLE t_duckdb CHANGE COLUMN c d INT NOT NULL;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = CHANGE rename + NOT NULL parity
+--source include/assert.inc
+
+SHOW CREATE TABLE t_duckdb;
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 6) MODIFY with type change + nullable -> NOT NULL
+--echo #
+# INT -> VARCHAR while gaining NOT NULL. Convertor emits SET DATA TYPE
+# first; our UPDATE runs after, so the implicit default (`''`) matches
+# the new VARCHAR type.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, c INT) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, NULL), (2, 10);
+INSERT INTO t_duckdb VALUES (1, NULL), (2, 10);
+
+--disable_warnings
+ALTER TABLE t_innodb MODIFY COLUMN c VARCHAR(20) NOT NULL;
+--enable_warnings
+ALTER TABLE t_duckdb MODIFY COLUMN c VARCHAR(20) NOT NULL;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = Type-change MODIFY parity
+--source include/assert.inc
+
+SELECT * FROM t_duckdb ORDER BY id;
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 7) Regression: NOT NULL -> nullable still works (no fix path)
+--echo #
+# Drops NOT NULL on a populated column. Should be unaffected by the fix.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, c INT NOT NULL) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, c INT NOT NULL) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, 1), (2, 2);
+INSERT INTO t_duckdb VALUES (1, 1), (2, 2);
+
+ALTER TABLE t_innodb MODIFY COLUMN c INT NULL;
+ALTER TABLE t_duckdb MODIFY COLUMN c INT NULL;
+
+INSERT INTO t_innodb VALUES (3, NULL);
+INSERT INTO t_duckdb VALUES (3, NULL);
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = DROP NOT NULL still works
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 8) Strict mode: both engines reject (UPDATE skipped under strict)
+--echo #
+# The fix gates the UPDATE on current_thd->is_strict_mode() to keep
+# DuckDB aligned with InnoDB. Both engines reject; the error codes
+# differ (InnoDB raises ER_INVALID_USE_OF_NULL at the SQL layer,
+# DuckDB raises ER_DUCKDB_QUERY_ERROR at SET NOT NULL) but the
+# semantic outcome -- "strict refuses to silently fill NULLs" -- is
+# preserved.
+
+SET SESSION sql_mode = 'STRICT_ALL_TABLES';
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, c INT) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, NULL), (2, 10);
+INSERT INTO t_duckdb VALUES (1, NULL), (2, 10);
+
+--error ER_INVALID_USE_OF_NULL
+ALTER TABLE t_innodb MODIFY COLUMN c INT NOT NULL;
+--error ER_DUCKDB_QUERY_ERROR
+ALTER TABLE t_duckdb MODIFY COLUMN c INT NOT NULL;
+
+# Both ALTERs rolled back; tables unchanged.
+SELECT * FROM t_innodb ORDER BY id;
+SELECT * FROM t_duckdb ORDER BY id;
+
+DROP TABLE t_innodb, t_duckdb;
+SET SESSION sql_mode = '';
+
+--echo #
+--echo # 9) Mixed MODIFY — partial NOT NULL in same ALTER
+--echo #
+# A single ALTER modifies c_nn to NOT NULL while leaving c_nl nullable.
+# The convertor only iterates m_columns_to_set_not_null, so the UPDATE
+# back-fill via append_stmt_update_null_with_default must target c_nn
+# exclusively. c_nl's NULL rows must survive untouched — proves the fix
+# does not over-apply to sibling columns in the same ALTER.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, c_nn INT, c_nl INT) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, c_nn INT, c_nl INT) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, NULL, NULL), (2, 10, 20);
+INSERT INTO t_duckdb VALUES (1, NULL, NULL), (2, 10, 20);
+
+--disable_warnings
+ALTER TABLE t_innodb MODIFY COLUMN c_nn INT NOT NULL,
+                     MODIFY COLUMN c_nl INT;
+--enable_warnings
+ALTER TABLE t_duckdb MODIFY COLUMN c_nn INT NOT NULL,
+                     MODIFY COLUMN c_nl INT;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = Mixed MODIFY parity
+--source include/assert.inc
+
+# c_nn: NULL → 0 (implicit default via UPDATE); c_nl: NULL preserved.
+SELECT * FROM t_duckdb ORDER BY id;
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 10) DECIMAL precision × duckdb_use_double_for_decimal
+--echo #
+# DECIMAL is special: DuckDB's underlying storage type switches between
+# DECIMAL and DOUBLE depending on (a) precision (DuckDB DECIMAL caps at
+# 38) and (b) the global `duckdb_use_double_for_decimal` flag. The
+# implicit default '0' from get_implicit_default_for_duckdb() must
+# produce InnoDB-equivalent rows on every combination. Mirrors
+# AddColumn test Case 6 — see create_table_column.test for the
+# corresponding type-mapping coverage.
+
+SET @saved_use_double = @@global.duckdb_use_double_for_decimal;
+
+--echo #
+--echo # 10a) use_double=off — DuckDB stores both as DECIMAL (high precision capped at 38)
+--echo #
+SET GLOBAL duckdb_use_double_for_decimal=off;
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, d_low DECIMAL(38,5), d_high DECIMAL(40,5)) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, d_low DECIMAL(38,5), d_high DECIMAL(40,5)) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, NULL, NULL), (2, 1.00000, 2.00000);
+INSERT INTO t_duckdb VALUES (1, NULL, NULL), (2, 1.00000, 2.00000);
+
+--disable_warnings
+ALTER TABLE t_innodb MODIFY COLUMN d_low DECIMAL(38,5) NOT NULL,
+                     MODIFY COLUMN d_high DECIMAL(40,5) NOT NULL;
+--enable_warnings
+ALTER TABLE t_duckdb MODIFY COLUMN d_low DECIMAL(38,5) NOT NULL,
+                     MODIFY COLUMN d_high DECIMAL(40,5) NOT NULL;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = DECIMAL MODIFY parity (use_double=off)
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 10b) use_double=on — DuckDB stores high-precision as DOUBLE
+--echo #
+SET GLOBAL duckdb_use_double_for_decimal=on;
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, d_low DECIMAL(38,5), d_high DECIMAL(40,5)) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, d_low DECIMAL(38,5), d_high DECIMAL(40,5)) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, NULL, NULL), (2, 1.00000, 2.00000);
+INSERT INTO t_duckdb VALUES (1, NULL, NULL), (2, 1.00000, 2.00000);
+
+--disable_warnings
+ALTER TABLE t_innodb MODIFY COLUMN d_low DECIMAL(38,5) NOT NULL,
+                     MODIFY COLUMN d_high DECIMAL(40,5) NOT NULL;
+--enable_warnings
+ALTER TABLE t_duckdb MODIFY COLUMN d_low DECIMAL(38,5) NOT NULL,
+                     MODIFY COLUMN d_high DECIMAL(40,5) NOT NULL;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = DECIMAL MODIFY parity (use_double=on)
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+SET GLOBAL duckdb_use_double_for_decimal = @saved_use_double;
+
+--echo #
+--echo # 11) ENUM MODIFY — verify '' sentinel (not first enum value)
+--echo #
+# InnoDB fills NULL with '' (enum index 0, out-of-range sentinel), not 'a'.
+# The fix now returns '' for MODIFY path to match.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, c ENUM('a','b','c')) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, c ENUM('a','b','c')) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, NULL),(2, 'b');
+INSERT INTO t_duckdb VALUES (1, NULL),(2, 'b');
+
+--disable_warnings
+ALTER TABLE t_innodb MODIFY COLUMN c ENUM('a','b','c') NOT NULL;
+--enable_warnings
+ALTER TABLE t_duckdb MODIFY COLUMN c ENUM('a','b','c') NOT NULL;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = ENUM MODIFY fills '' sentinel
+--source include/assert.inc
+
+SELECT id, c, HEX(c) FROM t_innodb ORDER BY id;
+SELECT id, c, HEX(c) FROM t_duckdb ORDER BY id;
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 12) BINARY(10) MODIFY — verify LENGTH matches InnoDB
+--echo #
+# InnoDB fills NULL with 10 zero bytes; DuckDB must do the same after fix.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, c BINARY(10)) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, c BINARY(10)) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, NULL),(2, 'hello');
+INSERT INTO t_duckdb VALUES (1, NULL),(2, 'hello');
+
+--disable_warnings
+ALTER TABLE t_innodb MODIFY COLUMN c BINARY(10) NOT NULL;
+--enable_warnings
+ALTER TABLE t_duckdb MODIFY COLUMN c BINARY(10) NOT NULL;
+
+SELECT id, HEX(c), LENGTH(c) FROM t_innodb ORDER BY id;
+SELECT id, HEX(c), LENGTH(c) FROM t_duckdb ORDER BY id;
+
+--let $li = query_get_value(SELECT LENGTH(c) AS l FROM t_innodb WHERE id=1, l, 1)
+--let $ld = query_get_value(SELECT LENGTH(c) AS l FROM t_duckdb WHERE id=1, l, 1)
+--let $assert_cond = $li = $ld
+--let $assert_text = BINARY(10) MODIFY LENGTH parity
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 13) CHANGE INT → ENUM — verify index-to-name mapping
+--echo #
+# InnoDB maps INT 1→'a', 2→'b' by enum index. DuckDB after fix does same.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY, c INT) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, c INT) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, NULL),(2, 1),(3, 2),(4, 0);
+INSERT INTO t_duckdb VALUES (1, NULL),(2, 1),(3, 2),(4, 0);
+
+--disable_warnings
+ALTER TABLE t_innodb CHANGE COLUMN c d ENUM('a','b','c') NOT NULL;
+--enable_warnings
+ALTER TABLE t_duckdb CHANGE COLUMN c d ENUM('a','b','c') NOT NULL;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = INT to ENUM CHANGE parity
+--source include/assert.inc
+
+SELECT id, d, HEX(d) FROM t_innodb ORDER BY id;
+SELECT id, d, HEX(d) FROM t_duckdb ORDER BY id;
+
+DROP TABLE t_innodb, t_duckdb;
+
+SET SESSION sql_mode = @saved_sql_mode;

@@ -36,7 +36,8 @@ perl;
               thread-concurrency super-large-pages mutex-deadlock-detector null-audit
               sha256-password-private-key-path sha256-password-public-key-path
               sha256-password-auto-generate-rsa-keys caching-sha2-password-auto-generate-rsa-keys
-              keyring-migration-socket mysqlx/;
+              keyring-migration-socket mysqlx
+              duckdb force-innodb-to-duckdb ignore-index-hint-error/;
 
   # And substitute the content some environment variables with their
   # names:

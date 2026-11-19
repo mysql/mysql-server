@@ -1,0 +1,272 @@
+# name: test/sql/types/union/union_cast.test
+# description: Test union to union casts
+# group: [union]
+
+statement ok
+SET default_null_order='nulls_first';
+
+# Test value -> union casts
+statement ok
+create table tbl1(u UNION(i32 INT, str VARCHAR));
+
+statement ok
+insert into tbl1 values (1) , ('two') , ('three')
+
+query I
+SELECT * FROM tbl1;
+----
+1
+two
+three
+
+
+# Test union -> value cast
+
+# cannot cast union to value in the general case
+statement error
+SELECT u::int FROM tbl1;
+----
+
+# but we can cast to VARCHAR
+query I
+SELECT u::varchar FROM tbl1;
+----
+1
+two
+three
+
+
+# Test union -> union cast
+statement ok
+create table tbl2(u UNION(str VARCHAR, i32 INT, f32 FLOAT));
+
+statement ok
+insert into tbl2 values ('five'), (4), (6.0);
+
+query I
+SELECT * FROM tbl2;
+----
+five
+4
+6.0
+
+query III
+SELECT u.i32, u.str, u.f32 FROM tbl2;
+----
+NULL	five	NULL
+4		NULL	NULL
+NULL	NULL	6.0
+
+query I
+SELECT * FROM tbl2 UNION ALL SELECT * FROM tbl1;
+----
+five
+4
+6.0
+1
+two
+three
+
+query I
+SELECT * FROM tbl1 UNION ALL SELECT * FROM tbl2;
+----
+1
+two
+three
+five
+4
+6.0
+
+query III
+SELECT u.i32, u.str, u.f32 FROM tbl2 UNION ALL SELECT u.i32, u.str, NULL FROM tbl1 ORDER BY ALL;
+----
+NULL	NULL	6.0
+NULL	five	NULL
+NULL	three	NULL
+NULL	two		NULL
+1		NULL	NULL
+4		NULL	NULL
+
+
+query I
+SELECT * FROM tbl2
+----
+five
+4
+6.0
+
+statement ok
+INSERT INTO tbl2 SELECT * FROM tbl1;
+
+query I
+SELECT * FROM tbl2;
+----
+five
+4
+6.0
+1
+two
+three
+
+query I
+SELECT u.f32 FROM tbl2;
+----
+NULL
+NULL
+6.0
+NULL
+NULL
+NULL
+
+
+query IIII
+SELECT union_tag(u), u.i32, u.str, u.f32 FROM tbl2;
+----
+str		NULL	five	NULL
+i32		4		NULL	NULL
+f32		NULL	NULL	6.0
+i32		1		NULL	NULL
+str		NULL	two		NULL
+str		NULL	three	NULL
+
+# Allow explicit casts
+statement ok
+CREATE TABLE tbl3 (u UNION(i INT));
+
+statement ok
+INSERT INTO tbl3 VALUES (1), (2), (3);
+
+query I
+SELECT u::UNION(i SMALLINT) FROM tbl3 ORDER BY ALL;;
+----
+1
+2
+3
+
+statement ok
+CREATE TABLE tbl4 (u UNION(i INT, b BLOB));
+
+statement ok
+INSERT INTO tbl4 VALUES (1), ('010203'::BLOB), (3), ('070809'::BLOB);
+
+# fails since b is missing
+statement error
+SELECT u::UNION(i SMALLINT, v VARCHAR) FROM tbl4;
+----
+
+# succeeds since b is present
+query I
+SELECT u::UNION(i SMALLINT, b VARCHAR) FROM tbl4 ORDER BY ALL;;
+----
+1
+3
+010203
+070809
+
+# fails since b is not compatible
+statement error
+SELECT u::UNION(i SMALLINT, b INT) FROM tbl4;
+----
+
+statement ok
+DELETE FROM tbl4 WHERE union_tag(u) == 'b';
+
+statement ok
+INSERT INTO tbl4 VALUES (union_value(b := NULL::BLOB)), (union_value(b := NULL)), (NULL), (NULL::BLOB);
+
+# succeeds since all members of b is null, therefore TryNullCast allows to cast blob -> int.
+query III
+SELECT union_tag(u), union_tag(u::UNION(i SMALLINT, b INT)), u::UNION(i SMALLINT, b INT) FROM tbl4 ORDER BY ALL;;
+----
+NULL	NULL	NULL
+i		i		1
+i		i		3
+b		b		NULL
+b		b		NULL
+b		b		NULL
+
+# DuckDB internal issue #477
+query I
+select [
+    true::UNION(
+        a integer,
+        c bool
+    )
+] as a from range(10);
+----
+[true]
+[true]
+[true]
+[true]
+[true]
+[true]
+[true]
+[true]
+[true]
+[true]
+
+
+# Struct member cast resolution
+statement ok
+CREATE TABLE t3 (id integer, u union(s1 struct(f1 varchar, f2 int), s2 struct(b1 varchar)));
+
+statement ok
+INSERT INTO t3 VALUES (1, {b1: 'a'});
+
+statement ok
+INSERT INTO t3 VALUES (2, row('s1', 2));
+
+statement ok
+INSERT INTO t3 VALUES (3, {f1: 'c', f2: 3});
+
+statement ok
+INSERT INTO t3 VALUES (4, row('s2'));
+
+query II rowsort
+SELECT * FROM t3
+----
+1	{'b1': a}
+2	{'f1': s1, 'f2': 2}
+3	{'f1': c, 'f2': 3}
+4	{'b1': s2}
+
+
+# More union cast resolution checks
+# Select the member with the lowest implicit cast cost
+query I
+SELECT union_tag(1::INTEGER::UNION(f1 VARCHAR, t DOUBLE, f2 BOOLEAN))
+----
+t
+
+query I
+SELECT union_tag(1::INTEGER::UNION(t BIGINT, f1 STRUCT(i INTEGER), f2 BOOLEAN))
+----
+t
+
+query I
+SELECT union_tag(1::FLOAT::UNION(f1 VARCHAR, f2 DOUBLE, t FLOAT))
+----
+t
+
+# This also works with nested unions, the value will slot into the union with the lowest cost
+query I
+SELECT union_tag(1::INTEGER::UNION(lu UNION(f1 VARCHAR, f2 BOOL), ru UNION(t BIGINT, f3 TINYINT)))
+----
+ru
+
+query I
+SELECT union_tag((1::INTEGER::UNION(lu UNION(f1 VARCHAR, f2 BOOL), ru UNION(t BIGINT, f3 TINYINT))).ru);
+----
+t
+
+# Of course, this can also become ambiguos if there are multiple leaf types with the same cost
+statement error
+SELECT union_tag(1::INTEGER::UNION(lu UNION(f1 VARCHAR, t2 BIGINT), ru UNION(t2 BIGINT, f3 TINYINT)));
+----
+Conversion Error: Type INTEGER can't be cast as UNION(lu UNION(f1 VARCHAR, t2 BIGINT), ru UNION(t2 BIGINT, f3 TINYINT)). The cast is ambiguous
+
+# For union -> union casts, the name of the members are case insensitive when resolving the cast
+query I
+SELECT union_tag(1::INTEGER::UNION(f1 VARCHAR, t2 BIGINT)::UNION(F1 VARCHAR, T2 BIGINT, F3 TINYINT))
+----
+T2

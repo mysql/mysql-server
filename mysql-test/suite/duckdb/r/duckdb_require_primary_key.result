@@ -1,0 +1,49 @@
+#
+# 1) duckdb_require_primary_key is ON, CREATE without PK is not allowed
+#
+SET GLOBAL duckdb_require_primary_key = ON;
+CREATE TABLE t(id INT, a VARCHAR(10), b VARCHAR(10)) ENGINE = DuckDB;
+ERROR 42000: This table type requires a primary key
+#
+# 2) duckdb_require_primary_key is OFF, CREATE without PK is allowed
+#
+SET GLOBAL duckdb_require_primary_key = OFF;
+CREATE TABLE t(id INT, a VARCHAR(10), b VARCHAR(10)) ENGINE = DuckDB;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `id` int DEFAULT NULL,
+  `a` varchar(10) DEFAULT NULL,
+  `b` varchar(10) DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 3) duckdb_require_primary_key is ON, ALTER without PK is not allowed
+#
+SET GLOBAL duckdb_require_primary_key = ON;
+ALTER TABLE t ADD COLUMN c VARCHAR(10);
+ERROR 42000: This table type requires a primary key
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `id` int DEFAULT NULL,
+  `a` varchar(10) DEFAULT NULL,
+  `b` varchar(10) DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 4) duckdb_require_primary_key is OFF, CREATE without PK is allowed
+#
+SET GLOBAL duckdb_require_primary_key = OFF;
+ALTER TABLE t ADD COLUMN c VARCHAR(10);
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `id` int DEFAULT NULL,
+  `a` varchar(10) DEFAULT NULL,
+  `b` varchar(10) DEFAULT NULL,
+  `c` varchar(10) DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 5) Cleanup
+#
+SET GLOBAL duckdb_require_primary_key = default;
+DROP TABLE t;

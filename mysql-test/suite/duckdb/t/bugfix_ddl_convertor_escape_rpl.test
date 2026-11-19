@@ -1,0 +1,58 @@
+# Aone#82044318 BUGFIX: Escape special characters in DuckDB batch rollback SQL
+
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--echo #
+--echo # 1) Prepare a DuckDB replica table whose name and columns contain `
+--echo #
+--source include/rpl/connection_source.inc
+CREATE TABLE `t``rb` (
+  `i``d` BIGINT NOT NULL,
+  `c``v` VARCHAR(32) NOT NULL,
+  PRIMARY KEY (`i``d`)
+) ENGINE=InnoDB;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE `t``rb` ENGINE=DuckDB;
+STOP REPLICA;
+
+--echo #
+--echo # 2) Stop IO before the second transaction's XID
+--echo #
+--source include/rpl/connection_source.inc
+INSERT INTO `t``rb` VALUES (1, 'one');
+INSERT INTO `t``rb` VALUES (2, 'two');
+
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("MY-013122");
+SET GLOBAL debug="+d,stop_when_queue_2nd_xid_event";
+START REPLICA IO_THREAD;
+--let $slave_io_errno=13122
+--source include/rpl/wait_for_receiver_to_stop.inc
+SET GLOBAL debug="-d,stop_when_queue_2nd_xid_event";
+
+START REPLICA;
+--source include/rpl/sync.inc
+
+--let $rpl_diff_statement = SELECT `i``d`, `c``v` FROM test.`t``rb` ORDER BY `i``d`
+--source include/rpl/diff.inc
+
+--let $rpl_diff_statement = SELECT column_name, ordinal_position, column_type, column_default, is_nullable, column_key FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = 0x74607262 ORDER BY ordinal_position
+--source include/rpl/diff.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text = Check partial rollback quoted the backtick temp table
+--let $assert_select = DELETE FROM main.`test_rds_buf_t``rb`
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo #
+--echo # 3) Cleanup
+--echo #
+--source include/rpl/connection_source.inc
+DROP TABLE `t``rb`;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

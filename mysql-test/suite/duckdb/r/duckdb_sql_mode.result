@@ -1,0 +1,96 @@
+
+1. ONLY_FULL_GROUP_BY
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 2);
+CREATE TABLE t2 (id INT PRIMARY KEY, col1 INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 2);
+SET sql_mode= '';
+SELECT id, sum(id) FROM t1;
+id	sum(id)
+1	6
+SELECT id, sum(id) FROM t2;
+id	sum(id)
+1	6
+SELECT id, sum(id) FROM t1 GROUP BY col1;
+id	sum(id)
+1	1
+2	5
+SELECT id, sum(id) FROM t2 GROUP BY col1;
+id	sum(id)
+1	1
+2	5
+SELECT col1 FROM t1 GROUP BY id;
+col1
+1
+2
+2
+SELECT col1 FROM t2 GROUP BY id;
+col1
+1
+2
+2
+SELECT * FROM t1 GROUP BY col1;
+id	col1
+1	1
+2	2
+SELECT * FROM t2 GROUP BY col1;
+id	col1
+1	1
+2	2
+SELECT id + max(id) FROM t1 GROUP BY col1;
+id + max(id)
+2
+5
+SELECT id + max(id) FROM t2 GROUP BY col1;
+id + max(id)
+2
+5
+SELECT id + id, max(id) FROM t1 GROUP BY col1;
+id + id	max(id)
+2	1
+4	3
+SELECT id + id, max(id) FROM t2 GROUP BY col1;
+id + id	max(id)
+2	1
+4	3
+SELECT id, col1 FROM t1 GROUP BY col1 HAVING id > 1;
+id	col1
+2	2
+SELECT id, col1 FROM t2 GROUP BY col1 HAVING id > 1;
+id	col1
+2	2
+SELECT id, col1 FROM t1 GROUP BY col1 HAVING ANY_VALUE(id) > 1;
+id	col1
+2	2
+SELECT id, col1 FROM t2 GROUP BY col1 HAVING ANY_VALUE(id) > 1;
+id	col1
+2	2
+SELECT id, col1 FROM t1 GROUP BY col1 HAVING MAX(id) > 1;
+id	col1
+2	2
+SELECT id, col1 FROM t2 GROUP BY col1 HAVING MAX(id) > 1;
+id	col1
+2	2
+SET sql_mode='ONLY_FULL_GROUP_BY';
+SELECT id, sum(id) FROM t1;
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t1.id'; this is incompatible with sql_mode=only_full_group_by
+SELECT id, sum(id) FROM t2;
+ERROR 42000: In aggregated query without GROUP BY, expression #1 of SELECT list contains nonaggregated column 'test.t2.id'; this is incompatible with sql_mode=only_full_group_by
+SELECT id, sum(id) FROM t1 GROUP BY col1;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t1.id' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT id, sum(id) FROM t2 GROUP BY col1;
+ERROR 42000: Expression #1 of SELECT list is not in GROUP BY clause and contains nonaggregated column 'test.t2.id' which is not functionally dependent on columns in GROUP BY clause; this is incompatible with sql_mode=only_full_group_by
+SELECT col1 FROM t1 GROUP BY id;
+ERROR HY000: [DuckDB] Binder Error: column "col1" must appear in the GROUP BY clause or must be part of an aggregate function.
+Either add it to the GROUP BY list, or use "ANY_VALUE(col1)" if the exact value of "col1" is not important.
+
+LINE 1: SELECT col1 FROM t1 GROUP BY id
+               ^.
+SELECT col1 FROM t2 GROUP BY id;
+col1
+1
+2
+2
+DROP TABLE t1;
+DROP TABLE t2;

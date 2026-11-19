@@ -1,0 +1,48 @@
+add_subdirectory(compressed_materialization)
+add_subdirectory(join_order)
+add_subdirectory(matcher)
+add_subdirectory(pullup)
+add_subdirectory(pushdown)
+add_subdirectory(rule)
+add_subdirectory(statistics)
+
+add_library_unity(
+  duckdb_optimizer
+  OBJECT
+  build_probe_side_optimizer.cpp
+  column_binding_replacer.cpp
+  column_lifetime_analyzer.cpp
+  empty_result_pullup.cpp
+  common_aggregate_optimizer.cpp
+  common_subplan_optimizer.cpp
+  compressed_materialization.cpp
+  cse_optimizer.cpp
+  cte_filter_pusher.cpp
+  cte_inlining.cpp
+  deliminator.cpp
+  expression_heuristics.cpp
+  expression_rewriter.cpp
+  filter_combiner.cpp
+  filter_pullup.cpp
+  filter_pushdown.cpp
+  in_clause_rewriter.cpp
+  join_filter_pushdown_optimizer.cpp
+  late_materialization.cpp
+  late_materialization_helper.cpp
+  optimizer.cpp
+  join_elimination.cpp
+  regex_range_filter.cpp
+  remove_duplicate_groups.cpp
+  remove_unused_columns.cpp
+  row_group_pruner.cpp
+  statistics_propagator.cpp
+  limit_pushdown.cpp
+  topn_optimizer.cpp
+  topn_window_elimination.cpp
+  unnest_rewriter.cpp
+  window_self_join.cpp
+  sampling_pushdown.cpp
+  sum_rewriter.cpp)
+set(ALL_OBJECT_FILES
+    ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:duckdb_optimizer>
+    PARENT_SCOPE)

@@ -1,0 +1,49 @@
+# name: test/sql/copy/csv/test_windows_newline.test
+# description: Test Windows Newlines with a long file
+# group: [csv]
+
+statement ok
+PRAGMA enable_verification
+
+# many strings with windows newlines
+# load CSV file into a table
+statement ok
+CREATE TABLE test (a INTEGER, b VARCHAR, c INTEGER);
+
+query I
+COPY test FROM '{DATA_DIR}/csv/test/windows_newline.csv';
+----
+20000
+
+query RIIRR
+SELECT SUM(a), MIN(LENGTH(b)), MAX(LENGTH(b)), SUM(LENGTH(b)), SUM(c) FROM test;
+----
+199990000.000000	5	5	100000.000000	200030000.000000
+
+statement ok
+DELETE FROM test;
+
+# now do the same with a multi-byte quote that is not actually used
+statement error
+COPY test FROM '{DATA_DIR}/csv/test/windows_newline.csv' (QUOTE 'BLABLABLA', AUTO_DETECT FALSE);
+----
+The quote option cannot exceed a size of 1 byte.
+
+statement ok
+DROP TABLE test;
+
+# csv file with one value and many empty values with windows newline
+# load CSV file into a table
+statement ok
+CREATE TABLE test (a INTEGER);
+
+query I
+COPY test FROM '{DATA_DIR}/csv/test/windows_newline_empty.csv' (HEADER 0);
+----
+20000
+
+query R
+SELECT SUM(a) FROM test;
+----
+1.000000
+

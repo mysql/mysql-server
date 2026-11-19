@@ -73,8 +73,9 @@
 #include "nulls.h"
 #include "sql/create_field.h"
 #include "sql/current_thd.h"
-#include "sql/debug_sync.h"  // DEBUG_SYNC
-#include "sql/derror.h"      // ER_THD
+#include "sql/debug_sync.h"               // DEBUG_SYNC
+#include "sql/derror.h"                   // ER_THD
+#include "sql/duckdb/duckdb_sql_quote.h"  // myduck::quote_duckdb_ident
 #include "sql/enum_query_type.h"
 #include "sql/field.h"
 #include "sql/handler.h"
@@ -6130,4 +6131,215 @@ uint get_partition_field_store_length(Field *field) {
   if (field->real_type() == MYSQL_TYPE_VARCHAR)
     store_length += HA_KEY_BLOB_LENGTH;
   return store_length;
+}
+
+/**
+  Find the previous partition element in the list.
+  @param[in]  part_info  Partition information
+  @param[in]  p_elem     Partition element to find previous for
+
+  @return Previous partition element or nullptr if none.
+*/
+static partition_element *find_prev(partition_info *part_info,
+                                    partition_element *p_elem) {
+  List_iterator<partition_element> part_it(part_info->partitions);
+  partition_element *prev = nullptr;
+  partition_element *curr = nullptr;
+
+  while ((curr = part_it++)) {
+    if (curr == p_elem) {
+      return prev;
+    }
+    prev = curr;
+  }
+
+  return nullptr;
+}
+
+/**
+  Add specified partition values for range partition.
+  @param[in]  fptr       File pointer
+  @param[in]  part_info  Partition information
+  @param[in]  p_elem     Partition element
+
+  @return zero if success, non-zero otherwise.
+*/
+static int add_specified_partition_values_for_range(File fptr,
+                                                    partition_info *part_info,
+                                                    partition_element *p_elem) {
+  int err = 0;
+
+  if (part_info->column_list) {
+    List_iterator<part_elem_value> list_val_it(p_elem->list_val_list);
+    part_elem_value *list_value = list_val_it++;
+    err += add_begin_parenthesis(fptr);
+    err += add_column_list_values(fptr, part_info, list_value);
+    err += add_end_parenthesis(fptr);
+  } else {
+    if (!p_elem->max_value) {
+      err += add_begin_parenthesis(fptr);
+      if (p_elem->signed_flag)
+        err += add_int(fptr, p_elem->range_value);
+      else
+        err += add_uint(fptr, p_elem->range_value);
+      err += add_end_parenthesis(fptr);
+    }
+  }
+
+  return err;
+}
+
+/** Add partition values for delete.
+  @param[in]  fptr       File pointer
+  @param[in]  part_info  Partition information
+  @param[in]  p_elem     Partition element
+  @param[in]  item_name  Item of where clause
+
+  @return zero if success, non-zero otherwise.
+*/
+static int add_partition_values_for_delete(File fptr, partition_info *part_info,
+                                           partition_element *p_elem,
+                                           const std::string &item_name) {
+  int err = 0;
+
+  if (part_info->part_type == partition_type::RANGE) {
+    partition_element *first_p_elem = part_info->partitions[0];
+    partition_element *last_p_elem =
+        part_info->partitions[part_info->partitions.elements - 1];
+    partition_element *prev_p_elem = nullptr;
+    bool is_first = (first_p_elem == p_elem);
+    bool is_last = (last_p_elem == p_elem);
+
+    if (!is_first) {
+      prev_p_elem = find_prev(part_info, p_elem);
+    }
+
+    if (!is_last) {
+      err += add_string(fptr, " < ");
+      err += add_specified_partition_values_for_range(fptr, part_info, p_elem);
+
+      if (!is_first) {
+        err += add_string(fptr, " AND ");
+        err += add_string(fptr, item_name.c_str());
+        err += add_string(fptr, " >= ");
+        err += add_specified_partition_values_for_range(fptr, part_info,
+                                                        prev_p_elem);
+      }
+    } else {
+      err += add_string(fptr, " >= ");
+      err += add_specified_partition_values_for_range(fptr, part_info,
+                                                      prev_p_elem);
+    }
+  } else if (part_info->part_type == partition_type::LIST) {
+    uint i;
+    List_iterator<part_elem_value> list_val_it(p_elem->list_val_list);
+    err += add_string(fptr, " IN ");
+    uint num_items = p_elem->list_val_list.elements;
+
+    err += add_begin_parenthesis(fptr);
+    if (p_elem->has_null_value) {
+      err += add_string(fptr, "NULL");
+      if (num_items == 0) {
+        err += add_end_parenthesis(fptr);
+        goto end;
+      }
+      err += add_comma(fptr);
+    }
+    i = 0;
+    do {
+      part_elem_value *list_value = list_val_it++;
+
+      if (part_info->column_list)
+        err += add_column_list_values(fptr, part_info, list_value);
+      else {
+        if (!list_value->unsigned_flag)
+          err += add_int(fptr, list_value->value);
+        else
+          err += add_uint(fptr, list_value->value);
+      }
+      if (i != (num_items - 1)) err += add_comma(fptr);
+    } while (++i < num_items);
+    err += add_end_parenthesis(fptr);
+  }
+end:
+  return err;
+}
+
+/**
+  Generate partition syntax for delete.
+  @param[in]  part_info  Partition information
+  @param[in]  parts      Partitions to delete
+  @param[out] buf_length Length of buffer
+
+  @return buffer of partition syntax.
+*/
+char *generate_partition_syntax_for_delete(
+    partition_info *part_info, std::vector<partition_element *> &parts,
+    uint *buf_length) {
+  int err = 0;
+  File fptr;
+  char *buf = nullptr;  // Return buffer
+  DBUG_TRACE;
+
+  TABLE_SHARE *share = part_info->table->s;
+  std::string schema_name(share->db.str, share->db.length);
+  std::string table_name(share->table_name.str, share->table_name.length);
+
+  std::string use_str = "USE " + myduck::quote_duckdb_ident(schema_name) + ";";
+  std::string delete_str =
+      "DELETE FROM " + myduck::quote_duckdb_ident(table_name) + " WHERE ";
+  std::string item_str;
+
+  if (!(fptr = mysql_tmpfile("psyfd"))) {
+    return nullptr;
+  }
+
+  if (part_info->part_func_len) {
+    item_str += begin_paren_str;
+    {
+      // Default on-stack buffer which allows to avoid malloc() in most cases.
+      char expr_buff[256];
+      String tmp(expr_buff, sizeof(expr_buff), system_charset_info);
+      tmp.length(0);
+
+      // No point in including schema and table name for identifiers
+      // since any columns must be in this table.
+      part_info->part_expr->print(
+          current_thd, &tmp,
+          enum_query_type(QT_TO_SYSTEM_CHARSET | QT_NO_DB | QT_NO_TABLE));
+      item_str.append(tmp.ptr(), tmp.length());
+    }
+    item_str += end_paren_str;
+  } else if (part_info->column_list) {
+    String str("", 0, system_charset_info);
+    item_str += begin_paren_str;
+    if (append_field_list(current_thd, &str, part_info->part_field_list)) {
+      err++;
+    }
+    item_str.append(str.ptr(), str.length());
+    item_str += end_paren_str;
+  }
+
+  /* USE schema */
+  err += add_string(fptr, use_str.c_str());
+  err += add_string(fptr, "\n");
+
+  /* DELETE FROM ... WHERE ... */
+  for (size_t i = 0; i < parts.size(); i++) {
+    err += add_string(fptr, delete_str.c_str());
+    err += add_string(fptr, item_str.c_str());
+    err += add_partition_values_for_delete(fptr, part_info, parts[i], item_str);
+    err += add_string(fptr, ";");
+    if (i != parts.size() - 1) err += add_string(fptr, "\n");
+  }
+
+  if (err) goto close_file;
+  buf = get_file_content(fptr, buf_length, true);
+close_file:
+  if (buf == nullptr) {
+    my_error(ER_INTERNAL_ERROR, MYF(0),
+             "Failed to generate partition delete syntax");
+  }
+  mysql_file_close(fptr, MYF(0));
+  return buf;
 }

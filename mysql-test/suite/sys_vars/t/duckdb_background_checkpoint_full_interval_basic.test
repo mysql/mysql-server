@@ -1,0 +1,21 @@
+--source include/have_duckdb.inc
+
+SET @saved = @@global.duckdb_background_checkpoint_full_interval;
+SELECT @@global.duckdb_background_checkpoint_full_interval;
+SHOW GLOBAL VARIABLES LIKE 'duckdb_background_checkpoint_full_interval';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.duckdb_background_checkpoint_full_interval;
+--error ER_GLOBAL_VARIABLE
+SET SESSION duckdb_background_checkpoint_full_interval = 1;
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL duckdb_background_checkpoint_full_interval = 'invalid';
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL duckdb_background_checkpoint_full_interval = 1.5;
+
+SET GLOBAL duckdb_background_checkpoint_full_interval = 18446744073709551615;
+SELECT @@global.duckdb_background_checkpoint_full_interval;
+CALL dbms_duckdb.query("SELECT current_setting('background_checkpoint_full_interval') AS checkpoint_interval");
+SET GLOBAL duckdb_background_checkpoint_full_interval = DEFAULT;
+SELECT @@global.duckdb_background_checkpoint_full_interval;
+SET GLOBAL duckdb_background_checkpoint_full_interval = @saved;

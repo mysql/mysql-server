@@ -419,7 +419,11 @@ int Gtid_table_persistor::save(const Gtid_set *gtid_set, bool compress) {
   ret = error = save(table, gtid_set);
 
 end:
-  const int deinit_ret = table_access_ctx.deinit(thd, table, 0 != error, true);
+  /* When DuckDB commits multiple transactions in a batch, it writes the batch's
+     GTIDs to the table. Setting the parameter 'need_commit' to false prevents
+     the entire transaction from being committed at this point. */
+  const int deinit_ret = table_access_ctx.deinit(thd, table, 0 != error,
+                                                 !thd->multi_trx_in_batch());
 
   if (!ret && deinit_ret) ret = -1;
 

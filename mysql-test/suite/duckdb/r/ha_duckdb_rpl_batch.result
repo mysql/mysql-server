@@ -1,0 +1,107 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+###########################################################################
+# 0. Prepare
+###########################################################################
+[connection master]
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+c0 VARCHAR(20) NOT NULL,
+c1 CHAR(10) DEFAULT 'duckdb',
+c2 DECIMAL(5,2),
+c3 DATETIME,
+c4 TIMESTAMP,
+c5 BLOB,
+PRIMARY KEY(id, c0)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  `c2` decimal(5,2) DEFAULT NULL,
+  `c3` datetime DEFAULT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
+  `c5` blob,
+  PRIMARY KEY (`id`,`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  `c2` decimal(5,2) DEFAULT NULL,
+  `c3` datetime DEFAULT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
+  `c5` blob,
+  PRIMARY KEY (`id`,`c0`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# 1. Test Insert
+###########################################################################
+[connection master]
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES
+(1, 'abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a'),
+(2, 'd', NULL, NULL, '1998-01-01', '2006-02-28 00:21:11', NULL),
+(3, 'efg', 'RSA', 5.2, NULL, '2028-09-09 15:30:34', NULL),
+(4, 'hijk', NULL, 6, '2023-06-07', NULL, X'1a53aa890ee6'),
+(5, 'lmn', 'RSA', 10.5, NULL, '1988-10-01 08:58:25', NULL);
+include/rpl/sync.inc
+include/rpl/diff.inc
+###########################################################################
+# 2. Test Update
+###########################################################################
+[connection master]
+BEGIN;
+# Test modify non-PK field
+UPDATE t1 SET c1='xxxxx', c2=7.79, c3=NULL, c4='2025-03-25 20:58:23', c5=X'e18080e18080' WHERE id=4;
+UPDATE t1 SET c2=8.88 WHERE id=5;
+# Test modify PK field
+UPDATE t1 SET c0='yyyyyy' WHERE id=3;
+UPDATE t1 SET id=6, c4='2026-03-27 10:00:34' WHERE id=1;
+COMMIT;
+include/rpl/sync.inc
+include/rpl/diff.inc
+###########################################################################
+# 3. Test Delete
+###########################################################################
+[connection master]
+BEGIN;
+DELETE FROM t1 WHERE id=2;
+DELETE FROM t1 WHERE id=5;
+COMMIT;
+include/rpl/sync.inc
+include/rpl/diff.inc
+###########################################################################
+# 4. Test Mix Transaction
+###########################################################################
+[connection master]
+BEGIN;
+DELETE FROM t1 WHERE id=3;
+UPDATE t1 SET c1='zzzzzz' WHERE id=1;
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES (3, 'rds', 'RSA', 5.7, NULL, '2028-01-01 10:11:10', NULL);
+INSERT INTO t1 (id, c0) VALUES (2, 'hhhhh');
+UPDATE t1 SET c0='mysql' WHERE id=4;
+DELETE FROM t1 WHERE id=2;
+COMMIT;
+include/rpl/sync.inc
+include/rpl/diff.inc
+###########################################################################
+# 5. Test transactions are not replayed by executing SQL
+###########################################################################
+include/assert_grep.inc [Check DML SQL is not executed]
+###########################################################################
+# 6. Test Cleanup
+###########################################################################
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

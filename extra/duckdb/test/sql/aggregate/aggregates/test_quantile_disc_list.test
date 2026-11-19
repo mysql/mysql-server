@@ -1,0 +1,209 @@
+# name: test/sql/aggregate/aggregates/test_quantile_disc_list.test
+# description: Test QUANTILE_DISC operator with LIST quantiles
+# group: [aggregates]
+
+statement ok
+SET default_null_order='nulls_first';
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+PRAGMA verify_external
+
+# scalar quantiles
+statement ok
+create table quantiles as select range r, random() FROM range(10000) union all values (NULL, 0.1), (NULL, 0.5), (NULL, 0.9) order by 2;
+
+# single GROUP
+query I
+SELECT quantile_disc(r, [0.1, 0.5, 0.9]) FROM quantiles
+----
+[999, 4999, 8999]
+
+query I
+SELECT quantile_disc(case when r is null then null else [r] end, [0.1, 0.5, 0.9]) FROM quantiles
+----
+[[999], [4999], [8999]]
+
+query I
+SELECT quantile_disc(case when r is null then null else {'i': r} end, [0.1, 0.5, 0.9]) FROM quantiles
+----
+[{'i': 999}, {'i': 4999}, {'i': 8999}]
+
+foreach type decimal(4,1) decimal(8,1) decimal(12,1) decimal(18,1) decimal(24,1)
+
+query I
+SELECT quantile_disc(d::${type}, [0.1, 0.5, 0.9])
+FROM range(0,100) tbl(d)
+----
+[9.0, 49.0, 89.0]
+
+endloop
+
+# Negative quantiles (use descending intervals)
+query I
+SELECT quantile_disc(col, [-.25, -.5, -.75])
+FROM VALUES (11000), (3100), (2900), (2800), (2600), (2500) AS tab(col);
+----
+[3100, 2900, 2600]
+
+
+# VARCHAR. Remember, this is dictionary ordering, not numeric ordering!
+query I
+SELECT quantile_disc(d::VARCHAR, [0.1, 0.5, 0.9])
+FROM range(0,100) tbl(d)
+----
+[17, 53, 9]
+
+# multiple groups
+query II
+SELECT mod(r,10) as g, quantile_disc(r, [0.1, 0.5, 0.9]) FROM quantiles GROUP BY 1 ORDER BY 1
+----
+NULL	NULL
+0	[990, 4990, 8990]
+1	[991, 4991, 8991]
+2	[992, 4992, 8992]
+3	[993, 4993, 8993]
+4	[994, 4994, 8994]
+5	[995, 4995, 8995]
+6	[996, 4996, 8996]
+7	[997, 4997, 8997]
+8	[998, 4998, 8998]
+9	[999, 4999, 8999]
+
+# constant input
+query I
+SELECT quantile_disc(1, [0.1, 0.5, 0.9]) FROM quantiles
+----
+[1, 1, 1]
+
+# empty input
+query I
+SELECT quantile_disc(r, [0.1, 0.5, 0.9]) FROM quantiles WHERE 1=0
+----
+NULL
+
+# empty list
+query I
+SELECT quantile_disc(r, []) FROM quantiles
+----
+[]
+
+# temporal types
+query I
+SELECT quantile_disc('2021-01-01'::TIMESTAMP + interval (r) hour, [0.1, 0.5, 0.9]) FROM quantiles
+----
+['2021-02-11 15:00:00', '2021-07-28 07:00:00', '2022-01-10 23:00:00']
+
+query I
+SELECT quantile_disc('1990-01-01'::DATE + interval (r) day, [0.1, 0.5, 0.9]) FROM quantiles
+----
+['1992-09-26 00:00:00', '2003-09-09 00:00:00', '2014-08-22 00:00:00']
+
+query I
+SELECT quantile_disc('00:00:00'::TIME + interval (r) second, [0.1, 0.5, 0.9]) FROM quantiles
+----
+['00:16:39', '01:23:19', '02:29:59']
+
+query I
+SELECT quantile_disc(interval (r) second, [0.1, 0.5, 0.9]) FROM quantiles
+----
+['00:16:39', '01:23:19', '02:29:59']
+
+# WITH TIME ZONE
+query I
+SELECT quantile_disc(('2021-01-01'::TIMESTAMP + interval (r) hour)::TIMESTAMPTZ, [0.1, 0.5, 0.9]) FROM quantiles
+----
+['2021-02-11 15:00:00+00', '2021-07-28 07:00:00+00', '2022-01-10 23:00:00+00']
+
+statement ok
+pragma threads=4
+
+statement ok
+PRAGMA verify_parallelism
+
+# single GROUP
+query I
+SELECT quantile_disc(r, [0.1, 0.5, 0.9]) FROM quantiles
+----
+[999, 4999, 8999]
+
+# multiple groups
+query II
+SELECT mod(r,10) as g, quantile_disc(r, [0.1, 0.5, 0.9]) FROM quantiles GROUP BY 1 ORDER BY 1
+----
+NULL	NULL
+0	[990, 4990, 8990]
+1	[991, 4991, 8991]
+2	[992, 4992, 8992]
+3	[993, 4993, 8993]
+4	[994, 4994, 8994]
+5	[995, 4995, 8995]
+6	[996, 4996, 8996]
+7	[997, 4997, 8997]
+8	[998, 4998, 8998]
+9	[999, 4999, 8999]
+
+# constant input
+query I
+SELECT quantile_disc(1, [0.1, 0.5, 0.9]) FROM quantiles
+----
+[1, 1, 1]
+
+# empty input
+query I
+SELECT quantile_disc(r, [0.1, 0.5, 0.9]) FROM quantiles WHERE 1=0
+----
+NULL
+
+# empty list
+query I
+SELECT quantile_disc(r, []) FROM quantiles
+----
+[]
+
+# Oracle boundaries
+query I
+SELECT quantile_disc(col, [0.1, 0.32, 0.33, 0.34, 0.49, .5, .51, 0.75, 0.9, 0.999, 1])
+FROM VALUES (0), (1), (2), (10) AS tab(col);
+----
+[0, 1, 1, 1, 1, 1, 2, 2, 10, 10, 10]
+
+query I
+SELECT quantile_disc(42::UTINYINT, 0.5);
+----
+42
+
+# Array arguments
+query I
+SELECT quantile_disc(col, ARRAY_VALUE(0.5, 0.4, 0.1)) AS percentile 
+FROM VALUES (0), (1), (2), (10) AS tab(col);
+----
+[1, 1, 0]
+
+# Invalid use
+statement error
+SELECT quantile_disc(r, [-0.1, 0.5, 0.9]) FROM quantiles
+----
+Binder Error: QUANTILE parameters must have consistent signs
+
+statement error
+SELECT quantile_disc(r, (0.1, 0.5, 1.1)) FROM quantiles
+----
+<REGEX>:.*Binder Error: No function matches.*'quantile_disc.*
+
+statement error
+SELECT quantile_disc(r, [0.1, 0.5, NULL]) FROM quantiles
+----
+Binder Error: QUANTILE parameter cannot be NULL
+
+statement error
+SELECT quantile_disc(r, ["0.1", "0.5", "0.9"]) FROM quantiles
+----
+Binder Error: Referenced column "0.1" not found in FROM clause
+
+statement error
+SELECT quantile_disc(r, [0.1, 0.5, 0.9], 50) FROM quantiles
+----
+<REGEX>:.*Binder Error: No function matches.*'quantile_disc.*

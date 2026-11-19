@@ -156,6 +156,9 @@
 #include "thr_mutex.h"
 #include "vector-common/vector_constants.h"  // get_dimensions
 
+#include "sql/duckdb/duckdb_timezone.h"
+#include "sql/parse_tree_items.h"
+
 using std::max;
 using std::min;
 
@@ -341,6 +344,20 @@ bool Item_func::set_arguments(mem_root_deque<Item *> *list, bool context_free) {
   return false;
 }
 
+bool Item_func::set_arguments(mem_root_deque<Item *> *list, bool context_free,
+                              MEM_ROOT *mem_root) {
+  allowed_arg_cols = 1;
+  if (alloc_args(mem_root, list->size())) return true;
+  std::copy(list->begin(), list->end(), args);
+  if (!context_free) {
+    for (const Item *arg : make_array(args, arg_count)) {
+      add_accum_properties(arg);
+    }
+  }
+  list->clear();  // Fields are used
+  return false;
+}
+
 Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
     : Item_result_field(pos), allowed_arg_cols(1) {
   if (opt_list == nullptr) {
@@ -348,6 +365,15 @@ Item_func::Item_func(const POS &pos, PT_item_list *opt_list)
     arg_count = 0;
   } else
     set_arguments(&opt_list->value, true);
+}
+
+Item_func::Item_func(const POS &pos, PT_item_list *opt_list, MEM_ROOT *mem_root)
+    : Item_result_field(pos), allowed_arg_cols(1) {
+  if (opt_list == nullptr) {
+    args = m_embedded_arguments;
+    arg_count = 0;
+  } else
+    set_arguments(&opt_list->value, true, mem_root);
 }
 
 Item_func::Item_func(THD *thd, const Item_func *item)
@@ -764,6 +790,40 @@ void Item_func::raise_temporal_overflow(const char *type_name) {
 
 void Item_func::print(const THD *thd, String *str,
                       enum_query_type query_type) const {
+  if (query_type & QT_DUCKDB_REWRITE) {
+    if (arg_count > 0 && args[0]->is_duckdb_string_type()) {
+      if (functype() == HOUR_FUNC || functype() == MINUTE_FUNC ||
+          functype() == SECOND_FUNC || functype() == MICROSECOND_FUNC) {
+        str->append(func_name());
+        str->append(STRING_WITH_LEN("(CAST("));
+        args[0]->print(thd, str, query_type);
+        str->append(STRING_WITH_LEN(" AS TIME)"));
+        if (arg_count > 1) {
+          str->append(',');
+        }
+        print_args(thd, str, 1, query_type);
+        str->append(')');
+        return;
+      } else if (functype() == DAYNAME_FUNC || functype() == DAY_FUNC ||
+                 functype() == WEEK_FUNC || functype() == DAYOFYEAR_FUNC ||
+                 functype() == LAST_DAY_FUNC || functype() == MONTHNAME_FUNC ||
+                 functype() == QUARTER_FUNC || functype() == WEEKDAY_FUNC ||
+                 functype() == YEAR_FUNC || functype() == YEARWEEK_FUNC ||
+                 functype() == CONVERT_TZ_FUNC || functype() == MONTH_FUNC ||
+                 functype() == UNIX_TIMESTAMP_FUNC) {
+        str->append(func_name());
+        str->append(STRING_WITH_LEN("(CAST("));
+        args[0]->print(thd, str, query_type);
+        str->append(STRING_WITH_LEN(" AS TIMESTAMP)"));
+        if (arg_count > 1) {
+          str->append(',');
+        }
+        print_args(thd, str, 1, query_type);
+        str->append(')');
+        return;
+      }
+    }
+  }
   str->append(func_name());
   str->append('(');
   print_args(thd, str, 0, query_type);
@@ -1966,9 +2026,21 @@ bool Item_func_numhybrid::val_time(Time_val *time) {
 
 void Item_typecast_signed::print(const THD *thd, String *str,
                                  enum_query_type query_type) const {
-  str->append(STRING_WITH_LEN("cast("));
-  args[0]->print(thd, str, query_type);
-  str->append(STRING_WITH_LEN(" as signed)"));
+  if (query_type & QT_DUCKDB_REWRITE) {
+    if (args[0]->is_duckdb_string_type()) {
+      str->append(STRING_WITH_LEN("cast(split("));
+      args[0]->print(thd, str, query_type);
+      str->append(STRING_WITH_LEN(", '.')[1] as bigint)"));
+    } else {
+      str->append(STRING_WITH_LEN("cast("));
+      args[0]->print(thd, str, query_type);
+      str->append(STRING_WITH_LEN(" as bigint)"));
+    }
+  } else {
+    str->append(STRING_WITH_LEN("cast("));
+    args[0]->print(thd, str, query_type);
+    str->append(STRING_WITH_LEN(" as signed)"));
+  }
 }
 
 bool Item_typecast_signed::resolve_type(THD *thd) {
@@ -3097,6 +3169,25 @@ double Item_func_atan::val_real() {
     return check_float_overflow(atan2(value, val2));
   }
   return atan(value);
+}
+
+void Item_func_atan::print(const THD *thd, String *str,
+                           enum_query_type query_type) const {
+  if (query_type & QT_DUCKDB_REWRITE) {
+    if (arg_count == 2) {
+      str->append("atan2");
+      str->append('(');
+      print_args(thd, str, 0, query_type);
+      str->append(')');
+    } else {
+      str->append("atan");
+      str->append('(');
+      print_args(thd, str, 0, query_type);
+      str->append(')');
+    }
+  } else {
+    Item_dec_func::print(thd, str, query_type);
+  }
 }
 
 double Item_func_cos::val_real() {
@@ -4650,6 +4741,43 @@ bool Item_func_field::resolve_type(THD *thd) {
       return true;
   }
   return false;
+}
+
+void Item_func_field::print(const THD *thd, String *str,
+                            enum_query_type query_type) const {
+  if (query_type & QT_DUCKDB_REWRITE) {
+    String to_type;
+    bool need_cast = true;
+    switch (cmp_type) {
+      case STRING_RESULT:
+        to_type.append(STRING_WITH_LEN("VARCHAR"));
+        break;
+      case INT_RESULT:
+        to_type.append(STRING_WITH_LEN("BIGINT"));
+        break;
+      case REAL_RESULT:
+        to_type.append(STRING_WITH_LEN("DOUBLE"));
+        break;
+      default:
+        need_cast = false;
+        break;
+    }
+    str->append(func_name());
+    str->append('(');
+    for (uint i = 0; i < arg_count; i++) {
+      if (i != 0) str->append(',');
+      if (need_cast) str->append(STRING_WITH_LEN("CAST("));
+      args[i]->print(thd, str, query_type);
+      if (need_cast) {
+        str->append(STRING_WITH_LEN(" AS "));
+        str->append(to_type);
+        str->append(')');
+      }
+    }
+    str->append(')');
+  } else {
+    Item_int_func::print(thd, str, query_type);
+  }
 }
 
 longlong Item_func_ascii::val_int() {
@@ -7355,9 +7483,17 @@ enum Item_result Item_func_get_user_var::result_type() const {
 }
 
 void Item_func_get_user_var::print(const THD *thd, String *str,
-                                   enum_query_type) const {
+                                   enum_query_type query_type) const {
   str->append(STRING_WITH_LEN("(@"));
-  append_identifier(thd, str, name.ptr(), name.length());
+  /* TODO: val_str is not a const function, so it cannot be evaluated and
+   rewrited here directly. It is recommended to replace it with the actual
+   value in the future.
+  */
+  if (query_type & QT_DUCKDB_REWRITE) {
+    str->append(name.ptr(), name.length());
+  } else {
+    append_identifier(thd, str, name.ptr(), name.length());
+  }
   str->append(')');
 }
 
@@ -7500,7 +7636,55 @@ bool Item_func_get_system_var::resolve_type(THD *) {
 }
 
 void Item_func_get_system_var::print(const THD *, String *str,
-                                     enum_query_type) const {
+                                     enum_query_type query_type) const {
+  if (query_type & QT_DUCKDB_REWRITE) {
+    // For DuckDB rewrite, replace system variable references (e.g.,
+    // @@session.time_zone) with their actual values, since DuckDB does not
+    // understand MySQL system variables.
+
+    // Special handling for time_zone: MySQL time_zone values (like 'SYSTEM',
+    // '+08:00') may not be recognized by DuckDB, so convert them to
+    // DuckDB-compatible IANA timezone names (like 'Etc/GMT-8').
+    const char *var_name = var_tracker.get_var_name();
+    if (var_name != nullptr && strcmp(var_name, "time_zone") == 0) {
+      THD *thd = current_thd;
+      std::string warn_msg;
+      // Pick the correct Time_zone* based on variable scope:
+      // @@global.time_zone -> global, @@session.time_zone -> session
+      Time_zone *tz = (var_scope == OPT_GLOBAL)
+                          ? global_system_variables.time_zone
+                          : thd->variables.time_zone;
+      std::string tz_name = myduck::convert_timezone_for_duckdb(tz, warn_msg);
+      str->append('\'');
+      str->append(tz_name.c_str(), tz_name.length());
+      str->append('\'');
+      return;
+    }
+
+    Item_func_get_system_var *non_const_this =
+        const_cast<Item_func_get_system_var *>(this);
+    String buf;
+    String *val = non_const_this->val_str(&buf);
+    if (val != nullptr && !non_const_this->null_value) {
+      switch (var_tracker.cached_show_type()) {
+        case SHOW_CHAR:
+        case SHOW_CHAR_PTR:
+        case SHOW_LEX_STRING:
+          // String-type variables: print as a quoted string literal
+          str->append('\'');
+          val->print(str, true);
+          str->append('\'');
+          break;
+        default:
+          // Numeric/bool/double types: print the value directly
+          str->append(*val);
+          break;
+      }
+    } else {
+      str->append(STRING_WITH_LEN("NULL"));
+    }
+    return;
+  }
   str->append(item_name);
 }
 uint64_t Item_func_get_system_var::hash() {

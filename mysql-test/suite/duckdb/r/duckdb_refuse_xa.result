@@ -1,0 +1,35 @@
+CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 VARCHAR(5)) ENGINE=duckdb;
+XA START 'xa_1';
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 VARCHAR(5)) ENGINE=duckdb;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+INSERT INTO t1 (c2) VALUES ('a');
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+ALTER TABLE t1 ADD COLUMN c3 INT;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+ALTER TABLE t1 RENAME TO t2;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+DROP TABLE t1;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+TRUNCATE TABLE t1;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  ACTIVE state
+XA END 'xa_1';
+INSERT INTO t1 (c1, c2) VALUES (1, 'a');
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+ALTER TABLE t1 ADD COLUMN c3 INT;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+ALTER TABLE t1 RENAME TO t2;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+TRUNCATE TABLE t1;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+DROP TABLE t1;
+ERROR XAE07: XAER_RMFAIL: The command cannot be executed when global transaction is in the  IDLE state
+XA PREPARE 'xa_1';
+INSERT INTO t1 (c1, c2) VALUES (1, 'a');
+XA COMMIT 'xa_1';
+CREATE TABLE t2 (c1 INT PRIMARY KEY, c2 VARCHAR(5)) ENGINE=duckdb;
+INSERT INTO t1 (c1, c2) VALUES (2, 'a');
+TRUNCATE TABLE t1;
+ALTER TABLE t1 ADD COLUMN c3 INT;
+ALTER TABLE t1 RENAME TO t3;
+DROP TABLE t2;
+DROP TABLE t3;

@@ -1026,8 +1026,11 @@ class Gtid_event : public Binary_log_event,
   int64_t sequence_number;
   /** GTID flags constants */
   unsigned const char FLAG_MAY_HAVE_SBR = 1;
+  unsigned const char FLAG_HAS_INSERT_ONLY = 0x80;
   /** Transaction might have changes logged with SBR */
   bool may_have_sbr_stmts;
+  /** Transaction has only INSERT ROWS_EVENT */
+  bool has_insert_only{false};
   /// GTID flags, used bits:
   /// - FLAG_MAY_HAVE_SBR (1st bit)
   unsigned char gtid_flags = 0;
@@ -1345,6 +1348,13 @@ class Gtid_event : public Binary_log_event,
   /// @brief Checks whether this Gtid log event contains a tag
   /// @return True in case this event is tagged. False otherwise.
   bool is_tagged() const;
+  void set_has_insert_only(bool has_insert_only_arg) {
+    has_insert_only = has_insert_only_arg;
+    if (has_insert_only)
+      gtid_flags |= FLAG_HAS_INSERT_ONLY;
+    else
+      gtid_flags &= ~FLAG_HAS_INSERT_ONLY;
+  }
 };
 
 /**

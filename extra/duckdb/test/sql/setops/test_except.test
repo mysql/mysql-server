@@ -1,0 +1,52 @@
+# name: test/sql/setops/test_except.test
+# description: Test EXCEPT / INTERSECT
+# group: [setops]
+
+statement ok
+CREATE TABLE a(i INTEGER)
+
+statement ok
+INSERT INTO a VALUES (41), (42), (43)
+
+statement ok
+CREATE TABLE b(i INTEGER)
+
+statement ok
+INSERT INTO b VALUES (40), (43), (43)
+
+query I
+select * from a except select * from b order by 1
+----
+41
+42
+
+query I
+select * from a intersect select * from b
+----
+43
+
+statement ok
+CREATE TABLE t1(a VARCHAR COLLATE NOCASE);
+
+statement ok
+INSERT INTO t1 VALUES ('ABC'), ('def'), ('GHI');
+
+statement ok
+CREATE TABLE t2(a VARCHAR COLLATE NOCASE);
+
+statement ok
+INSERT INTO t2 VALUES ('abc'), ('DEF');
+
+# Test EXCEPT with NOCASE
+query I
+SELECT * FROM t1 EXCEPT SELECT * FROM t2 ORDER BY a;
+----
+GHI
+
+# Test INTERSECT with NOCASE
+query I
+SELECT * FROM t1 INTERSECT SELECT * FROM t2 ORDER BY a;
+----
+ABC
+def
+

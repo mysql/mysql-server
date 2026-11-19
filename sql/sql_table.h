@@ -700,4 +700,49 @@ bool secondary_engine_unload_table_inner(THD *thd, const char *db_name,
 bool validate_secondary_engine_temporary_table(THD *thd,
                                                HA_CREATE_INFO *create_info);
 
+/**
+  Parallel copy data from InnoDB to DuckDB. It is similar to
+  @copy_data_between_tables.
+
+  @param thd                                 Thread handle.
+  @param psi                                 Progress indicator.
+  @param from                                Table to copy from.
+  @param to                                  Table to copy to.
+  @param create                              Create fields.
+  @param copied                              Number of rows copied.
+  @param deleted                             Number of rows deleted.
+  @param alter_ctx                           Alter table context.
+
+  @return 0 if success, otherwise error code.
+*/
+int parallel_copy_data_between_tables(THD *thd, PSI_stage_progress *psi,
+                                      TABLE *from, TABLE *to,
+                                      List<Create_field> &create,
+                                      ulonglong *copied, ulonglong *deleted,
+                                      Alter_table_ctx *alter_ctx);
+
+void set_column_static_defaults(TABLE *altered_table,
+                                List<Create_field> &create);
+
+/**
+  Copy data between DuckDB tables. It is similar to @copy_data_between_tables.
+  However, it use 'INSERT ... SELECT .. ' to copy data instead of calling
+  ha_rnd_next and ha_write_row.
+
+  @param thd                                 Thread handle.
+  @param psi                                 Progress indicator.
+  @param from                                Table to copy from.
+  @param to                                  Table to copy to.
+  @param create                              Create fields.
+  @param copied                              Number of rows copied.
+  @param deleted                             Number of rows deleted.
+  @param alter_ctx                           Alter table context.
+
+  @return 0 if success, otherwise error code.
+*/
+int copy_data_between_duckdb_tables(THD *thd, PSI_stage_progress *psi,
+                                    TABLE *from, TABLE *to,
+                                    List<Create_field> &create,
+                                    ulonglong *copied, ulonglong *deleted,
+                                    Alter_table_ctx *alter_ctx);
 #endif /* SQL_TABLE_INCLUDED */

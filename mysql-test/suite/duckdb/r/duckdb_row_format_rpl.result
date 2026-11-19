@@ -1,0 +1,185 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#########################################################################
+# 1. CREATE TABLE WITH DIFFERENT ROW_FORMAT
+#########################################################################
+[connection master]
+CREATE TABLE t1 (id INT KEY, b int) ROW_FORMAT = DEFAULT;
+CREATE TABLE t2 (id INT KEY, b int) ROW_FORMAT = DYNAMIC;
+CREATE TABLE t3 (id INT KEY, b int) ROW_FORMAT = REDUNDANT;
+CREATE TABLE t4 (id INT KEY, b int) ROW_FORMAT = COMPACT;
+CREATE TABLE t5 (id INT KEY, b int) ROW_FORMAT = COMPRESSED;
+include/rpl/sync.inc
+[connection slave]
+SET GLOBAL innodb_default_row_format = DYNAMIC;
+[connection master]
+SET GLOBAL innodb_default_row_format = DYNAMIC;
+CREATE TABLE t6 (id INT KEY, b int);
+include/rpl/sync.inc
+[connection slave]
+SET GLOBAL innodb_default_row_format = REDUNDANT;
+[connection master]
+SET GLOBAL innodb_default_row_format = REDUNDANT;
+CREATE TABLE t7 (id INT KEY, b int);
+include/rpl/sync.inc
+[connection slave]
+SET GLOBAL innodb_default_row_format = COMPACT;
+[connection master]
+SET GLOBAL innodb_default_row_format = COMPACT;
+CREATE TABLE t8 (id INT KEY, b int);
+include/rpl/sync.inc
+[connection slave]
+SET GLOBAL innodb_default_row_format = default;
+[connection master]
+SET GLOBAL innodb_default_row_format = default;
+#########################################################################
+# 2. CHECK ROW_FORMAT IN INNODB AND DUCKDB
+#########################################################################
+include/rpl/sync.inc
+[connection slave]
+[connection master]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection slave]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/assert.inc [ROW_FORMAT of t1 is the same]
+[connection master]
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+[connection slave]
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+include/assert.inc [ROW_FORMAT of t2 is the same]
+[connection master]
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+[connection slave]
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+include/assert.inc [ROW_FORMAT of t3 is the same]
+[connection master]
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+[connection slave]
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+include/assert.inc [ROW_FORMAT of t4 is the same]
+[connection master]
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
+[connection slave]
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPRESSED
+include/assert.inc [ROW_FORMAT of t5 is the same]
+[connection master]
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection slave]
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/assert.inc [ROW_FORMAT of t6 is the same]
+[connection master]
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection slave]
+SHOW CREATE TABLE t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/assert.inc [ROW_FORMAT of t7 is the same]
+[connection master]
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+[connection slave]
+SHOW CREATE TABLE t8;
+Table	Create Table
+t8	CREATE TABLE `t8` (
+  `id` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/assert.inc [ROW_FORMAT of t8 is the same]
+#########################################################################
+# 3. Test Cleanup
+#########################################################################
+[connection master]
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8;
+include/rpl/sync.inc
+include/rpl/deinit.inc

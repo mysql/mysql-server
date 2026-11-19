@@ -1,0 +1,406 @@
+SET GLOBAL duckdb_require_primary_key=OFF;
+#
+# Test whether the convertor accurately adds backticks to schema names, 
+# table names, and column names in DDL statements
+# and correctly passes them to the DuckDB engine for execution.
+#
+#
+# Test: drop and create databases with a name starting with a digit or containing only digits.
+#
+DROP DATABASE IF EXISTS `09898141`;
+CREATE DATABASE `09898141`;
+DROP DATABASE IF EXISTS `011fq123`;
+CREATE DATABASE `011fq123`;
+USE `09898141`;
+SELECT schema_name FROM information_schema.schemata WHERE schema_name = '09898141';
+SCHEMA_NAME
+09898141
+CALL DBMS_DUCKDB.QUERY("SELECT schema_name FROM information_schema.schemata WHERE schema_name = '09898141'");
+RESULT
+schema_name	
+VARCHAR	
+[ Rows: 1]
+09898141
+
+
+SELECT schema_name FROM information_schema.schemata WHERE schema_name = '011fq123';
+SCHEMA_NAME
+011fq123
+CALL DBMS_DUCKDB.QUERY("SELECT schema_name FROM information_schema.schemata WHERE schema_name = '011fq123'");
+RESULT
+schema_name	
+VARCHAR	
+[ Rows: 1]
+011fq123
+
+
+#
+# Test: drop and create tables with a name starting with a digit or containing only digits.
+#
+DROP TABLE IF EXISTS `001`;
+CREATE TABLE `001` (
+`00000000000` BIGINT NOT NULL DEFAULT '0' PRIMARY KEY,
+`0a01131` VARCHAR(50)
+) ENGINE=DuckDB;
+DROP TABLE IF EXISTS `111a`;
+CREATE TABLE `111a` (
+`#0x1141` BIGINT NOT NULL DEFAULT '0' PRIMARY KEY
+) ENGINE=DuckDB;
+CREATE TABLE `321` (
+`009` BIGINT NOT NULL DEFAULT '0' PRIMARY KEY
+) ENGINE=DuckDB;
+SELECT table_name FROM information_schema.tables WHERE table_schema='09898141';
+TABLE_NAME
+001
+111a
+321
+CALL DBMS_DUCKDB.QUERY("SELECT table_name FROM information_schema.tables WHERE table_schema='09898141'");
+RESULT
+table_name	
+VARCHAR	
+[ Rows: 3]
+001
+111a
+321
+
+
+SELECT column_name FROM information_schema.columns WHERE table_schema='09898141' and table_name='001';
+COLUMN_NAME
+00000000000
+0a01131
+CALL DBMS_DUCKDB.QUERY("SELECT column_name FROM information_schema.columns WHERE table_schema='09898141' and table_name='001'");
+RESULT
+column_name	
+VARCHAR	
+[ Rows: 2]
+00000000000
+0a01131
+
+
+SELECT column_name FROM information_schema.columns WHERE table_schema='09898141' and table_name='111a';
+COLUMN_NAME
+#0x1141
+CALL DBMS_DUCKDB.QUERY("SELECT column_name FROM information_schema.columns WHERE table_schema='09898141' and table_name='111a'");
+RESULT
+column_name	
+VARCHAR	
+[ Rows: 1]
+#0x1141
+
+
+SELECT column_name FROM information_schema.columns WHERE table_schema='09898141' and table_name='321';
+COLUMN_NAME
+009
+CALL DBMS_DUCKDB.QUERY("SELECT column_name FROM information_schema.columns WHERE table_schema='09898141' and table_name='321'");
+RESULT
+column_name	
+VARCHAR	
+[ Rows: 1]
+009
+
+
+#
+# Test: insert(delete and update are not currently supported)
+#
+USE `09898141`;
+INSERT INTO `001` VALUES (1, 'a'),(2, 'b'),(3, 'c'),(4, 'd'),(5, 'e');
+INSERT INTO `111a` VALUES (1), (2), (3), (4), (5);
+SELECT * from `09898141`.`001`;
+00000000000	0a01131
+1	a
+2	b
+3	c
+4	d
+5	e
+CALL DBMS_DUCKDB.QUERY("SELECT * FROM `09898141`.`001`");
+RESULT
+00000000000	0a01131	
+BIGINT	VARCHAR	
+[ Rows: 5]
+1	a
+2	b
+3	c
+4	d
+5	e
+
+
+SELECT * from `09898141`.`111a`;
+#0x1141
+1
+2
+3
+4
+5
+CALL DBMS_DUCKDB.QUERY("SELECT * from `09898141`.`111a`");
+RESULT
+#0x1141	
+BIGINT	
+[ Rows: 5]
+1
+2
+3
+4
+5
+
+
+#
+# Test: select
+#
+SELECT * FROM `001` ORDER BY `00000000000` DESC;
+00000000000	0a01131
+5	e
+4	d
+3	c
+2	b
+1	a
+CALL DBMS_DUCKDB.QUERY("SELECT * FROM `09898141`.`001` ORDER BY `00000000000` DESC");
+RESULT
+00000000000	0a01131	
+BIGINT	VARCHAR	
+[ Rows: 5]
+5	e
+4	d
+3	c
+2	b
+1	a
+
+
+SELECT COUNT(*) FROM `001` WHERE `00000000000` > 2 GROUP BY `00000000000`;
+COUNT(*)
+1
+1
+1
+CALL DBMS_DUCKDB.QUERY("SELECT COUNT(*) FROM `09898141`.`001` WHERE `00000000000` > 2 GROUP BY `00000000000`");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 3]
+1
+1
+1
+
+
+USE `011fq123`;
+SELECT `#0x1141` FROM `09898141`.`111a` ORDER BY `#0x1141` DESC;
+#0x1141
+5
+4
+3
+2
+1
+CALL DBMS_DUCKDB.QUERY("SELECT `#0x1141` FROM `09898141`.`111a` ORDER BY `#0x1141` DESC");
+RESULT
+#0x1141	
+BIGINT	
+[ Rows: 5]
+5
+4
+3
+2
+1
+
+
+SELECT `0a01131` FROM `09898141`.`001` ORDER BY `0a01131` DESC;
+0a01131
+e
+d
+c
+b
+a
+CALL DBMS_DUCKDB.QUERY("SELECT `0a01131` FROM `09898141`.`001` ORDER BY `0a01131` DESC");
+RESULT
+0a01131	
+VARCHAR	
+[ Rows: 5]
+e
+d
+c
+b
+a
+
+
+#
+# Test: alter table
+#
+USE `09898141`;
+ALTER TABLE `001` ADD COLUMN `0A` BIGINT DEFAULT 0;
+SHOW CREATE TABLE `001`;
+Table	Create Table
+001	CREATE TABLE `001` (
+  `00000000000` bigint NOT NULL DEFAULT '0',
+  `0a01131` varchar(50) DEFAULT NULL,
+  `0A` bigint DEFAULT '0',
+  PRIMARY KEY (`00000000000`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL DBMS_DUCKDB.QUERY("PRAGMA table_info(`09898141`.`001`)");
+RESULT
+cid	name	type	notnull	dflt_value	pk	
+INTEGER	VARCHAR	VARCHAR	BOOLEAN	VARCHAR	BOOLEAN	
+[ Rows: 3]
+0	00000000000	BIGINT	true	'0'	false
+1	0a01131	VARCHAR	false	NULL	false
+2	0A	BIGINT	false	'0'	false
+
+
+SELECT * FROM `001`;
+00000000000	0a01131	0A
+1	a	0
+2	b	0
+3	c	0
+4	d	0
+5	e	0
+CALL DBMS_DUCKDB.QUERY("SELECT * FROM `09898141`.`001`");
+RESULT
+00000000000	0a01131	0A	
+BIGINT	VARCHAR	BIGINT	
+[ Rows: 5]
+1	a	0
+2	b	0
+3	c	0
+4	d	0
+5	e	0
+
+
+ALTER TABLE `001` MODIFY `0A` INT;
+ALTER TABLE `001` RENAME COLUMN `0A` TO `0B`;
+ALTER TABLE `001` MODIFY `0B` INT DEFAULT '0';
+ALTER TABLE `001` MODIFY `0B` INT  NOT NULL;
+ALTER TABLE `09898141`.`001` MODIFY `0B` INT NULL;
+ALTER TABLE `09898141`.`001` MODIFY `0B` INT;
+ALTER TABLE `09898141`.`001` RENAME TO `101`;
+SHOW CREATE TABLE `101`;
+Table	Create Table
+101	CREATE TABLE `101` (
+  `00000000000` bigint NOT NULL DEFAULT '0',
+  `0a01131` varchar(50) DEFAULT NULL,
+  `0B` int DEFAULT NULL,
+  PRIMARY KEY (`00000000000`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL DBMS_DUCKDB.QUERY("PRAGMA table_info(`09898141`.`101`)");
+RESULT
+cid	name	type	notnull	dflt_value	pk	
+INTEGER	VARCHAR	VARCHAR	BOOLEAN	VARCHAR	BOOLEAN	
+[ Rows: 3]
+0	00000000000	BIGINT	true	'0'	false
+1	0a01131	VARCHAR	false	NULL	false
+2	0B	INTEGER	false	NULL	false
+
+
+SELECT * FROM `101`;
+00000000000	0a01131	0B
+1	a	0
+2	b	0
+3	c	0
+4	d	0
+5	e	0
+CALL DBMS_DUCKDB.QUERY("SELECT * FROM `09898141`.`101`");
+RESULT
+00000000000	0a01131	0B	
+BIGINT	VARCHAR	INTEGER	
+[ Rows: 5]
+1	a	0
+2	b	0
+3	c	0
+4	d	0
+5	e	0
+
+
+ALTER TABLE `101` DROP COLUMN `0B`;
+SELECT * FROM `101`;
+00000000000	0a01131
+1	a
+2	b
+3	c
+4	d
+5	e
+CALL DBMS_DUCKDB.QUERY("SELECT * FROM `09898141`.`101`");
+RESULT
+00000000000	0a01131	
+BIGINT	VARCHAR	
+[ Rows: 5]
+1	a
+2	b
+3	c
+4	d
+5	e
+
+
+#
+# Test: truncate tables
+#
+TRUNCATE TABLE `09898141`.`111a`;
+#
+# Test: create tables with special characters
+#
+DROP DATABASE IF EXISTS mydb1;
+CREATE DATABASE mydb1;
+CREATE TABLE mydb1.t (i INT, d DECIMAL, f FLOAT);
+INSERT INTO mydb1.t VALUES(1,1,1);
+CREATE TABLE mydb1.y ENGINE=DuckDB AS SELECT AVG(i), AVG(d), AVG(f) FROM mydb1.t;
+SHOW CREATE TABLE mydb1.y;
+Table	Create Table
+y	CREATE TABLE `y` (
+  `AVG(i)` decimal(14,4) DEFAULT NULL,
+  `AVG(d)` decimal(14,4) DEFAULT NULL,
+  `AVG(f)` double DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL DBMS_DUCKDB.QUERY("PRAGMA table_info(mydb1.y)");
+RESULT
+cid	name	type	notnull	dflt_value	pk	
+INTEGER	VARCHAR	VARCHAR	BOOLEAN	VARCHAR	BOOLEAN	
+[ Rows: 3]
+0	AVG(i)	DECIMAL(14,4)	false	NULL	false
+1	AVG(d)	DECIMAL(14,4)	false	NULL	false
+2	AVG(f)	DOUBLE	false	NULL	false
+
+
+#
+# Test: drop databases(cascade)
+#
+DROP DATABASE IF EXISTS `09898141`;
+DROP DATABASE IF EXISTS `011fq123`;
+DROP DATABASE IF EXISTS mydb1;
+#
+# Test: database, table and column names with space.
+#
+CREATE DATABASE `my db`;
+CREATE TABLE `my db`.`my table` (
+`my column` INT
+) ENGINE=DuckDB;
+INSERT INTO `my db`.`my table` VALUES(1);
+SELECT `my column` FROM `my db`.`my table`;
+my column
+1
+CALL DBMS_DUCKDB.QUERY("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'my db'");
+RESULT
+schema_name	
+VARCHAR	
+[ Rows: 1]
+my db
+
+
+SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'my db';
+SCHEMA_NAME
+my db
+CALL DBMS_DUCKDB.QUERY("PRAGMA table_info(`my db`.`my table`)");
+RESULT
+cid	name	type	notnull	dflt_value	pk	
+INTEGER	VARCHAR	VARCHAR	BOOLEAN	VARCHAR	BOOLEAN	
+[ Rows: 1]
+0	my column	INTEGER	false	NULL	false
+
+
+SHOW CREATE TABLE `my db`.`my table`;
+Table	Create Table
+my table	CREATE TABLE `my table` (
+  `my column` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP DATABASE `my db`;
+CALL DBMS_DUCKDB.QUERY("SELECT schema_name FROM information_schema.schemata WHERE schema_name = 'my db'");
+RESULT
+schema_name	
+VARCHAR	
+[ Rows: 0]
+
+
+SET GLOBAL duckdb_require_primary_key=ON;

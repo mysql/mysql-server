@@ -1,0 +1,53 @@
+# name: test/sql/transactions/test_index_huge_aborted_append.test
+# description: Test abort of big append (bigger than block size)
+# group: [transactions]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+CREATE TABLE integers(i INTEGER PRIMARY KEY);
+
+# insert the value [1] into the table
+statement ok
+INSERT INTO integers VALUES (1);
+
+# start a transaction where we insert a lot of values, and finally insert the conflict
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+INSERT INTO integers SELECT i FROM range(2, 131068, 1) t1(i)
+
+# inserting the value "1" here fails
+statement error
+INSERT INTO integers VALUES (1)
+----
+
+# now we need to rollback
+statement ok
+ROLLBACK
+
+query I
+SELECT * FROM integers
+----
+1
+
+# now append some rows again
+statement ok
+INSERT INTO integers VALUES (2);
+
+statement ok
+INSERT INTO integers VALUES (3);
+
+statement ok
+INSERT INTO integers VALUES (4);
+
+query I
+SELECT * FROM integers ORDER BY 1
+----
+1
+2
+3
+4
+

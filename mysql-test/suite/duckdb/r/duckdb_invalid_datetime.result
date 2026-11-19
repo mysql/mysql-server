@@ -1,0 +1,157 @@
+#
+# Setup
+#
+# =========================================================
+# Scenario 1: INSERT with invalid integer (57399)
+#   This is the original crash case from GitHub issue#131.
+# =========================================================
+DROP TABLE IF EXISTS t_duckdb, t_innodb;
+CREATE TABLE t_duckdb (
+id INT NOT NULL AUTO_INCREMENT,
+col1 DATETIME NULL DEFAULT '2026-01-01 00:00:00',
+PRIMARY KEY (id)
+) ENGINE=DuckDB;
+CREATE TABLE t_innodb (
+id INT NOT NULL AUTO_INCREMENT,
+col1 DATETIME NULL DEFAULT '2026-01-01 00:00:00',
+PRIMARY KEY (id)
+) ENGINE=InnoDB;
+INSERT IGNORE INTO t_duckdb (id, col1) VALUES (1, 57399);
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT IGNORE INTO t_innodb (id, col1) VALUES (1, 57399);
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT INTO t_duckdb (id, col1) VALUES (2, 57399);
+ERROR 22007: Incorrect datetime value: '57399' for column 'col1' at row 1
+INSERT INTO t_innodb (id, col1) VALUES (2, 57399);
+ERROR 22007: Incorrect datetime value: '57399' for column 'col1' at row 1
+SET @saved_sql_mode = @@SESSION.sql_mode;
+SET sql_mode = '';
+INSERT INTO t_duckdb (id, col1) VALUES (2, 57399);
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+INSERT INTO t_innodb (id, col1) VALUES (2, 57399);
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 1
+SET sql_mode = @saved_sql_mode;
+SELECT * FROM t_duckdb ORDER BY id;
+id	col1
+1	0000-00-00 00:00:00
+2	0000-00-00 00:00:00
+SELECT * FROM t_innodb ORDER BY id;
+id	col1
+1	0000-00-00 00:00:00
+2	0000-00-00 00:00:00
+include/assert.inc [Checksum is the same]
+# Scenario 1 PASSED: checksums match
+# ==================================================
+# Scenario 2: INSERT with various invalid integers
+# ==================================================
+DROP TABLE IF EXISTS t_duckdb, t_innodb;
+CREATE TABLE t_duckdb (
+id INT NOT NULL AUTO_INCREMENT,
+col1 DATETIME NULL DEFAULT '2026-01-01 00:00:00',
+PRIMARY KEY (id)
+) ENGINE=DuckDB;
+CREATE TABLE t_innodb (
+id INT NOT NULL AUTO_INCREMENT,
+col1 DATETIME NULL DEFAULT '2026-01-01 00:00:00',
+PRIMARY KEY (id)
+) ENGINE=InnoDB;
+INSERT IGNORE INTO t_duckdb (id, col1) VALUES
+(1, 0), (2, 99), (3, 101), (4, 57399), (5, 13320199), (6, -1);
+Warnings:
+Warning	1264	Out of range value for column 'col1' at row 1
+Warning	1265	Data truncated for column 'col1' at row 2
+Warning	1265	Data truncated for column 'col1' at row 4
+Warning	1265	Data truncated for column 'col1' at row 5
+Warning	1264	Out of range value for column 'col1' at row 6
+INSERT IGNORE INTO t_innodb (id, col1) VALUES
+(1, 0), (2, 99), (3, 101), (4, 57399), (5, 13320199), (6, -1);
+Warnings:
+Warning	1264	Out of range value for column 'col1' at row 1
+Warning	1265	Data truncated for column 'col1' at row 2
+Warning	1265	Data truncated for column 'col1' at row 4
+Warning	1265	Data truncated for column 'col1' at row 5
+Warning	1264	Out of range value for column 'col1' at row 6
+SELECT * FROM t_duckdb ORDER BY id;
+id	col1
+1	0000-00-00 00:00:00
+2	0000-00-00 00:00:00
+3	2000-01-01 00:00:00
+4	0000-00-00 00:00:00
+5	0000-00-00 00:00:00
+6	0000-00-00 00:00:00
+SELECT * FROM t_innodb ORDER BY id;
+id	col1
+1	0000-00-00 00:00:00
+2	0000-00-00 00:00:00
+3	2000-01-01 00:00:00
+4	0000-00-00 00:00:00
+5	0000-00-00 00:00:00
+6	0000-00-00 00:00:00
+include/assert.inc [Checksum is the same]
+# Scenario 2 PASSED: checksums match
+# =========================================================
+# Scenario 3: INSERT with mixing valid and invalid values
+# =========================================================
+DROP TABLE IF EXISTS t_duckdb, t_innodb;
+CREATE TABLE t_duckdb (
+id INT NOT NULL AUTO_INCREMENT,
+col1 DATETIME NULL DEFAULT '2026-01-01 00:00:00',
+PRIMARY KEY (id)
+) ENGINE=DuckDB;
+CREATE TABLE t_innodb (
+id INT NOT NULL AUTO_INCREMENT,
+col1 DATETIME NULL DEFAULT '2026-01-01 00:00:00',
+PRIMARY KEY (id)
+) ENGINE=InnoDB;
+INSERT IGNORE INTO t_duckdb (id, col1) VALUES
+(1, '2026-06-15 10:30:00'),
+(2, 57399),
+(3, '2020-01-01 00:00:00'),
+(4, 0),
+(5, 20240615103000),
+(6, NULL),
+(7, '0000-00-00 00:00:00');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 2
+Warning	1264	Out of range value for column 'col1' at row 4
+Warning	1264	Out of range value for column 'col1' at row 7
+INSERT IGNORE INTO t_innodb (id, col1) VALUES
+(1, '2026-06-15 10:30:00'),
+(2, 57399),
+(3, '2020-01-01 00:00:00'),
+(4, 0),
+(5, 20240615103000),
+(6, NULL),
+(7, '0000-00-00 00:00:00');
+Warnings:
+Warning	1265	Data truncated for column 'col1' at row 2
+Warning	1264	Out of range value for column 'col1' at row 4
+Warning	1264	Out of range value for column 'col1' at row 7
+SELECT * FROM t_duckdb ORDER BY id;
+id	col1
+1	2026-06-15 10:30:00
+2	0000-00-00 00:00:00
+3	2020-01-01 00:00:00
+4	0000-00-00 00:00:00
+5	2024-06-15 10:30:00
+6	NULL
+7	0000-00-00 00:00:00
+SELECT * FROM t_innodb ORDER BY id;
+id	col1
+1	2026-06-15 10:30:00
+2	0000-00-00 00:00:00
+3	2020-01-01 00:00:00
+4	0000-00-00 00:00:00
+5	2024-06-15 10:30:00
+6	NULL
+7	0000-00-00 00:00:00
+include/assert.inc [Checksum is the same]
+# Scenario 3 PASSED: checksums match
+#
+# Cleanup
+#
+DROP TABLE t_duckdb, t_innodb;

@@ -1,0 +1,576 @@
+CREATE DATABASE IF NOT EXISTS test_partition;
+USE test_partition;
+#
+# 1) Convert engine between InnoDB and DuckDB
+#
+CREATE TABLE t_range (
+id INT NOT NULL,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+PRIMARY KEY (id, sale_date)
+)
+PARTITION BY RANGE (YEAR(sale_date)) (
+PARTITION p0 VALUES LESS THAN (1995),
+PARTITION p1 VALUES LESS THAN (2005),
+PARTITION p2 VALUES LESS THAN (2015),
+PARTITION p3 VALUES LESS THAN (2025)
+);
+INSERT INTO t_range VALUES
+(1, '1990-01-01', 100.00),
+(2, '2000-02-01', 200.00),
+(3, '2010-02-01', 300.00),
+(4, '2020-02-01', 400.00);
+ALTER TABLE t_range ENGINE = DuckDB;
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = DUCKDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = DUCKDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = DUCKDB,
+ PARTITION p3 VALUES LESS THAN (2025) ENGINE = DUCKDB) */
+INSERT INTO t_range VALUES
+(5, '1991-01-01', 500.00),
+(6, '2001-02-01', 600.00),
+(7, '2011-02-01', 700.00),
+(8, '2021-02-01', 800.00);
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (2025) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+id	sale_date	amount
+1	1990-01-01	100.00
+5	1991-01-01	500.00
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+id	sale_date	amount
+2	2000-02-01	200.00
+6	2001-02-01	600.00
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+id	sale_date	amount
+3	2010-02-01	300.00
+7	2011-02-01	700.00
+SELECT * FROM t_range PARTITION(p3) ORDER BY id;
+id	sale_date	amount
+4	2020-02-01	400.00
+8	2021-02-01	800.00
+#
+# 2) Add partition, which is no operation in DuckDB
+#
+ALTER TABLE t_range ENGINE = DuckDB;
+ALTER TABLE t_range ADD PARTITION (
+PARTITION p4 VALUES LESS THAN (2035)
+);
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = DUCKDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = DUCKDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = DUCKDB,
+ PARTITION p3 VALUES LESS THAN (2025) ENGINE = DUCKDB,
+ PARTITION p4 VALUES LESS THAN (2035) ENGINE = DUCKDB) */
+INSERT INTO t_range VALUES
+(9, '2031-01-01', 900.00);
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (2025) ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (2035) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+id	sale_date	amount
+1	1990-01-01	100.00
+5	1991-01-01	500.00
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+id	sale_date	amount
+2	2000-02-01	200.00
+6	2001-02-01	600.00
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+id	sale_date	amount
+3	2010-02-01	300.00
+7	2011-02-01	700.00
+SELECT * FROM t_range PARTITION(p3) ORDER BY id;
+id	sale_date	amount
+4	2020-02-01	400.00
+8	2021-02-01	800.00
+SELECT * FROM t_range PARTITION(p4) ORDER BY id;
+id	sale_date	amount
+9	2031-01-01	900.00
+#
+# 3) Reorganize partition into, which is no operation in DuckDB
+#
+ALTER TABLE t_range ENGINE = DuckDB;
+ALTER TABLE t_range REORGANIZE PARTITION p3, p4 INTO (
+PARTITION p3_new VALUES LESS THAN (2026),
+PARTITION p4_new VALUES LESS THAN (2036)
+);
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = DUCKDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = DUCKDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = DUCKDB,
+ PARTITION p3_new VALUES LESS THAN (2026) ENGINE = DUCKDB,
+ PARTITION p4_new VALUES LESS THAN (2036) ENGINE = DUCKDB) */
+INSERT INTO t_range VALUES
+(10, '2025-01-01', 1000.00),
+(11, '2035-01-01', 1100.00);
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = InnoDB,
+ PARTITION p3_new VALUES LESS THAN (2026) ENGINE = InnoDB,
+ PARTITION p4_new VALUES LESS THAN (2036) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+id	sale_date	amount
+1	1990-01-01	100.00
+5	1991-01-01	500.00
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+id	sale_date	amount
+2	2000-02-01	200.00
+6	2001-02-01	600.00
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+id	sale_date	amount
+3	2010-02-01	300.00
+7	2011-02-01	700.00
+SELECT * FROM t_range PARTITION(p3_new) ORDER BY id;
+id	sale_date	amount
+4	2020-02-01	400.00
+8	2021-02-01	800.00
+10	2025-01-01	1000.00
+SELECT * FROM t_range PARTITION(p4_new) ORDER BY id;
+id	sale_date	amount
+9	2031-01-01	900.00
+11	2035-01-01	1100.00
+#
+# 4) Rebuild partition, which is no operation in DuckDB
+#
+ALTER TABLE t_range ENGINE = DuckDB;
+ALTER TABLE t_range REBUILD PARTITION ALL;
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = DUCKDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = DUCKDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = DUCKDB,
+ PARTITION p3_new VALUES LESS THAN (2026) ENGINE = DUCKDB,
+ PARTITION p4_new VALUES LESS THAN (2036) ENGINE = DUCKDB) */
+INSERT INTO t_range VALUES
+(12, '2025-01-02', 1200.00),
+(13, '2035-01-02', 1300.00);
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = InnoDB,
+ PARTITION p3_new VALUES LESS THAN (2026) ENGINE = InnoDB,
+ PARTITION p4_new VALUES LESS THAN (2036) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+id	sale_date	amount
+1	1990-01-01	100.00
+5	1991-01-01	500.00
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+id	sale_date	amount
+2	2000-02-01	200.00
+6	2001-02-01	600.00
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+id	sale_date	amount
+3	2010-02-01	300.00
+7	2011-02-01	700.00
+SELECT * FROM t_range PARTITION(p3_new) ORDER BY id;
+id	sale_date	amount
+4	2020-02-01	400.00
+8	2021-02-01	800.00
+10	2025-01-01	1000.00
+12	2025-01-02	1200.00
+SELECT * FROM t_range PARTITION(p4_new) ORDER BY id;
+id	sale_date	amount
+9	2031-01-01	900.00
+11	2035-01-01	1100.00
+13	2035-01-02	1300.00
+#
+# 5) Remove partitioning, which is no operation in DuckDB
+#
+ALTER TABLE t_range ENGINE = DuckDB;
+CREATE TABLE t_range_2 LIKE t_range;
+ALTER TABLE t_range_2 REMOVE PARTITIONING;
+SHOW CREATE TABLE t_range_2;
+Table	Create Table
+t_range_2	CREATE TABLE `t_range_2` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_range_2 SELECT * FROM t_range;
+ALTER TABLE t_range_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_range_2;
+Table	Create Table
+t_range_2	CREATE TABLE `t_range_2` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/assert.inc [CHECKSUM is the same]
+#
+# 6) Exchange partition, which is not implemented
+#
+ALTER TABLE t_range_2 ENGINE = DuckDB;
+ALTER TABLE t_range EXCHANGE PARTITION p1 WITH TABLE t_range_2;
+ERROR HY000: Partition management on a not partitioned table is not possible
+#
+# 7) Partitioning, which is no operation in DuckDB
+#
+ALTER TABLE t_range_2 PARTITION BY RANGE (YEAR(sale_date)) (
+PARTITION p0 VALUES LESS THAN (1995),
+PARTITION p1 VALUES LESS THAN (2005),
+PARTITION p2 VALUES LESS THAN (2015),
+PARTITION p3 VALUES LESS THAN (2026),
+PARTITION p4 VALUES LESS THAN (2036)
+);
+SHOW CREATE TABLE t_range_2;
+Table	Create Table
+t_range_2	CREATE TABLE `t_range_2` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = DUCKDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = DUCKDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = DUCKDB,
+ PARTITION p3 VALUES LESS THAN (2026) ENGINE = DUCKDB,
+ PARTITION p4 VALUES LESS THAN (2036) ENGINE = DUCKDB) */
+ALTER TABLE t_range_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_range_2;
+Table	Create Table
+t_range_2	CREATE TABLE `t_range_2` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = InnoDB,
+ PARTITION p3 VALUES LESS THAN (2026) ENGINE = InnoDB,
+ PARTITION p4 VALUES LESS THAN (2036) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_range_2 PARTITION(p0) ORDER BY id;
+id	sale_date	amount
+1	1990-01-01	100.00
+5	1991-01-01	500.00
+SELECT * FROM t_range_2 PARTITION(p1) ORDER BY id;
+id	sale_date	amount
+2	2000-02-01	200.00
+6	2001-02-01	600.00
+SELECT * FROM t_range_2 PARTITION(p2) ORDER BY id;
+id	sale_date	amount
+3	2010-02-01	300.00
+7	2011-02-01	700.00
+SELECT * FROM t_range_2 PARTITION(p3) ORDER BY id;
+id	sale_date	amount
+4	2020-02-01	400.00
+8	2021-02-01	800.00
+10	2025-01-01	1000.00
+12	2025-01-02	1200.00
+SELECT * FROM t_range_2 PARTITION(p4) ORDER BY id;
+id	sale_date	amount
+9	2031-01-01	900.00
+11	2035-01-01	1100.00
+13	2035-01-02	1300.00
+#
+# 8) Truncate partition, which is deleting all rows in the partition
+#
+ALTER TABLE t_range TRUNCATE PARTITION p4_new;
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = DUCKDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = DUCKDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = DUCKDB,
+ PARTITION p3_new VALUES LESS THAN (2026) ENGINE = DUCKDB,
+ PARTITION p4_new VALUES LESS THAN (2036) ENGINE = DUCKDB) */
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = InnoDB,
+ PARTITION p3_new VALUES LESS THAN (2026) ENGINE = InnoDB,
+ PARTITION p4_new VALUES LESS THAN (2036) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+id	sale_date	amount
+1	1990-01-01	100.00
+5	1991-01-01	500.00
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+id	sale_date	amount
+2	2000-02-01	200.00
+6	2001-02-01	600.00
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+id	sale_date	amount
+3	2010-02-01	300.00
+7	2011-02-01	700.00
+SELECT * FROM t_range PARTITION(p3_new) ORDER BY id;
+id	sale_date	amount
+4	2020-02-01	400.00
+8	2021-02-01	800.00
+10	2025-01-01	1000.00
+12	2025-01-02	1200.00
+SELECT * FROM t_range PARTITION(p4_new) ORDER BY id;
+id	sale_date	amount
+#
+# 9) Drop partition, which is deleting all rows in the partition
+#
+ALTER TABLE t_range ENGINE = DuckDB;
+ALTER TABLE t_range DROP PARTITION p3_new;
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = DUCKDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = DUCKDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = DUCKDB,
+ PARTITION p4_new VALUES LESS THAN (2036) ENGINE = DUCKDB) */
+ALTER TABLE t_range ENGINE = InnoDB;
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = InnoDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = InnoDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = InnoDB,
+ PARTITION p4_new VALUES LESS THAN (2036) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_range PARTITION(p0) ORDER BY id;
+id	sale_date	amount
+1	1990-01-01	100.00
+5	1991-01-01	500.00
+SELECT * FROM t_range PARTITION(p1) ORDER BY id;
+id	sale_date	amount
+2	2000-02-01	200.00
+6	2001-02-01	600.00
+SELECT * FROM t_range PARTITION(p2) ORDER BY id;
+id	sale_date	amount
+3	2010-02-01	300.00
+7	2011-02-01	700.00
+SELECT * FROM t_range PARTITION(p4_new) ORDER BY id;
+id	sale_date	amount
+#
+# 10) ADMIN PARTITION
+#
+ALTER TABLE t_range ENGINE = DuckDB;
+ALTER TABLE t_range OPTIMIZE PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_range	optimize	note	The storage engine for the table doesn't support optimize
+ALTER TABLE t_range ANALYZE PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_range	analyze	note	The storage engine for the table doesn't support analyze
+ALTER TABLE t_range CHECK PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_range	check	note	The storage engine for the table doesn't support check
+ALTER TABLE t_range REPAIR PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_range	repair	note	The storage engine for the table doesn't support repair
+#
+# 11) DML which specify partition
+#
+SELECT * FROM t_range PARTITION(p0);
+ERROR HY000: [DuckDB] Parser Error: errhint NOT IMPLEMENTED.
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = OFF;
+INSERT INTO t_range PARTITION(p0) VALUES (999, '2035-01-03', 999.99);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_range PARTITION(p0) WHERE id=1 AND sale_date='1990-01-01';
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: DELETE FROM t_range PARTITION(p0) WHERE id=1 AND sale_date='1990-01-01'
+                            ^.
+UPDATE t_range PARTITION (p0) SET amount = 999.00 WHERE id = 1;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: UPDATE t_range PARTITION (p0) SET amount = 999.00 WHERE id = 1
+                       ^.
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = ON;
+INSERT INTO t_range PARTITION(p0) VALUES (999, '2035-01-03', 999.99);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_range PARTITION(p0) WHERE id=1 AND sale_date='1990-01-01';
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+UPDATE t_range PARTITION (p0) SET amount = 999.00 WHERE id = 1;
+ERROR HY000: [DuckDB] Data import mode: update is not allowed.
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = ON;
+INSERT INTO t_range PARTITION(p0) VALUES (999, '2035-01-03', 999.99);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_range PARTITION(p0) WHERE id=1 AND sale_date='1990-01-01';
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+UPDATE t_range PARTITION (p0) SET amount = 999.00 WHERE id = 1;
+ERROR HY000: [DuckDB] Data import mode: update is not allowed.
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = OFF;
+INSERT INTO t_range PARTITION(p0) VALUES (999, '2035-01-03', 999.99);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_range PARTITION(p0) WHERE id=1 AND sale_date='1990-01-01';
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: DELETE FROM t_range PARTITION(p0) WHERE id=1 AND sale_date='1990-01-01'
+                            ^.
+UPDATE t_range PARTITION (p0) SET amount = 999.00 WHERE id = 1;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: UPDATE t_range PARTITION (p0) SET amount = 999.00 WHERE id = 1
+                       ^.
+#
+# 12) Multiple columns range partition is not supported to truncate/drop the medium partition
+#
+# Create table t_multi_cols;
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p1;
+ERROR HY000: [DuckDB] Execute sql failed. Invalid type Error: Invalid Type [STRUCT(INTEGER, INTEGER)]: Invalid type for BETWEEN
+# Create table t_multi_cols;
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p0;
+# Create table t_multi_cols;
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p2;
+# Create table t_multi_cols;
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p0, p2;
+# Create table t_multi_cols;
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p0, p1, p2;
+# Create table t_multi_cols;
+ALTER TABLE t_multi_cols TRUNCATE PARTITION ALL;
+# Create table t_multi_cols;
+ALTER TABLE t_multi_cols DROP PARTITION p1;
+ERROR HY000: [DuckDB] Execute sql failed. Invalid type Error: Invalid Type [STRUCT(INTEGER, INTEGER)]: Invalid type for BETWEEN
+# Create table t_multi_cols;
+ALTER TABLE t_multi_cols DROP PARTITION p0;
+# Create table t_multi_cols;
+ALTER TABLE t_multi_cols TRUNCATE PARTITION p2;
+# Create table t_multi_cols;
+ALTER TABLE t_multi_cols DROP PARTITION p0, p2;
+#
+# 13) Bugfix for convert partition in DDL
+#
+DROP TABLE t_range;
+CREATE TABLE t_range (
+id INT NOT NULL,
+sale_date DATE NOT NULL,
+amount DECIMAL(10,2),
+PRIMARY KEY (id, sale_date)
+)
+PARTITION BY RANGE (YEAR(sale_date)) (
+PARTITION p0 VALUES LESS THAN (1995),
+PARTITION p1 VALUES LESS THAN (2005),
+PARTITION p2 VALUES LESS THAN (2015),
+PARTITION p3 VALUES LESS THAN (2025)
+);
+SET GLOBAL force_innodb_to_duckdb = ON;
+ALTER TABLE t_range ADD COLUMN a INT;
+SHOW CREATE TABLE t_range;
+Table	Create Table
+t_range	CREATE TABLE `t_range` (
+  `id` int NOT NULL,
+  `sale_date` date NOT NULL,
+  `amount` decimal(10,2) DEFAULT NULL,
+  `a` int DEFAULT NULL,
+  PRIMARY KEY (`id`,`sale_date`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY RANGE (year(`sale_date`))
+(PARTITION p0 VALUES LESS THAN (1995) ENGINE = DUCKDB,
+ PARTITION p1 VALUES LESS THAN (2005) ENGINE = DUCKDB,
+ PARTITION p2 VALUES LESS THAN (2015) ENGINE = DUCKDB,
+ PARTITION p3 VALUES LESS THAN (2025) ENGINE = DUCKDB) */
+SET GLOBAL force_innodb_to_duckdb = OFF;
+#
+# 14) Cleanup
+#
+SET GLOBAL duckdb_dml_in_batch = default;
+DROP DATABASE test_partition;

@@ -1,0 +1,37 @@
+#
+# 1) Parallel copy ddl thread failed, but the master thread succeeded, which leads to data loss
+#
+CREATE TABLE `t_gcol` (
+`id` int NOT NULL,
+`type` varchar(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+INSERT INTO `t_gcol` (`id`, `type`) VALUES
+(1, 'public'), (2, NULL), (3, 'ods'), (4, 'dw'), (5, ''), (6, 'archive');
+ALTER TABLE t_gcol ENGINE = DuckDB;
+ERROR HY000: [DuckDB] parallel copy ddl failed.
+CALL dbms_duckdb.query("SELECT * FROM information_schema.tables");
+RESULT
+table_catalog	table_schema	table_name	table_type	self_referencing_column_name	reference_generation	user_defined_type_catalog	user_defined_type_schema	user_defined_type_name	is_insertable_into	is_typed	commit_action	TABLE_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+duckdb	mysql	duckdb_binlog_position	BASE TABLE	NULL	NULL	NULL	NULL	NULL	YES	NO	NULL	NULL
+
+
+SHOW CREATE TABLE t_gcol;
+Table	Create Table
+t_gcol	CREATE TABLE `t_gcol` (
+  `id` int NOT NULL,
+  `type` varchar(254) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT COUNT(*) FROM t_gcol;
+COUNT(*)
+6
+include/assert_grep.inc [Found parallel copy ddl failed.]
+#
+# 2) Cleanup
+#
+DROP TABLE t_gcol;
+SET GLOBAL duckdb_convert_tables_with_generated_columns = default;
+call mtr.add_suppression(".*Parallel copy DDL failed, table:.*");

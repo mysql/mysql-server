@@ -1,0 +1,99 @@
+# name: test/sql/window/test_value_orderby.test
+# description: Secondary orderings of XXX_VALUE functions.
+# group: [window]
+
+statement ok
+PRAGMA enable_verification
+
+query IIIII
+SELECT 
+	i,
+	(i * 29) % 11 AS outside,
+	first_value(i ORDER BY i DESC) OVER w,
+	last_value(i ORDER BY i DESC) OVER w,
+	nth_value(i, 2 ORDER BY i DESC) OVER w,
+FROM range(10) tbl(i)
+WINDOW w AS (
+	ORDER BY (i * 29) % 11
+	ROWS BETWEEN 3 PRECEDING AND 3 FOLLOWING
+)
+ORDER BY 2
+----
+0	0	8	0	5
+8	1	8	0	7
+5	2	8	0	7
+2	3	8	0	7
+7	5	9	1	8
+4	6	9	1	7
+1	7	9	1	7
+9	8	9	1	7
+6	9	9	1	6
+3	10	9	1	6
+
+# Frame larger than data
+query I
+with IDS as (
+    select * as idx from generate_series(1,4)
+),DATA as (
+    select *, (case when idx != 3 then idx * 1.0 else NULL end) as value from IDS
+)
+SELECT 
+ last(value ORDER BY idx IGNORE NULLS) OVER (ORDER BY idx ROWS BETWEEN UNBOUNDED PRECEDING AND 0 FOLLOWING)
+FROM DATA
+----
+1.0
+2.0
+2.0
+4.0
+
+# All null handling
+statement ok
+CREATE TABLE all_nulls (order_col int,value_col float,partition_col int);
+
+statement ok
+INSERT INTO all_nulls VALUES (2,NULL,10);
+
+statement ok
+INSERT INTO all_nulls VALUES (1,NULL,10);
+
+query I
+SELECT first_value(value_col ORDER BY order_col IGNORE NULLS) over (PARTITION BY partition_col) 
+FROM all_nulls;
+----
+NULL
+NULL
+
+query I
+SELECT last_value(value_col ORDER BY order_col IGNORE NULLS) over (PARTITION BY partition_col) 
+FROM all_nulls;
+----
+NULL
+NULL
+
+query I
+SELECT nth_value(value_col, 1 ORDER BY order_col IGNORE NULLS) over (PARTITION BY partition_col) 
+FROM all_nulls;
+----
+NULL
+NULL
+
+# Single element frame
+# Note the sort (from the oririnal issue) is underspecified, 
+# so only the single row can be checked.
+query IIII
+WITH t(a,b) AS (
+  VALUES 
+    (0, 'a'), (0, 'b'),
+    (1, 'c'),
+    (2, 'd'), (2, 'e'), (2, 'f')
+), framed AS (
+	SELECT a, b,
+		   nth_value(b, 1)            OVER w AS b1,
+		   nth_value(b, 1 ORDER BY b) OVER w AS b1_ordered,
+	FROM t
+	WINDOW w AS (ORDER BY a RANGE BETWEEN CURRENT ROW AND CURRENT ROW)
+)
+FROM framed
+where a = 1
+----
+1	c	c	c

@@ -1,0 +1,33 @@
+# name: test/sql/function/generic/test_table_param.test
+# description: Test stats function
+# group: [generic]
+
+# scalar stats
+
+statement ok
+create table a (i double, j double);
+
+statement ok
+insert into a values (1, 10), (42, 420);
+
+statement ok
+EXPLAIN SELECT * FROM summary((SELECT * FROM a))
+
+query III
+SELECT * FROM summary((SELECT * FROM a))
+----
+[1.0, 10.0]	1.0	10.0
+[42.0, 420.0]	42.0	420.0
+
+
+statement ok
+pragma threads=4
+
+statement ok
+pragma verify_parallelism
+
+query III
+SELECT * FROM summary((SELECT * FROM a))
+----
+[1.0, 10.0]	1.0	10.0
+[42.0, 420.0]	42.0	420.0

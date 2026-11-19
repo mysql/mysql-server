@@ -77,6 +77,8 @@
 #include "template_utils.h"
 #include "typelib.h"
 
+#include "sql/parse_tree_items.h"
+
 using std::max;
 using std::min;
 
@@ -1108,7 +1110,12 @@ bool Item_date_literal::eq_specific(const Item *item) const {
          0;
 }
 
-void Item_date_literal::print(const THD *, String *str, enum_query_type) const {
+void Item_date_literal::print(const THD *, String *str,
+                              enum_query_type query_type) const {
+  if ((query_type & QT_DUCKDB_REWRITE) && m_date.is_zero_date()) {
+    str->append('0');
+    return;
+  }
   StringBuffer<STRING_BUFFER_USUAL_SIZE> buffer;
   str->append("DATE'");
   String *const s = const_cast<Item_date_literal *>(this)->val_str(&buffer);
@@ -2739,6 +2746,47 @@ String *Item_func_date_format::val_str(String *str) {
   return str;
 }
 
+void Item_func_date_format::print(const THD *thd, String *str,
+                                  enum_query_type query_type) const {
+  if ((query_type & QT_DUCKDB_REWRITE) && args[0]->is_duckdb_string_type()) {
+    Datetime_val l_time;
+    Time_val time_value;
+    if (!is_time_format) {
+      if (dynamic_cast<PTI_text_literal_text_string *>(args[0]) &&
+          args[0]->val_datetime(&l_time, 0)) {
+        str->append('(');
+        str->append(STRING_WITH_LEN("NULL"));
+        str->append(')');
+        return;
+      } else {
+        str->append(func_name());
+        str->append(STRING_WITH_LEN("(CAST("));
+        args[0]->print(thd, str, query_type);
+        str->append(STRING_WITH_LEN(" AS TIMESTAMP), "));
+        print_args(thd, str, 1, query_type);
+        str->append(')');
+      }
+    } else {
+      if (dynamic_cast<PTI_text_literal_text_string *>(args[0]) &&
+          args[0]->val_time(&time_value)) {
+        str->append('(');
+        str->append(STRING_WITH_LEN("NULL"));
+        str->append(')');
+        return;
+      } else {
+        str->append(func_name());
+        str->append(STRING_WITH_LEN("(CAST("));
+        args[0]->print(thd, str, query_type);
+        str->append(STRING_WITH_LEN(" AS TIME), "));
+        print_args(thd, str, 1, query_type);
+        str->append(')');
+      }
+    }
+  } else {
+    Item_func::print(thd, str, query_type);
+  }
+}
+
 bool Item_func_from_unixtime::resolve_type(THD *thd) {
   if (param_type_is_default(thd, 0, 1, MYSQL_TYPE_NEWDECIMAL)) return true;
   if (reject_vector_args()) return true;
@@ -2857,6 +2905,15 @@ void Item_func_convert_tz::cleanup() {
   from_tz_cached = false;
   to_tz_cached = false;
   Item_datetime_func::cleanup();
+}
+
+void Item_func_convert_tz::print(const THD *thd, String *str,
+                                 enum_query_type query_type) const {
+  if (query_type & QT_DUCKDB_REWRITE) {
+    Item_func::print(thd, str, query_type);
+  } else {
+    Item_datetime_func::print(thd, str, query_type);
+  }
 }
 
 bool Item_func_add_interval::resolve_type(THD *thd) {
@@ -3065,12 +3122,101 @@ const char *interval_names[] = {"year",
 void Item_func_add_interval::print(const THD *thd, String *str,
                                    enum_query_type query_type) const {
   str->append('(');
-  args[0]->print(thd, str, query_type);
+  bool cast_result_to_date = false;
+  if (query_type & QT_DUCKDB_REWRITE) {
+    if (dynamic_cast<PTI_text_literal_text_string *>(args[0])) {
+      Datetime_val ltime;
+      const enum_field_types assumed_type =
+          m_interval_type <= INTERVAL_DAY ||
+                  m_interval_type == INTERVAL_YEAR_MONTH
+              ? MYSQL_TYPE_DATE
+              : MYSQL_TYPE_DATETIME;
+      if (args[0]->val_datetime(&ltime, TIME_NO_ZERO_DATE)) {
+        str->append(STRING_WITH_LEN("NULL"));
+        str->append(')');
+        return;
+      } else {
+        if (ltime.time_type == MYSQL_TIMESTAMP_DATE &&
+            assumed_type != MYSQL_TYPE_DATETIME) {
+          /** In MySQL, if the parameter type of args[0] is string, the return
+           * value type is also string. However, in DuckDB, the return value
+           * type is timestamp. When timestamp is parsed as string, there will
+           * be an extra time part. Therefore, we convert the type back to date
+           * here. */
+          cast_result_to_date = true;
+          str->append(STRING_WITH_LEN("CAST((DATE "));
+        } else {
+          str->append(STRING_WITH_LEN("TIMESTAMP "));
+        }
+        args[0]->print(thd, str, query_type);
+      }
+    } else if (args[0]->data_type() == MYSQL_TYPE_TIME &&
+               data_type() == MYSQL_TYPE_DATETIME) {
+      str->append(STRING_WITH_LEN("CAST("));
+      args[0]->print(thd, str, query_type);
+      str->append(STRING_WITH_LEN(" AS TIMESTAMP)"));
+    } else if (args[0]->is_duckdb_string_type()) {
+      const bool is_date_level = m_interval_type <= INTERVAL_DAY ||
+                                 m_interval_type == INTERVAL_YEAR_MONTH;
+      if (is_date_level) {
+        /*
+          For DATE-level intervals (YEAR/MONTH/WEEK/DAY/etc.), MySQL preserves
+          the input format per-row: date-only input returns a date string,
+          datetime input returns a datetime string. We use CASE WHEN to detect
+          the input format at runtime via string length, and cast the result
+          to VARCHAR so that the format difference is preserved (DuckDB would
+          otherwise coerce both CASE branches to TIMESTAMP).
+        */
+        const char *op = m_subtract ? " - interval " : " + interval ";
+        str->append(STRING_WITH_LEN("CASE WHEN LENGTH(TRIM("));
+        args[0]->print(thd, str, query_type);
+        str->append(STRING_WITH_LEN(")) <= 10 THEN CAST(CAST((TRY_CAST("));
+        args[0]->print(thd, str, query_type);
+        str->append(STRING_WITH_LEN(" AS TIMESTAMP)"));
+        str->append(op);
+        str->append('(');
+        args[1]->print(thd, str, query_type);
+        str->append(STRING_WITH_LEN(") "));
+        str->append(interval_names[m_interval_type]);
+        str->append(
+            STRING_WITH_LEN(") AS DATE) AS VARCHAR) ELSE CAST((TRY_CAST("));
+        args[0]->print(thd, str, query_type);
+        str->append(STRING_WITH_LEN(" AS TIMESTAMP)"));
+        str->append(op);
+        str->append('(');
+        args[1]->print(thd, str, query_type);
+        str->append(STRING_WITH_LEN(") "));
+        str->append(interval_names[m_interval_type]);
+        str->append(STRING_WITH_LEN(") AS VARCHAR) END)"));
+        return;
+      } else {
+        /*
+          For time-level intervals (HOUR/MINUTE/SECOND/etc.), MySQL always
+          returns DATETIME regardless of input format, so a simple TRY_CAST
+          to TIMESTAMP is sufficient.
+        */
+        str->append(STRING_WITH_LEN("TRY_CAST("));
+        args[0]->print(thd, str, query_type);
+        str->append(STRING_WITH_LEN(" AS TIMESTAMP)"));
+      }
+    } else {
+      args[0]->print(thd, str, query_type);
+    }
+  } else {
+    args[0]->print(thd, str, query_type);
+  }
   str->append(m_subtract ? " - interval " : " + interval ");
+  if (query_type & QT_DUCKDB_REWRITE) {
+    str->append('(');
+  }
   args[1]->print(thd, str, query_type);
+  if (query_type & QT_DUCKDB_REWRITE) {
+    str->append(')');
+  }
   str->append(' ');
   str->append(interval_names[m_interval_type]);
   str->append(')');
+  if (cast_result_to_date) str->append(STRING_WITH_LEN(" AS DATE))"));
 }
 
 void Item_func_add_interval::add_json_info(Json_object *obj) {
@@ -3085,6 +3231,17 @@ void Item_extract::print(const THD *thd, String *str,
   str->append(STRING_WITH_LEN("extract("));
   str->append(interval_names[int_type]);
   str->append(STRING_WITH_LEN(" from "));
+  if ((query_type & QT_DUCKDB_REWRITE) && args[0]->is_duckdb_string_type()) {
+    str->append(STRING_WITH_LEN("(CAST("));
+    args[0]->print(thd, str, query_type);
+    if (m_date_value) {
+      str->append(STRING_WITH_LEN(" AS TIMESTAMP))"));
+    } else {
+      str->append(STRING_WITH_LEN(" AS TIME))"));
+    }
+    str->append(')');
+    return;
+  }
   args[0]->print(thd, str, query_type);
   str->append(')');
 }
@@ -3302,7 +3459,8 @@ void Item_typecast_datetime::print(const THD *thd, String *str,
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as "));
   str->append(cast_type());
-  if (decimals) str->append_parenthesized(decimals);
+  if (decimals && !(query_type & QT_DUCKDB_REWRITE))
+    str->append_parenthesized(decimals);
   str->append(')');
 }
 
@@ -3346,7 +3504,8 @@ void Item_typecast_time::print(const THD *thd, String *str,
   args[0]->print(thd, str, query_type);
   str->append(STRING_WITH_LEN(" as "));
   str->append(cast_type());
-  if (decimals) str->append_parenthesized(decimals);
+  if (decimals && !(query_type & QT_DUCKDB_REWRITE))
+    str->append_parenthesized(decimals);
   str->append(')');
 }
 
@@ -3610,12 +3769,31 @@ void Item_func_add_time::print(const THD *thd, String *str,
                                enum_query_type query_type) const {
   if (m_datetime) {
     assert(!m_subtract);
-    str->append(STRING_WITH_LEN("timestamp("));
+    if (query_type & QT_DUCKDB_REWRITE) {
+      str->append(STRING_WITH_LEN("addtime("));
+    } else {
+      str->append(STRING_WITH_LEN("timestamp("));
+    }
   } else {
     if (!m_subtract) {
       str->append(STRING_WITH_LEN("addtime("));
     } else {
       str->append(STRING_WITH_LEN("subtime("));
+    }
+  }
+  if (query_type & QT_DUCKDB_REWRITE) {
+    if (dynamic_cast<PTI_text_literal_text_string *>(args[0])) {
+      String buffer;
+      String *literal = args[0]->val_str(&buffer);
+      MYSQL_TIME datetime;
+      MYSQL_TIME_STATUS status;
+      if (literal && !str_to_datetime(literal->ptr(), literal->length(),
+                                      &datetime, 0, &status)) {
+        str->append(STRING_WITH_LEN("TIMESTAMP "));
+      } else {
+        Time_val time;
+        if (!args[0]->val_time(&time)) str->append(STRING_WITH_LEN("TIME "));
+      }
     }
   }
   args[0]->print(thd, str, query_type);
@@ -3993,10 +4171,24 @@ void Item_func_timestamp_diff::print(const THD *thd, String *str,
       break;
   }
 
-  for (uint i = 0; i < 2; i++) {
-    str->append(',');
-    args[i]->print(thd, str, query_type);
+  if (query_type & QT_DUCKDB_REWRITE) {
+    for (uint i = 0; i < 2; i++) {
+      str->append(',');
+      if (args[i]->is_duckdb_string_type()) {
+        str->append(STRING_WITH_LEN("CAST("));
+        args[i]->print(thd, str, query_type);
+        str->append(STRING_WITH_LEN(" AS TIMESTAMP)"));
+      } else {
+        args[i]->print(thd, str, query_type);
+      }
+    }
+  } else {
+    for (uint i = 0; i < 2; i++) {
+      str->append(',');
+      args[i]->print(thd, str, query_type);
+    }
   }
+
   str->append(')');
 }
 

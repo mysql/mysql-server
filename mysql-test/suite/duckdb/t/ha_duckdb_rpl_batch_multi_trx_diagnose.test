@@ -1,0 +1,62 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+
+--echo ###########################################################################
+--echo # 0. Prepare
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (
+    id BIGINT AUTO_INCREMENT NOT NULL,
+    c0 VARCHAR(20) NOT NULL,
+    PRIMARY KEY(id)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+
+--echo ###########################################################################
+--echo # 1. Test DUCKDB_MULTI_TRX_BATCH_COMMIT
+--echo ###########################################################################
+--let diagnose_option = DUCKDB_MULTI_TRX_BATCH_COMMIT
+--let $assert_text = Check DuckDB batch commit log
+--let $assert_select = commit duckdb batch due to
+--let $assert_count_on = 1
+--source ha_duckdb_rpl_batch_multi_trx_diagnose.inc
+
+--echo ###########################################################################
+--echo # 2. Test DUCKDB_MULTI_TRX_BATCH_DETAIL
+--echo ###########################################################################
+--let diagnose_option = DUCKDB_MULTI_TRX_BATCH_DETAIL
+--let $assert_text = Check DuckDB batch detail log
+--let $assert_select = set gtid_next when apply Gtid_log_event
+--let $assert_count_on = 2
+--source ha_duckdb_rpl_batch_multi_trx_diagnose.inc
+
+--echo ###########################################################################
+--echo # 3. Test DUCKDB_QUERY
+--echo ###########################################################################
+--let diagnose_option = DUCKDB_QUERY
+--let $assert_text = Check DuckDB query log
+--let $assert_select = CREATE TEMPORARY TABLE IF NOT EXISTS
+--let $assert_count_on = 1
+--source ha_duckdb_rpl_batch_multi_trx_diagnose.inc
+
+--echo ###########################################################################
+--echo # 4. Test DUCKDB_QUERY_RESULT
+--echo ###########################################################################
+--let diagnose_option = DUCKDB_QUERY_RESULT
+--let $assert_text = Check DuckDB query result log
+--let $assert_select = my_duckdb: Success
+--let $assert_count_on = 16
+--source ha_duckdb_rpl_batch_multi_trx_diagnose.inc
+
+--echo ###########################################################################
+--echo # 5. Test Cleanup
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

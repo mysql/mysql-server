@@ -1,0 +1,88 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# NOT NULL, NOT PARTIAL UNIQUE KEY IS UPGRADED TO PRIMARY KEY.
+#
+CREATE TABLE t(a INT NOT NULL, b INT NOT NULL, UNIQUE INDEX idx_b(b)) ENGINE = InnoDB;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  UNIQUE KEY `idx_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`b`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, ordinal_position FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	ordinal_position	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	INTEGER	
+[ Rows: 2]
+test	t	a	NULL	NO	INTEGER	1
+test	t	b	NULL	NO	INTEGER	2
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 2]
+t	NOT NULL	NOT NULL
+t	NOT NULL	NOT NULL
+
+
+
+[connection master]
+ALTER TABLE t ADD PRIMARY KEY(a);
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`),
+  UNIQUE KEY `idx_b` (`b`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, ordinal_position FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	ordinal_position	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	INTEGER	
+[ Rows: 2]
+test	t	a	NULL	NO	INTEGER	1
+test	t	b	NULL	NO	INTEGER	2
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 2]
+t	NOT NULL	NOT NULL
+t	NOT NULL	NOT NULL
+
+
+
+[connection master]
+DROP TABLE t;
+#
+# CLEANUP
+#
+include/rpl/deinit.inc

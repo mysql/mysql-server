@@ -58,6 +58,9 @@
 #include "sql/changestreams/apply/csa_worker_context.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
+#ifdef HAVE_DUCKDB
+#include "sql/duckdb/duckdb_context.h"
+#endif
 #include "sql/log_event.h"  // Log_event
 #include "sql/mdl.h"
 #include "sql/mysqld.h"  // sync_relaylog_period ...
@@ -85,6 +88,15 @@
 #include "string_with_len.h"
 #include "strmake.h"
 #include "thr_mutex.h"
+
+bool duckdb_multi_trx_in_batch = false;
+
+ulonglong duckdb_multi_trx_timeout = 5000;
+
+ulonglong duckdb_multi_trx_max_batch_length = 256 * 1024 * 1024;
+
+bool duckdb_commit_multi_trx_due_to_rotate = true;
+uint duckdb_commit_multi_trx_due_to_rotate_frequency = 1;
 
 class Item;
 
@@ -152,6 +164,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       event_start_pos(0),
       group_master_log_pos(0),
       gtid_set(nullptr),
+      tcle_gtid_set(nullptr),
       rli_fake(is_rli_fake),
       gtid_retrieved_initialized(false),
       m_privilege_checks_username{""},
@@ -160,6 +173,10 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
       m_require_row_format(false),
       m_require_table_primary_key_check(PK_CHECK_STREAM),
       m_is_applier_source_position_info_invalid(false),
+      m_global_duckdb_idempotent_flag(false),
+      m_local_duckdb_idempotent_flag(false),
+      m_duckdb_insert_only_flag(false),
+      m_duckdb_skip_commit_due_to_rotate_cnt(0),
       is_group_master_log_pos_invalid(false),
       log_space_total(0),
       last_master_timestamp(0),
@@ -249,6 +266,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery,
     );
     Tsid_map *tsid_map = new Tsid_map(tsid_lock);
     gtid_set = new Gtid_set(tsid_map, tsid_lock);
+    tcle_gtid_set = new Gtid_set(tsid_map, tsid_lock);
 
     /*
       Group replication applier channel shall not use checksum on its relay
@@ -322,8 +340,10 @@ Relay_log_info::~Relay_log_info() {
 
     tsid_lock->wrlock();
     gtid_set->clear();
+    tcle_gtid_set->clear();
     tsid_map->clear();
     delete gtid_set;
+    delete tcle_gtid_set;
     delete tsid_map;
     tsid_lock->unlock();
     delete tsid_lock;
@@ -1294,8 +1314,21 @@ void Relay_log_info::cleanup_context(THD *thd, bool error) {
     "context cleanup" function.
   */
   if (error) {
-    trans_rollback_stmt(thd);  // if a "statement transaction"
-    trans_rollback(thd);       // if a "real transaction"
+#ifdef HAVE_DUCKDB
+    if (thd->multi_trx_in_batch()) {
+      if (thd->get_duckdb_context()->commit_partial_batch()) {
+        trans_rollback_stmt(thd);
+        trans_rollback(thd);
+        my_error(ER_DUCKDB_COMMIT_ERROR, MYF(0),
+                 "Commit partial batch failed!");
+        thd->is_slave_error = true;
+      }
+    } else
+#endif
+    {
+      trans_rollback_stmt(thd);  // if a "statement transaction"
+      trans_rollback(thd);       // if a "real transaction"
+    }
     thd->variables.original_commit_timestamp = UNDEFINED_COMMIT_TIMESTAMP;
   }
   if (rows_query_ev) {
@@ -2505,7 +2538,7 @@ int Relay_log_info::set_rli_description_event(
           DBUG_PRINT("info",
                      ("Setting gtid_next.type to NOT_YET_DETERMINED_GTID"));
           info_thd->variables.gtid_next.set_not_yet_determined();
-        } else if (in_active_multi_stmt) {
+        } else if (!info_thd->multi_trx_in_batch() && in_active_multi_stmt) {
           my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0),
                    "gtid_next");
           return 1;
@@ -2763,6 +2796,17 @@ enum_return_status Relay_log_info::add_gtid_set(const Gtid_set *gtid_set) {
 
   get_tsid_lock()->wrlock();
   enum_return_status return_status = this->gtid_set->add_gtid_set(gtid_set);
+  get_tsid_lock()->unlock();
+
+  return return_status;
+}
+
+enum_return_status Relay_log_info::add_tcle_gtid_set(const Gtid_set *gtid_set) {
+  DBUG_TRACE;
+
+  get_tsid_lock()->wrlock();
+  enum_return_status return_status =
+      this->tcle_gtid_set->add_gtid_set(gtid_set);
   get_tsid_lock()->unlock();
 
   return return_status;

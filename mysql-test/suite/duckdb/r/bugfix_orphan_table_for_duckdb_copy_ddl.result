@@ -1,0 +1,26 @@
+#
+# 1) CREATE TABLE
+#
+SET GLOBAL duckdb_log_options = "DUCKDB_QUERY";
+CREATE TABLE t1(a VARCHAR(100) KEY);
+CREATE TABLE t2(a VARCHAR(100) KEY);
+#
+# 2) ALTER TO DUCKDB
+#
+SET SESSION duckdb_copy_ddl_threads = 1;
+ALTER TABLE t1 ENGINE = DuckDB;
+include/assert_grep.inc [No found create table committed.]
+SET SESSION duckdb_copy_ddl_threads = 4;
+ALTER TABLE t2 ENGINE = DuckDB;
+include/assert_grep.inc [Found create table committed.]
+#
+# 3) COPY DDL FROM DUCKDB TO DUCKDB
+#
+ALTER TABLE t1 ADD COLUMN b INT;
+ALTER TABLE t1 ADD COLUMN c INT AFTER a;
+include/assert_grep.inc [No found create table committed.]
+#
+# 4) CLEANUP
+#
+SET GLOBAL duckdb_log_options = default;
+DROP TABLE t1, t2;

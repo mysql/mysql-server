@@ -617,6 +617,9 @@ int Binlog_sender::send_events(File_reader &reader, my_off_t end_pos) {
 
     log_pos = reader.position();
 
+    if (m_exclude_gtid)
+      in_exclude_group = skip_event(event_ptr, in_exclude_group);
+
     /*
       TODO: Set m_exclude_gtid to NULL if all gtids in m_exclude_gtid has
       be skipped. and maybe removing the gtid from m_exclude_gtid will make

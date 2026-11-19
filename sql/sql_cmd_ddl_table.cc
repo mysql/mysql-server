@@ -423,6 +423,26 @@ bool Sql_cmd_create_table::execute(THD *thd) {
     }
     if (validate_use_secondary_engine(lex)) return true;
 
+    bool exist_duckdb_table = false;
+    bool exist_other_table = false;
+    /**
+     Allow:
+      1. create duckdb table as select from other engine table.
+     Don't allow:
+      1. create other table as select from duckdb table.
+      2. create duckdb table as select from duckdb table (Cannot send to DuckDB
+         for execution because the field names and data types of the select
+         statement resultset may not be consistent with MySQL).
+     */
+    lex->check_table_engine_type_in_select(exist_duckdb_table,
+                                           exist_other_table);
+    if (exist_duckdb_table) {
+      my_error(ER_DUCKDB_CLIENT, MYF(0),
+               "Does not support duckdb engine in CREATE TABLE ... SELECT "
+               "satement");
+      return true;
+    }
+
     result->set_two_fields(&create_info, &alter_info);
 
     // For objects acquired during table creation.

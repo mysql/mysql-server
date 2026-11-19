@@ -1,0 +1,4 @@
+SELECT LOWER(VARIABLE_NAME) AS variable_name
+FROM performance_schema.global_variables
+WHERE VARIABLE_NAME LIKE '%duckdb%' OR VARIABLE_NAME = 'ignore_index_hint_error'
+ORDER BY CAST(variable_name AS BINARY);

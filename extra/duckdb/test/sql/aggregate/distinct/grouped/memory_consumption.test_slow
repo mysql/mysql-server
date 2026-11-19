@@ -1,0 +1,43 @@
+# name: test/sql/aggregate/distinct/grouped/memory_consumption.test_slow
+# group: [grouped]
+
+require tpch
+
+statement ok
+pragma enable_verification
+
+statement ok
+pragma verify_parallelism
+
+statement ok
+pragma threads=4
+
+# This same test will fail on current master (01c074b55e), as it requires 3.2gb minimum
+# UPDATE: PR #5263 found issues with unpinned blocks - this now requires more memory
+statement ok
+pragma memory_limit='4gb'
+
+statement ok
+CALL dbgen(sf=1);
+
+query II
+select
+	l_comment,
+	count(distinct l_orderkey),
+from
+	lineitem
+group by 1
+order by all desc
+limit 10
+;
+----
+zzle? furiously iro	1
+zzle; furiously regular ac	2
+zzle; fluffily special a	1
+zzle: slyly even ideas wake fu	1
+zzle. slyly final Tiresias nag a	1
+zzle. slyly	2
+zzle. silently ironic deposits mu	2
+zzle. regular, regular foxes 	1
+zzle. regular, express theodol	1
+zzle. regular, express packages hagg	1

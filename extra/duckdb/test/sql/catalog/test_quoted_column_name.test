@@ -1,0 +1,26 @@
+# name: test/sql/catalog/test_quoted_column_name.test
+# description: Test quoted column name
+# group: [catalog]
+
+statement ok
+CREATE TABLE integers("42" INTEGER)
+
+statement ok
+INSERT INTO integers VALUES (33)
+
+query I
+SELECT "42" FROM integers;
+----
+33
+
+# verify escaped quotes and dots
+statement ok
+CREATE TABLE "table ""." ( "col ""." TEXT)
+
+statement ok
+INSERT INTO "table ""." ("col "".") VALUES ('quote_escaped_quote_''')
+
+query TT
+SELECT "table ""."."col "".", "col ""." FROM "table "".";
+----
+quote_escaped_quote_'	quote_escaped_quote_'

@@ -1,0 +1,422 @@
+#
+# 1) duckdb_mode
+#
+SELECT @@global.duckdb_mode;
+@@global.duckdb_mode
+ON
+SELECT @@session.duckdb_mode;
+ERROR HY000: Variable 'duckdb_mode' is a GLOBAL variable
+SET GLOBAL duckdb_mode = 'NONE';
+ERROR HY000: Variable 'duckdb_mode' is a read only variable
+# restart: --duckdb_mode=NONE
+# create table is not allowed when duckdb_mode is 'NONE'
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=duckdb;
+ERROR HY000: Storage engine DUCKDB is disabled (Table creation is disallowed).
+# alter to duckdb is not allowed when duckdb_mode is 'NONE'
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=innodb;
+ALTER TABLE t1 ENGINE=duckdb;
+ERROR HY000: Storage engine DUCKDB is disabled (Table creation is disallowed).
+DROP TABLE t1;
+# restart: --duckdb_mode=ON
+# create table is allowed when duckdb_mode is 'ON'
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=duckdb;
+DROP TABLE t1;
+# alter to duckdb is allowed when duckdb_mode is 'ON'
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=innodb;
+ALTER TABLE t1 ENGINE=duckdb;
+DROP TABLE t1;
+#
+# 2) duckdb_memory_limit
+#
+SELECT @@global.duckdb_memory_limit;
+@@global.duckdb_memory_limit
+0
+SELECT @@session.duckdb_memory_limit;
+ERROR HY000: Variable 'duckdb_memory_limit' is a GLOBAL variable
+SET GLOBAL duckdb_memory_limit = '1GB';
+ERROR 42000: Incorrect argument type to variable 'duckdb_memory_limit'
+SET GLOBAL duckdb_memory_limit = 1048576;
+call dbms_duckdb.query("SELECT current_setting('memory_limit') AS memlimit");
+RESULT
+memlimit	
+VARCHAR	
+[ Rows: 1]
+1.0 MiB
+
+
+SET GLOBAL duckdb_memory_limit = 0;
+SET GLOBAL duckdb_memory_limit = 1048576*1024*1024;
+call dbms_duckdb.query("SELECT current_setting('memory_limit') AS memlimit");
+RESULT
+memlimit	
+VARCHAR	
+[ Rows: 1]
+1.0 TiB
+
+
+SET GLOBAL duckdb_memory_limit = DEFAULT;
+#
+# 3) duckdb_temp_directory
+#
+SELECT @@global.duckdb_temp_directory;
+@@global.duckdb_temp_directory
+NULL
+call dbms_duckdb.query("SELECT current_setting('temp_directory') AS temp_directory");
+RESULT
+temp_directory	
+VARCHAR	
+[ Rows: 1]
+DATADIR/data/duckdb_tmp
+
+
+SELECT @@session.duckdb_temp_directory;
+ERROR HY000: Variable 'duckdb_temp_directory' is a GLOBAL variable
+SET GLOBAL duckdb_temp_directory = '/tmp';
+ERROR HY000: Variable 'duckdb_temp_directory' is a read only variable
+#
+# 4) duckdb_max_temp_directory_size
+#
+SELECT @@global.duckdb_max_temp_directory_size;
+@@global.duckdb_max_temp_directory_size
+107374182400
+SELECT @@session.duckdb_max_temp_directory_size;
+ERROR HY000: Variable 'duckdb_max_temp_directory_size' is a GLOBAL variable
+call dbms_duckdb.query("SELECT current_setting('max_temp_directory_size') AS max_temp_directory_size");
+RESULT
+max_temp_directory_size	
+VARCHAR	
+[ Rows: 1]
+100.0 GiB
+
+
+SET GLOBAL duckdb_max_temp_directory_size = '1GB';
+ERROR 42000: Incorrect argument type to variable 'duckdb_max_temp_directory_size'
+SET GLOBAL duckdb_max_temp_directory_size = 1048576;
+call dbms_duckdb.query("SELECT current_setting('max_temp_directory_size') AS max_temp_directory_size");
+RESULT
+max_temp_directory_size	
+VARCHAR	
+[ Rows: 1]
+1.0 MiB
+
+
+SET GLOBAL duckdb_max_temp_directory_size = 0;
+call dbms_duckdb.query("SELECT current_setting('max_temp_directory_size') AS max_temp_directory_size");
+RESULT
+MAX_TEMP_DIRECTORY_SIZE
+SET GLOBAL duckdb_max_temp_directory_size = 1048576*1024*1024;
+call dbms_duckdb.query("SELECT current_setting('max_temp_directory_size') AS max_temp_directory_size");
+RESULT
+max_temp_directory_size	
+VARCHAR	
+[ Rows: 1]
+1.0 TiB
+
+
+SET GLOBAL duckdb_max_temp_directory_size = DEFAULT;
+#
+# 5) duckdb_threads
+#
+SELECT @@global.duckdb_threads;
+@@global.duckdb_threads
+0
+SELECT @@session.duckdb_threads;
+ERROR HY000: Variable 'duckdb_threads' is a GLOBAL variable
+SET GLOBAL duckdb_threads = 'a';
+ERROR 42000: Incorrect argument type to variable 'duckdb_threads'
+SET GLOBAL duckdb_threads = 16;
+call dbms_duckdb.query("SELECT current_setting('threads') AS threads");
+RESULT
+threads	
+BIGINT	
+[ Rows: 1]
+16
+
+
+SET GLOBAL duckdb_threads = 0;
+SET GLOBAL duckdb_threads = 1024;
+call dbms_duckdb.query("SELECT current_setting('threads') AS threads");
+RESULT
+threads	
+BIGINT	
+[ Rows: 1]
+1024
+
+
+# restart: --duckdb_threads=8
+SELECT @@global.duckdb_threads;
+@@global.duckdb_threads
+8
+call dbms_duckdb.query("SELECT current_setting('threads') AS threads");
+RESULT
+threads	
+BIGINT	
+[ Rows: 1]
+8
+
+
+SET GLOBAL duckdb_threads = DEFAULT;
+#
+# 6) duckdb_use_direct_io
+#
+SELECT @@global.duckdb_use_direct_io;
+@@global.duckdb_use_direct_io
+0
+SELECT @@session.duckdb_use_direct_io;
+ERROR HY000: Variable 'duckdb_use_direct_io' is a GLOBAL variable
+SET GLOBAL duckdb_use_direct_io = ON;
+ERROR HY000: Variable 'duckdb_use_direct_io' is a read only variable
+CREATE TABLE t1 (id int primary key) engine = duckdb;
+# restart: --duckdb_use_direct_io=OFF
+# restart:
+DROP TABLE t1;
+#
+# 7) duckdb_disabled_optimizers
+#
+CREATE TABLE t1 (id int primary key) engine = duckdb;
+CALL dbms_duckdb.query('SELECT current_setting(\'disabled_optimizers\');');
+RESULT
+current_setting('disabled_optimizers')	
+VARCHAR	
+[ Rows: 1]
+
+
+
+SET duckdb_disabled_optimizers = 'JOIN_ORDER,BUILD_SIDE_PROBE_SIDE';
+SELECT * FROM t1;
+id
+CALL dbms_duckdb.query('SELECT current_setting(\'disabled_optimizers\');');
+RESULT
+current_setting('disabled_optimizers')	
+VARCHAR	
+[ Rows: 1]
+join_order,build_side_probe_side
+
+
+SET duckdb_disabled_optimizers = 'CTE_INLINING,ROW_GROUP_PRUNER,TOP_N_WINDOW_ELIMINATION,COMMON_SUBPLAN,JOIN_ELIMINATION,WINDOW_SELF_JOIN';
+SELECT * FROM t1;
+id
+CALL dbms_duckdb.query('SELECT current_setting(\'disabled_optimizers\');');
+RESULT
+current_setting('disabled_optimizers')	
+VARCHAR	
+[ Rows: 1]
+cte_inlining,row_group_pruner,top_n_window_elimination,common_subplan,join_elimination,window_self_join
+
+
+SET duckdb_disabled_optimizers = '';
+SELECT * FROM t1;
+id
+CALL dbms_duckdb.query('SELECT current_setting(\'disabled_optimizers\');');
+RESULT
+current_setting('disabled_optimizers')	
+VARCHAR	
+[ Rows: 1]
+
+
+
+DROP TABLE t1;
+#
+# 8) duckdb_scheduler_process_partial
+#
+SELECT @@global.duckdb_scheduler_process_partial;
+@@global.duckdb_scheduler_process_partial
+1
+# restart: --duckdb_scheduler_process_partial=OFF
+call dbms_duckdb.query("SELECT current_setting('scheduler_process_partial') AS scheduler_process_partial");
+RESULT
+scheduler_process_partial	
+BOOLEAN	
+[ Rows: 1]
+false
+
+
+SELECT @@global.duckdb_scheduler_process_partial;
+@@global.duckdb_scheduler_process_partial
+0
+SELECT @@session.duckdb_scheduler_process_partial;
+ERROR HY000: Variable 'duckdb_scheduler_process_partial' is a GLOBAL variable
+SET SESSION duckdb_scheduler_process_partial = ON;
+ERROR HY000: Variable 'duckdb_scheduler_process_partial' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL duckdb_scheduler_process_partial = ON;
+call dbms_duckdb.query("SELECT current_setting('scheduler_process_partial') AS scheduler_process_partial");
+RESULT
+scheduler_process_partial	
+BOOLEAN	
+[ Rows: 1]
+true
+
+
+SET GLOBAL duckdb_scheduler_process_partial = OFF;
+call dbms_duckdb.query("SELECT current_setting('scheduler_process_partial') AS scheduler_process_partial");
+RESULT
+scheduler_process_partial	
+BOOLEAN	
+[ Rows: 1]
+false
+
+
+SET GLOBAL duckdb_scheduler_process_partial = DEFAULT;
+#
+# 9) use db should not fail sql execution
+#
+CREATE DATABASE test2;
+CREATE TABLE test.t1 (a int primary key) engine=duckdb;
+USE test2;
+DROP DATABASE test2;
+SELECT * FROM test.t1;
+a
+DROP TABLE test.t1;
+#
+# 10) duckdb_merge_join_threshold
+#
+CREATE TABLE t1 (id int primary key) engine=duckdb;
+CALL dbms_duckdb.query("SELECT current_setting('merge_join_threshold')");
+RESULT
+current_setting('merge_join_threshold')	
+UBIGINT	
+[ Rows: 1]
+4611686018427387904
+
+
+SET duckdb_merge_join_threshold = 1000;
+SELECT * FROM t1;
+id
+CALL dbms_duckdb.query("SELECT current_setting('merge_join_threshold')");
+RESULT
+current_setting('merge_join_threshold')	
+UBIGINT	
+[ Rows: 1]
+1000
+
+
+SET duckdb_merge_join_threshold = 4611686018427387904;
+SELECT * FROM t1;
+id
+CALL dbms_duckdb.query("SELECT current_setting('merge_join_threshold')");
+RESULT
+current_setting('merge_join_threshold')	
+UBIGINT	
+[ Rows: 1]
+4611686018427387904
+
+
+DROP TABLE t1;
+#
+# 11) duckdb_checkpoint_threshold
+#
+SELECT @@global.duckdb_checkpoint_threshold;
+@@global.duckdb_checkpoint_threshold
+268435456
+call dbms_duckdb.query("SELECT current_setting('checkpoint_threshold') AS checkpoint_threshold");
+RESULT
+checkpoint_threshold	
+VARCHAR	
+[ Rows: 1]
+256.0 MiB
+
+
+# restart: --duckdb_checkpoint_threshold=4096
+call dbms_duckdb.query("SELECT current_setting('checkpoint_threshold') AS checkpoint_threshold");
+RESULT
+checkpoint_threshold	
+VARCHAR	
+[ Rows: 1]
+4.0 KiB
+
+
+SELECT @@global.duckdb_checkpoint_threshold;
+@@global.duckdb_checkpoint_threshold
+4096
+SELECT @@session.duckdb_checkpoint_threshold;
+ERROR HY000: Variable 'duckdb_checkpoint_threshold' is a GLOBAL variable
+SET SESSION duckdb_checkpoint_threshold = 2048;
+ERROR HY000: Variable 'duckdb_checkpoint_threshold' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL duckdb_checkpoint_threshold = 8192;
+call dbms_duckdb.query("SELECT current_setting('checkpoint_threshold') AS checkpoint_threshold");
+RESULT
+checkpoint_threshold	
+VARCHAR	
+[ Rows: 1]
+8.0 KiB
+
+
+SET GLOBAL duckdb_checkpoint_threshold = 0;
+call dbms_duckdb.query("SELECT current_setting('checkpoint_threshold') AS checkpoint_threshold");
+RESULT
+checkpoint_threshold	
+VARCHAR	
+[ Rows: 1]
+0 bytes
+
+
+SET GLOBAL duckdb_checkpoint_threshold = DEFAULT;
+#
+# 12) duckdb_max_threads_per_query
+#
+CREATE TABLE t1 (id int primary key) engine=duckdb;
+CALL dbms_duckdb.query("SELECT current_setting('max_threads_per_query')");
+RESULT
+current_setting('max_threads_per_query')	
+UBIGINT	
+[ Rows: 1]
+1000000
+
+
+SET duckdb_max_threads_per_query = 1000;
+SELECT * FROM t1;
+id
+CALL dbms_duckdb.query("SELECT current_setting('max_threads_per_query')");
+RESULT
+current_setting('max_threads_per_query')	
+UBIGINT	
+[ Rows: 1]
+1000
+
+
+SET duckdb_max_threads_per_query = 0;
+Warnings:
+Warning	1292	Truncated incorrect duckdb_max_threads_per_query value: '0'
+SELECT * FROM t1;
+id
+CALL dbms_duckdb.query("SELECT current_setting('max_threads_per_query')");
+RESULT
+current_setting('max_threads_per_query')	
+UBIGINT	
+[ Rows: 1]
+1
+
+
+SET GLOBAL duckdb_max_threads_per_query = 8192;
+# restart: --duckdb_max_threads_per_query=1024
+SELECT @@session.duckdb_max_threads_per_query;
+@@session.duckdb_max_threads_per_query
+1024
+SELECT * FROM t1;
+id
+CALL dbms_duckdb.query("SELECT current_setting('max_threads_per_query')");
+RESULT
+current_setting('max_threads_per_query')	
+UBIGINT	
+[ Rows: 1]
+1024
+
+
+SET duckdb_max_threads_per_query = default;
+DROP TABLE t1;
+#
+# print all duckdb queries
+#
+Matching lines are:
+--TIME-- [Note] [MY-025000] [Server] my_duckdb: SET GLOBAL max_temp_directory_size = '1.0MiB'
+--TIME-- [Note] [MY-025000] [Server] my_duckdb: RESET GLOBAL max_temp_directory_size
+--TIME-- [Note] [MY-025000] [Server] my_duckdb: SET GLOBAL max_temp_directory_size = '1.0TiB'
+--TIME-- [Note] [MY-025000] [Server] my_duckdb: RESET GLOBAL max_temp_directory_size
+--TIME-- [Note] [MY-025000] [Server] my_duckdb: SET GLOBAL threads = 16
+--TIME-- [Note] [MY-025000] [Server] my_duckdb: RESET GLOBAL threads
+--TIME-- [Note] [MY-025000] [Server] my_duckdb: SET GLOBAL threads = 1024
+--TIME-- [Note] [MY-025000] [Server] my_duckdb: RESET GLOBAL threads
+--TIME-- [Note] [MY-025000] [Server] my_duckdb: SET GLOBAL checkpoint_threshold = '8.0KiB'
+--TIME-- [Note] [MY-025000] [Server] my_duckdb: SET GLOBAL checkpoint_threshold = '0bytes'
+--TIME-- [Note] [MY-025000] [Server] my_duckdb: SET GLOBAL checkpoint_threshold = '256.0MiB'
+Occurrences of 'my_duckdb:.*SET GLOBAL.*' in the input file: 11

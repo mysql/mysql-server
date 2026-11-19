@@ -1,0 +1,10 @@
+# name: test/fuzzer/pedro/analyze_nonexistant.test
+# group: [pedro]
+
+statement ok
+CREATE TABLE t0(c0 TINYINT);
+
+statement error
+ANALYZE t0(c4);
+----
+does not exist

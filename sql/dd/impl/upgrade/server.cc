@@ -1729,3 +1729,5 @@ bool I_S_upgrade_required() {
 }
 }  // namespace upgrade
 }  // namespace dd
+
+#include "server_ext.cc"

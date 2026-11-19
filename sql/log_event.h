@@ -428,6 +428,7 @@ struct PRINT_EVENT_INFO {
   bool thread_id_printed;
   uint8_t default_table_encryption;
   uint8_t enable_cascade_triggers;
+  uint8_t duckdb_data_import_mode;
 
   PRINT_EVENT_INFO();
 
@@ -1795,9 +1796,11 @@ class Xid_apply_log_event : public Log_event {
   bool ends_group() const override { return true; }
 #if defined(MYSQL_SERVER)
   enum_skip_reason do_shall_skip(Relay_log_info *rli) override;
-  int do_apply_event(Relay_log_info const *rli) override;
   int do_apply_event_worker(Slave_worker *rli) override;
   virtual bool do_commit(THD *thd_arg) = 0;
+
+ public:
+  int do_apply_event(Relay_log_info const *rli) override;
 #endif
 };
 
@@ -2826,7 +2829,8 @@ class Rows_log_event : public virtual mysql::binlog::event::Rows_event,
     ROW_LOOKUP_NOT_NEEDED = 1,
     ROW_LOOKUP_INDEX_SCAN = 2,
     ROW_LOOKUP_TABLE_SCAN = 3,
-    ROW_LOOKUP_HASH_SCAN = 4
+    ROW_LOOKUP_HASH_SCAN = 4,
+    ROW_LOOKUP_DUCKDB = 5
   };
 
   /**
@@ -3216,6 +3220,8 @@ class Rows_log_event : public virtual mysql::binlog::event::Rows_event,
      performed.
    */
   int do_table_scan_and_update(Relay_log_info const *rli);
+
+  int do_duckdb_update(Relay_log_info const *rli);
 
   /**
     Seek past the after-image of an update event, in case a row was processed
@@ -4150,6 +4156,9 @@ class Gtid_log_event : public mysql::binlog::event::Gtid_event,
 
   /// @returns The GTID event specification
   Gtid_specification get_gtid_spec();
+  void set_gtid_duckdb_idempotent_flag(bool flag) {
+    duckdb_idempotent_flag = flag;
+  }
 
   /// string holding the text "SET @@GLOBAL.GTID_NEXT = '"
   static const char *SET_STRING_PREFIX;
@@ -4170,6 +4179,8 @@ class Gtid_log_event : public mysql::binlog::event::Gtid_event,
   Gtid_specification spec;
   /// TSID for this GTID.
   Tsid tsid;
+  /// Whether to replay this transaction idempotently.
+  bool duckdb_idempotent_flag{false};
 
  public:
   /**
@@ -4372,15 +4383,15 @@ class Transaction_context_log_event
 
   static int get_data_set_size(std::list<const char *> *set);
 
-  size_t to_string(char *buf, ulong len) const;
+  size_t to_string(char *buf) const;
 
  public:
 #ifdef MYSQL_SERVER
 
   Transaction_context_log_event(const char *server_uuid_arg, bool using_trans,
                                 my_thread_id thread_id_arg,
-                                bool is_gtid_specified);
-
+                                bool is_gtid_specified_arg,
+                                const Gtid_set *snapshot_version_arg = nullptr);
 #endif
 
   Transaction_context_log_event(
@@ -4404,7 +4415,7 @@ class Transaction_context_log_event
 #endif
 
 #if defined(MYSQL_SERVER)
-  int do_apply_event(Relay_log_info const *) override { return 0; }
+  int do_apply_event(Relay_log_info const *rli) override;
   int do_update_pos(Relay_log_info *rli) override;
 #endif
 
@@ -4442,6 +4453,11 @@ class Transaction_context_log_event
    */
   bool read_snapshot_version();
 #endif
+
+  /**
+    Read snapshot version from encoded buffers, without Gtid Lock.
+   */
+  bool decode_snapshot_version();
 
   /**
     Return the transaction snapshot timestamp.

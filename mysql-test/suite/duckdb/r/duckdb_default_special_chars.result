@@ -1,0 +1,57 @@
+# === Setup ===
+DROP TABLE IF EXISTS t1, t2;
+SET GLOBAL duckdb_log_options = 'DUCKDB_MULTI_TRX_BATCH_COMMIT,DUCKDB_MULTI_TRX_BATCH_DETAIL,DUCKDB_QUERY,DUCKDB_QUERY_RESULT';
+# === Create InnoDB table with special defaults ===
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+c1 VARCHAR(32) DEFAULT '''',
+c2 VARCHAR(32) DEFAULT '',
+c3 VARCHAR(32) DEFAULT '''''',
+c4 VARCHAR(32) DEFAULT '\\',
+c5 VARCHAR(32) DEFAULT '\\\\',
+c6 VARCHAR(32) DEFAULT '\n',
+c7 VARCHAR(32) DEFAULT '\t',
+c8 VARCHAR(32) DEFAULT '"',
+c9 VARCHAR(32) DEFAULT 'it''s',
+c10 VARCHAR(32) DEFAULT '`backtick`'
+) ENGINE=InnoDB;
+# === Create identical DuckDB table ===
+CREATE TABLE t2 (
+id INT PRIMARY KEY,
+c1 VARCHAR(32) DEFAULT '''',
+c2 VARCHAR(32) DEFAULT '',
+c3 VARCHAR(32) DEFAULT '''''',
+c4 VARCHAR(32) DEFAULT '\\',
+c5 VARCHAR(32) DEFAULT '\\\\',
+c6 VARCHAR(32) DEFAULT '\n',
+c7 VARCHAR(32) DEFAULT '\t',
+c8 VARCHAR(32) DEFAULT '"',
+c9 VARCHAR(32) DEFAULT 'it''s',
+c10 VARCHAR(32) DEFAULT '`backtick`'
+) ENGINE=DuckDB;
+# === Insert rows relying on defaults ===
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t2 (id) VALUES (1);
+# === Verify defaults via HEX (InnoDB) ===
+SELECT HEX(c1) AS c1, HEX(c2) AS c2,
+HEX(c3) AS c3, HEX(c4) AS c4,
+HEX(c5) AS c5, HEX(c6) AS c6,
+HEX(c7) AS c7, HEX(c8) AS c8,
+HEX(c9) AS c9, HEX(c10) AS c10
+FROM t1;
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
+27		2727	5C	5C5C	0A	09	22	69742773	606261636B7469636B60
+# === Verify defaults via HEX (DuckDB) ===
+SELECT HEX(c1) AS c1, HEX(c2) AS c2,
+HEX(c3) AS c3, HEX(c4) AS c4,
+HEX(c5) AS c5, HEX(c6) AS c6,
+HEX(c7) AS c7, HEX(c8) AS c8,
+HEX(c9) AS c9, HEX(c10) AS c10
+FROM t2;
+c1	c2	c3	c4	c5	c6	c7	c8	c9	c10
+27		2727	5C	5C5C	0A	09	22	69742773	606261636B7469636B60
+# === Verify CHECKSUM parity ===
+# PASS: Checksums match between InnoDB and DuckDB
+# === Cleanup ===
+DROP TABLE IF EXISTS t1, t2;
+SET GLOBAL duckdb_log_options = default;

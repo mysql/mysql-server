@@ -1,0 +1,82 @@
+# name: test/sql/join/inner/test_range_join.test
+# description: Test range joins
+# group: [inner]
+
+statement ok
+PRAGMA enable_verification
+
+# create tables
+statement ok
+CREATE TABLE test (a INTEGER, b INTEGER);
+
+statement ok
+INSERT INTO test VALUES (11, 1), (12, 2), (13, 3)
+
+statement ok
+CREATE TABLE test2 (b INTEGER, c INTEGER);
+
+statement ok
+INSERT INTO test2 VALUES (1, 10), (1, 20), (2, 30)
+
+query II
+SELECT test.b, test2.b FROM test, test2 WHERE test.b<test2.b
+----
+1	2
+
+query II
+SELECT test.b, test2.b FROM test, test2 WHERE test.b <= test2.b ORDER BY 1,2
+----
+1	1
+1	1
+1	2
+2	2
+
+# range join on multiple predicates
+query IIII
+SELECT test.a, test.b, test2.b, test2.c FROM test, test2 WHERE test.a>test2.c AND test.b <= test2.b
+----
+11	1	1	10
+
+# introduce some NULL values
+statement ok
+INSERT INTO test VALUES (11, NULL), (NULL, 1)
+
+# join result should be unchanged
+query IIII
+SELECT test.a, test.b, test2.b, test2.c FROM test, test2 WHERE test.a>test2.c AND test.b <= test2.b
+----
+11	1	1	10
+
+# on the RHS as well
+statement ok
+INSERT INTO test2 VALUES (1, NULL), (NULL, 10)
+
+# join result should be unchanged
+query IIII
+SELECT test.a, test.b, test2.b, test2.c FROM test, test2 WHERE test.a>test2.c AND test.b <= test2.b
+----
+11	1	1	10
+
+# Forced external
+statement ok
+PRAGMA debug_force_external=true;
+
+# In memory unswizzling
+statement ok
+CREATE TABLE issue4419 (x INT, y VARCHAR);
+
+statement ok
+INSERT INTO issue4419 VALUES (1, 'sssssssssssssssssueufuheuooefef');
+
+statement ok
+INSERT INTO issue4419 VALUES (2, 'sssssssssssssssssueufuheuooefesffff');
+
+statement ok
+INSERT INTO issue4419 VALUES (2, 'sssssssssssssssssueufuheuooefesffffsssssssieiffih');
+
+query IIII
+SELECT * FROM issue4419 t1 INNER JOIN issue4419 t2 ON t1.x < t2.x;
+----
+1	sssssssssssssssssueufuheuooefef	2	sssssssssssssssssueufuheuooefesffff
+1	sssssssssssssssssueufuheuooefef	2	sssssssssssssssssueufuheuooefesffffsssssssieiffih
+

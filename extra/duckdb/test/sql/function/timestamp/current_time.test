@@ -1,0 +1,69 @@
+# name: test/sql/function/timestamp/current_time.test
+# description: Test current_time/current_date/etc
+# group: [timestamp]
+
+require icu
+
+statement ok
+SET Calendar='gregorian';
+
+statement ok
+SELECT CAST(CURRENT_TIME AS STRING), CAST(CURRENT_DATE AS STRING), CAST(CURRENT_TIMESTAMP AS STRING), CAST(NOW() AS STRING)
+
+query I
+SELECT typeof(CURRENT_TIME);
+----
+TIME WITH TIME ZONE
+
+query I
+SELECT typeof(CURRENT_DATE);
+----
+DATE
+
+query I
+SELECT typeof(CURRENT_TIMESTAMP);
+----
+TIMESTAMP WITH TIME ZONE
+
+query I
+SELECT typeof(get_current_time());
+----
+TIME WITH TIME ZONE
+
+foreach func today current_date
+
+query I
+SELECT typeof(${func}());
+----
+DATE
+
+endloop
+
+foreach func now get_current_timestamp transaction_timestamp
+
+query I
+SELECT typeof(${func}());
+----
+TIMESTAMP WITH TIME ZONE
+
+endloop
+
+statement ok
+SELECT CURRENT_TIME AS TIME
+
+statement ok
+SELECT CURRENT_TIME + interval (1) second AS TIME
+
+# No DST, so offset never changes
+statement ok
+SET TimeZone='Pacific/Honolulu';
+
+query I
+select current_timestamp;
+----
+<REGEX>:[-0-9:\. ]+-10
+
+query I
+select current_time;
+----
+<REGEX>:[0-9:\.]+-10

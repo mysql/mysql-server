@@ -24331,6 +24331,26 @@ static void test_version_with_update_client_api() {
   DIE_UNLESS(mysql_get_client_version() == MYSQL_VERSION_ID);
 }
 
+static void test_duckdb_pstmt_cursor() {
+  MYSQL_STMT *stmt;
+  int rc;
+  DBUG_TRACE;
+  myheader("test_duckdb_pstmt_cursor");
+
+  rc = mysql_query(mysql, "drop table if exists t_duckdb");
+  myquery(rc);
+  rc = mysql_query(mysql,
+                   "create table t_duckdb (id int primary key) engine=duckdb");
+  myquery(rc);
+
+  const char *query = "select id from t_duckdb";
+  stmt = open_cursor(query);
+  rc = mysql_stmt_execute(stmt);
+
+  rc = mysql_query(mysql, "drop table t_duckdb");
+  mysql_stmt_close(stmt);
+}
+
 static struct my_tests_st my_tests[] = {
     {"test_temporal_param", test_temporal_param},
     {"disable_query_logs", disable_query_logs},
@@ -24652,6 +24672,7 @@ static struct my_tests_st my_tests[] = {
     {"test_bug36686351", test_bug36686351},
     {"test_version_with_update_client_api",
      test_version_with_update_client_api},
+    {"test_duckdb_pstmt_cursor", test_duckdb_pstmt_cursor},
     {nullptr, nullptr}};
 
 static struct my_tests_st *get_my_tests() { return my_tests; }

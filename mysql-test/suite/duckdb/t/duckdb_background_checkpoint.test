@@ -1,0 +1,39 @@
+--echo #
+--echo # Test duckdb_enable_background_checkpoint
+--echo #
+
+SHOW GLOBAL VARIABLES LIKE "duckdb_enable_background_checkpoint";
+
+SET GLOBAL duckdb_enable_background_checkpoint = ON;
+SHOW GLOBAL VARIABLES LIKE "duckdb_enable_background_checkpoint";
+
+SET GLOBAL duckdb_enable_background_checkpoint = OFF;
+SHOW GLOBAL VARIABLES LIKE "duckdb_enable_background_checkpoint";
+
+SET GLOBAL duckdb_enable_background_checkpoint = default;
+SHOW GLOBAL VARIABLES LIKE "duckdb_enable_background_checkpoint";
+
+--echo #
+--echo # Test duckdb_background_checkpoint_full_interval
+--echo #
+
+SHOW GLOBAL VARIABLES LIKE "duckdb_background_checkpoint_full_interval";
+
+SET GLOBAL duckdb_background_checkpoint_full_interval = 5;
+SHOW GLOBAL VARIABLES LIKE "duckdb_background_checkpoint_full_interval";
+
+SET GLOBAL duckdb_background_checkpoint_full_interval = 100;
+SHOW GLOBAL VARIABLES LIKE "duckdb_background_checkpoint_full_interval";
+
+SET GLOBAL duckdb_background_checkpoint_full_interval = 0;
+SHOW GLOBAL VARIABLES LIKE "duckdb_background_checkpoint_full_interval";
+
+SET GLOBAL duckdb_background_checkpoint_full_interval = default;
+SHOW GLOBAL VARIABLES LIKE "duckdb_background_checkpoint_full_interval";
+
+--echo #
+--echo # Cleanup
+--echo #
+
+SET GLOBAL duckdb_enable_background_checkpoint = default;
+SET GLOBAL duckdb_background_checkpoint_full_interval = default;

@@ -1,0 +1,86 @@
+DuckDB build configuration
+==========================
+
+WITH_DUCKDB_STORAGE_ENGINE controls the embedded DuckDB engine and its server
+integration. It defaults to ON for Linux server builds and OFF on other
+platforms. Enabling it explicitly on an unsupported server platform fails during
+CMake configuration with an explanation of how to disable it.
+
+  cmake -S . -B build -DWITH_DUCKDB_STORAGE_ENGINE=ON
+  cmake -S . -B build-native -DWITH_DUCKDB_STORAGE_ENGINE=OFF
+
+An ON build embeds the engine statically. Its runtime duckdb_mode setting still
+defaults to NONE; use duckdb_mode=ON to enable DuckDB table operations. The
+administrative CALL dbms_duckdb.query(sql) interface is registered in ON builds.
+
+An OFF build does not configure or build the third-party DuckDB project, link
+its static archive, build a DuckDB plugin, or register its native procedure and
+system variables. MySQL-side metadata and conversion helpers have no dependency
+on DuckDB headers or libraries. OFF does not mean building a loadable module.
+
+A clients-only build (WITHOUT_SERVER=ON) does not enable DuckDB, including when
+WITH_DUCKDB_STORAGE_ENGINE is set to ON. DuckDB include directories are supplied
+through server target dependencies rather than global include directories.
+
+An OFF server binary cannot open or recover DuckDB tables. Use it with data
+directories that do not depend on the DuckDB engine.
+
+Transaction errors
+==================
+
+DuckDB does not implement statement-level undo. When the server rolls back a
+statement involving DuckDB inside a multi-statement transaction, it rolls back
+the complete transaction, including earlier statements, pending DuckDB batches,
+other transactional engines and the transaction's binlog cache. The original
+statement error is returned. Applications must retry the complete transaction.
+
+  duckdb.statement_rollback
+    Covers explicit transactions, autocommit disabled, autocommit errors and
+    connection reuse with batching and binary logging both enabled and disabled.
+
+The embedded DuckDB backend does not support savepoints. Once DuckDB has joined
+a transaction, SAVEPOINT returns ER_CHECK_NOT_IMPLEMENTED. It does not create a
+savepoint that silently ignores later ROLLBACK TO SAVEPOINT operations.
+
+A savepoint created before the transaction first uses DuckDB remains valid:
+MySQL rolls back all DuckDB work when rolling back to that earlier savepoint,
+and applies the existing savepoint normally to engines already participating.
+
+  duckdb.savepoint_unsupported
+    Checks explicit rejection, rollback to an earlier savepoint and native
+    InnoDB savepoints with DuckDB batching enabled and disabled.
+
+ALTER TABLE and implicit date defaults
+======================================
+
+Adding a DATE or DATETIME NOT NULL column without DEFAULT uses ALGORITHM=COPY.
+The SQL layer checks whether existing rows may receive implicit zero dates:
+non-strict mode permits them, while strict mode with NO_ZERO_DATE rejects the
+operation on a non-empty table. Empty tables can be altered in either mode.
+Explicit INSTANT or INPLACE requests for these operations report an unsupported
+algorithm error. Other eligible column operations can still use INSTANT.
+
+  duckdb.alter_temporal_default
+    Covers the original crash, strict-mode rejection, empty tables, explicit
+    algorithms and default-value parity with InnoDB.
+
+Initialization and regression coverage
+======================================
+
+DuckDB initialization is serialized by the manager mutex. The database object
+is published only after timezone mappings and MySQL UDF registration succeed.
+A failed initialization destroys its local database object before another
+connection can retry initialization.
+
+  duckdb.concurrent_initialization
+    Coordinates two first-use connections with Debug Sync. Both must observe
+    the registered MySQL JSON UDF after initialization completes.
+
+  main.duckdb_build_disabled
+    Runs in OFF builds. Checks the absent engine, variables and native
+    procedure, then exercises native InnoDB transactions and prepared queries.
+
+  duckdb.variables_catalog
+    Checks the exact public variable names supplied by the optional engine.
+    Generic help and variable-coverage tests exclude these optional entries;
+    the persisted-variable test keeps separate strict ON/OFF counts.

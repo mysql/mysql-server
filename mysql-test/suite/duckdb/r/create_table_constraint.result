@@ -1,0 +1,71 @@
+# 1) Prepare
+
+# 2) Create table
+
+CREATE TABLE test_table (
+id INT PRIMARY KEY,
+name VARCHAR(32),
+index idx_id(name),
+unique index uk_name(name),
+unique index uk_id(id),
+unique index uk_id_name(id,name)
+) engine=duckdb;
+Warnings:
+Warning	7505	[DuckDB] Index 'idx_id' is removed.
+Warning	7505	[DuckDB] Index 'uk_name' is removed.
+Warning	7505	[DuckDB] Index 'uk_id' is removed.
+Warning	7505	[DuckDB] Index 'uk_id_name' is removed.
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print test_table begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of test_table ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 2]
+id	1	INTEGER	32
+name	2	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of test_table ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+test_table	NOT NULL	NOT NULL
+
+
+# ③ Print INDEXs of test_table ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of test_table ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table test_table end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of test.test_table
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of test_table
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='test' and s.id = t.schema_id and c.table_id = t.id and t.name = 'test_table' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+id	MYSQL_TYPE_LONG	0	0	0	NULL	
+name	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+DROP TABLE test_table;

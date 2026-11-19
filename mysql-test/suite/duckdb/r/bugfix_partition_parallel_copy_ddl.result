@@ -1,0 +1,34 @@
+#
+# Bugfix: Crash during parallel copy ddl for partition table.
+#
+CREATE TABLE `t_p_bugfix` (
+`id` bigint NOT NULL,
+`product_date` date NOT NULL,
+`product_order` tinyint NOT NULL,
+PRIMARY KEY (`id`,`product_date`,`product_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COMMENT='服务专用维度表'
+/*!50500 PARTITION BY RANGE  COLUMNS(product_date)
+(PARTITION p20231001 VALUES LESS THAN ('2023-10-02') ENGINE = InnoDB,
+PARTITION p20231002 VALUES LESS THAN ('2023-10-03') ENGINE = InnoDB,
+PARTITION p_future VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */;
+Warnings:
+Warning	1287	'utf8mb3' is deprecated and will be removed in a future release. Please use utf8mb4 instead
+INSERT INTO t_p_bugfix VALUES
+(1, '2023-10-01', 1),
+(2, '2023-10-02', 2),
+(3, '2023-10-03', 3);
+ALTER TABLE t_p_bugfix ENGINE = DuckDB;
+SHOW CREATE TABLE t_p_bugfix;
+Table	Create Table
+t_p_bugfix	CREATE TABLE `t_p_bugfix` (
+  `id` bigint NOT NULL,
+  `product_date` date NOT NULL,
+  `product_order` tinyint NOT NULL,
+  PRIMARY KEY (`id`,`product_date`,`product_order`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb3 COMMENT='服务专用维度表'
+/*!50500 PARTITION BY RANGE  COLUMNS(product_date)
+(PARTITION p20231001 VALUES LESS THAN ('2023-10-02') ENGINE = DUCKDB,
+ PARTITION p20231002 VALUES LESS THAN ('2023-10-03') ENGINE = DUCKDB,
+ PARTITION p_future VALUES LESS THAN (MAXVALUE) ENGINE = DUCKDB) */
+include/assert.inc [CHECKSUM is the same]
+DROP TABLE t_p_bugfix;

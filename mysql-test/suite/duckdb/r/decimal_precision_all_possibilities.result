@@ -1,0 +1,313 @@
+set global duckdb_dml_in_batch = OFF;
+#
+#1. prepare
+#
+SELECT @@duckdb_dml_in_batch;
+@@duckdb_dml_in_batch
+0
+#
+#2. duckdb_use_double_for_decimal = on (default)
+#
+SET GLOBAL duckdb_use_double_for_decimal = on;
+#2.1 low precision(<=38)  with low precision value
+CREATE TABLE t1(id int primary key, c1 decimal(38, 5)) engine=duckdb;
+# should be decimal(38, 5)
+CALL dbms_duckdb.query("SELECT column_name, column_index, data_type, numeric_precision FROM duckdb_columns() WHERE schema_name = 'test' AND table_name = 't1' and column_name = 'c1'");
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 1]
+c1	2	DECIMAL(38,5)	38
+
+
+INSERT INTO t1 values (1, 123456789012345678901234567890123.12345);
+SELECT * FROM t1 WHERE id = 1;
+id	c1
+1	123456789012345678901234567890123.12345
+INSERT INTO t1 values (101, 0);
+SELECT * FROM t1 WHERE id = 101;
+id	c1
+101	0.00000
+INSERT INTO t1 values (102, 0.00000);
+SELECT * FROM t1 WHERE id = 102;
+id	c1
+102	0.00000
+#2.2 low precision(<=38)  with high precision value(>38) 
+#ok, The precision after point can be lost
+INSERT INTO t1 values (2, 123456789012345678901234567890123.123456);
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 2;
+id	c1
+2	123456789012345678901234567890123.12346
+#error, The precision before point can not be lost
+INSERT INTO t1 values (3, 1234567890123456789012345678901234.123456);
+ERROR 22003: Out of range value for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 3;
+id	c1
+DROP TABLE t1;
+#2.3 high precision column(>38) with low precision value(<38)
+CREATE TABLE t1(id int primary key, c1 decimal(40, 5)) engine=duckdb;
+# should be double
+CALL dbms_duckdb.query("SELECT column_name, column_index, data_type, numeric_precision FROM duckdb_columns() WHERE schema_name = 'test' AND table_name = 't1' and column_name = 'c1'");
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 1]
+c1	2	DOUBLE	53
+
+
+INSERT INTO t1 values (4, 123456789012345678901234567890.12345);
+SELECT * FROM t1 WHERE id = 4;
+id	c1
+4	1.2345678901234568e29
+#2.4 high precision column(>38) with low precision value(<38)
+INSERT INTO t1 values (5, 12345678901234567890123456789012345.12345678);
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 5;
+id	c1
+5	1.234567890123457e34
+INSERT INTO t1 values (6, 12345678901234567890123456789012345678.12345);
+ERROR 22003: Out of range value for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 6;
+id	c1
+CALL dbms_duckdb.query("INSERT INTO t1 values (5, 12345678901234567890123456789012345678.12345)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+SELECT * FROM t1 WHERE id = 6;
+id	c1
+DROP TABLE t1;
+#
+#3. duckdb_use_double_for_decimal = false
+#
+SET GLOBAL duckdb_use_double_for_decimal = off;
+#3.1 low precision(<=38)  with low precision value
+CREATE TABLE t1(id int primary key, c1 decimal(38, 5)) engine=duckdb;
+# should be decimal(38, 5)
+CALL dbms_duckdb.query("SELECT column_name, column_index, data_type, numeric_precision FROM duckdb_columns() WHERE schema_name = 'test' AND table_name = 't1' and column_name = 'c1'");
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 1]
+c1	2	DECIMAL(38,5)	38
+
+
+INSERT INTO t1 values (7, 123456789012345678901234567890123.12345);
+SELECT * FROM t1 WHERE id = 7;
+id	c1
+7	123456789012345678901234567890123.12345
+INSERT INTO t1 values (701, 0);
+SELECT * FROM t1 WHERE id = 701;
+id	c1
+701	0.00000
+INSERT INTO t1 values (702, 0.00000);
+SELECT * FROM t1 WHERE id = 702;
+id	c1
+702	0.00000
+#3.2 low precision(<=38)  with high precision value(>38) 
+#ok, The precision after point can be lost
+INSERT INTO t1 values (8, 123456789012345678901234567890123.123456);
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 8;
+id	c1
+8	123456789012345678901234567890123.12346
+#error, The precision before point can not be lost
+INSERT INTO t1 values (9, 1234567890123456789012345678901234.123456);
+ERROR 22003: Out of range value for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 9;
+id	c1
+DROP TABLE t1;
+#3.3 high precision column(>38) with low precision value(<38)
+#duckdb use decimal(38, dec) for both high and low precision(<=38) 
+CREATE TABLE t1(id int primary key, c1 decimal(40, 5)) engine=duckdb;
+# should be decimal(38, 5)
+CALL dbms_duckdb.query("SELECT column_name, column_index, data_type, numeric_precision FROM duckdb_columns() WHERE schema_name = 'test' AND table_name = 't1' and column_name = 'c1'");
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 1]
+c1	2	DECIMAL(38,5)	38
+
+
+INSERT INTO t1 values (10, 123456789012345678901234567890123.12345);
+SELECT * FROM t1 WHERE id = 10;
+id	c1
+10	123456789012345678901234567890123.12345
+#3.4 high precision column(>38) with high precision value(>38)
+#duckdb use decimal(38, dec)
+INSERT INTO t1 values (11, 1234567890123456789012345678901234.12345);
+Got one of the listed errors
+SELECT * FROM t1 WHERE id = 11;
+id	c1
+INSERT INTO t1 values (12, 123456789012345678901234567890123.12345678);
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 12;
+id	c1
+12	123456789012345678901234567890123.12346
+DROP TABLE t1;
+set global duckdb_use_double_for_decimal = default;
+set global duckdb_dml_in_batch = ON;
+#
+#1. prepare
+#
+SELECT @@duckdb_dml_in_batch;
+@@duckdb_dml_in_batch
+1
+#
+#2. duckdb_use_double_for_decimal = on (default)
+#
+SET GLOBAL duckdb_use_double_for_decimal = on;
+#2.1 low precision(<=38)  with low precision value
+CREATE TABLE t1(id int primary key, c1 decimal(38, 5)) engine=duckdb;
+# should be decimal(38, 5)
+CALL dbms_duckdb.query("SELECT column_name, column_index, data_type, numeric_precision FROM duckdb_columns() WHERE schema_name = 'test' AND table_name = 't1' and column_name = 'c1'");
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 1]
+c1	2	DECIMAL(38,5)	38
+
+
+INSERT INTO t1 values (1, 123456789012345678901234567890123.12345);
+SELECT * FROM t1 WHERE id = 1;
+id	c1
+1	123456789012345678901234567890123.12345
+INSERT INTO t1 values (101, 0);
+SELECT * FROM t1 WHERE id = 101;
+id	c1
+101	0.00000
+INSERT INTO t1 values (102, 0.00000);
+SELECT * FROM t1 WHERE id = 102;
+id	c1
+102	0.00000
+#2.2 low precision(<=38)  with high precision value(>38) 
+#ok, The precision after point can be lost
+INSERT INTO t1 values (2, 123456789012345678901234567890123.123456);
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 2;
+id	c1
+2	123456789012345678901234567890123.12346
+#error, The precision before point can not be lost
+INSERT INTO t1 values (3, 1234567890123456789012345678901234.123456);
+ERROR 22003: Out of range value for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 3;
+id	c1
+DROP TABLE t1;
+#2.3 high precision column(>38) with low precision value(<38)
+CREATE TABLE t1(id int primary key, c1 decimal(40, 5)) engine=duckdb;
+# should be double
+CALL dbms_duckdb.query("SELECT column_name, column_index, data_type, numeric_precision FROM duckdb_columns() WHERE schema_name = 'test' AND table_name = 't1' and column_name = 'c1'");
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 1]
+c1	2	DOUBLE	53
+
+
+INSERT INTO t1 values (4, 123456789012345678901234567890.12345);
+SELECT * FROM t1 WHERE id = 4;
+id	c1
+4	1.2345678901234568e29
+#2.4 high precision column(>38) with low precision value(<38)
+INSERT INTO t1 values (5, 12345678901234567890123456789012345.12345678);
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 5;
+id	c1
+5	1.234567890123457e34
+INSERT INTO t1 values (6, 12345678901234567890123456789012345678.12345);
+ERROR 22003: Out of range value for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 6;
+id	c1
+CALL dbms_duckdb.query("INSERT INTO t1 values (5, 12345678901234567890123456789012345678.12345)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+SELECT * FROM t1 WHERE id = 6;
+id	c1
+DROP TABLE t1;
+#
+#3. duckdb_use_double_for_decimal = false
+#
+SET GLOBAL duckdb_use_double_for_decimal = off;
+#3.1 low precision(<=38)  with low precision value
+CREATE TABLE t1(id int primary key, c1 decimal(38, 5)) engine=duckdb;
+# should be decimal(38, 5)
+CALL dbms_duckdb.query("SELECT column_name, column_index, data_type, numeric_precision FROM duckdb_columns() WHERE schema_name = 'test' AND table_name = 't1' and column_name = 'c1'");
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 1]
+c1	2	DECIMAL(38,5)	38
+
+
+INSERT INTO t1 values (7, 123456789012345678901234567890123.12345);
+SELECT * FROM t1 WHERE id = 7;
+id	c1
+7	123456789012345678901234567890123.12345
+INSERT INTO t1 values (701, 0);
+SELECT * FROM t1 WHERE id = 701;
+id	c1
+701	0.00000
+INSERT INTO t1 values (702, 0.00000);
+SELECT * FROM t1 WHERE id = 702;
+id	c1
+702	0.00000
+#3.2 low precision(<=38)  with high precision value(>38) 
+#ok, The precision after point can be lost
+INSERT INTO t1 values (8, 123456789012345678901234567890123.123456);
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 8;
+id	c1
+8	123456789012345678901234567890123.12346
+#error, The precision before point can not be lost
+INSERT INTO t1 values (9, 1234567890123456789012345678901234.123456);
+ERROR 22003: Out of range value for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 9;
+id	c1
+DROP TABLE t1;
+#3.3 high precision column(>38) with low precision value(<38)
+#duckdb use decimal(38, dec) for both high and low precision(<=38) 
+CREATE TABLE t1(id int primary key, c1 decimal(40, 5)) engine=duckdb;
+# should be decimal(38, 5)
+CALL dbms_duckdb.query("SELECT column_name, column_index, data_type, numeric_precision FROM duckdb_columns() WHERE schema_name = 'test' AND table_name = 't1' and column_name = 'c1'");
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 1]
+c1	2	DECIMAL(38,5)	38
+
+
+INSERT INTO t1 values (10, 123456789012345678901234567890123.12345);
+SELECT * FROM t1 WHERE id = 10;
+id	c1
+10	123456789012345678901234567890123.12345
+#3.4 high precision column(>38) with high precision value(>38)
+#duckdb use decimal(38, dec)
+INSERT INTO t1 values (11, 1234567890123456789012345678901234.12345);
+Got one of the listed errors
+SELECT * FROM t1 WHERE id = 11;
+id	c1
+INSERT INTO t1 values (12, 123456789012345678901234567890123.12345678);
+Warnings:
+Note	1265	Data truncated for column 'c1' at row 1
+SELECT * FROM t1 WHERE id = 12;
+id	c1
+12	123456789012345678901234567890123.12346
+DROP TABLE t1;
+set global duckdb_use_double_for_decimal = default;
+set global duckdb_dml_in_batch = default;

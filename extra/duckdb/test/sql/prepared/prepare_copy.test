@@ -1,0 +1,37 @@
+# name: test/sql/prepared/prepare_copy.test
+# group: [prepared]
+
+statement ok
+pragma enable_verification;
+
+statement ok
+PREPARE q1 AS
+	COPY (
+		select $1 as 'col'
+	) to '__TEST_DIR__/res.csv' (
+		FORMAT csv
+	);
+
+statement ok
+execute q1 (42);
+
+query I
+select i from '__TEST_DIR__/res.csv' tbl(i);
+----
+42
+
+statement ok
+PREPARE q2 AS
+	COPY (
+		select 42 as 'col'
+	) to $1 (
+		FORMAT csv
+	);
+
+statement ok
+EXECUTE q2('__TEST_DIR__/res2.csv')
+
+query I
+select i from '__TEST_DIR__/res2.csv' tbl(i);
+----
+42

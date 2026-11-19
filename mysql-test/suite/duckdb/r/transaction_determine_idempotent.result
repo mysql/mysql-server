@@ -1,0 +1,109 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+###########################################################################
+# 0. Prepare
+###########################################################################
+[connection master]
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+c0 INT,
+PRIMARY KEY(id)
+) ENGINE=InnoDB;
+include/rpl/sync.inc
+[connection slave]
+ALTER TABLE t1 ENGINE=DuckDB;
+include/rpl/stop_applier.inc
+###########################################################################
+# 1. Test for duckdb_dml_in_batch = off
+###########################################################################
+# 1.1 The Master executes 4 transactions, make sure the Slave receives all.
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (5, 5);
+INSERT INTO t1 VALUES (6, 6);
+COMMIT;
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+BEGIN;
+INSERT INTO t1 VALUES (7, 7);
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+BEGIN;
+INSERT INTO t1 VALUES (8, 8);
+UPDATE t1 SET id = 9 WHERE id = 5;
+COMMIT;
+FLUSH LOGS;
+BEGIN;
+UPDATE t1 SET id = 10 WHERE id = 6;
+UPDATE t1 SET id = 11 WHERE id = 8;
+INSERT INTO t1 VALUES (12, 12);
+COMMIT;
+include/rpl/sync.inc
+# 1.2 Let the Slave skip executes the 2nd transaction, and Crash when replay
+[connection slave]
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+BEGIN;
+INSERT INTO t1 VALUES (7, 7);
+COMMIT;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table mysql.gtid_executed and the DUCKDB table test.t1.
+SET GTID_NEXT = 'AUTOMATIC';
+SET GLOBAL debug="+d,crash_after_duckdb_commit";
+include/rpl/start_applier.inc
+include/rpl/start_server.inc [server_number=2 parameters: --debug=+d,duckdb_print_dml]
+include/rpl/start_applier.inc
+Warnings:
+Note	3083	Replication thread(s) for channel '' are already runnning.
+# 1.3 After Crash Recovery, check Data and SQLs send to DuckDB, the 1st and
+#     3rd transactions should be replayed idempotently, the 4th transaction
+#     should not be replayed idempotently.
+include/rpl/sync.inc
+include/rpl/diff.inc
+Matching lines are:
+int ha_duckdb::write_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 5
+int ha_duckdb::write_row: duckdb_print_dml: INSERT INTO `test`.`t1` (`id`, `c0`) VALUES (5, 5)
+int ha_duckdb::write_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 6
+int ha_duckdb::write_row: duckdb_print_dml: INSERT INTO `test`.`t1` (`id`, `c0`) VALUES (6, 6)
+int ha_duckdb::write_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 8
+int ha_duckdb::write_row: duckdb_print_dml: INSERT INTO `test`.`t1` (`id`, `c0`) VALUES (8, 8)
+int ha_duckdb::update_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 5
+int ha_duckdb::update_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 9
+int ha_duckdb::update_row: duckdb_print_dml: INSERT INTO `test`.`t1` (`id`, `c0`) VALUES (9, 5)
+int ha_duckdb::update_row: duckdb_print_dml: UPDATE `test`.`t1` SET `id` = 10 WHERE `id` = 6
+int ha_duckdb::update_row: duckdb_print_dml: UPDATE `test`.`t1` SET `id` = 11 WHERE `id` = 8
+int ha_duckdb::write_row: duckdb_print_dml: INSERT INTO `test`.`t1` (`id`, `c0`) VALUES (12, 12)
+Occurrences of 'duckdb_print_dml: .*' in the input file: 12
+###########################################################################
+# 2. Test for duckdb_dml_in_batch = on
+###########################################################################
+[connection slave]
+include/rpl/stop_applier.inc
+# 2.1 The Master executes 2 Insert-only transactions, make sure the Slave receives all.
+[connection master]
+INSERT INTO t1 VALUES (14, 14);
+FLUSH LOGS;
+INSERT INTO t1 VALUES (16, 16);
+include/rpl/sync.inc
+# 2.2 After restart, the Slaved should replay the 5th transaction idempotently,
+#     but should not replay the 6th transaction idempotently.
+include/rpl/stop_server.inc [server_number=2]
+include/rpl/start_server.inc [server_number=2 parameters: --duckdb_dml_in_batch=on]
+[connection slave]
+include/rpl/start_replica.inc
+Warnings:
+Note	3083	Replication thread(s) for channel '' are already runnning.
+include/rpl/sync.inc
+include/rpl/diff.inc
+include/assert_grep.inc [Check 1 Delete Batch SQL after Restart]
+include/assert_grep.inc [Check 2 INSERT Batch SQL after Restart]
+[connection slave]
+SET GLOBAL duckdb_dml_in_batch=off;
+###########################################################################
+# Cleanup
+###########################################################################
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

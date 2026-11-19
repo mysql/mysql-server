@@ -1,0 +1,389 @@
+--source suite/duckdb/include/keyring_setup.inc
+--echo #
+--echo # 1) ALGORITHM = COPY is not supported.
+--echo #
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB CHARACTER SET utf8mb4 COMMENT 'comment 1';
+
+ALTER TABLE t ADD COLUMN dd INT, ALGORITHM = COPY;
+
+--echo #
+--echo # 2) DuckDB support partition now.
+--echo #
+--echo # Support partition now. See details in range_partition, list_partition, hash_partition.
+
+--echo #
+--echo # 3) ALTER_ADD_COLUMN
+--echo #
+ALTER TABLE t ADD COLUMN d INT;
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 4) ALTER_DROP_COLUMN
+--echo #
+ALTER TABLE t DROP COLUMN d;
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 5) ALTER_CHANGE_COLUMN
+--echo #
+ALTER TABLE t MODIFY COLUMN a BIGINT, CHANGE COLUMN b b1 BIGINT, RENAME COLUMN c TO c1;
+SHOW CREATE TABLE t;
+ALTER TABLE t RENAME COLUMN c1 to c;
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 5) ALTER_ADD_INDEX
+--echo #
+ALTER TABLE t ADD UNIQUE KEY uk_a(a), ADD UNIQUE KEY uk_ab(a, b), ADD INDEX kc(c);
+CREATE UNIQUE INDEX uk_a ON t(a);
+CREATE UNIQUE INDEX uk_ab ON t(a, b);
+CREATE INDEX kc ON t(c);
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 6) ALTER_DROP_INDEX
+--echo #
+ALTER TABLE t DROP INDEX uk_a, DROP INDEX uk_ab, DROP INDEX kc;
+SHOW CREATE TABLE t;
+--error ER_REQUIRES_PRIMARY_KEY
+ALTER TABLE t DROP PRIMARY KEY;
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 7) ALTER_RENAME
+--echo #
+ALTER TABLE t RENAME TO t1;
+SHOW CREATE TABLE t1;
+RENAME TABLE t1 TO t;
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 8) ALTER_ORDER
+--echo #
+ALTER TABLE t ORDER BY b;
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 9) ALTER_CHANGE_COLUMN_DEFAULT
+--echo #
+ALTER TABLE t ALTER COLUMN a SET DEFAULT 1;
+SHOW CREATE TABLE t;
+ALTER TABLE t ALTER COLUMN a DROP DEFAULT;
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 10) ALTER_KEYS_ONOFF
+--echo #
+ALTER TABLE t DISABLE KEYS;
+SHOW CREATE TABLE t;
+ALTER TABLE t ENABLE KEYS;
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 11) ALTER_RECREATE
+--echo #
+ALTER TABLE t FORCE;
+SHOW CREATE TABLE t;
+ALTER TABLE t ENGINE = DUCKDB;
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 12) ADD_FOREIGN_KEY
+--echo #
+ALTER TABLE t ADD FOREIGN KEY fk(b) REFERENCES t2(b);
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 13) DROP_FOREIGN_KEY
+--echo #
+ALTER TABLE t DROP FOREIGN KEY fk;
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 14) ALTER_COLUMN_ORDER
+--echo #
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t MODIFY COLUMN b1 INT FIRST, ALGORITHM = INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t MODIFY COLUMN b1 INT AFTER c, ALGORITHM = INPLACE;
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 15) ALTER_RENAME_INDEX
+--echo #
+ALTER TABLE t RENAME INDEX idx_a TO idx_a_new;
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 16) ALTER_DISCARD_TABLESPACE
+--echo #
+--error ER_ILLEGAL_HA
+ALTER TABLE t DISCARD TABLESPACE;
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 17) ALTER_IMPORT_TABLESPACE
+--echo #
+--error ER_ILLEGAL_HA
+ALTER TABLE t IMPORT TABLESPACE;
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 18) ALTER_INDEX_VISIBILITY
+--echo #
+ALTER TABLE t ALTER INDEX a INVISIBLE;
+SHOW CREATE TABLE t;
+ALTER TABLE t ALTER INDEX a VISIBLE;
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 19) ALTER_SECONDARY_LOAD
+--echo #
+--echo "The storage engine for the table doesn't support SECONDARY_ENGINE, skip it."
+
+--echo # 
+--echo # 20) ALTER_SECONDARY_UNLOAD
+--echo #
+--echo "The storage engine for the table doesn't support SECONDARY_ENGINE, skip it."
+
+--echo # 
+--echo # 21) ADD_CHECK_CONSTRAINT
+--echo #
+ALTER TABLE t ADD CONSTRAINT CHECK (a > 10);
+SHOW CREATE TABLE t;
+
+--echo # 
+--echo # 22) DROP_CHECK_CONSTRAINT
+--echo #
+ALTER TABLE t DROP CHECK t_chk_1;
+SHOW CREATE TABLE t;
+
+--echo # 
+--echo # 23) ENFORCE_CHECK_CONSTRAINT
+--echo #
+ALTER TABLE t ALTER CHECK t_chk_1 ENFORCED;
+SHOW CREATE TABLE t;
+
+--echo # 
+--echo # 24) SUSPEND_CHECK_CONSTRAINT
+--echo #
+ALTER TABLE t ALTER CHECK t_chk_1 NOT ENFORCED;
+SHOW CREATE TABLE t;
+
+--echo # 
+--echo # 25) DROP_ANY_CONSTRAINT
+--echo #
+ALTER TABLE t DROP CONSTRAINT fk;
+ALTER TABLE t DROP CONSTRAINT uk_a;
+ALTER TABLE t DROP CONSTRAINT t_chk_1;
+--error ER_REQUIRES_PRIMARY_KEY
+ALTER TABLE t DROP CONSTRAINT `primary`;
+SHOW CREATE TABLE t;
+
+
+--echo # 
+--echo # 26) ENFORCE_ANY_CONSTRAINT
+--echo #
+ALTER TABLE t ALTER CONSTRAINT fk ENFORCED;
+ALTER TABLE t ALTER CONSTRAINT uk_a ENFORCED;
+ALTER TABLE t ALTER CONSTRAINT t_chk_1 ENFORCED;
+SHOW CREATE TABLE t;
+
+--echo # 
+--echo # 27) SUSPEND_ANY_CONSTRAINT
+--echo #
+ALTER TABLE t ALTER CONSTRAINT fk NOT ENFORCED;
+ALTER TABLE t ALTER CONSTRAINT uk_a NOT ENFORCED;
+ALTER TABLE t ALTER CONSTRAINT t_chk_1 NOT ENFORCED;
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 28) ANY_ENGINE_ATTRIBUTE
+--echo #
+--error ER_ENGINE_ATTRIBUTE_NOT_SUPPORTED
+ALTER TABLE t ENGINE_ATTRIBUTE = '{"k":"v"}';
+SHOW CREATE TABLE t;
+
+--echo #
+--echo # 29) ALTER_COLUMN_VISIBILITY
+--echo #
+--error ER_DUCKDB_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t ALTER COLUMN b1 SET INVISIBLE;
+ALTER TABLE t ALTER COLUMN b1 SET VISIBLE;
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 30) Test for table options.
+--echo #
+ALTER TABLE t AUTOEXTEND_SIZE = 10;
+
+ALTER TABLE t AUTO_INCREMENT = 10;
+
+ALTER TABLE t AVG_ROW_LENGTH = 10;
+
+ALTER TABLE t CHARACTER SET utf8mb3;
+
+ALTER TABLE t CHECKSUM = 1;
+
+ALTER TABLE t COLLATE utf8mb4_general_ci;
+
+ALTER TABLE t COMMENT = 'comment 2';
+
+ALTER TABLE t COMPRESSION = "ZLIB";
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--eval ALTER TABLE t DATA DIRECTORY = '$MYSQL_TMP_DIR';
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--eval ALTER TABLE t INDEX DIRECTORY = '$MYSQL_TMP_DIR';
+
+ALTER TABLE t DELAY_KEY_WRITE = 1;
+
+ALTER TABLE t ENCRYPTION = 'Y';
+
+ALTER TABLE t ENGINE = InnoDB;
+
+ALTER TABLE t ENGINE = DuckDB;
+
+--error ER_ENGINE_ATTRIBUTE_NOT_SUPPORTED # 'Storage engine 'DUCKDB' does not support ENGINE_ATTRIBUTE.'
+ALTER TABLE t ENGINE_ATTRIBUTE = '{"k":"v"}';
+
+ALTER TABLE t INSERT_METHOD = FIRST;
+
+ALTER TABLE t KEY_BLOCK_SIZE = 4096;
+
+ALTER TABLE t MAX_ROWS = 10;
+
+ALTER TABLE t MIN_ROWS = 10;
+
+ALTER TABLE t PACK_KEYS = 1;
+
+ALTER TABLE t PASSWORD = 'password';
+
+ALTER TABLE t ROW_FORMAT = FIXED;
+
+ALTER TABLE t SECONDARY_ENGINE_ATTRIBUTE = '{"k":"v"}';
+
+ALTER TABLE t STATS_AUTO_RECALC = 1;
+
+ALTER TABLE t STATS_PERSISTENT = 1;
+
+ALTER TABLE t TABLESPACE ts1 STORAGE DISK;
+
+ALTER TABLE t UNION = (t2);
+
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 31) Multiple DDL
+--echo #
+DROP TABLE t;
+
+--write_file $MYSQL_TMP_DIR/duckdb_multiple_ddl.inc
+  --disable_query_log
+  --disable_result_log
+  DROP TABLE IF EXISTS t, t2;
+  CREATE TABLE t(
+    id INT PRIMARY KEY,
+    a INT DEFAULT 1 COMMENT 'col a',
+    b INT DEFAULT 1 COMMENT 'col b',
+    c INT DEFAULT 1 COMMENT 'col c',
+    d INT DEFAULT 1 COMMENT 'col d',
+    e INT DEFAULT 1 COMMENT 'col e') ENGINE = DuckDB COMMENT 'table t';
+  ALTER TABLE t ADD UNIQUE KEY uk_b(b) COMMENT 'uk b';
+  --eval ALTER TABLE t $DDL
+  --enable_result_log
+  --enable_query_log
+
+  # Column
+  --exec $MYSQL -e "CALL dbms_duckdb.query(\"SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'\")" > $MYSQL_TMP_DIR/$file_name
+  --exec $MYSQL -e "SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't' ORDER BY COLUMN_NAME" >> $MYSQL_TMP_DIR/$file_name
+
+  # Table
+  --exec $MYSQL -e "SHOW CREATE TABLE test.t" >> $MYSQL_TMP_DIR/$file_name
+
+  # Check diff
+  --diff_files $MYSQL_TMP_DIR/$file_name $MYSQL_TMP_DIR/file1
+EOF
+
+# Note we do not need to test rename table, because during multiple DDL, rename always happens last.
+--let $DDL1 = ADD COLUMN f INT NOT NULL DEFAULT 2 COMMENT 'col f', DROP COLUMN e, RENAME COLUMN d to d1, CHANGE COLUMN c c1 BIGINT NOT NULL DEFAULT 2 COMMENT 'col c1', ALTER COLUMN b SET DEFAULT 2, ALTER COLUMN a DROP DEFAULT
+--let $DDL2 = COMMENT = 'table t2'
+
+--let $DDL = $DDL1, $DDL2
+--let $file_name = file1
+--source $MYSQL_TMP_DIR/duckdb_multiple_ddl.inc
+
+--let $DDL = $DDL2, $DDL1
+--let $file_name = file2
+--source $MYSQL_TMP_DIR/duckdb_multiple_ddl.inc
+
+
+--echo #
+--echo # 32) Duckdb table must has PK.
+--echo #
+DROP TABLE t;
+--error ER_REQUIRES_PRIMARY_KEY
+CREATE TABLE t(a INT, b INT) ENGINE = DuckDB;
+
+# PK
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE = DuckDB;
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+# MySQL GIPK
+SET SESSION sql_generate_invisible_primary_key = ON;
+--error ER_REQUIRES_PRIMARY_KEY
+CREATE TABLE t(a INT, b INT) ENGINE = DuckDB;
+
+# Candidate UK
+CREATE TABLE t(a INT NOT NULL, b INT NOT NULL, UNIQUE KEY uk(a, b)) ENGINE = DuckDB;
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+# Priority: existed PK > Candidate UK
+CREATE TABLE t(a INT, `b` int NOT NULL,
+               UNIQUE KEY uk(b),
+               PRIMARY KEY (`a`)) ENGINE = DuckDB;
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+CREATE TABLE t(a INT, `b` int NOT NULL,
+               UNIQUE KEY uk(b)) ENGINE = DuckDB;
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+
+# NULLABLE UK, generated UK, UK with hidden column can not be upgraded as PK. Because DuckDB has not primary key now, we allow partial unique index.
+--error ER_REQUIRES_PRIMARY_KEY
+CREATE TABLE t(a INT NOT NULL, b INT, UNIQUE KEY uk1(a, b), UNIQUE KEY uk2(b, a), UNIQUE KEY uk3(b)) ENGINE = DuckDB;
+--error ER_DUCKDB_TABLE_STRUCT_INVALID
+CREATE TABLE t(a INT NOT NULL, b INT NOT NULL, UNIQUE KEY uk((ABS(a)))) ENGINE = DuckDB;
+--error ER_DUCKDB_TABLE_STRUCT_INVALID
+CREATE TABLE t (a INT, b VARCHAR(10), c INT, d JSON NOT NULL, UNIQUE KEY uk((CAST(CAST(d AS JSON) AS UNSIGNED ARRAY)))) ENGINE = DuckDB;
+--error ER_DUCKDB_TABLE_STRUCT_INVALID
+CREATE TABLE t(a INT NOT NULL INVISIBLE, b INT NOT NULL, UNIQUE KEY uk1(b, a)) ENGINE = DuckDB;
+
+CREATE TABLE t(a VARCHAR(100) NOT NULL, b INT NOT NULL, UNIQUE KEY uk1(a(10), b), UNIQUE KEY uk2(b, a(10))) ENGINE = DuckDB;
+SHOW CREATE TABLE t;
+DROP TABLE t;
+CREATE TABLE t(a TINYBLOB NOT NULL, b BLOB NOT NULL, c MEDIUMBLOB NOT NULL, d LONGBLOB NOT NULL, UNIQUE KEY uka(a(255))) ENGINE = DuckDB;
+SHOW CREATE TABLE t;
+DROP TABLE t;
+
+
+--echo #
+--echo # 33) Cleanup
+--echo #
+--remove_file $MYSQL_TMP_DIR/duckdb_multiple_ddl.inc
+--remove_files_wildcard $MYSQL_TMP_DIR file*
+
+--source suite/duckdb/include/keyring_cleanup.inc

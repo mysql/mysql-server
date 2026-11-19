@@ -1,0 +1,11 @@
+# name: benchmark/tpch/expression_reordering/adaptive_numeric_reordering_or.benchmark
+# description: Re-order numeric comparisons adaptively
+# group: [expression_reordering]
+
+include benchmark/tpch/tpch_load.benchmark.in
+
+run
+SELECT COUNT(*) FROM lineitem WHERE l_quantity < 11 OR l_shipdate < DATE '1998-09-02' OR l_receiptdate < DATE '1998-09-23' OR l_tax < 0.05;
+
+result I sf=1
+5974930

@@ -832,6 +832,8 @@ IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
   ENDIF()
 ENDIF()
 
+INCLUDE(duckdb)
+
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
 ENDIF()
@@ -2239,6 +2241,9 @@ IF(WITH_PROTOBUF STREQUAL "bundled" OR WITH_FIDO STREQUAL "bundled")
   ENDIF()
 ENDIF()
 
+IF(WITH_DUCKDB_STORAGE_ENGINE AND NOT WITHOUT_SERVER)
+  MYSQL_CHECK_DUCKDB()
+ENDIF()
 #
 # Setup maintainer mode options by the end. Platform checks are
 # not run with the warning options as to not perturb fragile checks

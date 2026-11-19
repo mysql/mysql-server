@@ -1138,6 +1138,8 @@ bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                     LEX_STRING *ls);
 bool sql_mode_quoted_string_representation(THD *thd, sql_mode_t sql_mode,
                                            LEX_STRING *ls);
+bool duckdb_disabled_optimizers_string_representation(
+    THD *thd, ulonglong disabled_optimizers, LEX_STRING *ls);
 
 extern sys_var *Sys_autocommit_ptr;
 extern sys_var *Sys_gtid_next_ptr;

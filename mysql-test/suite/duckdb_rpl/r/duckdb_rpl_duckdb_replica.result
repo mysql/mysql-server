@@ -1,0 +1,156 @@
+include/rpl/init.inc [topology=1->2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+#
+# Init
+#
+SET binlog_format = row;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 VARCHAR(100)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(1, "1"), (2, "2"), (3, "3"), (4, "4");
+include/rpl/sync.inc
+[connection server_2]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int NOT NULL,
+  `c2` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+RESULT
+Catalog Error: Table with name "mysql.duckdb_binlog_position" does not exist because schema "mysql" does not exist.
+
+LINE 1: SELECT * FROM mysql.duckdb_binlog_position
+                      ^
+
+#
+# START REPLICA server with DuckDB mode enabled, t1 will be convert to
+# DuckDB engine and mysql.duckdb_binlog_position should
+# be created automatically.
+#
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=2 parameters: --duckdb-mode=on --duckdb-dml-in-batch=off --duckdb_convert_all_at_startup=on --duckdb_convert_all_skip_mtr_db]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int NOT NULL,
+  `c2` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	3
+4	4
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+RESULT
+file	position	
+VARCHAR	BIGINT	
+[ Rows: 1]
+slave-bin.000002	198
+
+
+include/rpl/start_replica.inc
+[connection server_3]
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=3 parameters: --duckdb-mode=on --duckdb-dml-in-batch=off --duckdb_convert_all_at_startup=on --duckdb_convert_all_skip_mtr_db]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int NOT NULL,
+  `c2` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`c1`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+c1	c2
+1	1
+2	2
+3	3
+4	4
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+RESULT
+file	position	
+VARCHAR	BIGINT	
+[ Rows: 1]
+binlog.000002	198
+
+
+include/rpl/start_replica.inc
+Warnings:
+Note	3083	Replication thread(s) for channel '' are already runnning.
+[connection server_1]
+INSERT INTO t1 VALUES(5, "5");
+UPDATE t1 SET c2 = "update";
+DELETE FROM t1 WHERE c1 > 4;
+include/rpl/diff.inc
+[connection server_2]
+include/rpl/save_binlog_file_position.inc
+include/assert.inc [Current binary log position is available]
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position
+     WHERE file = 'slave-bin.000002' AND position = 1139");
+RESULT
+file	position	
+VARCHAR	BIGINT	
+[ Rows: 1]
+slave-bin.000002	1139
+
+
+[connection server_3]
+include/rpl/save_binlog_file_position.inc
+include/assert.inc [Current binary log position is available]
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position
+     WHERE file = 'binlog.000002' AND position = 1139");
+RESULT
+file	position	
+VARCHAR	BIGINT	
+[ Rows: 1]
+binlog.000002	1139
+
+
+[connection server_1]
+BEGIN;
+UPDATE t1 SET c2 = "multi stmt trx" WHERE c1 = 1;
+DELETE FROM t1 WHERE c1 = 1;
+INSERT INTO t1 VALUES(6, "6");
+COMMIT;
+include/rpl/diff.inc
+[connection server_2]
+include/rpl/save_binlog_file_position.inc
+include/assert.inc [Current binary log position is available]
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position
+     WHERE file = 'slave-bin.000002' AND position = 1659");
+RESULT
+file	position	
+VARCHAR	BIGINT	
+[ Rows: 1]
+slave-bin.000002	1659
+
+
+[connection server_3]
+include/rpl/save_binlog_file_position.inc
+include/assert.inc [Current binary log position is available]
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position
+     WHERE file = 'binlog.000002' AND position = 1659");
+RESULT
+file	position	
+VARCHAR	BIGINT	
+[ Rows: 1]
+binlog.000002	1659
+
+
+#
+# Cleanup
+#
+[connection server_1]
+DROP TABLE t1;
+SET binlog_format = mixed;
+Warnings:
+Warning	1287	'@@binlog_format' is deprecated and will be removed in a future release.
+include/rpl/deinit.inc

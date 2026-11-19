@@ -1286,6 +1286,10 @@ The following options may be given as the first argument:
  applier thread will not apply updates to tables in
  databases that start with foo and whose table names start
  with bar.
+ --replicate-wild-rewrite-table=name 
+ Make replication applier threads rename a database, so
+ changes in one database on the source will be applied in
+ another database on this replica.
  --replication-force-pqc 
  If set to TRUE, require asynchronous replication TLS
  connections to use a PQC compatible key exchange group.
@@ -1948,7 +1952,7 @@ performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-sql-text-length 1024
 performance-schema-max-stage-classes 175
-performance-schema-max-statement-classes 234
+performance-schema-max-statement-classes 236
 performance-schema-max-statement-stack 10
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1

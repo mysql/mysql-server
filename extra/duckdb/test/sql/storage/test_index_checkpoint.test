@@ -1,0 +1,32 @@
+# name: test/sql/storage/test_index_checkpoint.test
+# description: Verify that database footprint remains within expected bounds when writing index data.
+# group: [storage]
+
+load __TEST_DIR__/index_checkpoint.db
+
+# ensure we do not checkpoint early
+statement ok
+PRAGMA wal_autocheckpoint='1TB';
+
+statement ok
+CREATE TABLE t2 (i INTEGER, uid VARCHAR);
+
+statement ok
+INSERT INTO t2 SELECT i.range AS i, gen_random_uuid() AS uid FROM range(50000) AS i;
+
+statement ok
+CREATE UNIQUE INDEX iu ON t2(uid);
+
+statement ok
+CHECKPOINT;
+
+# A prior version of index checkpointing caused index data to be written twice.
+# If a node type exists, then we write at least one block for it. The ART in this example has the
+# following node types: PREFIX, NODE4, NODE16. The expected total storage size including the table data
+# is around 5.8MiB (6291456 bytes) for 16KB blocks, and around 6.2 MiB for 256KB blocks,
+# and we allow a variation of 20% in storage size
+
+query I
+SELECT total_blocks < 6291456 / get_block_size('index_checkpoint') * 1.2 FROM pragma_database_size();
+----
+1

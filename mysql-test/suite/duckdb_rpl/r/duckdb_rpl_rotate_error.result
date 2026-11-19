@@ -1,0 +1,52 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection default]
+CALL mtr.add_suppression("Binary logging not possible");
+CALL mtr.add_suppression("Attempting backtrace.");
+#
+# Verify the server will crash if duckdb_binlog_rotate() function returns
+# error.
+#
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+RESULT
+file	position	
+VARCHAR	BIGINT	
+[ Rows: 3]
+master-bin.000001	158
+master-bin.000001	563
+master-bin.000001	962
+
+
+SET debug = "d,simulate_duckdb_binlog_roate_error";
+FLUSH BINARY LOGS;
+ERROR HY000: Binary logging not possible. Message: Either disk is full, file system is read only or there was an encryption error while opening the binlog. Aborting the server.
+include/rpl/start_server.inc [server_number=1]
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+RESULT
+file	position	
+VARCHAR	BIGINT	
+[ Rows: 1]
+master-bin.000002	198
+
+
+#
+# Test the server Crash during rotate binlog
+#
+SET debug = "d,crash_during_duckdb_binlog_rotate";
+FLUSH BINARY LOGS;
+ERROR HY000: Lost connection to MySQL server during query
+include/rpl/start_server.inc [server_number=1]
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+RESULT
+file	position	
+VARCHAR	BIGINT	
+[ Rows: 1]
+master-bin.000003	198
+
+
+[connection slave]
+include/rpl/start_receiver.inc
+include/rpl/deinit.inc

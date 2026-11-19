@@ -1,0 +1,33 @@
+# name: test/sql/copy/csv/glob/copy_csv_glob.test
+# description: Test globbing CSVs
+# group: [glob]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+CREATE TABLE dates(d DATE);
+
+# simple globbing
+statement ok
+COPY dates FROM '{DATA_DIR}/csv/glob/a?/*.csv' (AUTO_DETECT 1);
+
+query I
+SELECT * FROM dates ORDER BY 1
+----
+2019-06-05
+2019-06-15
+2019-06-25
+2019-07-05
+2019-07-15
+2019-07-25
+2019-08-05
+2019-08-15
+2019-08-25
+
+# nothing matches the glob
+statement error
+COPY dates FROM read_csv('{DATA_DIR}/csv/glob/*/a*a.csv', auto_detect=1)
+----
+syntax error at or near "'{DATA_DIR}/csv/glob/*/a*a.csv'"
+

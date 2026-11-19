@@ -433,6 +433,7 @@ void Gtid_event::read_gtid_tagged_log_event(const char *buf,
       reinterpret_cast<const unsigned char *>(buf), buf_size);
   serializer >> *this;
   may_have_sbr_stmts = (gtid_flags & FLAG_MAY_HAVE_SBR) != 0;
+  has_insert_only = (gtid_flags & FLAG_HAS_INSERT_ONLY) != 0;
   header()->set_is_valid(true);
   if (serializer.is_error()) {
     header()->set_decoding_error(Event_decoding_error::invalid_event);
@@ -528,6 +529,7 @@ Gtid_event::Gtid_event(const char *buf, const Format_description_event *fde)
 
   READER_TRY_SET(gtid_flags, read<unsigned char>);
   may_have_sbr_stmts = (gtid_flags & FLAG_MAY_HAVE_SBR) != 0;
+  has_insert_only = (gtid_flags & FLAG_HAS_INSERT_ONLY) != 0;
 
   READER_TRY_CALL(memcpy<unsigned char *>,
                   tsid_parent_struct.get_uuid().bytes.data(),

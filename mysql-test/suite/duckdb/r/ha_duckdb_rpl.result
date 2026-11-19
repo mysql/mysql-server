@@ -1,0 +1,182 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+###########################################################################
+# 0. Prepare
+###########################################################################
+[connection master]
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+c0 VARCHAR(20) NOT NULL,
+c1 CHAR(10) DEFAULT 'duckdb',
+c2 DECIMAL(5,2),
+c3 DATETIME,
+c4 TIMESTAMP,
+c5 BLOB,
+PRIMARY KEY(id)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  `c2` decimal(5,2) DEFAULT NULL,
+  `c3` datetime DEFAULT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
+  `c5` blob,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  `c2` decimal(5,2) DEFAULT NULL,
+  `c3` datetime DEFAULT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
+  `c5` blob,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# 1. Test Insert
+###########################################################################
+[connection master]
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES
+(1, 'abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a'),
+(2, 'd', NULL, NULL, '1998-01-01', '2006-02-28 00:21:11', NULL),
+(3, 'efg', 'RSA', 5.2, NULL, '2028-09-09 15:30:34', NULL),
+(4, 'hijk', NULL, 6, '2023-06-07', NULL, X'1a53aa890ee6'),
+(5, 'lmn', 'RSA', 10.5, NULL, '1988-10-01 08:58:25', NULL);
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	692876970
+include/rpl/sync.inc
+[connection slave]
+SELECT id, c0, c1, c2, c3, c4, HEX(c5) FROM test.t1;
+id	c0	c1	c2	c3	c4	HEX(c5)
+1	abc	NULL	1.23	2020-11-20 00:00:00	NULL	E18080FF8A
+2	d	NULL	NULL	1998-01-01 00:00:00	2006-02-28 00:21:11	NULL
+3	efg	RSA	5.20	NULL	2028-09-09 15:30:34	NULL
+4	hijk	NULL	6.00	2023-06-07 00:00:00	NULL	1A53AA890EE6
+5	lmn	RSA	10.50	NULL	1988-10-01 08:58:25	NULL
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	692876970
+###########################################################################
+# 2. Test Update
+###########################################################################
+# 2.1 Test with duckdb_update_modified_column_only = ON
+[connection slave]
+SET GLOBAL duckdb_update_modified_column_only = ON;
+[connection master]
+UPDATE t1 SET c1='xxxxx', c2=7.79, c3=NULL, c4='2025-03-25 20:58:23', c5=X'e18080e18080' WHERE id=4;
+UPDATE t1 SET c0='yyyyyy' WHERE id=3;
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	3975820532
+include/rpl/sync.inc
+[connection slave]
+SELECT id, c0, c1, c2, c3, c4, HEX(c5) FROM test.t1;
+id	c0	c1	c2	c3	c4	HEX(c5)
+1	abc	NULL	1.23	2020-11-20 00:00:00	NULL	E18080FF8A
+2	d	NULL	NULL	1998-01-01 00:00:00	2006-02-28 00:21:11	NULL
+3	yyyyyy	RSA	5.20	NULL	2028-09-09 15:30:34	NULL
+4	hijk	xxxxx	7.79	NULL	2025-03-25 20:58:23	E18080E18080
+5	lmn	RSA	10.50	NULL	1988-10-01 08:58:25	NULL
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	3975820532
+# 2.2 Test with duckdb_update_modified_column_only = OFF
+SET GLOBAL duckdb_update_modified_column_only = OFF;
+[connection master]
+UPDATE t1 SET c2=8.88 WHERE id=5;
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	1923287516
+include/rpl/sync.inc
+[connection slave]
+SELECT id, c0, c1, c2, c3, c4, HEX(c5) FROM test.t1;
+id	c0	c1	c2	c3	c4	HEX(c5)
+1	abc	NULL	1.23	2020-11-20 00:00:00	NULL	E18080FF8A
+2	d	NULL	NULL	1998-01-01 00:00:00	2006-02-28 00:21:11	NULL
+3	yyyyyy	RSA	5.20	NULL	2028-09-09 15:30:34	NULL
+4	hijk	xxxxx	7.79	NULL	2025-03-25 20:58:23	E18080E18080
+5	lmn	RSA	8.88	NULL	1988-10-01 08:58:25	NULL
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	1923287516
+SET GLOBAL duckdb_update_modified_column_only = default;
+# 2.3 Test Update PK's field
+[connection master]
+UPDATE t1 SET id=6, c4='2026-03-27 10:00:34' WHERE id=1;
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2200995661
+include/rpl/sync.inc
+[connection slave]
+SELECT id, c0, c1, c2, c3, c4, HEX(c5) FROM test.t1;
+id	c0	c1	c2	c3	c4	HEX(c5)
+2	d	NULL	NULL	1998-01-01 00:00:00	2006-02-28 00:21:11	NULL
+3	yyyyyy	RSA	5.20	NULL	2028-09-09 15:30:34	NULL
+4	hijk	xxxxx	7.79	NULL	2025-03-25 20:58:23	E18080E18080
+5	lmn	RSA	8.88	NULL	1988-10-01 08:58:25	NULL
+6	abc	NULL	1.23	2020-11-20 00:00:00	2026-03-27 10:00:34	E18080FF8A
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2200995661
+SET GLOBAL duckdb_update_modified_column_only = default;
+###########################################################################
+# 3. Test Delete
+###########################################################################
+[connection master]
+DELETE FROM t1 WHERE id=2 OR id=5;
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2460301908
+include/rpl/sync.inc
+[connection slave]
+SELECT id, c0, c1, c2, c3, c4, HEX(c5) FROM test.t1;
+id	c0	c1	c2	c3	c4	HEX(c5)
+3	yyyyyy	RSA	5.20	NULL	2028-09-09 15:30:34	NULL
+4	hijk	xxxxx	7.79	NULL	2025-03-25 20:58:23	E18080E18080
+6	abc	NULL	1.23	2020-11-20 00:00:00	2026-03-27 10:00:34	E18080FF8A
+CHECKSUM TABLE t1;
+Table	Checksum
+test.t1	2460301908
+###########################################################################
+# 4. Show all generated SQL
+###########################################################################
+Matching lines are:
+int ha_duckdb::write_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 1
+int ha_duckdb::write_row: duckdb_print_dml: INSERT INTO `test`.`t1` (`id`, `c0`, `c1`, `c2`, `c3`, `c4`, `c5`) VALUES (1, DECODE(x'616263'::BLOB)::VARCHAR, NULL, 001.23, '2020-11-20 00:00:00', NULL, x'E18080FF8A'::BLOB)
+int ha_duckdb::write_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 2
+int ha_duckdb::write_row: duckdb_print_dml: INSERT INTO `test`.`t1` (`id`, `c0`, `c1`, `c2`, `c3`, `c4`, `c5`) VALUES (2, DECODE(x'64'::BLOB)::VARCHAR, NULL, NULL, '1998-01-01 00:00:00', TO_TIMESTAMP(1141075271), NULL)
+int ha_duckdb::write_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 3
+int ha_duckdb::write_row: duckdb_print_dml: INSERT INTO `test`.`t1` (`id`, `c0`, `c1`, `c2`, `c3`, `c4`, `c5`) VALUES (3, DECODE(x'656667'::BLOB)::VARCHAR, DECODE(x'525341'::BLOB)::VARCHAR, 005.20, NULL, TO_TIMESTAMP(1852115434), NULL)
+int ha_duckdb::write_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 4
+int ha_duckdb::write_row: duckdb_print_dml: INSERT INTO `test`.`t1` (`id`, `c0`, `c1`, `c2`, `c3`, `c4`, `c5`) VALUES (4, DECODE(x'68696A6B'::BLOB)::VARCHAR, NULL, 006.00, '2023-06-07 00:00:00', NULL, x'1A53AA890EE6'::BLOB)
+int ha_duckdb::write_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 5
+int ha_duckdb::write_row: duckdb_print_dml: INSERT INTO `test`.`t1` (`id`, `c0`, `c1`, `c2`, `c3`, `c4`, `c5`) VALUES (5, DECODE(x'6C6D6E'::BLOB)::VARCHAR, DECODE(x'525341'::BLOB)::VARCHAR, 010.50, NULL, TO_TIMESTAMP(591688705), NULL)
+int ha_duckdb::update_row: duckdb_print_dml: UPDATE `test`.`t1` SET `c1` = DECODE(x'7878787878'::BLOB)::VARCHAR, `c2` = 007.79, `c3` = NULL, `c4` = TO_TIMESTAMP(1742925503), `c5` = x'E18080E18080'::BLOB WHERE `id` = 4
+int ha_duckdb::update_row: duckdb_print_dml: UPDATE `test`.`t1` SET `c0` = DECODE(x'797979797979'::BLOB)::VARCHAR WHERE `id` = 3
+int ha_duckdb::update_row: duckdb_print_dml: UPDATE `test`.`t1` SET `id` = 5, `c0` = DECODE(x'6C6D6E'::BLOB)::VARCHAR, `c1` = DECODE(x'525341'::BLOB)::VARCHAR, `c2` = 008.88, `c3` = NULL, `c4` = TO_TIMESTAMP(591688705), `c5` = NULL WHERE `id` = 5
+int ha_duckdb::update_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 1
+int ha_duckdb::update_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 6
+int ha_duckdb::update_row: duckdb_print_dml: INSERT INTO `test`.`t1` (`id`, `c0`, `c1`, `c2`, `c3`, `c4`, `c5`) VALUES (6, DECODE(x'616263'::BLOB)::VARCHAR, NULL, 001.23, '2020-11-20 00:00:00', TO_TIMESTAMP(1774594834), x'E18080FF8A'::BLOB)
+int ha_duckdb::delete_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 2
+int ha_duckdb::delete_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 5
+Occurrences of 'duckdb_print_dml: .*' in the input file: 18
+###########################################################################
+# 5. Test Cleanup
+###########################################################################
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

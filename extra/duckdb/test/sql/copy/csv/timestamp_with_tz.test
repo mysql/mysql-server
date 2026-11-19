@@ -1,0 +1,47 @@
+# name: test/sql/copy/csv/timestamp_with_tz.test
+# description: Test reading timestamp with timezones
+# group: [csv]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+CREATE TABLE tbl(id int, ts timestamp);
+
+# this fails without ICU loaded
+statement error
+COPY tbl FROM '{DATA_DIR}/csv/timestamp_with_tz.csv' (HEADER)
+----
+Error when converting column "ts". Could not convert string "2021-05-25 04:55:03.382494 EST" to 'TIMESTAMP'
+
+require icu
+
+require no_extension_autoloading "FIXME: In CSV value conversion we don't autoload ICU"
+
+query I
+SELECT TRY_CAST('2022/01/27 11:04:57 PM' AS TIMESTAMPTZ);
+----
+NULL
+
+# we can load this into a timestamptz table
+statement ok
+CREATE TABLE tbl_tz(id int, ts timestamptz);
+
+statement ok
+COPY tbl_tz FROM '{DATA_DIR}/csv/timestamp_with_tz.csv' (HEADER)
+
+statement ok
+SET TimeZone='UTC'
+
+query II
+SELECT * FROM tbl_tz
+----
+1	2021-05-25 04:55:03.382494+00
+2	2021-05-25 09:55:03.382494+00
+
+query III
+FROM read_csv('{DATA_DIR}/csv/17705.csv')
+----
+Night	38615452	2022/01/27 11:04:57 PM
+Night	38615452	2022/01/27 11:04:57 PM
+Night	38615475	2022/01/27 11:09:20 PM

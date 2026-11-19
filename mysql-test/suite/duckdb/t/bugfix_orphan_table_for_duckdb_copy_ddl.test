@@ -1,0 +1,51 @@
+--echo #
+--echo # 1) CREATE TABLE
+--echo #
+SET GLOBAL duckdb_log_options = "DUCKDB_QUERY";
+CREATE TABLE t1(a VARCHAR(100) KEY);
+CREATE TABLE t2(a VARCHAR(100) KEY);
+
+
+--echo #
+--echo # 2) ALTER TO DUCKDB
+--echo #
+# No parallel copy, duckdb table will not be committed right now.
+SET SESSION duckdb_copy_ddl_threads = 1;
+ALTER TABLE t1 ENGINE = DuckDB;
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text = No found create table committed.
+--let $assert_select = commit and begin for copy ddl from InnoDB
+--let $assert_count = 0
+--source include/assert_grep.inc
+--exec echo "" > $assert_file
+
+# Parallel copy, duckdb table will be committed right now.
+SET SESSION duckdb_copy_ddl_threads = 4;
+ALTER TABLE t2 ENGINE = DuckDB;
+
+--let $assert_text = Found create table committed.
+--let $assert_select = commit and begin for copy ddl from InnoDB
+--let $assert_count = 1
+--source include/assert_grep.inc
+--exec echo "" > $assert_file
+
+
+--echo #
+--echo # 3) COPY DDL FROM DUCKDB TO DUCKDB
+--echo #
+ALTER TABLE t1 ADD COLUMN b INT;
+
+# Change column order, copy ddl from duckdb to duckdb will be executed, and duckdb table should not be committed right now.
+ALTER TABLE t1 ADD COLUMN c INT AFTER a;
+--let $assert_text = No found create table committed.
+--let $assert_select = commit and begin for copy ddl from InnoDB
+--let $assert_count = 0
+--source include/assert_grep.inc
+--exec echo "" > $assert_file
+
+--echo #
+--echo # 4) CLEANUP
+--echo #
+SET GLOBAL duckdb_log_options = default;
+DROP TABLE t1, t2;

@@ -1,0 +1,35 @@
+!include ../rpl_1slave_base.cnf
+!include include/default_client.cnf
+
+[mysqld.1]
+log-bin
+binlog-format = row
+gtid-mode=on
+enforce-gtid-consistency
+duckdb_mode=ON
+
+[mysqld.2]
+log-bin
+binlog-format = mixed
+gtid-mode=on
+enforce-gtid-consistency
+log-replica-updates
+replica_parallel_workers=1
+duckdb_multi_trx_in_batch=on
+duckdb_mode=ON
+force_innodb_to_duckdb=on
+
+[mysqld.3]
+log-bin
+binlog-format = mixed
+gtid-mode=on
+enforce-gtid-consistency
+log-replica-updates
+replica_parallel_workers=1
+duckdb_multi_trx_in_batch=on
+duckdb_mode=ON
+force_innodb_to_duckdb=on
+
+[ENV]
+SERVER_MYPORT_3=		@mysqld.3.port
+SERVER_MYSOCK_3=		@mysqld.3.socket

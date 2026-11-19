@@ -1,0 +1,12 @@
+SHOW GLOBAL VARIABLES LIKE "duckdb_appender_allocator_flush_threshold";
+Variable_name	Value
+duckdb_appender_allocator_flush_threshold	67108864
+SET GLOBAL duckdb_appender_allocator_flush_threshold = 1048576;
+SHOW GLOBAL VARIABLES LIKE "duckdb_appender_allocator_flush_threshold";
+Variable_name	Value
+duckdb_appender_allocator_flush_threshold	1048576
+SET GLOBAL duckdb_appender_allocator_flush_threshold = 1048576 * 1024;
+SHOW GLOBAL VARIABLES LIKE "duckdb_appender_allocator_flush_threshold";
+Variable_name	Value
+duckdb_appender_allocator_flush_threshold	1073741824
+SET GLOBAL duckdb_appender_allocator_flush_threshold = default;

@@ -1,0 +1,35 @@
+# name: test/sql/prepared/prepare_window_functions.test
+# description: PREPARE of window functions
+# group: [prepared]
+
+# ambiguous window function usage
+statement ok
+PREPARE v1 AS SELECT SUM(?) OVER ()
+
+query I
+EXECUTE v1(2)
+----
+2
+
+query I
+EXECUTE v1(2::HUGEINT)
+----
+2
+
+query I
+EXECUTE v1(0.5)
+----
+0.5
+
+# Unbound value function
+statement ok
+CREATE TABLE v0 ( v2 INTEGER CHECK( v2 BETWEEN 1 AND 1119 ) , v1 INT ) ; 
+
+statement ok
+INSERT INTO v0 ( v2 ) VALUES ( 10 );
+
+statement ok
+PREPARE q1 AS SELECT COALESCE ( LEAD ( $1 ) OVER( ) , ( v1 ) ) > $1 FROM v0;
+
+statement ok
+EXECUTE q1(1);

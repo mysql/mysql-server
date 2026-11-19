@@ -173,6 +173,8 @@ Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 #include "violite.h"
 #include "sql/tablesample.h"
 
+#include "sql/package/package_interface.h"  // find_native_proc_and_evoke
+
 /* this is to get the bison compilation windows warnings out */
 #ifdef _MSC_VER
 /* warning C4065: switch statement contains 'default' but no 'case' labels */
@@ -1523,6 +1525,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 %nonassoc TEXT_STRING
 %left KEYWORD_USED_AS_KEYWORD
 
+/* Toekns for RDS begin from 1300 */
+%token<lexer.keyword>  REPLICATE_REWRITE_WILD_TABLE      1300
 
 /*
   Resolve column attribute ambiguity -- force precedence of "UNIQUE KEY" against
@@ -1714,6 +1718,8 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
         opt_filter_table_list filter_table_list
         opt_filter_string_list filter_string_list
         opt_filter_db_pair_list filter_db_pair_list
+        opt_filter_table_pair_list
+        filter_table_pair_list
 
 %type <item_list2>
         expr_list udf_expr_list opt_udf_expr_list opt_expr_list select_item_list
@@ -2846,6 +2852,13 @@ filter_def:
             assert(filter_sql_cmd != nullptr);
             filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_REWRITE_DB);
           }
+        | REPLICATE_REWRITE_WILD_TABLE EQ opt_filter_table_pair_list
+          {
+            Sql_cmd_change_repl_filter * filter_sql_cmd=
+              (Sql_cmd_change_repl_filter*) Lex->m_sql_cmd;
+            assert(filter_sql_cmd);
+            filter_sql_cmd->set_filter_value($3, OPT_REPLICATE_WILD_REWRITE_TABLE);
+          }
         ;
 opt_filter_db_list:
           '(' ')'
@@ -2912,6 +2925,36 @@ filter_db_pair_list:
             $$= $1;
           }
         ;
+
+opt_filter_table_pair_list:
+          '(' ')'
+          {
+            $$= NEW_PTN mem_root_deque<Item *>(YYMEM_ROOT);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+          }
+          |'(' filter_table_pair_list ')'
+          {
+            $$= $2;
+          }
+         ;
+filter_table_pair_list:
+          '(' filter_string ',' filter_string ')'
+          {
+            $$= NEW_PTN mem_root_deque<Item *>(YYMEM_ROOT);
+            if ($$ == NULL)
+              MYSQL_YYABORT;
+            $$->push_back($2);
+            $$->push_back($4);
+          }
+        | filter_table_pair_list ',' '(' filter_string ',' filter_string ')'
+          {
+            $1->push_back($4);
+            $1->push_back($6);
+            $$= $1;
+          }
+        ;
+
 opt_filter_table_list:
           '(' ')'
           {
@@ -3991,7 +4034,10 @@ sp_suid:
 call_stmt:
           CALL_SYM sp_name opt_paren_expr_list
           {
-            $$= NEW_PTN PT_call(@$, $2, $3);
+            if (($$ = im::find_native_proc_and_evoke(YYTHD, $2, $3))) {
+            } else {
+              $$ = NEW_PTN PT_call(@$, $2, $3);
+            }
           }
         ;
 
@@ -16401,6 +16447,7 @@ ident_keywords_unambiguous:
         | REPLICATE_IGNORE_DB
         | REPLICATE_IGNORE_TABLE
         | REPLICATE_REWRITE_DB
+        | REPLICATE_REWRITE_WILD_TABLE
         | REPLICATE_WILD_DO_TABLE
         | REPLICATE_WILD_IGNORE_TABLE
         | REPLICA_SYM

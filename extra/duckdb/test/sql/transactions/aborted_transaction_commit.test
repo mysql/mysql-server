@@ -1,0 +1,42 @@
+# name: test/sql/transactions/aborted_transaction_commit.test
+# description: Commiting an aborted transaction turns it into a rollback.
+# group: [transactions]
+
+statement ok
+CREATE TABLE keys(i INTEGER PRIMARY KEY);
+
+statement ok
+BEGIN;
+
+statement ok
+INSERT INTO keys VALUES (1);
+
+statement error
+INSERT INTO keys VALUES (1);
+----
+<REGEX>:Constraint Error.*constraint violation.*
+
+# Implicit ROLLBACK.
+statement ok
+COMMIT
+
+query I
+SELECT COUNT(*) FROM keys
+----
+0
+
+statement ok
+BEGIN;
+
+statement ok
+INSERT INTO keys VALUES (1);
+
+statement error
+INSERT INTO keys VALUES (1);
+----
+<REGEX>:Constraint Error.*constraint violation.*
+
+statement error
+SELECT 42;
+----
+<REGEX>:TransactionContext Error.*transaction is aborted.*

@@ -135,12 +135,26 @@ if (!$keep_gtid_events)
 }
 if ($keep_gtid_events)
 {
-  let $pre_script= $pre_script
-    my DOLLARuuid_regex = '[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}';
-    my DOLLARuuid_gno_regex = DOLLARuuid_regex.'(?::[0-9]+(?:-[0-9]+)?)+';
-  ||
-  --let $script= $script s{DOLLARuuid_gno_regex(?:,DOLLARuuid_gno_regex)*}{Gtid_set};
+  if (!$keep_gtid_events_gno) {
+    let $pre_script= $pre_script
+      my DOLLARuuid_regex = '[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}';
+      my DOLLARuuid_gno_regex = DOLLARuuid_regex.'(?::[0-9]+(?:-[0-9]+)?)+';
+    ||
+    --let $script= $script s{DOLLARuuid_gno_regex(?:,DOLLARuuid_gno_regex)*}{Gtid_set};
+  }
+
+  if ($keep_gtid_events_gno) {
+    let $pre_script= $pre_script
+      my DOLLARuuid_regex = '[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}';
+    ||
+    --let $script= $script s{DOLLARuuid_regex}{UUID}g;
+  }
 }
+
+if ($mask_thread_id) {
+  --let $script= $script s{thread_id=[0-9]*}{THREAD_ID};
+}
+
 # To mask binlog and relaylog commit events
 if ($mask_binlog_commit_events)
 {

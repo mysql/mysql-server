@@ -1,0 +1,51 @@
+--echo
+--echo 1. ONLY_FULL_GROUP_BY
+--echo
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 2);
+CREATE TABLE t2 (id INT PRIMARY KEY, col1 INT) ENGINE=InnoDB;
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 2);
+
+SET sql_mode= '';
+SELECT id, sum(id) FROM t1;
+SELECT id, sum(id) FROM t2;
+SELECT id, sum(id) FROM t1 GROUP BY col1;
+SELECT id, sum(id) FROM t2 GROUP BY col1;
+SELECT col1 FROM t1 GROUP BY id;
+SELECT col1 FROM t2 GROUP BY id;
+SELECT * FROM t1 GROUP BY col1;
+SELECT * FROM t2 GROUP BY col1;
+
+# Bugfix: The select_list cannot contain a mixture of aggregate functions and non-aggregate functions.
+SELECT id + max(id) FROM t1 GROUP BY col1;
+SELECT id + max(id) FROM t2 GROUP BY col1;
+
+# Bugfix: Add the any_value function to the unexpected column.
+SELECT id + id, max(id) FROM t1 GROUP BY col1;
+SELECT id + id, max(id) FROM t2 GROUP BY col1;
+
+# Postfix: Bind having clause correctly.
+SELECT id, col1 FROM t1 GROUP BY col1 HAVING id > 1;
+SELECT id, col1 FROM t2 GROUP BY col1 HAVING id > 1;
+SELECT id, col1 FROM t1 GROUP BY col1 HAVING ANY_VALUE(id) > 1;
+SELECT id, col1 FROM t2 GROUP BY col1 HAVING ANY_VALUE(id) > 1;
+SELECT id, col1 FROM t1 GROUP BY col1 HAVING MAX(id) > 1;
+SELECT id, col1 FROM t2 GROUP BY col1 HAVING MAX(id) > 1;
+
+SET sql_mode='ONLY_FULL_GROUP_BY';
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT id, sum(id) FROM t1;
+--error ER_MIX_OF_GROUP_FUNC_AND_FIELDS
+SELECT id, sum(id) FROM t2;
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT id, sum(id) FROM t1 GROUP BY col1;
+--error ER_WRONG_FIELD_WITH_GROUP
+SELECT id, sum(id) FROM t2 GROUP BY col1;
+
+--error ER_DUCKDB_CLIENT
+SELECT col1 FROM t1 GROUP BY id;
+SELECT col1 FROM t2 GROUP BY id;
+
+DROP TABLE t1;
+DROP TABLE t2;

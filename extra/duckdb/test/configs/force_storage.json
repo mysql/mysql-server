@@ -1,0 +1,57 @@
+{
+  "description": "Run on persistent databases as storage.",
+  "initial_db": "{TEST_DIR}/{BASE_TEST_NAME}__test__config__force_storage.db",
+  "skip_compiled": "true",
+  "skip_tests": [
+    {
+      "reason": "Contains explicit use of the memory catalog.",
+      "paths": [
+        "test/sql/show_select/test_describe_all.test",
+        "test/sql/catalog/function/attached_macro.test",
+        "test/sql/catalog/test_temporary.test",
+        "test/sql/pragma/test_show_tables_temp_views.test",
+        "test/sql/pg_catalog/system_functions.test",
+        "test/sql/pg_catalog/sqlalchemy.test",
+        "test/sql/attach/attach_table_info.test",
+        "test/sql/attach/attach_defaults.test",
+        "test/sql/attach/attach_did_you_mean.test",
+        "test/sql/attach/attach_default_table.test",
+        "test/sql/attach/attach_show_all_tables.test",
+        "test/sql/attach/attach_issue7711.test",
+        "test/sql/attach/attach_issue_7660.test",
+        "test/sql/attach/show_databases.test",
+        "test/sql/attach/show_schemas.test",
+        "test/sql/attach/attach_views.test",
+        "test/sql/copy_database/copy_table_with_sequence.test",
+        "test/sql/storage/read_duckdb/concurrent_duckdb_read.test_slow",
+        "test/sql/storage/wal/wal_replay_consistency_add_column_current_timestamp.test",
+        "test/sql/storage/wal/wal_replay_consistency_add_column_random.test",
+        "test/sql/copy_database/copy_database_tpch.test_slow",
+        "test/sql/types/geo/geometry_compatability.test"
+      ]
+    },
+    {
+      "reason": "Measures memory usage.",
+      "paths": [
+        "test/sql/delete/in_memory_bulk_delete.test_slow",
+        "test/sql/pragma/profiling/test_custom_profiling_memory_and_temp_dir.test_slow",
+        "test/sql/index/art/vacuum/test_art_vacuum_strings.test_slow",
+        "test/sql/index/art/vacuum/test_art_vacuum_integers.test_slow"
+      ]
+    },
+    {
+      "reason": "Requires latest storage version.",
+      "paths": [
+        "test/geoparquet/mixed.test",
+        "test/parquet/variant/variant_comparison.test",
+        "test/parquet/variant/variant_json_copy.test",
+        "test/sql/storage/types/variant/index_fetch.test",
+        "test/sql/storage/types/variant/update.test",
+        "test/sql/types/geo/geometry_crs.test",
+        "test/sql/types/geo/geometry_stats.test",
+        "test/sql/sample/can_sample_from_ingested_files.test"
+      ]
+    }
+
+  ]
+}

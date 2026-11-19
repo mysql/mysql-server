@@ -1610,6 +1610,10 @@ class Gtid_set {
   */
   void clear();
   /**
+    Removes all gtids from this Gtid_set, and resize the m_intervals.
+  */
+  void clear_set();
+  /**
     Removes all gtids from this Gtid_set and clear all the sidnos
     used by the Gtid_set and it's TSID map.
 
@@ -4299,7 +4303,7 @@ bool gtid_pre_statement_post_implicit_commit_checks(THD *thd);
 
   The function will try to acquire ownership of the GTID and update
   both THD::gtid_next, Gtid_state::owned_gtids, and
-  THD::owned_gtid / THD::owned_sid.
+  THD::owned_gtid / THD::owned_tsid.
 
   @param thd The thread that acquires ownership.
 
@@ -4318,7 +4322,7 @@ int gtid_acquire_ownership_multiple(THD *thd);
 #endif
 
 /**
-  Return sidno for a given tsid, see Tsid_map::add_sid() for details.
+  Return sidno for a given tsid, see Tsid_map::add_tsid() for details.
 */
 rpl_sidno get_sidno_from_global_tsid_map(const mysql::gtid::Tsid &tsid);
 

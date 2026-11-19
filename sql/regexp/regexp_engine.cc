@@ -58,7 +58,7 @@ bool Regexp_engine::Matches(int start, int occurrence) {
   for (int i = 1; i < occurrence && found; ++i)
     found = uregex_findNext(m_re, &m_error_code);
 
-  check_icu_status(m_error_code);
+  check_icu_status(m_error_code, nullptr, m_caller_is_duckdb);
   return found;
 }
 
@@ -99,7 +99,7 @@ const std::u16string &Regexp_engine::Replace(const std::u16string &replacement,
   // ... put the part after the matches back.
   AppendTail();
 
-  check_icu_status(m_error_code);
+  check_icu_status(m_error_code, nullptr, m_caller_is_duckdb);
   m_replace_buffer.resize(m_replace_buffer_pos);
   return m_replace_buffer;
 }

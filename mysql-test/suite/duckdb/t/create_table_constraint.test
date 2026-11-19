@@ -1,0 +1,23 @@
+--source include/have_debug.inc
+
+--echo # 1) Prepare
+--echo
+
+--echo # 2) Create table
+--echo
+--let $DB_NAME=test
+
+CREATE TABLE test_table (
+  id INT PRIMARY KEY,
+  name VARCHAR(32),
+  index idx_id(name),
+  unique index uk_name(name),
+  unique index uk_id(id),
+  unique index uk_id_name(id,name)
+) engine=duckdb;
+
+--let $table_name=test_table
+--source suite/duckdb/include/show_duckdb_table_structure.inc
+--source suite/duckdb/include/check_mysql_dd_structure.inc
+
+DROP TABLE test_table;

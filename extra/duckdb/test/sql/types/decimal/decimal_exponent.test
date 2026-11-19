@@ -1,0 +1,122 @@
+# name: test/sql/types/decimal/decimal_exponent.test
+# description: Test casting from varchar to decimal (exponents)
+# group: [decimal]
+
+statement ok
+PRAGMA enable_verification
+
+# standard exponents
+query IIII
+SELECT '1e3'::DECIMAL, '1e-1'::DECIMAL, '.1e3'::DECIMAL, '0.1e3'::DECIMAL
+----
+1000.000	0.1	100.000	100.000
+
+# negative numbers
+query IIII
+SELECT '-1e3'::DECIMAL, '-0.1e3'::DECIMAL, '-.1e-1'::DECIMAL, '-0.1e-1'::DECIMAL
+----
+-1000	-100	-0.01	-0.01
+
+# zero
+query IIII
+SELECT '0e1'::DECIMAL, '-0e1'::DECIMAL, '00000e1'::DECIMAL, '-00000e1'::DECIMAL
+----
+0	0	0	0
+
+# not enough precision: just truncated to 0
+query I
+SELECT '1e-100'::DECIMAL
+----
+0
+
+# large negative exponent
+query I
+SELECT '1e-9999'::DECIMAL
+----
+0
+
+# different decimal precisions
+query I
+SELECT '1E3'::DECIMAL(4,0)
+----
+1000
+
+query I
+SELECT '1e8'::DECIMAL(9,0)
+----
+100000000
+
+query I
+SELECT '1e17'::DECIMAL(18,0)
+----
+100000000000000000
+
+query I
+SELECT '1e37'::DECIMAL(38,0)
+----
+10000000000000000000000000000000000000
+
+statement error
+SELECT '1e4'::DECIMAL(4,0)
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+statement error
+SELECT '1e9'::DECIMAL(9,0)
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+statement error
+SELECT '1e18'::DECIMAL(18,0)
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+statement error
+SELECT '1e38'::DECIMAL(38,0)
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+# overflow
+statement error
+SELECT '1e100'::DECIMAL
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+# multiple exponents
+statement error
+SELECT '1e100e100'::DECIMAL
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+# fractional exponent
+statement error
+SELECT '1e100.2'::DECIMAL
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+# very large exponents
+statement error
+SELECT '1e9999999999'::DECIMAL
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+statement error
+SELECT '1e-9999999999'::DECIMAL
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+statement error
+SELECT '1e-99999999999999999999999999999999'::DECIMAL
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+# not an exponent
+statement error
+SELECT '.1f3'::DECIMAL
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+statement error
+SELECT '1f3'::DECIMAL
+----
+<REGEX>:Conversion Error.*Could not convert string.*

@@ -1,0 +1,61 @@
+SET @saved_sql_mode=@@SESSION.sql_mode;
+SET sql_mode='';
+CREATE TABLE temporal_duckdb(id INT PRIMARY KEY) ENGINE=DuckDB;
+CREATE TABLE temporal_innodb(id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO temporal_duckdb VALUES(1);
+INSERT INTO temporal_innodb VALUES(1);
+
+--echo # Non-empty tables use COPY to fill implicit zero dates.
+ALTER TABLE temporal_duckdb ADD COLUMN d DATE NOT NULL;
+ALTER TABLE temporal_innodb ADD COLUMN d DATE NOT NULL;
+ALTER TABLE temporal_duckdb ADD COLUMN dt DATETIME(6) NOT NULL;
+ALTER TABLE temporal_innodb ADD COLUMN dt DATETIME(6) NOT NULL;
+SELECT * FROM temporal_duckdb ORDER BY id;
+SELECT * FROM temporal_innodb ORDER BY id;
+
+--echo # Strict mode rejects zero-date backfill without changing either table.
+# Existing columns must be valid so the error concerns the newly added column.
+UPDATE temporal_duckdb SET d='2026-01-02',dt='2026-01-02 03:04:05.123456';
+UPDATE temporal_innodb SET d='2026-01-02',dt='2026-01-02 03:04:05.123456';
+SET sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO';
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE temporal_duckdb ADD COLUMN rejected_date DATE NOT NULL;
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE temporal_innodb ADD COLUMN rejected_date DATE NOT NULL;
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE temporal_duckdb ADD COLUMN rejected_datetime DATETIME NOT NULL;
+--error ER_TRUNCATED_WRONG_VALUE
+ALTER TABLE temporal_innodb ADD COLUMN rejected_datetime DATETIME NOT NULL;
+SHOW COLUMNS FROM temporal_duckdb;
+SELECT * FROM temporal_duckdb ORDER BY id;
+
+--echo # Empty tables are valid even in strict mode.
+CREATE TABLE temporal_empty(id INT PRIMARY KEY) ENGINE=DuckDB;
+ALTER TABLE temporal_empty ADD COLUMN d DATE NOT NULL,
+                          ADD COLUMN dt DATETIME(6) NOT NULL;
+INSERT INTO temporal_empty VALUES(1,'2026-01-02','2026-01-02 03:04:05.123456');
+SELECT * FROM temporal_empty;
+DROP TABLE temporal_empty;
+
+--echo # Explicit INSTANT and INPLACE must fail before reaching the assertion.
+SET sql_mode='';
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE temporal_duckdb ADD COLUMN rejected_date DATE NOT NULL,
+                          ALGORITHM=INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE temporal_duckdb ADD COLUMN rejected_date DATE NOT NULL,
+                          ALGORITHM=INPLACE;
+
+--echo # An explicit COPY request retains normal implicit-default semantics.
+ALTER TABLE temporal_duckdb ADD COLUMN d_copy DATE NOT NULL, ALGORITHM=COPY;
+ALTER TABLE temporal_innodb ADD COLUMN d_copy DATE NOT NULL, ALGORITHM=COPY;
+
+--echo # Other column operations can still use INSTANT.
+ALTER TABLE temporal_duckdb ADD COLUMN n INT NOT NULL, ALGORITHM=INSTANT;
+ALTER TABLE temporal_innodb ADD COLUMN n INT NOT NULL, ALGORITHM=INSTANT;
+SELECT * FROM temporal_duckdb ORDER BY id;
+SELECT * FROM temporal_innodb ORDER BY id;
+SHOW CREATE TABLE temporal_duckdb;
+
+DROP TABLE temporal_duckdb, temporal_innodb;
+SET sql_mode=@saved_sql_mode;

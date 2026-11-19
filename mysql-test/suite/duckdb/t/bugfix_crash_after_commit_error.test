@@ -1,0 +1,26 @@
+--skip TODO
+create table t1(id int primary key) engine = duckdb;
+
+set global duckdb_dml_in_batch = on;
+begin;
+insert into t1 values (1);
+insert into t1 values (1);
+
+--error ER_DUCKDB_COMMIT_ERROR
+commit;
+drop table t1;
+
+
+--let $restart_parameters = "restart: --skip-log-bin"
+--source include/restart_mysqld.inc
+
+create table t1(id int primary key) engine = duckdb;
+
+set global duckdb_dml_in_batch = on;
+begin;
+insert into t1 values (1);
+insert into t1 values (1);
+
+--error ER_DUCKDB_COMMIT_ERROR
+commit;
+drop table t1;

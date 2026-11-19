@@ -262,10 +262,12 @@ bool json_value(Item *arg, Json_wrapper *result, bool *has_value);
   @param[out] str           the string buffer
   @param[in]  func_name     the name of the function we are executing
   @param[out] wrapper       the JSON value wrapper
+  @param[in] caller_is_duckdb       the func caller is duckdb
   @returns false if we found a value or NULL, true if not.
 */
 bool get_json_wrapper(Item **args, uint arg_idx, String *str,
-                      const char *func_name, Json_wrapper *wrapper);
+                      const char *func_name, Json_wrapper *wrapper,
+                      bool caller_is_duckdb = false);
 
 /**
   Convert Json values or MySQL values to JSON.
@@ -557,6 +559,7 @@ class Item_func_json_depth final : public Item_int_func {
   }
 
   longlong val_int() override;
+  bool m_caller_is_duckdb = false;
 };
 
 /**
@@ -1001,6 +1004,9 @@ class Item_func_json_unquote : public Item_str_func {
   }
 
   String *val_str(String *str) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
+  bool m_caller_is_duckdb = false;
 };
 
 /**
@@ -1154,6 +1160,7 @@ class Item_func_json_overlaps : public Item_bool_func {
   enum_const_item_cache can_cache_json_arg(Item *arg) override {
     return (arg == args[0] || arg == args[1]) ? CACHE_JSON_VALUE : CACHE_NONE;
   }
+  bool m_caller_is_duckdb = false;
 };
 
 class Item_func_member_of : public Item_bool_func {
