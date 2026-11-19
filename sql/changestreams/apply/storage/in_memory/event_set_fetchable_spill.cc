@@ -195,6 +195,9 @@ void Event_set_fetchable_spill::set_stream_truncated() {
     m_stream_sealed = true;
   }
   m_stream_cv.notify_one();
+  // Nothing is written after truncation: close the stream so a queued
+  // truncated transaction holds no descriptor. Readers open the file by name.
+  m_writer->close_stream();
 }
 
 void Event_set_fetchable_spill::set_writer_failure() {

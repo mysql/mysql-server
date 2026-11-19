@@ -15,27 +15,29 @@ SET GLOBAL rpl_semi_sync_replica_enabled = 1;
 
 CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
 
-# 3. START REPLICA IO_THREAD is rejected (R1).
+# 3. START REPLICA IO_THREAD is rejected.
 
 START REPLICA IO_THREAD;
 ERROR HY000: The in-memory relay log is incompatible with semi-synchronous replication and cannot be used while it is active.
 
-# 4. START REPLICA (both threads) is rejected for the same reason (R2).
+# 4. START REPLICA (both threads) is rejected for the same reason.
 
 START REPLICA;
 ERROR HY000: The in-memory relay log is incompatible with semi-synchronous replication and cannot be used while it is active.
 
 # 5. Disabling IMR clears the incompatibility: the channel starts even
-#    with the semisync replica plugin still enabled (R3).
+#    with the semisync replica plugin still enabled.
 
 CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
 include/rpl/start_replica.inc
 include/rpl/stop_replica.inc
 
 # 6. Restart with semisync enabled and the IMR channel auto-starting: the
-#    receiver stops before the dump request, the applier runs (R4).
+#    semisync plugin refuses the dump request, the receiver stops and the
+#    applier runs.
 
 CALL mtr.add_suppression("The in-memory relay log is incompatible with semi-synchronous replication");
+CALL mtr.add_suppression("Run function 'before_request_transmit' in plugin 'rpl_semi_sync_replica' failed");
 CALL mtr.add_suppression("Error reading packet from server for channel .*Lost connection to MySQL server during query");
 CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
 include/rpl/restart_server.inc [server_number=2 parameters: --skip-replica-start=0 --rpl-semi-sync-replica-enabled=1]
@@ -43,6 +45,7 @@ include/rpl/restart_server.inc [server_number=2 parameters: --skip-replica-start
 include/rpl/wait_for_receiver_error.inc [errno=6925]
 include/assert.inc [Last_IO_Errno is the IMR incompatibility error after restart]
 include/assert.inc [The applier keeps running after restart]
+include/assert.inc [Semisync is not negotiated after restart]
 SET GLOBAL rpl_semi_sync_replica_enabled = 0;
 include/rpl/start_receiver.inc
 [connection master]
@@ -52,7 +55,8 @@ include/rpl/sync_to_replica.inc
 include/assert.inc [The transaction is replicated after semisync is turned off]
 
 # 7. Enable semisync with the receiver running and force a reconnect: the
-#    receiver stops before the dump request, the applier runs (R5).
+#    semisync plugin refuses the dump request, the receiver stops without
+#    retrying and the applier runs.
 
 SET GLOBAL rpl_semi_sync_replica_enabled = 1;
 [connection master]
@@ -61,6 +65,8 @@ include/rpl/stop_dump_threads.inc
 include/rpl/wait_for_receiver_error.inc [errno=6925]
 include/assert.inc [Last_IO_Errno is the IMR incompatibility error after reconnect]
 include/assert.inc [The applier keeps running after reconnect]
+include/assert.inc [Semisync is not negotiated after reconnect]
+include/assert_grep.inc [The refused dump request is not retried]
 
 # 8. Cleanup.
 

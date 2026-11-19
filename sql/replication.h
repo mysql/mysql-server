@@ -615,6 +615,12 @@ typedef struct Binlog_relay_IO_param {
   MYSQL *mysql; /* the connection to master */
 
   bool source_connection_auto_failover;
+
+  /*
+    True if the channel uses the in-memory relay log, which does not persist
+    received transactions. Semisync must not acknowledge them.
+  */
+  bool in_memory_relay_log;
 } Binlog_relay_IO_param;
 
 /**

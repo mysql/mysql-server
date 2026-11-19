@@ -1176,6 +1176,7 @@ void Binlog_relay_IO_delegate::init_param(Binlog_relay_IO_param *param,
   param->master_log_pos = mi->get_master_log_pos();
   param->source_connection_auto_failover =
       mi->is_source_connection_auto_failover();
+  param->in_memory_relay_log = mi->rli->imr() != nullptr;
 }
 
 int Binlog_relay_IO_delegate::thread_start(THD *thd, Master_info *mi) {

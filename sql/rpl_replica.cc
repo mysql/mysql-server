@@ -312,7 +312,7 @@ static int process_io_rotate(Master_info *mi, Rotate_log_event *rev);
 static void imr_on_truncate(Master_info *mi);
 static bool imr_wait_for_admission(Master_info *mi, std::size_t trx_length);
 static bool imr_report_queue_event_failure(THD *thd, Master_info *mi);
-static bool imr_check_semisync_before_dump(THD *thd, Master_info *mi);
+static bool imr_check_semisync_refused_by_hook(THD *thd, Master_info *mi);
 static void imr_clear_ignored_events_info(Master_info *mi);
 static bool is_semisync_replica_enabled(THD *thd);
 
@@ -4416,6 +4416,8 @@ static int request_dump(THD *thd, MYSQL *mysql, MYSQL_RPL *rpl, Master_info *mi,
     static uint failure_count = 0;
     if (++failure_count <= 2) return 1;
   });
+  // IMR: clear old errors, so a refusal by the hook is the error found later.
+  if (mi->rli->imr() != nullptr) thd->clear_error();
   if (RUN_HOOK(binlog_relay_io, before_request_transmit,
                (thd, mi, binlog_flags)))
     return 1;
@@ -5895,14 +5897,14 @@ extern "C" void *handle_slave_io(void *arg) {
 
     DBUG_PRINT("info", ("Starting reading binary log from source"));
     while (!io_slave_killed(thd, mi)) {
-      // Stop without reconnecting: semisync must not be requested on IMR.
-      if (imr_check_semisync_before_dump(thd, mi)) goto err;
       MYSQL_RPL rpl;
 
       THD_STAGE_INFO(thd, stage_requesting_binlog_dump);
       if (request_dump(thd, mysql, &rpl, mi, &suppress_warnings) ||
           DBUG_EVALUATE_IF("simulate_reconnect_after_failed_binlog_dump", 1,
                            0)) {
+        // The semisync plugin refused on an IMR channel: stop, don't reconnect.
+        if (imr_check_semisync_refused_by_hook(thd, mi)) goto err;
         LogErr(ERROR_LEVEL, ER_RPL_REPLICA_ERROR_REQUESTING_BINLOG_DUMP,
                mi->get_for_channel_str());
         if (check_io_slave_killed(thd, mi,
@@ -8284,20 +8286,22 @@ static bool imr_report_queue_event_failure(THD *thd, Master_info *mi) {
 }
 
 /**
-  Refuse a binlog dump request on an in-memory relay log channel while
-  semi-synchronous replication is enabled. Semisync is negotiated per dump
-  request, so this covers auto-start and reconnects, which the START REPLICA
-  check does not see.
+  Check whether the semisync plugin refused the dump request because the
+  channel uses the in-memory relay log, and if so report the error. This
+  covers server start and reconnects; START REPLICA has its own check.
 
   @param thd The receiver thread.
   @param mi  The Master_info object for this channel.
 
-  @retval true  incompatible; the error is reported and the receiver must stop
-  @retval false not an in-memory relay log channel, or semisync is disabled
+  @retval true  refused; the error is reported and the receiver must stop
+  @retval false not IMR, or the dump request failed for another reason
 */
-static bool imr_check_semisync_before_dump(THD *thd, Master_info *mi) {
-  if (mi->rli->imr() == nullptr || !is_semisync_replica_enabled(thd))
+static bool imr_check_semisync_refused_by_hook(THD *thd, Master_info *mi) {
+  if (mi->rli->imr() == nullptr || !thd->is_error() ||
+      thd->get_stmt_da()->mysql_errno() !=
+          ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION)
     return false;
+  thd->clear_error();
   mi->report(
       ERROR_LEVEL, ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION,
       ER_THD(thd, ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION),
@@ -12467,10 +12471,9 @@ static bool is_semisync_replica_enabled(THD *thd) {
 */
 static bool check_replica_configuration_errors(Master_info *mi,
                                                int thread_mask) {
-  // The in-memory relay log is incompatible with semi-synchronous replication.
-  // Checked at IO-thread start, since semisync is a plugin whose state is not
-  // known at CHANGE time; imr_check_semisync_before_dump() covers server start
-  // and reconnects. The queue is left intact.
+  // IMR is incompatible with semisync. Checked here for START REPLICA; at
+  // server start and on reconnects the semisync plugin refuses the dump
+  // request instead. The queue is left intact.
   if ((thread_mask & REPLICA_IO) && mi->rli->imr() != nullptr &&
       current_thd != nullptr && is_semisync_replica_enabled(current_thd)) {
     my_error(ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION, MYF(0),

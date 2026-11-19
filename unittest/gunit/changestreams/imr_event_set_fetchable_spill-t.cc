@@ -1251,6 +1251,46 @@ TEST_F(ImrSpillSinkTest, SealedSinkClosesItsDescriptor) {
   for (const auto &name : names) EXPECT_FALSE(fs::exists(name)) << name;
 }
 
+// Truncation closes the write stream: no descriptor is held, the files stay
+// readable, and they are deleted when the byte sources are destroyed.
+TEST_F(ImrSpillSinkTest, TruncatedSinkClosesItsDescriptor) {
+  if (!fs::exists("/proc/self/fd")) GTEST_SKIP() << "needs /proc/self/fd";
+  const std::size_t before = count_spill_fds(m_dir);
+
+  constexpr int kSinkCount = 200;
+  std::vector<std::unique_ptr<Event_set_fetchable_spill>> sinks;
+  for (int i = 0; i < kSinkCount; ++i) {
+    sinks.push_back(std::make_unique<Event_set_fetchable_spill>(
+        /*is_trx=*/true, make_fde(), m_relay_log_basename,
+        /*owner_envelope=*/nullptr, /*streaming_open=*/true));
+    ASSERT_FALSE(sinks.back()->is_error()) << sinks.back()->get_error_str();
+    append_rotate(*sinks.back(), 1);
+    ASSERT_EQ(count_spill_fds(m_dir), before + 1)
+        << "the stream stays open while the transaction is written";
+    sinks.back()->set_stream_truncated();
+    ASSERT_TRUE(sinks.back()->is_stream_truncated());
+  }
+  EXPECT_EQ(count_spill_fds(m_dir), before)
+      << "a truncated transaction must not hold its spill file descriptor";
+
+  std::vector<std::string> names;
+  for (const auto &sink : sinks) {
+    names.push_back(sink->spill_file_name());
+    EXPECT_TRUE(fs::exists(names.back()));
+  }
+  for (const auto &sink : sinks) {
+    EXPECT_EQ(drain_positions(*sink), (std::vector<unsigned long long>{1}))
+        << "the events received before the truncation stay readable";
+    EXPECT_TRUE(sink->is_done());
+    EXPECT_FALSE(sink->is_error()) << sink->get_error_str();
+  }
+  EXPECT_EQ(count_spill_fds(m_dir), before)
+      << "a drained reader must close its descriptor";
+
+  sinks.clear();
+  for (const auto &name : names) EXPECT_FALSE(fs::exists(name)) << name;
+}
+
 #ifndef NDEBUG
 // A failed append closes the write stream: the truncated transaction holds no
 // descriptor, and its file stays until the byte source is destroyed.
