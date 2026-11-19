@@ -35,10 +35,6 @@
 
 --source include/rpl/connection_replica.inc
 
-# CSA channels default to the in-memory relay log; this test exercises the
-# disk-CSA APPLIER_EVENT_MEMORY_LIMIT backpressure, so switch to the disk path.
---source include/rpl/csa_disable_in_memory_relaylog.inc
-
 SET @tmp_max= @@global.replica_max_allowed_packet;
 --let $saved_mem_limit= `SELECT APPLIER_EVENT_MEMORY_LIMIT FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = ''`
 SET @@global.replica_max_allowed_packet=4096;

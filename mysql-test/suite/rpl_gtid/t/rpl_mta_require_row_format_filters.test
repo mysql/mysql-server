@@ -66,7 +66,7 @@
 --source include/not_rpl_gtid_only.inc
 
 # Retrieved_Gtid_Set is cleared on a full stop with IMR.
---source include/not_csa_imr.inc
+--let $rpl_in_memory_relaylog= OFF
 # even though the code that triggers this is shared between MTA and
 # single threaded applier (therefore the conditions are valid in both
 # cases) the error reporting is not. MTA reports the error in the

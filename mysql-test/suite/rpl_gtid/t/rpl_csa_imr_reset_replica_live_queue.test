@@ -35,7 +35,7 @@
 #   4. RESET REPLICA; check R2 and R3.
 #   5. START REPLICA; check R4.
 #
-# Runs in the default, CSA and CSA-with-IMR passes: the test sets
+# Runs in the default (MTA) and CSA passes: the test sets
 # APPLIER_VERSION = 2 and IN_MEMORY_RELAYLOG_ENABLED = ON itself.
 #
 # ==== References ====

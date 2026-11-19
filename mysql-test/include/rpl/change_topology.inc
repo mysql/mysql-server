@@ -171,13 +171,13 @@
 #     adds `IN_MEMORY_RELAYLOG_ENABLED = ON|OFF` to the
 #     `CHANGE REPLICATION SOURCE TO ...` statement. Empty or DEFAULT adds
 #     nothing, so the server default applies (IMR is ON unless set OFF). Any
-#     other value is an error. When not set,
-#     the RPL_IN_MEMORY_RELAYLOG environment variable is used (set to OFF by
-#     include/rpl_change_stream_applier.cnf, left out by
-#     include/rpl_change_stream_applier_imr.cnf). An explicitly empty
-#     `--let $rpl_in_memory_relaylog=` hides the environment value, because
-#     mysqltest reads the environment only for a variable that does not
-#     exist. Applies to all replicas.
+#     other value is an error. When not set, the RPL_IN_MEMORY_RELAYLOG
+#     environment variable is used. The test collections do not set it, so
+#     CSA replicas use IMR. A test that needs the on-disk relay log sets
+#     `--let $rpl_in_memory_relaylog= OFF` before it creates the topology; the
+#     MTA ignores it. An explicitly empty `--let $rpl_in_memory_relaylog=`
+#     hides the environment value, because mysqltest reads the environment
+#     only for a variable that does not exist. Applies to all replicas.
 #
 #   $rpl_applier_worker_count
 #     Include `APPLIER_WORKER_COUNT` option in the

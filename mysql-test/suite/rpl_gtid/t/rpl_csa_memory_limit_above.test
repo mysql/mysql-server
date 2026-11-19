@@ -35,7 +35,6 @@
 --source include/rpl/init_source_replica.inc
 
 --source include/rpl/connection_replica.inc
---source include/rpl/csa_disable_in_memory_relaylog.inc
 
 SET @tmp_max= @@global.replica_max_allowed_packet;
 --let $saved_mem_limit= `SELECT APPLIER_EVENT_MEMORY_LIMIT FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = ''`

@@ -37,7 +37,7 @@
 --source include/have_binlog_format_row.inc
 
 # IMR does not support semisync.
---source include/not_csa_imr.inc
+--let $rpl_in_memory_relaylog= OFF
 --source include/rpl/init_source_replica.inc
 --let $server_uuid = `SELECT @@server_uuid`
 --source include/rpl/install_semisync.inc

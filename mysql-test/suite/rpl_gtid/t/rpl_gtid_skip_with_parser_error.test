@@ -52,7 +52,7 @@
 --source include/not_rpl_gtid_only.inc
 # The 5.6 binary log has GTID events without the transaction length, which the
 # in-memory relay log needs.
---source include/not_csa_imr.inc
+--let $rpl_in_memory_relaylog= OFF
 --source include/rpl/init_source_replica.inc
 
 --let $MASTER_DATADIR= `select @@datadir`

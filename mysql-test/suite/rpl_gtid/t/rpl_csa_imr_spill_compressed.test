@@ -29,7 +29,7 @@
 #   4. With the applier running, a second compressed transaction of the same
 #      size spills and applies (R1, R2, R3).
 #
-# Runs in the default, CSA and CSA-with-IMR passes: the test sets
+# Runs in the default (MTA) and CSA passes: the test sets
 # APPLIER_VERSION = 2 and IN_MEMORY_RELAYLOG_ENABLED = ON itself.
 #
 # ==== References ====

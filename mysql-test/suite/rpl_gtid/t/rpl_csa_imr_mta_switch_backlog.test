@@ -30,7 +30,7 @@
 #      component counts exactly 5 memory-path transactions.
 #
 # The channel must start on MTA, so the test runs only in the default (MTA)
-# pass, and skips in the CSA and CSA-with-IMR passes (have_mta.inc).
+# pass, and skips in the CSA pass (have_mta.inc).
 #
 # ==== References ====
 #

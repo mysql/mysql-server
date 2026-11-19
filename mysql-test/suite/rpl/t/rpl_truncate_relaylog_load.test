@@ -55,6 +55,8 @@
 # This test does not depend on binlog format
 --source include/have_binlog_format_row.inc
 
+# Tests sanitization of on-disk relay-log files after a crash, which IMR does not write.
+--let $rpl_in_memory_relaylog= OFF
 --source include/rpl/init_source_replica.inc
 
 --echo

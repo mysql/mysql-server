@@ -39,8 +39,8 @@
 #   5. Restart the receiver, sync, and check R1-R3.
 #
 # The test has no applier restriction and one result file, so it runs the
-# same way in the default (MTA), CSA and CSA-with-IMR passes, and any
-# difference between the paths fails it.
+# same way in the default (MTA) pass and in the CSA pass, which uses IMR, and
+# any difference between the paths fails it.
 #
 # A receiver stop before any row is applied is not tested: on MTA and on the
 # disk relay log the applier always applies the received Write_rows #1 before

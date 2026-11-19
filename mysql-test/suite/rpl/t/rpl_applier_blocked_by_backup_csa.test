@@ -21,6 +21,8 @@
 --source include/have_csa.inc
 --source include/have_binlog_format_row.inc
 --let $rpl_skip_start_slave=1
+# Checks the purge of on-disk relay-log files, which IMR does not write.
+--let $rpl_in_memory_relaylog= OFF
 --source include/rpl/init_source_replica.inc
 
 --echo #
@@ -28,7 +30,6 @@
 --echo #
 
 --source include/rpl/connection_replica.inc
---source include/rpl/csa_disable_in_memory_relaylog.inc
 --let $MYSQLD_SLAVE_DATADIR = `select @@datadir`
 --source include/save_error_log_position.inc
 LOCK INSTANCE FOR BACKUP;

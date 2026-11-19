@@ -2,7 +2,7 @@
 source include/have_semisync_plugin.inc;
 source include/rpl/set_privilege_checks_user_as_system_user.inc;
 # IMR does not support semisync.
---source include/not_csa_imr.inc
+--let $rpl_in_memory_relaylog= OFF
 source include/rpl/init_source_replica.inc;
 
 let $engine_type= InnoDB;

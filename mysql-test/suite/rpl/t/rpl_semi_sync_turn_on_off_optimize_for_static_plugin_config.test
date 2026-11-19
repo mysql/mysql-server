@@ -32,7 +32,7 @@
 --source include/have_binlog_format_row.inc
 
 # IMR does not support semisync.
---source include/not_csa_imr.inc
+--let $rpl_in_memory_relaylog= OFF
 --let $sources = 1
 --let $replicas_layer_1 = 1
 --let $replicas_layer_2 = 7

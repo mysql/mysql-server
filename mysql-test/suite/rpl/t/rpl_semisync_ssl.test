@@ -12,7 +12,7 @@
 # 5. Clean up.
 ################################################################################
 # IMR does not support semisync.
---source include/not_csa_imr.inc
+--let $rpl_in_memory_relaylog= OFF
 --source include/rpl/init_source_replica.inc
 --source include/have_semisync_plugin.inc
 --source include/rpl/install_semisync.inc
