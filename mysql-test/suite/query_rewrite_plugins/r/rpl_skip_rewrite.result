@@ -12,7 +12,7 @@ SELECT PLUGIN_NAME, PLUGIN_TYPE, PLUGIN_VERSION, PLUGIN_TYPE_VERSION
 FROM information_schema.plugins
 WHERE plugin_name LIKE 'Rewriter';
 PLUGIN_NAME	PLUGIN_TYPE	PLUGIN_VERSION	PLUGIN_TYPE_VERSION
-Rewriter	AUDIT	0.2	4.1
+Rewriter	AUDIT	0.2	5.0
 INSERT INTO query_rewrite.rewrite_rules ( pattern, replacement)
 VALUES ('INSERT INTO test.t1 (a,b) VALUES (?, ?)',
 'INSERT INTO test.t1 (b,a) VALUES (?, ?)');

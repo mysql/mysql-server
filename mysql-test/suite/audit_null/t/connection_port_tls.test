@@ -1,0 +1,103 @@
+# Verify that MYSQL_AUDIT_CONNECTION_CONNECT events report the client TCP
+# port and TLS version for classic and X Protocol connections.
+
+--source include/have_null_audit_plugin.inc
+--source include/xplugin_preamble.inc
+# Unix socket connection is used below.
+--source include/not_windows.inc
+--disable_ps_protocol
+
+--replace_regex /\.dll/.so/
+eval INSTALL PLUGIN null_audit SONAME '$AUDIT_NULL';
+
+CREATE USER tls_user@'%' IDENTIFIED BY 'tls_pw';
+GRANT SELECT ON performance_schema.* TO tls_user@'%';
+
+--let $last_port = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_port')
+--let $last_tls = (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_tls_version')
+--let $peer_port = (SELECT SUBSTRING_INDEX(HOST, ':', -1) FROM performance_schema.processlist WHERE ID = CONNECTION_ID())
+
+--let $classic_query = SELECT $last_port = $peer_port AS port_matches, $last_tls = (SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME = 'Ssl_version') AS tls_matches, $last_tls <> '' AS is_tls
+
+--echo # Classic protocol over TCP with TLS
+--exec $MYSQL --protocol=TCP -h 127.0.0.1 -P $MASTER_MYPORT --ssl-mode=REQUIRED -u tls_user -ptls_pw -e "$classic_query" 2>/dev/null
+
+--echo # Classic protocol over TCP without TLS
+--exec $MYSQL --protocol=TCP -h 127.0.0.1 -P $MASTER_MYPORT --ssl-mode=DISABLED --get-server-public-key -u tls_user -ptls_pw -e "$classic_query" 2>/dev/null
+
+--echo # Classic protocol over a Unix socket reports port 0
+--connect(con_socket,localhost,tls_user,tls_pw,,,,SOCKET)
+--eval SELECT $last_port AS port, $last_tls AS tls_version
+--connection default
+--disconnect con_socket
+
+--write_file $MYSQL_TMP_DIR/connection_port_tls.xpl
+-->quiet
+-->sql
+SELECT (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_port') > 0 AS has_port, (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_tls_version') = (SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME = 'Mysqlx_ssl_version') AS tls_matches, (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_tls_version') <> '' AS is_tls;
+-->endsql
+EOF
+
+--echo # X Protocol over TCP with TLS
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -h127.0.0.1 -u tls_user --plain-auth --password='tls_pw' --file=$MYSQL_TMP_DIR/connection_port_tls.xpl 2>&1
+
+# Uses the authentication cache populated by the TLS connection above.
+--echo # X Protocol over TCP without TLS
+--exec $MYSQLXTEST --ssl-mode=DISABLED -h127.0.0.1 -u tls_user --cached-auth --password='tls_pw' --file=$MYSQL_TMP_DIR/connection_port_tls.xpl 2>&1
+
+--write_file $MYSQL_TMP_DIR/connection_port_tls_reset.xpl
+-->quiet
+-->newsession tls_sess	-
+-->noquery_result
+-->recvmessage Mysqlx.Notice.Frame {type:5}
+-->query_result
+Mysqlx.Connection.CapabilitiesSet {
+  capabilities {
+    capabilities {
+      name: "tls"
+      value {
+        type: SCALAR
+        scalar {
+          type: V_BOOL
+          v_bool: 1
+        }
+      }
+    }
+  }
+}
+-->recvtype Mysqlx.Ok
+-->do_ssl_handshake
+-->login tls_user	tls_pw		plain
+
+-->echo # Non-TLS session overwrites the last recorded CONNECT event
+-->newsession plain_sess	-
+-->noquery_result
+-->recvmessage Mysqlx.Notice.Frame {type:5}
+-->query_result
+-->login tls_user	tls_pw		sha256_memory
+-->sql
+SELECT (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_port') > 0 AS has_port, (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_tls_version') = (SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME = 'Mysqlx_ssl_version') AS tls_matches, (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_tls_version') <> '' AS is_tls;
+-->endsql
+
+-->echo # Recreate the session on the existing TLS connection
+-->setsession tls_sess
+Mysqlx.Session.Reset {
+}
+-->recvtype Mysqlx.Ok
+-->login tls_user	tls_pw		plain
+-->sql
+SELECT (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_port') > 0 AS has_port, (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_tls_version') = (SELECT VARIABLE_VALUE FROM performance_schema.session_status WHERE VARIABLE_NAME = 'Mysqlx_ssl_version') AS tls_matches, (SELECT VARIABLE_VALUE FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Audit_null_last_connect_tls_version') <> '' AS is_tls;
+-->endsql
+-->closesession
+-->setsession plain_sess
+-->closesession
+EOF
+
+--echo # X Protocol session recreated on a TLS connection (Session.Reset)
+--exec $MYSQLXTEST --ssl-mode=REQUIRED -h127.0.0.1 -u tls_user --password='tls_pw' --no-auth --file=$MYSQL_TMP_DIR/connection_port_tls_reset.xpl 2>&1
+
+# Cleanup
+--remove_file $MYSQL_TMP_DIR/connection_port_tls.xpl
+--remove_file $MYSQL_TMP_DIR/connection_port_tls_reset.xpl
+DROP USER tls_user@'%';
+UNINSTALL PLUGIN null_audit;

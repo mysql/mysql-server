@@ -88,6 +88,12 @@ class Sql_data_context : public iface::Sql_session {
   uint64_t mysql_session_id() const override;
 
   ngs::Error_code set_connection_type(const Connection_type type) override;
+  /**
+    Store the TLS protocol version negotiated on the X Protocol connection
+    in the session, so that the server can report it (e.g. in audit
+    connection events), as the session THD has no classic protocol Vio.
+  */
+  ngs::Error_code set_tls_version(const std::string &tls_version);
   bool is_killed() const override;
   bool password_expired() const override { return m_password_expired; }
 

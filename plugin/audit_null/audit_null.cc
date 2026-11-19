@@ -143,6 +143,13 @@ static char *g_record_buffer;
 #undef AUDIT_NULL_VAR
 
 /*
+  Client port and TLS version reported by the most recent
+  MYSQL_AUDIT_CONNECTION_CONNECT event.
+*/
+static int g_last_connect_port;
+static char g_last_connect_tls_version[64];
+
+/*
   Plugin status variables for SHOW STATUS
 */
 
@@ -159,6 +166,12 @@ static SHOW_VAR simple_status[] = {
 #include "plugin/audit_null/audit_null_variables.h"
 
 #undef AUDIT_NULL_VAR
+
+    {"Audit_null_last_connect_port",
+     reinterpret_cast<char *>(&g_last_connect_port), SHOW_INT,
+     SHOW_SCOPE_GLOBAL},
+    {"Audit_null_last_connect_tls_version", g_last_connect_tls_version,
+     SHOW_CHAR, SHOW_SCOPE_GLOBAL},
 
     {nullptr, nullptr, SHOW_UNDEF, SHOW_SCOPE_GLOBAL}};
 
@@ -225,8 +238,9 @@ static int audit_null_plugin_init(void *arg [[maybe_unused]]) {
   SHOW_VAR *var;
 
   for (var = simple_status; var->value != nullptr; var++) {
-    *((int *)var->value) = 0;
+    if (var->type == SHOW_INT) *((int *)var->value) = 0;
   }
+  g_last_connect_tls_version[0] = '\0';
 
   mysql_mutex_init(PSI_NOT_INSTRUMENTED, &g_record_buffer_mutex,
                    MY_MUTEX_INIT_FAST);
@@ -508,6 +522,13 @@ static int audit_null_notify(MYSQL_THD thd, mysql_event_class_t event_class,
     switch (event_connection->event_subclass) {
       case MYSQL_AUDIT_CONNECTION_CONNECT:
         increment_counter(&number_of_calls_connection_connect);
+        g_last_connect_port = static_cast<int>(event_connection->port);
+        snprintf(g_last_connect_tls_version,
+                 sizeof(g_last_connect_tls_version), "%.*s",
+                 static_cast<int>(event_connection->tls_version.length),
+                 event_connection->tls_version.str != nullptr
+                     ? event_connection->tls_version.str
+                     : "");
         break;
       case MYSQL_AUDIT_CONNECTION_DISCONNECT:
         increment_counter(&number_of_calls_connection_disconnect);

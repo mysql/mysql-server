@@ -131,6 +131,11 @@ BEGIN_SERVICE_DEFINITION(mysql_thd_attributes)
   - time-zone name variable ("time_zone_name" of the returned
     mysql_cstring_with_length type)
   - Query execution status ("da_status" of the returned uint16 type).
+  - Client TCP port ("peer_port" of the returned uint16 type). 0 if the
+    session is not using a TCP/IP connection.
+  - TLS protocol version ("tls_version" of the returned
+    mysql_cstring_with_length type), e.g. "TLSv1.3". Empty string if the
+    connection is not encrypted.
 
   @param      thd           Session THD object.
   @param      name          Name of the attribute to be set.
@@ -145,7 +150,14 @@ DECLARE_BOOL_METHOD(get, (MYSQL_THD thd, const char *name, void *inout_pvalue));
 /**
   Set THD attribute.
 
-  Currently the implementation does not support setting of any attribute.
+  Currently, following attributes are supported:
+
+  - Query execution status ("da_status" of the uint16 type). Only
+    STATUS_DA_EMPTY is accepted; it resets the diagnostics area.
+  - TLS protocol version ("tls_version" of the mysql_cstring_with_length
+    type). Intended for transports that do not use the classic protocol
+    connection (e.g. X Plugin), so that "tls_version" can be reported by
+    the "get" method and in audit connection events. The value is copied.
 
   @param      thd           Session THD object.
   @param      name          Name of the attribute to be set.

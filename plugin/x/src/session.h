@@ -115,6 +115,9 @@ class Session : public iface::Session {
 
   void on_auth_failure_impl(const iface::Authentication::Response &response);
 
+  /** Pass the TLS version of the client connection to the SQL session. */
+  void update_tls_version();
+
  protected:
   iface::Client *m_client;
   iface::Protocol_encoder *m_encoder;
