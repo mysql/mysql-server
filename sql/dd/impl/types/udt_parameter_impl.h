@@ -100,8 +100,8 @@ class UDT_Parameter_impl : public Entity_object_impl, public UDT_Parameter {
   // mode
   /////////////////////////////////////////////////////////////////////////
 
-  enum_parameter_mode mode() const override { return m_parameter_mode; }
-  void set_mode(enum_parameter_mode mode) override { m_parameter_mode = mode; }
+  enum_parameter_mode mode() const override { return m_mode; }
+  void set_mode(enum_parameter_mode mode) override { m_mode = mode; }
 
   /////////////////////////////////////////////////////////////////////////
   // data type.
@@ -244,8 +244,8 @@ class UDT_Parameter_impl : public Entity_object_impl, public UDT_Parameter {
 
   Object_id m_method_id;
   enum_column_types m_data_type;
-  enum_parameter_mode m_parameter_mode;
   uint m_ordinal_position;
+  enum_parameter_mode m_mode;
   bool m_is_result;
 
   bool m_is_unsigned;

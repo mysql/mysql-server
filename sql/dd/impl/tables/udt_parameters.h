@@ -52,6 +52,8 @@ class UDT_Parameters : public Entity_object_table_impl {
   enum enum_fields {
     FIELD_ID,
     FIELD_METHOD_ID,
+    FIELD_ORDINAL_POSITION,
+    FIELD_MODE,
     FIELD_NAME,
     FIELD_IS_RESULT,
     FIELD_IS_UNSIGNED,
@@ -62,8 +64,8 @@ class UDT_Parameters : public Entity_object_table_impl {
     FIELD_DATETIME_PRECISION,
     FIELD_COLLATION_ID,
     FIELD_IS_EXPLICIT_COLLATION,
-    FIELD_LAST_ALTERED,
     FIELD_CREATED,
+    FIELD_LAST_ALTERED,
     NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 

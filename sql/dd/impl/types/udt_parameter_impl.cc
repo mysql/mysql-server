@@ -58,6 +58,8 @@ namespace dd {
 
 UDT_Parameter_impl::UDT_Parameter_impl()
     : m_method_id(INVALID_OBJECT_ID),
+      m_ordinal_position(0),
+      m_mode(enum_parameter_mode::PM_IN),
       m_is_result(false),
       m_is_unsigned(false),
       m_char_max_length(0),
@@ -82,6 +84,8 @@ bool UDT_Parameter_impl::restore_attributes(const Raw_record &r) {
   restore_name(r, UDT_Parameters::FIELD_NAME);
 
   m_method_id = r.read_ref_id(UDT_Parameters::FIELD_METHOD_ID);
+  m_ordinal_position = r.read_uint(UDT_Parameters::FIELD_ORDINAL_POSITION);
+  // FIXME: m_mode
   m_is_result = r.read_bool(UDT_Parameters::FIELD_IS_RESULT);
 
   m_is_unsigned = r.read_bool(UDT_Parameters::FIELD_IS_UNSIGNED);
@@ -97,8 +101,8 @@ bool UDT_Parameter_impl::restore_attributes(const Raw_record &r) {
   m_is_explicit_collation =
       r.read_bool(UDT_Parameters::FIELD_IS_EXPLICIT_COLLATION);
 
-  m_last_altered = r.read_int(UDT_Parameters::FIELD_LAST_ALTERED);
   m_created = r.read_int(UDT_Parameters::FIELD_CREATED);
+  m_last_altered = r.read_int(UDT_Parameters::FIELD_LAST_ALTERED);
 
   return false;
 }
@@ -110,6 +114,8 @@ bool UDT_Parameter_impl::store_attributes(Raw_record *r) {
          store_name(r, UDT_Parameters::FIELD_NAME) ||
          r->store_ref_id(UDT_Parameters::FIELD_METHOD_ID, m_method_id) ||
 
+         r->store(UDT_Parameters::FIELD_ORDINAL_POSITION, m_ordinal_position) ||
+         r->store(UDT_Parameters::FIELD_IS_RESULT, m_is_result) ||
          r->store(UDT_Parameters::FIELD_IS_UNSIGNED, m_is_unsigned) ||
          r->store(UDT_Parameters::FIELD_CHAR_MAX_LENGTH,
                   static_cast<uint>(m_char_max_length)) ||
@@ -132,7 +138,7 @@ bool UDT_Parameter_impl::store_attributes(Raw_record *r) {
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(UDT_Parameters::NUMBER_OF_FIELDS == 14,
+static_assert(UDT_Parameters::NUMBER_OF_FIELDS == 16,
               "UDT_Parameters definition has changed, check if "
               "serialize() and deserialize() need to be updated!");
 void UDT_Parameter_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
@@ -140,6 +146,9 @@ void UDT_Parameter_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   Entity_object_impl::serialize(wctx, w);
 
   write(w, m_method_id, STRING_WITH_LEN("method_id"));
+  write(w, m_ordinal_position, STRING_WITH_LEN("ordinal_position"));
+  // write(w, m_mode, STRING_WITH_LEN("mode"));
+  write(w, m_is_result, STRING_WITH_LEN("is_result"));
   write(w, m_is_unsigned, STRING_WITH_LEN("is_unsigned"));
   write(w, m_char_max_length, STRING_WITH_LEN("char_max_length"));
   write(w, m_char_octet_length, STRING_WITH_LEN("char_octet_length"));
@@ -152,8 +161,8 @@ void UDT_Parameter_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   write(w, m_collation_id, STRING_WITH_LEN("collation_id"));
   write(w, m_is_explicit_collation, STRING_WITH_LEN("is_explicit_collation"));
 
-  write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
   write(w, m_created, STRING_WITH_LEN("created"));
+  write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
   w->EndObject();
 }
 
@@ -163,6 +172,9 @@ bool UDT_Parameter_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   Entity_object_impl::deserialize(rctx, val);
 
   read(&m_method_id, val, "method_id");
+  read(&m_ordinal_position, val, "ordinal_position");
+  // FIXME: m_mode
+  read(&m_is_result, val, "is_result");
   read(&m_is_unsigned, val, "is_unsigned");
   read(&m_char_max_length, val, "char_max_length");
   read(&m_char_octet_length, val, "char_octet_length");
@@ -174,8 +186,8 @@ bool UDT_Parameter_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_collation_id, val, "collation_id");
   read(&m_is_explicit_collation, val, "is_explicit_collation");
 
-  read(&m_last_altered, val, "last_altered");
   read(&m_created, val, "created");
+  read(&m_last_altered, val, "last_altered");
 
   return false;
 }

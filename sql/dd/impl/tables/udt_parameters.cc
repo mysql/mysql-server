@@ -55,6 +55,10 @@ UDT_Parameters::UDT_Parameters() {
                          "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT");
   m_target_def.add_field(FIELD_METHOD_ID, "FIELD_METHOD_ID",
                          "method_id BIGINT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_ORDINAL_POSITION, "FIELD_ORDINAL_POSITION",
+                         "ordinal_position INT UNSIGNED NOT NULL");
+  m_target_def.add_field(FIELD_MODE, "FIELD_MODE",
+                         "mode ENUM('IN','OUT','INOUT')");
   m_target_def.add_field(FIELD_NAME, "FIELD_NAME",
                          "name VARCHAR(64) NOT NULL COLLATE " +
                              String_type(name_collation()->m_coll_name));
@@ -65,6 +69,8 @@ UDT_Parameters::UDT_Parameters() {
                          "is_unsigned BOOL");
   m_target_def.add_field(FIELD_CHAR_MAX_LENGTH, "FIELD_CHAR_MAX_LENGTH",
                          "char_max_length INT UNSIGNED");
+  m_target_def.add_field(FIELD_CHAR_OCTET_LENGTH, "FIELD_CHAR_OCTET_LENGTH",
+                         "char_octet_length INT UNSIGNED");
   m_target_def.add_field(FIELD_NUMERIC_PRECISION, "FIELD_NUMERIC_PRECISION",
                          "numeric_precision INT UNSIGNED");
   m_target_def.add_field(FIELD_NUMERIC_SCALE, "FIELD_NUMERIC_SCALE",

@@ -1,0 +1,15 @@
+SET debug = '+d,skip_dd_table_access_check';
+
+SHOW CREATE TABLE mysql.user_defined_types;
+
+SHOW CREATE TABLE mysql.method_specifications;
+
+SHOW CREATE TABLE mysql.method_specification_parameters;
+
+DESCRIBE INFORMATION_SCHEMA.USER_DEFINED_TYPES;
+
+DESCRIBE INFORMATION_SCHEMA.METHOD_SPECIFICATIONS;
+
+DESCRIBE INFORMATION_SCHEMA.METHOD_SPECIFICATION_PARAMETERS;
+
+SET debug = '-d,skip_dd_table_access_check';

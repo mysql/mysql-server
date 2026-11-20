@@ -30,6 +30,25 @@ const UDT_Types &UDT_Types::instance() {
   return *s_instance;
 }
 
+/**
+ * SQL-2023:
+ *
+ * CREATE VIEW USER_DEFINED_TYPES AS
+ *  SELECT UDT.USER_DEFINED_TYPE_CATALOG, UDT.USER_DEFINED_TYPE_SCHEMA,
+ *  UDT.USER_DEFINED_TYPE_NAME, UDT.USER_DEFINED_TYPE_CATEGORY,
+ *  UDT.IS_INSTANTIABLE, UDT.IS_FINAL, UDT.ORDERING_FORM,
+ *  UDT.ORDERING_CATEGORY, UDT.ORDERING_ROUTINE_CATALOG,
+ *  UDT.ORDERING_ROUTINE_SCHEMA, UDT.ORDERING_ROUTINE_NAME, UDT.REFERENCE_TYPE,
+ *  DTD.DATA_TYPE, DTD.CHARACTER_MAXIMUM_LENGTH, DTD.CHARACTER_OCTET_LENGTH,
+ *  DTD.CHARACTER_SET_CATALOG, DTD.CHARACTER_SET_SCHEMA, DTD.CHARACTER_SET_NAME,
+ *  DTD.COLLATION_CATALOG, DTD.COLLATION_SCHEMA, DTD.COLLATION_NAME,
+ *  DTD.NUMERIC_PRECISION, DTD.NUMERIC_PRECISION_RADIX, DTD.NUMERIC_SCALE,
+ *  DTD.DATETIME_PRECISION, DTD.INTERVAL_TYPE, DTD.INTERVAL_PRECISION,
+ *  UDT.SOURCE_DTD_IDENTIFIER, UDT.REF_DTD_IDENTIFIER,
+ *  DTD.DECLARED_DATA_TYPE, DTD.DECLARED_NUMERIC_PRECISION,
+ *  DTD.DECLARED_NUMERIC_SCALE, DTD.MAXIMUM_CARDINALITY
+ *  FROM ...
+ */
 UDT_Types::UDT_Types() {
   m_target_def.set_view_name(view_name());
 
@@ -57,21 +76,40 @@ UDT_Types::UDT_Types() {
                          "typ.ordering_category");
 
 #ifdef LATER
+  /*
+   * TODO: CLARIFY
+   * This points to a routine:
+   * - UDT.ORDERING_ROUTINE_CATALOG,
+   * - UDT.ORDERING_ROUTINE_SCHEMA,
+   * - UDT.ORDERING_ROUTINE_NAME
+   * in I_S.ROUTINE:
+   * - ROUTINE_CATALOG,
+   * - ROUTINE_SCHEMA,
+   * - ROUTINE_NAME,
+   * And then a I_S.ROUTINE can implement a specific method of a type:
+   * - ROUTINE.TYPE_UDT_CATALOG
+   * - ROUTINE.TYPE_UDT_SCHEMA
+   * - ROUTINE.TYPE_UDT_NAME
+   * - ROUTINE.SPECIFIC_NAME
+   * So, pointing to the specific method name directly.
+   */
   m_target_def.add_field(FIELD_ORDERING_METHOD_SPECIFIC_NAME,
-                         "ORDERING_METHOD_SPECIFIC_NAME",
-                         "typ.ordering_method_specific_name");
+                         "ORDERING_METHOD_SPECIFIC_NAME", "ordering_met.name");
 #endif
 
-#ifdef LATER
   m_target_def.add_field(
       FIELD_DATA_TYPE, "DATA_TYPE",
       "SUBSTRING_INDEX(SUBSTRING_INDEX(typ.column_type_utf8, '(', 1),' ', 1)");
-#endif
 
   m_target_def.add_field(FIELD_CHARACTER_MAXIMUM_LENGTH,
                          "CHARACTER_MAXIMUM_LENGTH", "typ.char_max_length");
   m_target_def.add_field(FIELD_CHARACTER_OCTET_LENGTH, "CHARACTER_OCTET_LENGTH",
                          "typ.char_octet_length");
+
+  m_target_def.add_field(FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
+                         "cs.name");
+  m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "coll.name");
+
   m_target_def.add_field(
       FIELD_NUMERIC_PRECISION, "NUMERIC_PRECISION",
       "IF (typ.numeric_precision = 0, NULL, typ.numeric_precision)");
@@ -81,13 +119,16 @@ UDT_Types::UDT_Types() {
       "    NULL, typ.numeric_scale)");
   m_target_def.add_field(FIELD_DATETIME_PRECISION, "DATETIME_PRECISION",
                          "typ.datetime_precision");
-  m_target_def.add_field(FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
-                         "cs.name");
-  m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "coll.name");
 
   m_target_def.add_from("mysql.user_defined_types typ");
   m_target_def.add_from("JOIN mysql.schemata sch ON typ.schema_id=sch.id");
   m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
+
+#ifdef LATER
+  m_target_def.add_from(
+      "LEFT JOIN mysql.method_specifications ordering_met "
+      "ON typ.ordering_method_id=ordering_met.id");
+#endif
 
   m_target_def.add_from(
       "LEFT JOIN mysql.collations coll "

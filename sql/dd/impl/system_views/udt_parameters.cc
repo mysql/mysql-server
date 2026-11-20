@@ -30,17 +30,31 @@ const UDT_Parameters &UDT_Parameters::instance() {
   return *s_instance;
 }
 
+/**
+ * SQL-2023:
+ *
+ * CREATE VIEW METHOD_SPECIFICATION_PARAMETERS AS
+ * SELECT SPECIFIC_CATALOG, SPECIFIC_SCHEMA, SPECIFIC_NAME,
+ * P.ORDINAL_POSITION, P.PARAMETER_MODE, P.IS_RESULT,
+ * P.AS_LOCATOR, P.PARAMETER_NAME,
+ * P.FROM_SQL_SPECIFIC_CATALOG, P.FROM_SQL_SPECIFIC_SCHEMA,
+ * P.FROM_SQL_SPECIFIC_NAME, D.DATA_TYPE,
+ * D.CHARACTER_MAXIMUM_LENGTH, D.CHARACTER_OCTET_LENGTH,
+ * D.CHARACTER_SET_CATALOG, D.CHARACTER_SET_SCHEMA, D.CHARACTER_SET_NAME,
+ * D.COLLATION_CATALOG, D.COLLATION_SCHEMA, D.COLLATION_NAME,
+ * D.NUMERIC_PRECISION, D.NUMERIC_PRECISION_RADIX, D.NUMERIC_SCALE,
+ * D.DATETIME_PRECISION, D.INTERVAL_TYPE, D.INTERVAL_PRECISION,
+ * D.USER_DEFINED_TYPE_CATALOG AS PARAMETER_UDT_CATALOG,
+ * D.USER_DEFINED_TYPE_SCHEMA AS PARAMETER_UDT_SCHEMA,
+ * D.USER_DEFINED_TYPE_NAME AS PARAMETER_UDT_NAME,
+ * D.SCOPE_CATALOG, D.SCOPE_SCHEMA, D.SCOPE_NAME,
+ * D.MAXIMUM_CARDINALITY, D.DTD_IDENTIFIER,
+ * D.DECLARED_DATA_TYPE, D.DECLARED_NUMERIC_PRECISION,
+ * D.DECLARED_NUMERIC_SCALE
+ * FROM ...
+ */
 UDT_Parameters::UDT_Parameters() {
   m_target_def.set_view_name(view_name());
-
-#ifdef NEVER
-  m_target_def.add_field(
-      FIELD_SPECIFIC_CATALOG, "SPECIFIC_CATALOG",
-      "specific_cat.name" + m_target_def.fs_name_collation());
-  m_target_def.add_field(
-      FIELD_SPECIFIC_SCHEMA, "SPECIFIC_SCHEMA",
-      "specific_sch.name" + m_target_def.fs_name_collation());
-#endif
 
   m_target_def.add_field(FIELD_UDT_CATALOG, "UDT_CATALOG",
                          "cat.name" + m_target_def.fs_name_collation());
@@ -49,18 +63,31 @@ UDT_Parameters::UDT_Parameters() {
   m_target_def.add_field(FIELD_UDT_NAME, "UDT_NAME",
                          "typ.name" + m_target_def.fs_name_collation());
 
-  m_target_def.add_field(FIELD_METHOD_NAME, "METHOD_NAME", "met.name");
+  m_target_def.add_field(FIELD_METHOD_SPECIFIC_NAME, "METHOD_SPECIFIC_NAME",
+                         "met.specific_name");
+  m_target_def.add_field(FIELD_ORDINAL_POSITION, "ORDINAL_POSITION",
+                         "par.ordinal_position");
+
+  m_target_def.add_field(FIELD_PARAMETER_MODE, "PARAMETER_MODE", "par.mode");
+  m_target_def.add_field(FIELD_IS_RESULT, "IS_RESULT", "par.is_result");
+
   m_target_def.add_field(FIELD_PARAMETER_NAME, "PARAMETER_NAME", "par.name");
 
-  m_target_def.add_field(FIELD_IS_RESULT, "IS_RESULT", "par.is_result");
+#ifdef LATER
+  m_target_def.add_field(
+      FIELD_DATA_TYPE, "DATA_TYPE",
+      "SUBSTRING_INDEX(SUBSTRING_INDEX(par.column_type_utf8, '(', 1),' ', 1)");
+#endif
 
   m_target_def.add_field(FIELD_CHARACTER_MAXIMUM_LENGTH,
                          "CHARACTER_MAXIMUM_LENGTH", "par.char_max_length");
 
-#ifdef LATER
   m_target_def.add_field(FIELD_CHARACTER_OCTET_LENGTH, "CHARACTER_OCTET_LENGTH",
                          "par.char_octet_length");
-#endif
+
+  m_target_def.add_field(FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
+                         "cs.name");
+  m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "coll.name");
 
   m_target_def.add_field(
       FIELD_NUMERIC_PRECISION, "NUMERIC_PRECISION",
@@ -72,17 +99,33 @@ UDT_Parameters::UDT_Parameters() {
   m_target_def.add_field(FIELD_DATETIME_PRECISION, "DATETIME_PRECISION",
                          "par.datetime_precision");
 
-  m_target_def.add_field(FIELD_CHARACTER_SET_NAME, "CHARACTER_SET_NAME",
-                         "cs.name");
-  m_target_def.add_field(FIELD_COLLATION_NAME, "COLLATION_NAME", "coll.name");
+#ifdef LATER
+  m_target_def.add_field(FIELD_PARAMETER_UDT_CATALOG, "PARAMETER_UDT_CATALOG",
+                         "par_cat.name" + m_target_def.fs_name_collation());
+  m_target_def.add_field(FIELD_PARAMETER_UDT_SCHEMA, "PARAMETER_UDT_SCHEMA",
+                         "par_sch.name" + m_target_def.fs_name_collation());
+  m_target_def.add_field(FIELD_PARAMETER_UDT_NAME, "PARAMETER_UDT_NAME",
+                         "par_typ.name" + m_target_def.fs_name_collation());
+#endif
 
   m_target_def.add_from("mysql.method_specification_parameters par");
+
   m_target_def.add_from(
       "JOIN mysql.method_specifications met ON par.method_id=met.id");
   m_target_def.add_from(
       "JOIN mysql.user_defined_types typ ON met.type_id=typ.id");
   m_target_def.add_from("JOIN mysql.schemata sch ON typ.schema_id=sch.id");
   m_target_def.add_from("JOIN mysql.catalogs cat ON cat.id=sch.catalog_id");
+
+#ifdef LATER
+  m_target_def.add_from(
+      "JOIN mysql.user_defined_types par_typ ON "
+      "par.parameter_type_id=par_typ.id");
+  m_target_def.add_from(
+      "JOIN mysql.schemata par_sch ON par_typ.schema_id=par_sch.id");
+  m_target_def.add_from(
+      "JOIN mysql.catalogs par_cat ON par_cat.id=par_sch.catalog_id");
+#endif
 
   m_target_def.add_from(
       "LEFT JOIN mysql.collations coll "

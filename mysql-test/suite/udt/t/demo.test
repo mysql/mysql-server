@@ -64,6 +64,7 @@ SELECT math.complex_number::to_string(a), math.complex_number::to_string(b) from
 # SELECT t1.a.to_string(), t1.b.to_string() from test.t1;
 
 SELECT math.complex_number::to_string(math.complex_number::`add`(a, b)) from test.t1;
+# SELECT (math.complex_number::`add`(a, b)).to_string() from test.t1;
 
 UNINSTALL COMPONENT "file://component_udt_example";
 
