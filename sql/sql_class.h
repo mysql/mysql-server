@@ -1988,6 +1988,7 @@ class THD : public MDL_context_owner,
   /**@{*/
   const char *m_trans_log_file;
   char *m_trans_fixed_log_file;
+  char m_trans_fixed_log_file_buf[FN_REFLEN + 1];
   my_off_t m_trans_end_pos;
   /**@}*/
   // NOTE: Ideally those two should be in Protocol,
@@ -2711,8 +2712,7 @@ class THD : public MDL_context_owner,
       DBUG_PRINT("enter", ("file: %s, pos: %llu", file, pos));
       // Only the file name should be used, not the full path
       m_trans_log_file = file + dirname_length(file);
-      if (!m_trans_fixed_log_file)
-        m_trans_fixed_log_file = (char *)main_mem_root.Alloc(FN_REFLEN + 1);
+      m_trans_fixed_log_file = m_trans_fixed_log_file_buf;
       assert(strlen(m_trans_log_file) <= FN_REFLEN);
       strcpy(m_trans_fixed_log_file, m_trans_log_file);
     } else {

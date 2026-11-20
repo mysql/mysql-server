@@ -1,0 +1,88 @@
+--echo #
+--echo # Bug#121694 Binlog group commit leaks Global_connection_memory until disconnect
+--echo #
+
+# The binlog group commit leader must not leave connection memory charged to
+# the sessions it commits for.
+
+--source include/have_log_bin.inc
+--source include/have_debug_sync.inc
+--source include/count_sessions.inc
+
+SET @saved_query_alloc_block_size = @@global.query_alloc_block_size;
+
+# Small blocks so that a commit can need a new mem_root block.
+SET GLOBAL query_alloc_block_size = 1024;
+
+CREATE TABLE t1 (id INT PRIMARY KEY, c1 VARCHAR(255), c2 BIGINT, c3 VARCHAR(255),
+  c4 BIGINT, c5 VARCHAR(255), c6 MEDIUMTEXT, c7 DATETIME, c8 DATETIME, c9 BIGINT,
+  c10 DATETIME, c11 TINYINT, c12 VARCHAR(255), c13 BIGINT, c14 TEXT);
+
+--connect (con1, localhost, root)
+--connect (con2, localhost, root)
+--connect (con3, localhost, root)
+--connect (con4, localhost, root)
+
+--connection default
+--let $memory_before = query_get_value(SELECT VARIABLE_VALUE AS v FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Global_connection_memory', v, 1)
+
+# Each round commits the four sessions as one group: con1 is held as the
+# flush stage leader before it flushes any cache, until con2-con4 have
+# enrolled in its flush queue (they wait for the leader in
+# "waiting for handler commit").
+--disable_query_log
+--let $i = 100
+while ($i)
+{
+  --let $c = 4
+  while ($c)
+  {
+    --connection con$c
+    BEGIN;
+    --eval INSERT INTO t1 VALUES ($i * 10 + $c, 'ab', 1234567890, 'Lorem', 123456789012, REPEAT('a', 64), 'value', '2024-01-01 00:00:00', '2024-01-01 00:00:00', 9876543210, NULL, 1, 'Lorem ipsum dolor sit amet', NULL, 'lorem') AS new ON DUPLICATE KEY UPDATE c1 = new.c1, c2 = new.c2, c3 = new.c3, c4 = new.c4, c5 = new.c5, c6 = new.c6, c7 = new.c7, c8 = new.c8, c9 = new.c9, c10 = new.c10, c11 = new.c11, c12 = new.c12, c13 = new.c13, c14 = new.c14
+    --dec $c
+  }
+
+  --connection con1
+  SET DEBUG_SYNC = 'waiting_in_the_middle_of_flush_stage SIGNAL leader_parked WAIT_FOR leader_go';
+  --send COMMIT
+  --connection default
+  SET DEBUG_SYNC = 'now WAIT_FOR leader_parked';
+
+  --let $c = 2
+  while ($c <= 4)
+  {
+    --connection con$c
+    --send COMMIT
+    --inc $c
+  }
+  --connection default
+  --let $wait_condition = SELECT COUNT(*) = 4 FROM performance_schema.threads WHERE PROCESSLIST_INFO = 'COMMIT' AND PROCESSLIST_STATE = 'waiting for handler commit'
+  --source include/wait_condition.inc
+  SET DEBUG_SYNC = 'now SIGNAL leader_go';
+
+  --let $c = 4
+  while ($c)
+  {
+    --connection con$c
+    --reap
+    --dec $c
+  }
+  --dec $i
+}
+--enable_query_log
+
+--connection default
+--let $memory_after = query_get_value(SELECT VARIABLE_VALUE AS v FROM performance_schema.global_status WHERE VARIABLE_NAME = 'Global_connection_memory', v, 1)
+--let $assert_text = Group commit does not leave connection memory charged to its sessions
+--let $assert_cond = $memory_after - $memory_before < 65536
+--source include/assert.inc
+
+--disconnect con1
+--disconnect con2
+--disconnect con3
+--disconnect con4
+--source include/wait_until_count_sessions.inc
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+SET GLOBAL query_alloc_block_size = @saved_query_alloc_block_size;
