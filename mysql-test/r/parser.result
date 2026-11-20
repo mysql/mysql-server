@@ -19,7 +19,9 @@ drop table BIT_XOR;
 create table CAST(a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CAST(a int)' at line 1
 create table CAST (a int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CAST (a int)' at line 1
 drop table CAST;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'CAST' at line 1
 create table COUNT(a int);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'COUNT(a int)' at line 1
 create table COUNT (a int);

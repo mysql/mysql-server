@@ -67,6 +67,9 @@ void Shared_dictionary_cache::init() {
       spatial_reference_system_capacity);
   instance()->m_map<Tablespace>()->set_capacity(tablespace_def_size);
   instance()->m_map<Resource_group>()->set_capacity(resource_group_capacity);
+  instance()->m_map<UDT_Type>()->set_capacity(udt_type_capacity);
+  instance()->m_map<UDT_Method>()->set_capacity(udt_method_capacity);
+  instance()->m_map<UDT_Parameter>()->set_capacity(udt_parameter_capacity);
 }
 
 void Shared_dictionary_cache::shutdown() {
@@ -84,6 +87,9 @@ void Shared_dictionary_cache::shutdown() {
   instance()->m_map<Spatial_reference_system>()->shutdown();
   instance()->m_map<Tablespace>()->shutdown();
   instance()->m_map<Resource_group>()->shutdown();
+  instance()->m_map<UDT_Type>()->shutdown();
+  instance()->m_map<UDT_Method>()->shutdown();
+  instance()->m_map<UDT_Parameter>()->shutdown();
   delete s_cache_instance;
   s_cache_instance = nullptr;
 }
@@ -329,6 +335,73 @@ Shared_dictionary_cache::get_uncached<Tablespace::Aux_key, Tablespace>(
     const Tablespace **) const;
 template void Shared_dictionary_cache::put<Tablespace>(
     const Tablespace *, Cache_element<Tablespace> **);
+
+template bool Shared_dictionary_cache::get<UDT_Type::Id_key, UDT_Type>(
+    THD *thd, const UDT_Type::Id_key &, Cache_element<UDT_Type> **);
+template bool Shared_dictionary_cache::get<UDT_Type::Name_key, UDT_Type>(
+    THD *thd, const UDT_Type::Name_key &, Cache_element<UDT_Type> **);
+template bool Shared_dictionary_cache::get<UDT_Type::Aux_key, UDT_Type>(
+    THD *thd, const UDT_Type::Aux_key &, Cache_element<UDT_Type> **);
+template bool Shared_dictionary_cache::get_uncached<UDT_Type::Id_key, UDT_Type>(
+    THD *thd, const UDT_Type::Id_key &, enum_tx_isolation,
+    const UDT_Type **) const;
+template bool Shared_dictionary_cache::get_uncached<
+    UDT_Type::Name_key, UDT_Type>(THD *thd, const UDT_Type::Name_key &,
+                                  enum_tx_isolation, const UDT_Type **) const;
+template bool Shared_dictionary_cache::get_uncached<
+    UDT_Type::Aux_key, UDT_Type>(THD *thd, const UDT_Type::Aux_key &,
+                                 enum_tx_isolation, const UDT_Type **) const;
+template void Shared_dictionary_cache::put<UDT_Type>(
+    const UDT_Type *, Cache_element<UDT_Type> **);
+
+// UDT_Method
+
+template bool Shared_dictionary_cache::get<UDT_Method::Id_key, UDT_Method>(
+    THD *thd, const UDT_Method::Id_key &, Cache_element<UDT_Method> **);
+template bool Shared_dictionary_cache::get<UDT_Method::Name_key, UDT_Method>(
+    THD *thd, const UDT_Method::Name_key &, Cache_element<UDT_Method> **);
+template bool Shared_dictionary_cache::get<UDT_Method::Aux_key, UDT_Method>(
+    THD *thd, const UDT_Method::Aux_key &, Cache_element<UDT_Method> **);
+template bool
+Shared_dictionary_cache::get_uncached<UDT_Method::Id_key, UDT_Method>(
+    THD *thd, const UDT_Method::Id_key &, enum_tx_isolation,
+    const UDT_Method **) const;
+template bool
+Shared_dictionary_cache::get_uncached<UDT_Method::Name_key, UDT_Method>(
+    THD *thd, const UDT_Method::Name_key &, enum_tx_isolation,
+    const UDT_Method **) const;
+template bool
+Shared_dictionary_cache::get_uncached<UDT_Method::Aux_key, UDT_Method>(
+    THD *thd, const UDT_Method::Aux_key &, enum_tx_isolation,
+    const UDT_Method **) const;
+template void Shared_dictionary_cache::put<UDT_Method>(
+    const UDT_Method *, Cache_element<UDT_Method> **);
+
+// UDT_Parameter
+
+template bool
+Shared_dictionary_cache::get<UDT_Parameter::Id_key, UDT_Parameter>(
+    THD *thd, const UDT_Parameter::Id_key &, Cache_element<UDT_Parameter> **);
+template bool
+Shared_dictionary_cache::get<UDT_Parameter::Name_key, UDT_Parameter>(
+    THD *thd, const UDT_Parameter::Name_key &, Cache_element<UDT_Parameter> **);
+template bool
+Shared_dictionary_cache::get<UDT_Parameter::Aux_key, UDT_Parameter>(
+    THD *thd, const UDT_Parameter::Aux_key &, Cache_element<UDT_Parameter> **);
+template bool
+Shared_dictionary_cache::get_uncached<UDT_Parameter::Id_key, UDT_Parameter>(
+    THD *thd, const UDT_Parameter::Id_key &, enum_tx_isolation,
+    const UDT_Parameter **) const;
+template bool
+Shared_dictionary_cache::get_uncached<UDT_Parameter::Name_key, UDT_Parameter>(
+    THD *thd, const UDT_Parameter::Name_key &, enum_tx_isolation,
+    const UDT_Parameter **) const;
+template bool
+Shared_dictionary_cache::get_uncached<UDT_Parameter::Aux_key, UDT_Parameter>(
+    THD *thd, const UDT_Parameter::Aux_key &, enum_tx_isolation,
+    const UDT_Parameter **) const;
+template void Shared_dictionary_cache::put<UDT_Parameter>(
+    const UDT_Parameter *, Cache_element<UDT_Parameter> **);
 
 template bool
 Shared_dictionary_cache::get<Resource_group::Id_key, Resource_group>(

@@ -52,6 +52,9 @@
 #include "sql/dd/impl/types/table_stat_impl.h"
 #include "sql/dd/impl/types/tablespace_file_impl.h"
 #include "sql/dd/impl/types/tablespace_impl.h"
+#include "sql/dd/impl/types/udt_method_impl.h"
+#include "sql/dd/impl/types/udt_parameter_impl.h"
+#include "sql/dd/impl/types/udt_type_impl.h"
 #include "sql/dd/impl/types/view_impl.h"
 
 namespace dd {
@@ -106,6 +109,9 @@ template Table *create_object<Table>();
 template Table_stat *create_object<Table_stat>();
 template Tablespace *create_object<Tablespace>();
 template Tablespace_file *create_object<Tablespace_file>();
+template UDT_Type *create_object<UDT_Type>();
+template UDT_Method *create_object<UDT_Method>();
+template UDT_Parameter *create_object<UDT_Parameter>();
 template View *create_object<View>();
 
 namespace cache {
@@ -135,6 +141,12 @@ template void Object_registry::create_map(
     std::unique_ptr<Local_multi_map<Spatial_reference_system>> *map);
 template void Object_registry::create_map(
     std::unique_ptr<Local_multi_map<Tablespace>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<UDT_Type>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<UDT_Method>> *map);
+template void Object_registry::create_map(
+    std::unique_ptr<Local_multi_map<UDT_Parameter>> *map);
 
 }  // namespace cache
 

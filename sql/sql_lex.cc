@@ -2079,13 +2079,19 @@ static int lex_one_token(Lexer_yystype *yylval, THD *thd) {
         } else
           state = MY_LEX_CHAR;  // Return '*'
         break;
-      case MY_LEX_SET_VAR:  // Check if ':='
-        if (lip->yyPeek() != '=') {
-          state = MY_LEX_CHAR;  // Return ':'
-          break;
+      case MY_LEX_SET_VAR:
+        // Check if ':='
+        if (lip->yyPeek() == '=') {
+          lip->yySkip();
+          return (SET_VAR);
         }
-        lip->yySkip();
-        return (SET_VAR);
+        // Check if '::'
+        if (lip->yyPeek() == ':') {
+          lip->yySkip();
+          return (DOUBLE_COLON_SYM);
+        }
+        state = MY_LEX_CHAR;  // Return ':'
+        break;
       case MY_LEX_SEMICOLON:  // optional line terminator
         state = MY_LEX_CHAR;  // Return ';'
         break;
@@ -5392,6 +5398,9 @@ Acl_type lex_type_to_acl_type(ulong lex_type) {
   }
   if (lex_type == TYPE_ENUM_LIBRARY) {
     return Acl_type::LIBRARY;
+  }
+  if (lex_type == TYPE_ENUM_UDT) {
+    return Acl_type::TYPE;
   }
   assert(false);
   return Acl_type::INVALID_TYPE;

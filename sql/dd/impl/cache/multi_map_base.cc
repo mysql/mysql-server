@@ -36,6 +36,9 @@
 #include "sql/dd/types/schema.h"                    // Schema
 #include "sql/dd/types/spatial_reference_system.h"  // Spatial_reference_system
 #include "sql/dd/types/tablespace.h"                // Tablespace
+#include "sql/dd/types/udt_method.h"                // UDT_Method
+#include "sql/dd/types/udt_parameter.h"             // UDT_Parameter
+#include "sql/dd/types/udt_type.h"                  // UDT_Type
 
 namespace dd::cache {
 
@@ -78,5 +81,8 @@ template class Multi_map_base<Routine>;
 template class Multi_map_base<Schema>;
 template class Multi_map_base<Spatial_reference_system>;
 template class Multi_map_base<Tablespace>;
+template class Multi_map_base<UDT_Type>;
+template class Multi_map_base<UDT_Method>;
+template class Multi_map_base<UDT_Parameter>;
 
 }  // namespace dd::cache

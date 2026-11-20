@@ -73,6 +73,7 @@ static const SYMBOL symbols[] = {
     {SYM("<<", SHIFT_LEFT)},
     {SYM(">>", SHIFT_RIGHT)},
     {SYM("<=>", EQUAL_SYM)},
+    {SYM("::", DOUBLE_COLON_SYM)},
     {SYM("ABSENT", ABSENT_SYM)},
     {SYM("ACCESSIBLE", ACCESSIBLE_SYM)},
     {SYM("ACCOUNT", ACCOUNT_SYM)},
@@ -835,6 +836,20 @@ static const SYMBOL symbols[] = {
     {SYM("ZEROFILL", ZEROFILL_SYM)},
     {SYM("ZONE", ZONE_SYM)},
     {SYM("||", OR_OR_SYM)},
+
+    // Added for User Defined Types
+    {SYM("STATIC", STATIC_SYM)},
+    {SYM("CONSTRUCTOR", CONSTRUCTOR_SYM)},
+    {SYM("METHOD", METHOD_SYM)},
+    {SYM("CALLED", CALLED_SYM)},
+    {SYM("INPUT", INPUT_SYM)},
+    {SYM("ORDERING", ORDERING_SYM)},
+    {SYM("EQUALS", EQUALS_SYM)},
+    {SYM("RELATIVE", RELATIVE_SYM)},
+    {SYM("MAP", MAP_SYM)},
+    {SYM("ASSIGNMENT", ASSIGNMENT_SYM)},
+    {SYM("CAST", CAST_SYM)},
+
     /*
       Place keywords that accept optimizer hints below this comment.
     */
@@ -851,7 +866,6 @@ static const SYMBOL symbols[] = {
     {SYM_FN("BIT_AND", BIT_AND_SYM)},
     {SYM_FN("BIT_OR", BIT_OR_SYM)},
     {SYM_FN("BIT_XOR", BIT_XOR_SYM)},
-    {SYM_FN("CAST", CAST_SYM)},
     {SYM_FN("COUNT", COUNT_SYM)},
     {SYM_FN("CURDATE", CURDATE)},
     {SYM_FN("CURTIME", CURTIME)},
