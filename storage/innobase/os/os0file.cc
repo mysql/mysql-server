@@ -3800,6 +3800,85 @@ static ulint os_file_get_last_error_low(bool report_all_errors,
   return OS_FILE_ERROR_MAX + err;
 }
 
+/** Flushes the parent directory of a path, so that the entry (creation,
+deletion) of the file is persisted. Useful following file creation,
+deletion, and similar directory altering operations.
+Windows counterpart of os_parent_dir_fsync_posix(): FlushFileBuffers()
+requires a handle opened with GENERIC_WRITE, and FILE_FLAG_BACKUP_SEMANTICS
+is what allows opening a directory.
+Windows has no uniform directory-handle access rule: opening a volume root
+directory for writing may be refused with ERROR_ACCESS_DENIED depending on
+the volume ACL, even for an account that can create files there. That single
+case is downgraded to a warning; every other failure stays fatal, as on POSIX.
+@param[in]      path            path of the file whose parent directory
+                                should be flushed */
+static void os_parent_dir_fsync_win(const char *path) {
+  ut_a(path != nullptr && path[0] != '\0');
+
+  auto parent_in_path = os_file_get_parent_dir(path);
+  const char *parent_dir = parent_in_path;
+  char root_dir_name[4];
+  bool parent_is_volume_root = false;
+  if (parent_in_path == nullptr) {
+    /* If there is no parent dir in the path, then the real parent is
+    either the current directory, or a volume root directory. */
+    if (path[1] == ':' &&
+        (path[2] == OS_PATH_SEPARATOR || path[2] == OS_PATH_SEPARATOR_ALT ||
+         path[2] == '\0')) {
+      /* A file directly in a volume root, e.g. "D:\ibdata1". */
+      root_dir_name[0] = path[0];
+      root_dir_name[1] = ':';
+      root_dir_name[2] = OS_PATH_SEPARATOR;
+      root_dir_name[3] = '\0';
+      parent_dir = root_dir_name;
+      parent_is_volume_root = true;
+    } else {
+      /* A file in the current directory. */
+      static const char cur_dir_name[] = {FN_CURLIB, 0};
+      parent_dir = cur_dir_name;
+    }
+  }
+
+  /* Open the parent directory */
+  HANDLE dir_handle =
+      CreateFile(parent_dir, GENERIC_WRITE,
+                 FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
+                 nullptr, OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, nullptr);
+
+  if (dir_handle == INVALID_HANDLE_VALUE) {
+    const DWORD open_error = GetLastError();
+
+    /* A volume root may refuse a GENERIC_WRITE open depending on its ACL.
+    That is a Windows-specific access restriction, not an I/O failure, so
+    prefer availability over aborting the server: warn and continue without
+    the parent directory flush. */
+    if (parent_is_volume_root && open_error == ERROR_ACCESS_DENIED) {
+      ib::warn(ER_IB_MSG_PARENT_DIR_FLUSH_SKIPPED, parent_dir,
+               static_cast<ulong>(open_error));
+
+      if (parent_in_path != nullptr) {
+        ut::free(parent_in_path);
+      }
+
+      return;
+    }
+
+    /* Anything else -- missing parent directory, ACL problems on a regular
+    directory, ... -- is a real error. */
+    ut_a(dir_handle != INVALID_HANDLE_VALUE);
+  }
+
+  if (parent_in_path != nullptr) {
+    ut::free(parent_in_path);
+  }
+
+  auto ret = FlushFileBuffers(dir_handle);
+
+  ut_a(ret != 0);
+
+  CloseHandle(dir_handle);
+}
+
 /** This function attempts to create a directory named pathname. The new
 directory gets default permissions. On Unix the permissions are
 (0770 & ~umask). If the directory exists already, nothing is done and
@@ -3819,6 +3898,10 @@ bool os_file_create_directory(const char *pathname, bool fail_if_exists) {
     os_file_handle_error_no_exit(pathname, "CreateDirectory", false);
 
     return (false);
+  }
+
+  if (rcode != 0) {
+    os_parent_dir_fsync_win(pathname);
   }
 
   return (true);
@@ -4029,6 +4112,10 @@ pfs_os_file_t os_file_create_func(const char *name, ulint create_mode,
 
   } while (retry);
 
+  if (*success && create_flag == CREATE_NEW) {
+    os_parent_dir_fsync_win(name);
+  }
+
   return (file);
 }
 
@@ -4106,6 +4193,10 @@ pfs_os_file_t os_file_create_simple_no_error_handling_func(const char *name,
                     &temp, nullptr);
   }
 
+  if (*success && create_mode == OS_FILE_CREATE) {
+    os_parent_dir_fsync_win(name);
+  }
+
   return (file);
 }
 
@@ -4154,6 +4245,8 @@ bool os_file_delete_if_exists_func(const char *name, bool *exist) {
     bool ret = DeleteFile((LPCTSTR)name_to_delete);
 
     if (ret) {
+      /* Persist the change of the directory's content. */
+      os_parent_dir_fsync_win(name);
       return (true);
     }
 
