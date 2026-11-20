@@ -1,0 +1,78 @@
+SET @saved_debug = @@SESSION.debug;
+SET SESSION debug = '+d,skip_dd_table_access_check';
+CREATE DATABASE duplicate_gap_a;
+CREATE DATABASE duplicate_gap_z;
+SELECT catalog_id, default_collation_id INTO @catalog_id, @collation_id
+FROM mysql.schemata WHERE name = 'duplicate_gap_z';
+SET SESSION debug = '+d,skip_dd_table_access_check';
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT name FROM mysql.schemata WHERE name = 'duplicate_gap_a';
+name
+duplicate_gap_a
+SET SESSION debug = '+d,skip_dd_table_access_check';
+SELECT catalog_id INTO @catalog_id
+FROM mysql.schemata WHERE name = 'duplicate_gap_z';
+DROP DATABASE duplicate_gap_a;
+BEGIN;
+INSERT INTO mysql.schemata (catalog_id, name, default_collation_id, created, last_altered, default_encryption) VALUES (@catalog_id, 'duplicate_gap_a', @collation_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'NO') ;
+SELECT COUNT(*) = 1 AS matching_record_locked FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = 'mysql' AND OBJECT_NAME = 'schemata' AND INDEX_NAME = 'catalog_id' AND LOCK_MODE = 'S,REC_NOT_GAP';
+matching_record_locked
+1
+SELECT COUNT(*) = 0 AS no_gap_locks
+FROM performance_schema.data_locks
+WHERE OBJECT_SCHEMA = 'mysql' AND OBJECT_NAME = 'schemata'
+      AND INDEX_NAME = 'catalog_id'
+      AND LOCK_MODE NOT IN ('S,REC_NOT_GAP', 'X,REC_NOT_GAP');
+no_gap_locks
+1
+BEGIN;
+SELECT name FROM mysql.schemata
+WHERE catalog_id = @catalog_id AND name = 'duplicate_gap_z'
+    FOR UPDATE NOWAIT;
+name
+duplicate_gap_z
+ROLLBACK;
+ROLLBACK;
+BEGIN;
+REPLACE INTO mysql.schemata (catalog_id, name, default_collation_id, created, last_altered, default_encryption) VALUES (@catalog_id, 'duplicate_gap_a', @collation_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'NO') ;
+SELECT COUNT(*) = 1 AS matching_record_locked FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = 'mysql' AND OBJECT_NAME = 'schemata' AND INDEX_NAME = 'catalog_id' AND LOCK_MODE = 'X,REC_NOT_GAP';
+matching_record_locked
+1
+SELECT COUNT(*) = 0 AS no_gap_locks
+FROM performance_schema.data_locks
+WHERE OBJECT_SCHEMA = 'mysql' AND OBJECT_NAME = 'schemata'
+      AND INDEX_NAME = 'catalog_id'
+      AND LOCK_MODE NOT IN ('S,REC_NOT_GAP', 'X,REC_NOT_GAP');
+no_gap_locks
+1
+BEGIN;
+SELECT name FROM mysql.schemata
+WHERE catalog_id = @catalog_id AND name = 'duplicate_gap_z'
+    FOR UPDATE NOWAIT;
+name
+duplicate_gap_z
+ROLLBACK;
+ROLLBACK;
+BEGIN;
+INSERT INTO mysql.schemata (catalog_id, name, default_collation_id, created, last_altered, default_encryption) VALUES (@catalog_id, 'duplicate_gap_a', @collation_id, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'NO') ON DUPLICATE KEY UPDATE name='duplicate_gap_a';
+SELECT COUNT(*) = 1 AS matching_record_locked FROM performance_schema.data_locks WHERE OBJECT_SCHEMA = 'mysql' AND OBJECT_NAME = 'schemata' AND INDEX_NAME = 'catalog_id' AND LOCK_MODE = 'X,REC_NOT_GAP';
+matching_record_locked
+1
+SELECT COUNT(*) = 0 AS no_gap_locks
+FROM performance_schema.data_locks
+WHERE OBJECT_SCHEMA = 'mysql' AND OBJECT_NAME = 'schemata'
+      AND INDEX_NAME = 'catalog_id'
+      AND LOCK_MODE NOT IN ('S,REC_NOT_GAP', 'X,REC_NOT_GAP');
+no_gap_locks
+1
+BEGIN;
+SELECT name FROM mysql.schemata
+WHERE catalog_id = @catalog_id AND name = 'duplicate_gap_z'
+    FOR UPDATE NOWAIT;
+name
+duplicate_gap_z
+ROLLBACK;
+ROLLBACK;
+ROLLBACK;
+DROP DATABASE duplicate_gap_z;
+SET SESSION debug = @saved_debug;
