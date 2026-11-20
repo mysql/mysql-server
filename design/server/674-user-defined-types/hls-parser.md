@@ -52,6 +52,11 @@
   ;
 ```
 
+The CONSTRUCTOR syntax is supported in the parser,
+but rejected for distinct types.
+This option is only meaningful for structured types,
+which are not implemented.
+
 ```bison
 <method_specification>:
     <partial_method_specification> <opt_method_characteristics>
@@ -225,6 +230,106 @@ For example:
 
 ```sql
   DROP TYPE `complex`;
+```
+
+# CREATE ORDERING statement
+
+This statement amends a type definition to declare if/how to compare values,
+for equality only, of for a total order.
+
+Ordering can imply a B-tree (RELATIVE) of a Hash (MAP).
+
+```bison
+<create_ordering_stmt>:
+    CREATE ORDERING FOR <type_ident>
+    <ordering_form> <ordering_category> <specific_routine_designator>
+  ;
+```
+
+```bison
+<ordering_form>:
+    EQUALS ONLY BY
+  | ORDER FULL BY
+  ;
+```
+
+```bison
+<ordering_category>:
+    RELATIVE WITH
+  | MAP WITH
+  | STATE
+  ;
+```
+
+The STATE syntax is supported in the parser,
+but rejected for distinct types.
+This option is only meaningful for structured types,
+which are not implemented.
+
+```bison
+<specific_routine_designator>:
+    <opt_method_kind> METHOD <ident> FOR <type_ident>
+  ;
+```
+
+Examples of use:
+
+```sql
+ALTER TYPE math.complex_number ADD
+  STATIC METHOD `compare` ( math.complex_number, math.complex_number )
+    RETURNS INTEGER;
+
+CREATE ORDERING FOR math.complex_number
+  EQUALS ONLY BY
+  RELATIVE WITH
+  STATIC METHOD compare FOR math.complex_number
+  ;
+```
+
+This ordering indicates that type math.complex_number
+only supports equality comparisons,
+to evaluate with the compare() method provided by the type implementation.
+
+```sql
+  SELECT ... WHERE (z_x = z_y)
+```
+
+is a legal expression for complex numbers.
+
+```sql
+ALTER TYPE net.ipv6 ADD
+  STATIC METHOD `compare` ( net.ipv6, net.ipv6 )
+    RETURNS INTEGER;
+
+CREATE ORDERING FOR net.ipv6
+  ORDER FULL BY
+  RELATIVE WITH
+  STATIC METHOD compare FOR net.ipv6
+  ;
+```
+
+This ordering indicates that type net.ipv6
+supports a total order,
+to evaluate with the compare() method provided by the type implementation.
+
+```sql
+  SELECT ... WHERE (ip_x <= ip_y)
+```
+
+is a legal expression for ip addresses.
+
+# DROP ORDERING statement
+
+```bison
+<drop_ordering_stmt>:
+    DROP ORDERING FOR <type_ident>
+  ;
+```
+
+For example:
+
+```sql
+  DROP ORDERING FOR math.complex_number;
 ```
 
 # GRANT statement
