@@ -1,0 +1,116 @@
+# Commit B before A to advance the replica's shared AUTO_INCREMENT counter
+# before replaying A's mix of generated and explicit values.
+--source include/have_binlog_format_statement.inc
+--source include/rpl/init_source_replica.inc
+
+--disable_query_log
+SET SESSION sql_log_bin=0;
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+SET SESSION sql_log_bin=1;
+--connection slave
+SET SESSION sql_log_bin=0;
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format');
+SET SESSION sql_log_bin=1;
+--connection master
+--enable_query_log
+
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, tag VARCHAR(8)) ENGINE=InnoDB;
+--source include/rpl/sync_to_replica.inc
+--connection master
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL, 'a1'), (100, 'explicit'), (NULL, 'a2');
+--connection master1
+INSERT INTO t1(tag) VALUES ('b');
+--connection master
+COMMIT;
+SELECT id, tag FROM t1 ORDER BY id;
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables=master:t1,slave:t1
+--source include/diff_tables.inc
+
+# More than one jump, with a non-default increment and offset.
+--connection master
+CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY, tag VARCHAR(8)) ENGINE=InnoDB;
+--source include/rpl/sync_to_replica.inc
+--connection master
+SET SESSION auto_increment_increment=3, auto_increment_offset=2;
+START TRANSACTION;
+INSERT INTO t2 VALUES
+  (NULL, 'a1'), (100, 'e1'), (NULL, 'a2'), (200, 'e2'), (NULL, 'a3');
+--connection master1
+INSERT INTO t2(tag) VALUES ('b');
+--connection master
+COMMIT;
+SELECT id, tag FROM t2 ORDER BY id;
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables=master:t2,slave:t2
+--source include/diff_tables.inc
+
+# Only one value remains reserved after the jump. Updating the duplicate
+# row to the excluded upper bound must not raise ER_AUTO_INCREMENT_CONFLICT.
+# Preload a higher counter and use SET INSERT_ID to avoid concurrent inserts
+# waiting on the gap locks taken by ON DUPLICATE KEY UPDATE.
+--connection master
+SET SESSION auto_increment_increment=1, auto_increment_offset=1;
+CREATE TABLE t3 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  tag VARCHAR(8) UNIQUE
+) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (-1, 'dup'), (1000, 'b');
+--source include/rpl/sync_to_replica.inc
+--connection master
+SET INSERT_ID=1;
+--disable_warnings
+INSERT INTO t3 VALUES (NULL, 'a1'), (100, 'explicit'), (NULL, 'dup')
+  ON DUPLICATE KEY UPDATE id=102;
+--enable_warnings
+SELECT id, tag FROM t3 ORDER BY id;
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables=master:t3,slave:t3
+--source include/diff_tables.inc
+
+# The old interval must no longer participate in the UPDATE conflict check
+# after the explicit value has advanced the cursor to another interval.
+--connection master
+CREATE TABLE t4 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  tag VARCHAR(8) UNIQUE
+) ENGINE=InnoDB;
+INSERT INTO t4 VALUES (-1, 'dup'), (1000, 'b');
+--source include/rpl/sync_to_replica.inc
+--connection master
+SET INSERT_ID=1;
+--disable_warnings
+INSERT INTO t4 VALUES (NULL, 'a1'), (100, 'explicit'), (NULL, 'dup')
+  ON DUPLICATE KEY UPDATE id=2;
+--enable_warnings
+SELECT id, tag FROM t4 ORDER BY id;
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables=master:t4,slave:t4
+--source include/diff_tables.inc
+
+# Combine an explicit jump with overflow of the subsequent excluded bound.
+--connection master
+CREATE TABLE t5 (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  tag VARCHAR(8)
+) ENGINE=InnoDB AUTO_INCREMENT=18446744073709551595;
+--source include/rpl/sync_to_replica.inc
+--connection master
+SET SESSION auto_increment_increment=3, auto_increment_offset=1;
+START TRANSACTION;
+INSERT INTO t5 VALUES
+  (NULL, 'a1'), (18446744073709551610, 'explicit'), (NULL, 'a2');
+--connection master1
+INSERT INTO t5 VALUES (18446744073709551614, 'b');
+--connection master
+COMMIT;
+SELECT id, tag FROM t5 ORDER BY id;
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables=master:t5,slave:t5
+--source include/diff_tables.inc
+
+--connection master
+SET SESSION auto_increment_increment=1, auto_increment_offset=1;
+DROP TABLE t1, t2, t3, t4, t5;
+--source include/rpl/deinit.inc

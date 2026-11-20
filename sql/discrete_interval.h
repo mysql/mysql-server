@@ -54,7 +54,16 @@ class Discrete_interval {
   void replace(ulonglong start, ulonglong val, ulonglong incr) {
     interval_min = start;
     interval_values = val;
-    interval_max = (val == ULLONG_MAX) ? val : start + val * incr;
+    /*
+      The excluded upper bound may overflow even when every value in the
+      interval is representable. Saturate it at ULLONG_MAX, which is also
+      used for an unbounded interval, instead of wrapping around.
+    */
+    if (val == ULLONG_MAX || (incr != 0 && val > (ULLONG_MAX - start) / incr)) {
+      interval_max = ULLONG_MAX;
+    } else {
+      interval_max = start + val * incr;
+    }
   }
   Discrete_interval(ulonglong start, ulonglong val, ulonglong incr)
       : next(nullptr) {
@@ -71,12 +80,12 @@ class Discrete_interval {
   */
   bool merge_if_contiguous(ulonglong start, ulonglong val, ulonglong incr) {
     if (interval_max == start) {
-      if (val == ULLONG_MAX) {
-        interval_values = interval_max = val;
+      if (val >= ULLONG_MAX - interval_values) {
+        interval_values = ULLONG_MAX;
       } else {
         interval_values += val;
-        interval_max = start + val * incr;
       }
+      replace(interval_min, interval_values, incr);
       return false;
     }
     return true;

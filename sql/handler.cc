@@ -3903,6 +3903,7 @@ inline ulonglong prev_insert_id(ulonglong nr,
 int handler::update_auto_increment() {
   ulonglong nr, nb_reserved_values = 0;
   bool append = false;
+  bool forced_interval = false;
   THD *thd = table->in_use;
   struct System_variables *variables = &thd->variables;
   assert(table_share->tmp_table != NO_TMP_TABLE || m_lock_type != F_UNLCK);
@@ -3945,6 +3946,9 @@ int handler::update_auto_increment() {
     if (table->next_number_field->is_unsigned() || ((longlong)nr) > 0)
       adjust_next_insert_id_after_explicit_value(nr);
 
+    if (m_auto_inc_forced_rows_remaining > 0 &&
+        m_auto_inc_forced_rows_remaining != ULLONG_MAX)
+      --m_auto_inc_forced_rows_remaining;
     insert_id_for_cur_row = 0;  // didn't generate anything
     return 0;
   }
@@ -3956,6 +3960,7 @@ int handler::update_auto_increment() {
     /* next_insert_id is beyond what is reserved, so we reserve more. */
     const Discrete_interval *forced = thd->auto_inc_intervals_forced.get_next();
     if (forced != nullptr) {
+      forced_interval = true;
       nr = forced->minimum();
       /*
         In a multi insert statement when the number of affected rows is known
@@ -4006,21 +4011,36 @@ int handler::update_auto_increment() {
         } else
           nb_desired_values = AUTO_INC_DEFAULT_NB_MAX;
       }
-      /* This call ignores all its parameters but nr, currently */
-      get_auto_increment(variables->auto_increment_offset,
-                         variables->auto_increment_increment, nb_desired_values,
-                         &nr, &nb_reserved_values);
-      if (nr == ULLONG_MAX) return HA_ERR_AUTOINC_READ_FAILED;  // Mark failure
+      if (m_auto_inc_interval_forced) {
+        /*
+          INSERT_ID supplies the start of the statement's sequence, not the
+          table's current counter. After an explicit value advances the
+          cursor beyond the reservation, continue the forced sequence.
+          Reserve only the remaining rows so that ON DUPLICATE KEY UPDATE
+          does not treat unrelated values as reserved (Bug#17588419).
+        */
+        forced_interval = true;
+        nb_reserved_values = (m_auto_inc_forced_rows_remaining > 0)
+                                 ? m_auto_inc_forced_rows_remaining
+                                 : nb_desired_values;
+      } else {
+        /* This call ignores all its parameters but nr, currently */
+        get_auto_increment(variables->auto_increment_offset,
+                           variables->auto_increment_increment,
+                           nb_desired_values, &nr, &nb_reserved_values);
+        if (nr == ULLONG_MAX)
+          return HA_ERR_AUTOINC_READ_FAILED;  // Mark failure
 
-      /*
-        That rounding below should not be needed when all engines actually
-        respect offset and increment in get_auto_increment(). But they don't
-        so we still do it. Wonder if for the not-first-in-index we should do
-        it. Hope that this rounding didn't push us out of the interval; even
-        if it did we cannot do anything about it (calling the engine again
-        will not help as we inserted no row).
-      */
-      nr = compute_next_insert_id(nr - 1, variables);
+        /*
+          That rounding below should not be needed when all engines actually
+          respect offset and increment in get_auto_increment(). But they don't
+          so we still do it. Wonder if for the not-first-in-index we should do
+          it. Hope that this rounding didn't push us out of the interval; even
+          if it did we cannot do anything about it (calling the engine again
+          will not help as we inserted no row).
+        */
+        nr = compute_next_insert_id(nr - 1, variables);
+      }
     }
 
     if (table->s->next_number_keypart == 0) {
@@ -4064,6 +4084,8 @@ int handler::update_auto_increment() {
   if (append) {
     auto_inc_interval_for_cur_row.replace(nr, nb_reserved_values,
                                           variables->auto_increment_increment);
+    m_auto_inc_interval_forced = forced_interval;
+    m_auto_inc_forced_rows_remaining = forced_interval ? nb_reserved_values : 0;
     auto_inc_intervals_count++;
     /* Row-based replication does not need to store intervals in binlog */
     if (mysql_bin_log.is_open() && !thd->is_current_stmt_binlog_format_row())
@@ -4086,6 +4108,9 @@ int handler::update_auto_increment() {
     handle multi-row statements.
   */
   set_next_insert_id(compute_next_insert_id(nr, variables));
+  if (m_auto_inc_forced_rows_remaining > 0 &&
+      m_auto_inc_forced_rows_remaining != ULLONG_MAX)
+    --m_auto_inc_forced_rows_remaining;
 
   return 0;
 }
@@ -4197,6 +4222,8 @@ void handler::ha_release_auto_increment() {
   insert_id_for_cur_row = 0;
   auto_inc_interval_for_cur_row.replace(0, 0, 0);
   auto_inc_intervals_count = 0;
+  m_auto_inc_interval_forced = false;
+  m_auto_inc_forced_rows_remaining = 0;
   if (next_insert_id > 0) {
     next_insert_id = 0;
     /*
