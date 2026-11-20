@@ -1,0 +1,12 @@
+SELECT @@session.binlog_snapshot_gtid_executed;
+@@session.binlog_snapshot_gtid_executed
+NULL
+SELECT @@binlog_snapshot_gtid_executed;
+@@binlog_snapshot_gtid_executed
+NULL
+SELECT @@global.binlog_snapshot_gtid_executed;
+ERROR HY000: Variable 'binlog_snapshot_gtid_executed' is a SESSION variable
+SET @@session.binlog_snapshot_gtid_executed = 'a';
+ERROR HY000: Variable 'binlog_snapshot_gtid_executed' is a read only variable
+SET @@global.binlog_snapshot_gtid_executed = 'a';
+ERROR HY000: Variable 'binlog_snapshot_gtid_executed' is a read only variable

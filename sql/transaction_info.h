@@ -26,6 +26,7 @@
 
 #include <stddef.h>
 #include <sys/types.h>
+#include <string>
 
 #include "my_alloc.h"
 #include "my_dbug.h"
@@ -203,6 +204,19 @@ class Transaction_ctx {
     bool real_commit{false};  // Is this a "real" commit?
     bool commit_low{false};   // see MYSQL_BIN_LOG::ordered_commit
     bool run_hooks{false};    // Call the after_commit hook
+    /*
+      The session commits outside of the binlog commit stage
+      (binlog_order_commits=0) and is counted in
+      MYSQL_BIN_LOG::m_unordered_commits_in_flight until it updates
+      GTID_EXECUTED. See MYSQL_BIN_LOG::start_consistent_snapshot().
+    */
+    bool unordered_commit_tracked{false};
+    /*
+      The session takes the ordered path (commit stage), and is counted in
+      MYSQL_BIN_LOG::m_ordered_commits until it is committed in the
+      engines.
+    */
+    bool ordered_commit_tracked{false};
 #ifndef NDEBUG
     bool ready_preempt{false};  // internal in MYSQL_BIN_LOG::ordered_commit
 #endif
@@ -251,7 +265,50 @@ class Transaction_ctx {
 
     /// Clear the registered engine
     tracker.clear_known_engine();
+
+    m_has_consistent_snapshot = false;
+    m_has_consistent_snapshot_gtids = false;
+    m_consistent_snapshot_gtids.clear();
+    m_consistent_snapshot_file.clear();
+    m_consistent_snapshot_pos = 0;
     return;
+  }
+
+  /**
+    Remember the GTID_EXECUTED captured together with the read view of
+    START TRANSACTION WITH CONSISTENT SNAPSHOT. Cleared when the
+    transaction ends. Shown by @@binlog_snapshot_gtid_executed.
+  */
+  void set_consistent_snapshot_gtids(const char *gtids) {
+    m_has_consistent_snapshot_gtids = true;
+    m_consistent_snapshot_gtids.assign(gtids);
+  }
+  /** @return true if the GTID set of the snapshot was captured. */
+  bool has_consistent_snapshot_gtids() const {
+    return m_has_consistent_snapshot_gtids;
+  }
+  const std::string &consistent_snapshot_gtids() const {
+    return m_consistent_snapshot_gtids;
+  }
+
+  /**
+    Remember the binary log coordinates that match the read view of
+    START TRANSACTION WITH CONSISTENT SNAPSHOT: the end of the last
+    transaction it can see. Cleared when the transaction ends. Shown by
+    @@binlog_snapshot_file and @@binlog_snapshot_position.
+  */
+  void set_consistent_snapshot_coordinates(const char *file, ulonglong pos) {
+    m_has_consistent_snapshot = true;
+    m_consistent_snapshot_file.assign(file);
+    m_consistent_snapshot_pos = pos;
+  }
+  /** @return true if the binary log coordinates were captured. */
+  bool has_consistent_snapshot() const { return m_has_consistent_snapshot; }
+  const std::string &consistent_snapshot_file() const {
+    return m_consistent_snapshot_file;
+  }
+  ulonglong consistent_snapshot_pos() const {
+    return m_consistent_snapshot_pos;
   }
 
   void cleanup_transaction();
@@ -403,6 +460,11 @@ class Transaction_ctx {
   Rpl_transaction_ctx m_rpl_transaction_ctx;
   Rpl_transaction_write_set_ctx m_transaction_write_set_ctx;
   bool trans_begin_hook_invoked;
+  bool m_has_consistent_snapshot{false};
+  bool m_has_consistent_snapshot_gtids{false};
+  std::string m_consistent_snapshot_gtids;
+  std::string m_consistent_snapshot_file;
+  ulonglong m_consistent_snapshot_pos{0};
 
  public:
   Engine_combination_tracker tracker;

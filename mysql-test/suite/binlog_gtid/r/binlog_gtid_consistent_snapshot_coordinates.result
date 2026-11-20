@@ -1,0 +1,140 @@
+RESET BINARY LOGS AND GTIDS;
+#
+# R1: nothing committed after RESET
+#
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+include/assert.inc [R1: file is the current binary log]
+include/assert.inc [R1: position is the current end]
+COMMIT;
+#
+# R2: no commit in progress
+#
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+include/assert.inc [R2: position is the current end]
+COMMIT;
+#
+# R3: binlog_order_commits=1, a synced transaction waiting for
+#     LOCK_commit is not included
+#
+SET GLOBAL binlog_order_commits = 1;
+SET DEBUG_SYNC = 'consistent_snapshot_under_lock_commit SIGNAL snapshot_locked WAIT_FOR continue_snapshot';
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SET DEBUG_SYNC = 'now WAIT_FOR snapshot_locked';
+INSERT INTO t1 VALUES (2);
+include/assert.inc [R3: the transaction is already in the binary log]
+SET DEBUG_SYNC = 'now SIGNAL continue_snapshot';
+SELECT * FROM t1;
+c1
+1
+include/assert.inc [R3: position does not include the transaction]
+COMMIT;
+#
+# R4: binlog_order_commits=0, a transaction committed outside
+#     LOCK_commit is included
+#
+SET GLOBAL binlog_order_commits = 0;
+INSERT INTO t1 VALUES (3);
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT * FROM t1;
+c1
+1
+2
+3
+include/assert.inc [R4: position includes the transaction]
+COMMIT;
+#
+# R5: binlog_order_commits=0, the snapshot waits for a commit in
+#     flight and includes it
+#
+SET DEBUG_SYNC = 'unordered_commit_after_engines_before_gtid_update SIGNAL engines_done WAIT_FOR continue_commit';
+INSERT INTO t1 VALUES (4);
+SET DEBUG_SYNC = 'now WAIT_FOR engines_done';
+SET DEBUG_SYNC = 'consistent_snapshot_before_wait_unordered SIGNAL snapshot_waiting';
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SET DEBUG_SYNC = 'now WAIT_FOR snapshot_waiting';
+SET DEBUG_SYNC = 'now SIGNAL continue_commit';
+SELECT * FROM t1;
+c1
+1
+2
+3
+4
+include/assert.inc [R5: position includes the transaction]
+COMMIT;
+#
+# R6: rotation without a new commit
+#
+SET GLOBAL binlog_order_commits = 1;
+FLUSH BINARY LOGS;
+PURGE BINARY LOGS TO 'binlog.000002';
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+include/assert.inc [R6: file is the new binary log]
+include/assert.inc [R6: position is the start of the new file]
+#
+# R7: cleared when the transaction ends
+#
+COMMIT;
+SELECT @@binlog_snapshot_file, @@binlog_snapshot_position;
+@@binlog_snapshot_file	@@binlog_snapshot_position
+NULL	0
+#
+# R8: binlog_order_commits=0, a later transaction stays behind a
+#     transaction forced onto the ordered path
+#
+SET GLOBAL binlog_order_commits = 0;
+# Snapshot S1 holds LOCK_commit
+SET DEBUG_SYNC = 'consistent_snapshot_under_lock_commit SIGNAL s1_locked WAIT_FOR s1_continue';
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+# A is forced onto the ordered path; pause it before LOCK_commit
+SET DEBUG_SYNC = 'now WAIT_FOR s1_locked';
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_commit_stage SIGNAL a_enrolled WAIT_FOR a_continue';
+INSERT INTO t1 VALUES (5);
+SET DEBUG_SYNC = 'now WAIT_FOR a_enrolled';
+SET DEBUG_SYNC = 'now SIGNAL s1_continue';
+COMMIT;
+# B: no snapshot is running, but A is not committed yet
+INSERT INTO t1 VALUES (6);
+# B either waits behind A in the commit queue, or (bug) commits
+# Snapshot S2 while A is not visible
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT * FROM t1;
+c1
+1
+2
+3
+4
+include/assert.inc [R8: position ends before A]
+COMMIT;
+SET DEBUG_SYNC = 'now SIGNAL a_continue';
+#
+# R9: binlog_order_commits changes from 1 to 0 while a transaction is
+#     on the ordered path
+#
+SET GLOBAL binlog_order_commits = 1;
+# A takes the ordered path; pause it before LOCK_commit
+SET DEBUG_SYNC = 'bgc_after_enrolling_for_commit_stage SIGNAL a_enrolled WAIT_FOR a_continue';
+INSERT INTO t1 VALUES (7);
+SET DEBUG_SYNC = 'now WAIT_FOR a_enrolled';
+SET GLOBAL binlog_order_commits = 0;
+# B: binlog_order_commits=0, but A is not committed yet
+INSERT INTO t1 VALUES (8);
+# B either waits behind A in the commit queue, or (bug) commits
+# Snapshot while A is not visible
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT * FROM t1;
+c1
+1
+2
+3
+4
+5
+6
+include/assert.inc [R9: position ends before A]
+COMMIT;
+SET DEBUG_SYNC = 'now SIGNAL a_continue';
+SET GLOBAL binlog_order_commits = 1;
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;

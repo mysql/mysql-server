@@ -1,0 +1,141 @@
+# ==== Purpose ====
+#
+# Verify the @@binlog_snapshot_gtid_executed system variable.
+#
+# ==== Requirements ====
+#
+# R1. Outside START TRANSACTION WITH CONSISTENT SNAPSHOT the variable is
+#     NULL.
+# R2. Inside it, the variable shows the GTID set that matches the read
+#     view, also when session_track_gtids is OFF.
+# R3. The value does not change while the transaction runs, even when
+#     other sessions commit.
+# R4. COMMIT and ROLLBACK clear the value.
+# R5. A plain transaction and READ COMMITTED take no snapshot GTID set.
+# R6. A commit visible in InnoDB but not yet in GTID_EXECUTED makes the
+#     snapshot wait, so the value matches the read view.
+# R7. A long set (more than 1024 bytes) is returned in full.
+# R8. Other sessions cannot read the system variable.
+#
+# ==== Implementation ====
+#
+# Read the variable in each state. For R6, pause a commit
+# after the engines and before GTID_EXECUTED is updated.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/count_sessions.inc
+
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+--connection con2
+SET SESSION session_track_gtids = 'OFF';
+
+--echo #
+--echo # R1: no snapshot
+--echo #
+SELECT @@binlog_snapshot_gtid_executed;
+
+--echo #
+--echo # R2, R3: the value is the snapshot set and stays the same
+--echo #
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT @@binlog_snapshot_gtid_executed;
+--connection con1
+INSERT INTO t1 VALUES (1);
+--connection con2
+SELECT * FROM t1;
+SELECT @@binlog_snapshot_gtid_executed;
+
+--echo #
+--echo # R4: COMMIT and ROLLBACK clear the value
+--echo #
+COMMIT;
+SELECT @@binlog_snapshot_gtid_executed;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT @@binlog_snapshot_gtid_executed;
+ROLLBACK;
+SELECT @@binlog_snapshot_gtid_executed;
+
+--echo #
+--echo # R5: plain transaction and READ COMMITTED
+--echo #
+BEGIN;
+SELECT * FROM t1;
+SELECT @@binlog_snapshot_gtid_executed;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT @@binlog_snapshot_gtid_executed;
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+--echo #
+--echo # R6: a commit is visible in InnoDB, its GTID is not in GTID_EXECUTED yet
+--echo #
+--connection con1
+SET DEBUG_SYNC = 'bgc_after_commit_in_engines_before_gtid_update SIGNAL engines_done WAIT_FOR continue_commit';
+--send INSERT INTO t1 VALUES (2)
+
+--connection con2
+--let $con2_id = `SELECT CONNECTION_ID()`
+SET DEBUG_SYNC = 'now WAIT_FOR engines_done';
+--send START TRANSACTION WITH CONSISTENT SNAPSHOT
+
+--connection default
+--echo # The snapshot cannot finish while the commit holds LOCK_commit
+--let $wait_condition = SELECT COUNT(*) = 1 FROM performance_schema.threads T, performance_schema.events_waits_current W WHERE T.THREAD_ID = W.THREAD_ID AND W.EVENT_NAME LIKE '%MYSQL_BIN_LOG::LOCK_commit' AND T.PROCESSLIST_ID = $con2_id
+--source include/wait_condition.inc
+SET DEBUG_SYNC = 'now SIGNAL continue_commit';
+
+--connection con1
+--reap
+
+--echo # Must show GTID:1-3 and see both rows
+--connection con2
+--reap
+SELECT @@binlog_snapshot_gtid_executed;
+SELECT * FROM t1;
+COMMIT;
+
+--echo #
+--echo # R7: a set longer than 1024 bytes
+--echo #
+--disable_query_log
+--let $i = 0
+while ($i < 40) {
+  --let $uuid = `SELECT CONCAT('aaaaaaaa-aaaa-aaaa-aaaa-', LPAD($i, 12, '0'))`
+  --eval SET GTID_NEXT = '$uuid:1'
+  COMMIT;
+  --inc $i
+}
+SET GTID_NEXT = 'AUTOMATIC';
+--enable_query_log
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+SELECT LENGTH(@@binlog_snapshot_gtid_executed) > 1024 AS long_set;
+SELECT @@binlog_snapshot_gtid_executed = @@global.gtid_executed AS full_set;
+
+--echo #
+--echo # R8: other sessions get NULL
+--echo #
+--connection default
+--replace_column 1 #
+--replace_result $con2_id CON2_ID
+--eval SELECT THREAD_ID, VARIABLE_VALUE FROM performance_schema.variables_by_thread WHERE VARIABLE_NAME = 'binlog_snapshot_gtid_executed' AND THREAD_ID = (SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = $con2_id)
+
+--connection con2
+COMMIT;
+
+# Cleanup
+--connection default
+--disconnect con1
+--disconnect con2
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;
+--source include/wait_until_count_sessions.inc
