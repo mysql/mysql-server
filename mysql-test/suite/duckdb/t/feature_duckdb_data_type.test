@@ -1,0 +1,172 @@
+# Feature ORC data type test
+
+# Prepare
+
+create database mytest;
+use mytest;
+
+# 1. Numeric data types
+-- echo
+-- echo Numeric data type test
+-- echo signed Numeric data type
+-- echo check data consistency
+CREATE TABLE t1 (
+  id int PRIMARY KEY,
+  col1 int,
+  col2 bigint,
+  col3 float,
+  col4 double,
+  col5 decimal(10,4),
+  col6 tinyint,
+  col7 smallint,
+  col8 mediumint
+) ENGINE = DuckDB;
+
+insert into t1 values (1, 1, -1, 1.01, -1.001, 1.0001, 1, 1, 1), 
+  (2, -2, 2, -2.02, 2.002, -2.0002, 2, 2, 2), 
+  (-3, 3, 3, 3.03, 3.003, 3.0003, 3, 3, 3),
+  (-2147483648, -2147483648, -9223372036854775808, -3.402823466E+38, -1.7976931348623157E+308, -999999.9999, -128, -32768, -8388608),
+  (2147483647, 2147483647, 9223372036854775807, 3.402823466E+38, 1.7976931348623157E+308, 999999.9999, 127, 32767, 8388607);
+
+select * from mytest.t1;
+drop table t1;
+
+-- echo
+-- echo unsigned Numeric data type
+-- echo check data consistency
+CREATE TABLE t1 (
+  id int PRIMARY KEY,
+  col1 int unsigned,
+  col2 bigint unsigned,
+  col3 float unsigned,
+  col4 double unsigned,
+  col5 decimal(10,4) unsigned,
+  col6 bit(10),
+  col7 tinyint unsigned,
+  col8 smallint unsigned,
+  col9 mediumint unsigned
+) ENGINE = DuckDB;
+
+insert into t1 values (1, 1, 1, 1.01, 1.001, 1.0001, B'111111111', 1, 1, 1),
+  (2, 2, 2, 2.02, 2.002, 2.0002, B'0000000000', 1, 1, 1),
+  (3, 3, 3, 3.03, 3.003, 3.0003, B'0001100110', 1, 1, 1),
+  (-2147483648, 0, 0, 0, 0, 0, B'00000000000', 0, 0, 0),
+  (2147483647, 255, 18446744073709551615, 3.402823466E+38, 1.7976931348623157E+308, 999999.9999, B'1111111111', 255, 65535, 8388607);
+
+select id, col1, col2, col3, col4, col5, hex(col6), col7, col8, col9 from mytest.t1;
+drop table t1;
+
+-- echo
+-- echo decimal precision test, decimal precision more than 38 is not supported.
+CREATE TABLE t1 (
+  id int PRIMARY KEY,
+  col1 decimal(65, 30),
+  col2 decimal(65, 15),
+  col3 decimal(65, 0),
+  col4 decimal(38,30),
+  col5 decimal(38,18),
+  col6 decimal(38,0),
+  col7 decimal(9,9),
+  col8 decimal(9,4),
+  col9 decimal(9,0)
+) ENGINE = DuckDB;
+
+insert into t1 values (1,
+                       99999999999999999999999999999999999.999999999999999999999999999999,
+                       99999999999999999999999999999999999999999999999999.999999999999999,
+                       99999999999999999999999999999999999999999999999999999999999999999,
+                       99999999.999999999999999999999999999999,
+                       99999999999999999999.999999999999999999,
+                       99999999999999999999999999999999999999,
+                       0.99999999,
+                       99999.9999,
+                       999999999);
+
+select * from mytest.t1;
+drop table t1;
+
+# 2. Date data types
+-- echo
+-- echo Date data type test
+-- echo check data consistency
+CREATE TABLE t1 (
+  id int PRIMARY KEY,
+  col1 date,
+  col2 datetime,
+  col3 timestamp,
+  col4 datetime(6),
+  col5 time,
+  col6 time(6),
+  col7 year
+) ENGINE = DuckDB;
+
+insert into t1 values (1, '2020-01-01', '2020-01-01 12:00:00', '2020-01-01 12:00:00', '2020-01-01 12:00:00.1', '12:00:00', '12:00:00.1', 2020),
+  (2, '2020-12-31', '2020-12-31 00:00:00', '2020-12-31 00:00:00', '2020-12-31 00:00:00.123456789', '00:00:00', '00:00:00.123456789', 1970),
+  (3, '1970-01-01', '1970-01-01 23:59:59', '1970-01-01 23:59:59', '2020-12-31 23:59:59.123456', '23:59:59', '23:59:59.123456', 2050),
+  (4, '2000-12-31 23:59:59.123456', '2000-12-31 23:59:59.123456', '2000-12-31 23:59:59.123456', '2000-12-31 23:59:59.123456', '23:59:59.123456', '23:59:59.123456', 2100);
+ 
+select * from mytest.t1;
+drop table t1;
+
+# 3. String data types
+-- echo
+-- echo String data type test
+-- echo check data consistency
+CREATE TABLE t1 (
+  id int PRIMARY KEY,
+  col1 char(100),
+  col2 varchar(100),
+  col3 binary(4),
+  col4 varbinary(100),
+  col5 tinyblob,
+  col6 blob,
+  col7 mediumblob,
+  col8 longblob,
+  col9 tinytext,
+  col10 text,
+  col11 mediumtext,
+  col12 longtext,
+  col13 json,
+  col14 enum('v1', 'v2', 'v3'),
+  col15 set('v1', 'v2', 'v3')
+) ENGINE = DuckDB;
+
+insert into t1 values (1, 'aaaa', 'aaaa', 'aaaa', 'aaaa', 'aaaa', 'aaaa', 'aaaa', 'aaaa', 'aaaa', 'aaaa', 'aaaa', 'aaaa', '{"id": 1, "value":"aaaa"}', 1, 1);
+insert into t1 values (2, 'bbbb', 'bbbb', 'bbbb', 'bbbb', 'bbbb', 'bbbb', 'bbbb', 'bbbb', 'bbbb', 'bbbb', 'bbbb', 'bbbb', '{"id": 1, "value":"aaaa"}', 'v2', 'v2');
+insert into t1 values (3, 'cccc', 'cccc', 'cccc', 'cccc', 'cccc', 'cccc', 'cccc', 'cccc', 'cccc', 'cccc', 'cccc', 'cccc', '{"id": 1, "value":"aaaa"}', 3, 'v1,v2,v3');
+insert into t1 values (4, repeat('d', 100), repeat('d', 100), repeat('d', 4), repeat('d', 100), 
+                       repeat('d', 255), repeat('d', 65535), repeat('d', 16777215), repeat('d', 60000000),
+                       repeat('d', 255), repeat('d', 65535), repeat('d', 16777215), repeat('d', 60000000),
+                       '{}', 3, 'v3');
+
+select * from mytest.t1 where id <= 3;
+select length(col1), length(col2), octet_length(col3),
+        octet_length(col4), octet_length(col5), octet_length(col6),
+        octet_length(col7), octet_length(col8), length(col9),
+        length(col10),length(col11),length(col12), octet_length(col13),
+        length(col14), length(col15)
+from mytest.t1;
+drop table t1;
+
+# 4. Change the data type of BIT in DuckDB from BLOB to BIT.
+--echo
+--echo Tables storing BIT fields as BLOB type can correctly perform DML.
+
+CREATE TABLE t1 (
+  id int PRIMARY KEY,
+  col1 BIT(10) DEFAULT b'101'
+) ENGINE=DUCKDB;
+
+CALL dbms_duckdb.query('DROP TABLE mytest.t1;');
+CALL dbms_duckdb.query("CREATE TABLE mytest.t1 (id INT, col1 BLOB DEFAULT ('\x00\x05::BLOB'));");
+
+INSERT INTO t1 VALUES (1, B'011001'), (2, B'1111011001'), (3, B'0'), (4, B'1');
+INSERT INTO t1 (id) VALUES (5);
+--exec $MYSQL test --binary-as-hex -e "SELECT *, hex(col1) FROM mytest.t1;"
+UPDATE t1 SET col1 = B'0011111111' WHERE id = 1;
+--exec $MYSQL test --binary-as-hex -e "SELECT *, hex(col1) FROM mytest.t1 WHERE id = 1;"
+DELETE FROM t1 WHERE col1 = B'0011111111';
+--exec $MYSQL test --binary-as-hex -e "SELECT *, hex(col1) FROM mytest.t1;"
+DROP TABLE t1;
+
+drop database mytest;

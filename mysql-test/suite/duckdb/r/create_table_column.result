@@ -1,0 +1,3924 @@
+# 1) Prepare
+
+# 2) Create table
+
+CREATE TABLE test_table (
+id INT PRIMARY KEY,
+name VARCHAR(32),
+index idx_id(name),
+unique index uk_name(name),
+unique index uk_id(id),
+unique index uk_id_name(id,name)
+) engine=duckdb;
+Warnings:
+Warning	7505	[DuckDB] Index 'idx_id' is removed.
+Warning	7505	[DuckDB] Index 'uk_name' is removed.
+Warning	7505	[DuckDB] Index 'uk_id' is removed.
+Warning	7505	[DuckDB] Index 'uk_id_name' is removed.
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print test_table begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of test_table ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 2]
+id	1	INTEGER	32
+name	2	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of test_table ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+test_table	NOT NULL	NOT NULL
+
+
+# ③ Print INDEXs of test_table ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of test_table ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table test_table end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of test.test_table
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of test_table
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='test' and s.id = t.schema_id and c.table_id = t.id and t.name = 'test_table' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+id	MYSQL_TYPE_LONG	0	0	0	NULL	
+name	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+DROP TABLE test_table;
+# Range for each integer type from MySQL
+#
+# Tinyint
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	tinyint	YES		NULL	
+b	tinyint	YES		NULL	
+c	tinyint unsigned	YES		NULL	
+d	tinyint unsigned	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	tinyint	YES		NULL	
+b	tinyint	YES		NULL	
+c	tinyint unsigned	YES		NULL	
+d	tinyint unsigned	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_tinyint begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_tinyint ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+a	1	TINYINT	8
+b	2	TINYINT	8
+c	3	UTINYINT	NULL
+d	4	UTINYINT	NULL
+
+
+# ② Print CONSTRAINTs of t_tinyint ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_tinyint ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_tinyint ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_tinyint end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_tinyint
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_tinyint
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_tinyint' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TINY	1	0	0	NULL	
+b	MYSQL_TYPE_TINY	1	0	0	NULL	
+c	MYSQL_TYPE_TINY	1	0	1	NULL	
+d	MYSQL_TYPE_TINY	1	0	1	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : -128	FFFFFFFFFFFFFF80	127	7F
+duckdb_result_1: -128	FFFFFFFFFFFFFF80	127	7F
+duckdb_result_2: -128	FFFFFFFFFFFFFF80	127	7F
+innotoduck_result: -128	FFFFFFFFFFFFFF80	127	7F
+ducktoinno_result: -128	FFFFFFFFFFFFFF80	127	7F
+ducktoinnotoduck_result: -128	FFFFFFFFFFFFFF80	127	7F
+innodb_checksum: .	1281388457
+duckdb_checksum  : .	1281388457
+duckdb_batch_insert_checksum: .	1281388457
+innotoduck_checksum: .	1281388457
+ducktoinno_checksum: .	1281388457
+# cleanup
+#
+# smallint
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	smallint	YES		NULL	
+b	smallint	YES		NULL	
+c	smallint unsigned	YES		NULL	
+d	smallint unsigned	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	smallint	YES		NULL	
+b	smallint	YES		NULL	
+c	smallint unsigned	YES		NULL	
+d	smallint unsigned	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_smallint begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_smallint ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+a	1	SMALLINT	16
+b	2	SMALLINT	16
+c	3	USMALLINT	NULL
+d	4	USMALLINT	NULL
+
+
+# ② Print CONSTRAINTs of t_smallint ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_smallint ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_smallint ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_smallint end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_smallint
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_smallint
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_smallint' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_SHORT	1	0	0	NULL	
+b	MYSQL_TYPE_SHORT	1	0	0	NULL	
+c	MYSQL_TYPE_SHORT	1	0	1	NULL	
+d	MYSQL_TYPE_SHORT	1	0	1	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : -32768	FFFFFFFFFFFF8000	32767	7FFF
+duckdb_result_1: -32768	FFFFFFFFFFFF8000	32767	7FFF
+duckdb_result_2: -32768	FFFFFFFFFFFF8000	32767	7FFF
+innotoduck_result: -32768	FFFFFFFFFFFF8000	32767	7FFF
+ducktoinno_result: -32768	FFFFFFFFFFFF8000	32767	7FFF
+ducktoinnotoduck_result: -32768	FFFFFFFFFFFF8000	32767	7FFF
+innodb_checksum: .	1647486425
+duckdb_checksum  : .	1647486425
+duckdb_batch_insert_checksum: .	1647486425
+innotoduck_checksum: .	1647486425
+ducktoinno_checksum: .	1647486425
+# cleanup
+#
+# mediumint
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	mediumint	YES		NULL	
+b	mediumint	YES		NULL	
+c	mediumint unsigned	YES		NULL	
+d	mediumint unsigned	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	mediumint	YES		NULL	
+b	mediumint	YES		NULL	
+c	mediumint unsigned	YES		NULL	
+d	mediumint unsigned	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_mediumint begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_mediumint ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+a	1	INTEGER	32
+b	2	INTEGER	32
+c	3	UINTEGER	NULL
+d	4	UINTEGER	NULL
+
+
+# ② Print CONSTRAINTs of t_mediumint ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_mediumint ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_mediumint ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_mediumint end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_mediumint
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_mediumint
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_mediumint' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_INT24	1	0	0	NULL	
+b	MYSQL_TYPE_INT24	1	0	0	NULL	
+c	MYSQL_TYPE_INT24	1	0	1	NULL	
+d	MYSQL_TYPE_INT24	1	0	1	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : -8388608	FFFFFFFFFF800000	8388607	7FFFFF
+duckdb_result_1: -8388608	FFFFFFFFFF800000	8388607	7FFFFF
+duckdb_result_2: -8388608	FFFFFFFFFF800000	8388607	7FFFFF
+innotoduck_result: -8388608	FFFFFFFFFF800000	8388607	7FFFFF
+ducktoinno_result: -8388608	FFFFFFFFFF800000	8388607	7FFFFF
+ducktoinnotoduck_result: -8388608	FFFFFFFFFF800000	8388607	7FFFFF
+innodb_checksum: .	4024755506
+duckdb_checksum  : .	4024755506
+duckdb_batch_insert_checksum: .	4024755506
+innotoduck_checksum: .	4024755506
+ducktoinno_checksum: .	4024755506
+# cleanup
+#
+# int
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	int	YES		NULL	
+b	int	YES		NULL	
+c	int unsigned	YES		NULL	
+d	int unsigned	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	int	YES		NULL	
+b	int	YES		NULL	
+c	int unsigned	YES		NULL	
+d	int unsigned	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_int begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_int ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+a	1	INTEGER	32
+b	2	INTEGER	32
+c	3	UINTEGER	NULL
+d	4	UINTEGER	NULL
+
+
+# ② Print CONSTRAINTs of t_int ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_int ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_int ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_int end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_int
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_int
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_int' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_LONG	1	0	0	NULL	
+b	MYSQL_TYPE_LONG	1	0	0	NULL	
+c	MYSQL_TYPE_LONG	1	0	1	NULL	
+d	MYSQL_TYPE_LONG	1	0	1	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+duckdb_result_1: -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+duckdb_result_2: -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+innotoduck_result: -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+ducktoinno_result: -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+ducktoinnotoduck_result: -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+innodb_checksum: .	462330419
+duckdb_checksum  : .	462330419
+duckdb_batch_insert_checksum: .	462330419
+innotoduck_checksum: .	462330419
+ducktoinno_checksum: .	462330419
+# cleanup
+#
+# bigint
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	bigint	YES		NULL	
+b	bigint	YES		NULL	
+c	bigint unsigned	YES		NULL	
+d	bigint unsigned	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	bigint	YES		NULL	
+b	bigint	YES		NULL	
+c	bigint unsigned	YES		NULL	
+d	bigint unsigned	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_bigint begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_bigint ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+a	1	BIGINT	64
+b	2	BIGINT	64
+c	3	UBIGINT	NULL
+d	4	UBIGINT	NULL
+
+
+# ② Print CONSTRAINTs of t_bigint ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_bigint ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_bigint ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_bigint end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_bigint
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_bigint
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_bigint' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_LONGLONG	1	0	0	NULL	
+b	MYSQL_TYPE_LONGLONG	1	0	0	NULL	
+c	MYSQL_TYPE_LONGLONG	1	0	1	NULL	
+d	MYSQL_TYPE_LONGLONG	1	0	1	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+duckdb_result_1: -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+duckdb_result_2: -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+innotoduck_result: -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+ducktoinno_result: -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+ducktoinnotoduck_result: -2147483648	FFFFFFFF80000000	2147483647	7FFFFFFF
+innodb_checksum: .	3958888086
+duckdb_checksum  : .	3958888086
+duckdb_batch_insert_checksum: .	3958888086
+innotoduck_checksum: .	3958888086
+ducktoinno_checksum: .	3958888086
+# cleanup
+#
+# bool
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	tinyint(1)	YES		NULL	
+b	tinyint(1)	YES		NULL	
+c	tinyint(1)	YES		NULL	
+d	tinyint(1)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	tinyint(1)	YES		NULL	
+b	tinyint(1)	YES		NULL	
+c	tinyint(1)	YES		NULL	
+d	tinyint(1)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_bool begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_bool ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+a	1	TINYINT	8
+b	2	TINYINT	8
+c	3	TINYINT	8
+d	4	TINYINT	8
+
+
+# ② Print CONSTRAINTs of t_bool ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_bool ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_bool ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_bool end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_bool
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_bool
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_bool' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TINY	1	0	0	NULL	
+b	MYSQL_TYPE_TINY	1	0	0	NULL	
+c	MYSQL_TYPE_TINY	1	0	0	NULL	
+d	MYSQL_TYPE_TINY	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 1	1	1	1	0	0	1	1
+duckdb_result_1: 1	1	1	1	0	0	1	1
+duckdb_result_2: 1	1	1	1	0	0	1	1
+innotoduck_result: 1	1	1	1	0	0	1	1
+ducktoinno_result: 1	1	1	1	0	0	1	1
+ducktoinnotoduck_result: 1	1	1	1	0	0	1	1
+innodb_checksum: .	502211766
+duckdb_checksum  : .	502211766
+duckdb_batch_insert_checksum: .	502211766
+innotoduck_checksum: .	502211766
+ducktoinno_checksum: .	502211766
+# cleanup
+#
+# float
+#
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	float	YES		NULL	
+b	float(7,4)	YES		NULL	
+c	float	YES		NULL	
+d	float	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	float	YES		NULL	
+b	float(7,4)	YES		NULL	
+c	float	YES		NULL	
+d	float	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_float begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_float ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+a	1	FLOAT	24
+b	2	FLOAT	24
+c	3	FLOAT	24
+d	4	FLOAT	24
+
+
+# ② Print CONSTRAINTs of t_float ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_float ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_float ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_float end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_float
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_float
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_float' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_FLOAT	1	0	0	NULL	
+b	MYSQL_TYPE_FLOAT	1	0	0	NULL	
+c	MYSQL_TYPE_FLOAT	1	0	0	NULL	
+d	MYSQL_TYPE_FLOAT	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 1.01	1.0100	99999	3.40282e20
+duckdb_result_1: 1.01	1.0100	99999	3.40282e20
+duckdb_result_2: 1.01	1.0100	99999	3.40282e20
+innotoduck_result: 1.01	1.0100	99999	3.40282e20
+ducktoinno_result: 1.01	1.0100	99999	3.40282e20
+ducktoinnotoduck_result: 1.01	1.0100	99999	3.40282e20
+innodb_checksum: .	1318115434
+duckdb_checksum  : .	1318115434
+duckdb_batch_insert_checksum: .	1318115434
+innotoduck_checksum: .	1318115434
+ducktoinno_checksum: .	1318115434
+# cleanup
+#
+# float with high precision
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+b	float	YES		NULL	
+c	float	YES		NULL	
+d	float	YES		NULL	
+e	float	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+b	float	YES		NULL	
+c	float	YES		NULL	
+d	float	YES		NULL	
+e	float	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_float begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_float ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+b	1	FLOAT	24
+c	2	FLOAT	24
+d	3	FLOAT	24
+e	4	FLOAT	24
+
+
+# ② Print CONSTRAINTs of t_float ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_float ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_float ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_float end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_float
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_float
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_float' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+b	MYSQL_TYPE_FLOAT	1	0	0	NULL	
+c	MYSQL_TYPE_FLOAT	1	0	0	NULL	
+d	MYSQL_TYPE_FLOAT	1	0	0	NULL	
+e	MYSQL_TYPE_FLOAT	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 3.40282e38	-3.40282e38	1.17549e-38	-1.17549e-38
+duckdb_result_1: 3.40282e38	-3.40282e38	1.17549e-38	-1.17549e-38
+duckdb_result_2: 3.40282e38	-3.40282e38	1.17549e-38	-1.17549e-38
+innotoduck_result: 3.40282e38	-3.40282e38	1.17549e-38	-1.17549e-38
+ducktoinno_result: 3.40282e38	-3.40282e38	1.17549e-38	-1.17549e-38
+ducktoinnotoduck_result: 3.40282e38	-3.40282e38	1.17549e-38	-1.17549e-38
+innodb_checksum: .	500819813
+duckdb_checksum  : .	500819813
+duckdb_batch_insert_checksum: .	500819813
+innotoduck_checksum: .	500819813
+ducktoinno_checksum: .	500819813
+# cleanup
+#
+# double
+#
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	double	YES		NULL	
+b	double(7,4)	YES		NULL	
+c	double	YES		NULL	
+d	double	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	double	YES		NULL	
+b	double(7,4)	YES		NULL	
+c	double	YES		NULL	
+d	double	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_double begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_double ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+a	1	DOUBLE	53
+b	2	DOUBLE	53
+c	3	DOUBLE	53
+d	4	DOUBLE	53
+
+
+# ② Print CONSTRAINTs of t_double ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_double ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_double ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_double end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_double
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_double
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_double' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_DOUBLE	1	0	0	NULL	
+b	MYSQL_TYPE_DOUBLE	1	0	0	NULL	
+c	MYSQL_TYPE_DOUBLE	1	0	0	NULL	
+d	MYSQL_TYPE_DOUBLE	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 1.01	1.0100	99999	3.40282e20
+duckdb_result_1: 1.01	1.0100	99999	3.40282e20
+duckdb_result_2: 1.01	1.0100	99999	3.40282e20
+innotoduck_result: 1.01	1.0100	99999	3.40282e20
+ducktoinno_result: 1.01	1.0100	99999	3.40282e20
+ducktoinnotoduck_result: 1.01	1.0100	99999	3.40282e20
+innodb_checksum: .	1878390312
+duckdb_checksum  : .	1878390312
+duckdb_batch_insert_checksum: .	1878390312
+innotoduck_checksum: .	1878390312
+ducktoinno_checksum: .	1878390312
+# cleanup
+#
+# double with high precision
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+b	double	YES		NULL	
+c	double	YES		NULL	
+d	double	YES		NULL	
+e	double	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+b	double	YES		NULL	
+c	double	YES		NULL	
+d	double	YES		NULL	
+e	double	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_double begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_double ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+b	1	DOUBLE	53
+c	2	DOUBLE	53
+d	3	DOUBLE	53
+e	4	DOUBLE	53
+
+
+# ② Print CONSTRAINTs of t_double ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_double ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_double ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_double end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_double
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_double
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_double' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+b	MYSQL_TYPE_DOUBLE	1	0	0	NULL	
+c	MYSQL_TYPE_DOUBLE	1	0	0	NULL	
+d	MYSQL_TYPE_DOUBLE	1	0	0	NULL	
+e	MYSQL_TYPE_DOUBLE	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 3.402823466e38	-3.402823466e38	1.175494351e-38	-1.175494351e-38
+duckdb_result_1: 3.402823466e38	-3.402823466e38	1.175494351e-38	-1.175494351e-38
+duckdb_result_2: 3.402823466e38	-3.402823466e38	1.175494351e-38	-1.175494351e-38
+innotoduck_result: 3.402823466e38	-3.402823466e38	1.175494351e-38	-1.175494351e-38
+ducktoinno_result: 3.402823466e38	-3.402823466e38	1.175494351e-38	-1.175494351e-38
+ducktoinnotoduck_result: 3.402823466e38	-3.402823466e38	1.175494351e-38	-1.175494351e-38
+innodb_checksum: .	648909613
+duckdb_checksum  : .	648909613
+duckdb_batch_insert_checksum: .	648909613
+innotoduck_checksum: .	648909613
+ducktoinno_checksum: .	648909613
+# cleanup
+#
+# decimal 
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+g	decimal(9,9)	YES		NULL	
+h	decimal(9,4)	YES		NULL	
+i	decimal(9,0)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+g	decimal(9,9)	YES		NULL	
+h	decimal(9,4)	YES		NULL	
+i	decimal(9,0)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_decimal begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_decimal ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 3]
+g	1	DECIMAL(9,9)	9
+h	2	DECIMAL(9,4)	9
+i	3	DECIMAL(9,0)	9
+
+
+# ② Print CONSTRAINTs of t_decimal ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_decimal ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_decimal ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_decimal end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_decimal
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_decimal
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_decimal' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+g	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+h	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+i	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 0.999999990	99999.9999	999999999
+duckdb_result_1: .999999990	99999.9999	999999999
+duckdb_result_2: .999999990	99999.9999	999999999
+innotoduck_result: .999999990	99999.9999	999999999
+ducktoinno_result: .999999990	99999.9999	999999999
+ducktoinnotoduck_result: .999999990	99999.9999	999999999
+innodb_checksum: .	1289911351
+duckdb_checksum  : .	1289911351
+duckdb_batch_insert_checksum: .	1289911351
+innotoduck_checksum: .	1289911351
+ducktoinno_checksum: .	1289911351
+# cleanup
+#
+# decimal with high precision
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	decimal(65,30)	YES		NULL	
+b	decimal(65,15)	YES		NULL	
+c	decimal(65,0)	YES		NULL	
+d	decimal(38,30)	YES		NULL	
+e	decimal(38,18)	YES		NULL	
+f	decimal(38,0)	YES		NULL	
+g	decimal(9,9)	YES		NULL	
+h	decimal(9,4)	YES		NULL	
+i	decimal(9,0)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	decimal(65,30)	YES		NULL	
+b	decimal(65,15)	YES		NULL	
+c	decimal(65,0)	YES		NULL	
+d	decimal(38,30)	YES		NULL	
+e	decimal(38,18)	YES		NULL	
+f	decimal(38,0)	YES		NULL	
+g	decimal(9,9)	YES		NULL	
+h	decimal(9,4)	YES		NULL	
+i	decimal(9,0)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_decimal begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_decimal ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 9]
+a	1	DOUBLE	53
+b	2	DOUBLE	53
+c	3	DOUBLE	53
+d	4	DECIMAL(38,30)	38
+e	5	DECIMAL(38,18)	38
+f	6	DECIMAL(38,0)	38
+g	7	DECIMAL(9,9)	9
+h	8	DECIMAL(9,4)	9
+i	9	DECIMAL(9,0)	9
+
+
+# ② Print CONSTRAINTs of t_decimal ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_decimal ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_decimal ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_decimal end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_decimal
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_decimal
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_decimal' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+b	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+c	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+d	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+e	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+f	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+g	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+h	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+i	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 99999999999999999999999999999999999.999999999999999999999999999999	99999999999999999999999999999999999999999999999999.999999999999999	99999999999999999999999999999999999999999999999999999999999999999	99999999.999999999999999999999999999999	99999999999999999999.999999999999999999	99999999999999999999999999999999999999	0.999999990	99999.9999	999999999
+duckdb_result_1: 1e35	1e50	1e65	99999999.999999999999999999999999999999	99999999999999999999.999999999999999999	99999999999999999999999999999999999999	.999999990	99999.9999	999999999
+duckdb_result_2: 1e35	1e50	1e65	99999999.999999999999999999999999999999	99999999999999999999.999999999999999999	99999999999999999999999999999999999999	.999999990	99999.9999	999999999
+innotoduck_result: 1e35	1e50	1e65	99999999.999999999999999999999999999999	99999999999999999999.999999999999999999	99999999999999999999999999999999999999	.999999990	99999.9999	999999999
+ducktoinno_result: 1e35	1e50	1e65	99999999.999999999999999999999999999999	99999999999999999999.999999999999999999	99999999999999999999999999999999999999	.999999990	99999.9999	999999999
+ducktoinnotoduck_result: 1e35	1e50	1e65	99999999.999999999999999999999999999999	99999999999999999999.999999999999999999	99999999999999999999999999999999999999	.999999990	99999.9999	999999999
+innodb_checksum: .	2531334369
+duckdb_checksum  : .	2531334369
+duckdb_batch_insert_checksum: .	2531334369
+innotoduck_checksum: .	2531334369
+ducktoinno_checksum: .	2531334369
+# cleanup
+#
+# check all possibilities of decimal with kinds of precisions
+#
+#
+# decimal(1): low precision(<=38)  with low precision value and duckdb_use_double_for_decimal=on
+#
+set global duckdb_use_double_for_decimal=on;
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	
+c1	decimal(38,5)	YES		NULL	
+c2	decimal(38,5)	YES		NULL	
+c3	decimal(38,5)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	
+c1	decimal(38,5)	YES		NULL	
+c2	decimal(38,5)	YES		NULL	
+c3	decimal(38,5)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t1 begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t1 ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+id	1	INTEGER	32
+c1	2	DECIMAL(38,5)	38
+c2	3	DECIMAL(38,5)	38
+c3	4	DECIMAL(38,5)	38
+
+
+# ② Print CONSTRAINTs of t1 ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t1	NOT NULL	NOT NULL
+
+
+# ③ Print INDEXs of t1 ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t1 ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t1 end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t1
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t1
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't1' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+c1	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+c2	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+c3	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+id	MYSQL_TYPE_LONG	0	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 1	123456789012345678901234567890123.12345	0.00000	0.00000
+duckdb_result_1: 1	123456789012345678901234567890123.12345	0.00000	0.00000
+duckdb_result_2: 1	123456789012345678901234567890123.12345	0.00000	0.00000
+innotoduck_result: 1	123456789012345678901234567890123.12345	0.00000	0.00000
+ducktoinno_result: 1	123456789012345678901234567890123.12345	0.00000	0.00000
+ducktoinnotoduck_result: 1	123456789012345678901234567890123.12345	0.00000	0.00000
+innodb_checksum: .1	1705554001
+duckdb_checksum  : .1	1705554001
+duckdb_batch_insert_checksum: .1	1705554001
+innotoduck_checksum: .1	1705554001
+ducktoinno_checksum: .1	1705554001
+# cleanup
+set global duckdb_use_double_for_decimal=default;
+#
+# decimal(2): high precision(>38)  with low precision value(<=38) and duckdb_use_double_for_decimal=on
+#
+set global duckdb_use_double_for_decimal=on;
+# use double
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	
+c1	decimal(40,5)	YES		NULL	
+c2	decimal(40,5)	YES		NULL	
+c3	decimal(40,5)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	
+c1	decimal(40,5)	YES		NULL	
+c2	decimal(40,5)	YES		NULL	
+c3	decimal(40,5)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t1 begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t1 ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+id	1	INTEGER	32
+c1	2	DOUBLE	53
+c2	3	DOUBLE	53
+c3	4	DOUBLE	53
+
+
+# ② Print CONSTRAINTs of t1 ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t1	NOT NULL	NOT NULL
+
+
+# ③ Print INDEXs of t1 ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t1 ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t1 end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t1
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t1
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't1' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+c1	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+c2	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+c3	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+id	MYSQL_TYPE_LONG	0	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 4	123456789012345678901234567890.12345
+duckdb_result_1: 4	1.2345678901234568e29
+duckdb_result_2: 4	1.2345678901234568e29
+innotoduck_result: 4	1.2345678901234568e29
+ducktoinno_result: 4	123456789012345680000000000000.00000
+ducktoinnotoduck_result: 4	1.2345678901234568e29
+innodb_checksum: .1	95324111
+duckdb_checksum  : .1	1747477421
+duckdb_batch_insert_checksum: .1	1747477421
+innotoduck_checksum: .1	1747477421
+ducktoinno_checksum: .1	1747477421
+Results are not same, innodb_checksum: .1	95324111, duckdb_checksum: .1	1747477421
+Results are not same, innodb_checksum: .1	95324111, duckdb_batch_insert_checksum: .1	1747477421
+Results are not same, innodb_checksum: .1	95324111, innotoduck_checksum: .1	1747477421
+Results are not same, innodb_checksum: .1	95324111, ducktoinno_checksum: .1	1747477421
+# cleanup
+set global duckdb_use_double_for_decimal=default;
+#
+# decimal(3): high precision(>38)  with high precision value(>38)  and duckdb_use_double_for_decimal=on
+#
+set global duckdb_use_double_for_decimal=on;
+# use double
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	
+c1	decimal(40,5)	YES		NULL	
+c2	decimal(40,5)	YES		NULL	
+c3	decimal(40,5)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	
+c1	decimal(40,5)	YES		NULL	
+c2	decimal(40,5)	YES		NULL	
+c3	decimal(40,5)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t1 begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t1 ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+id	1	INTEGER	32
+c1	2	DOUBLE	53
+c2	3	DOUBLE	53
+c3	4	DOUBLE	53
+
+
+# ② Print CONSTRAINTs of t1 ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t1	NOT NULL	NOT NULL
+
+
+# ③ Print INDEXs of t1 ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t1 ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t1 end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t1
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t1
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't1' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+c1	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+c2	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+c3	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+id	MYSQL_TYPE_LONG	0	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 4	12345678901234567890123456789012345.12345
+duckdb_result_1: 4	1.234567890123457e34
+duckdb_result_2: 4	1.234567890123457e34
+innotoduck_result: 4	1.234567890123457e34
+ducktoinno_result: 4	12345678901234570000000000000000000.00000
+ducktoinnotoduck_result: 4	1.234567890123457e34
+innodb_checksum: .1	1179502634
+duckdb_checksum  : .1	1924026579
+duckdb_batch_insert_checksum: .1	1924026579
+innotoduck_checksum: .1	1924026579
+ducktoinno_checksum: .1	1924026579
+Results are not same, innodb_checksum: .1	1179502634, duckdb_checksum: .1	1924026579
+Results are not same, innodb_checksum: .1	1179502634, duckdb_batch_insert_checksum: .1	1924026579
+Results are not same, innodb_checksum: .1	1179502634, innotoduck_checksum: .1	1924026579
+Results are not same, innodb_checksum: .1	1179502634, ducktoinno_checksum: .1	1924026579
+# cleanup
+set global duckdb_use_double_for_decimal=default;
+#
+# decimal(4): low precision(<=38)  with low precision value and duckdb_use_double_for_decimal=off
+#
+set global duckdb_use_double_for_decimal=off;
+# use decimal
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	
+c1	decimal(38,5)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	
+c1	decimal(38,5)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t1 begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t1 ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 2]
+id	1	INTEGER	32
+c1	2	DECIMAL(38,5)	38
+
+
+# ② Print CONSTRAINTs of t1 ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t1	NOT NULL	NOT NULL
+
+
+# ③ Print INDEXs of t1 ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t1 ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t1 end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t1
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t1
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't1' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+c1	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+id	MYSQL_TYPE_LONG	0	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 1	123456789012345678901234567890123.12345
+duckdb_result_1: 1	123456789012345678901234567890123.12345
+duckdb_result_2: 1	123456789012345678901234567890123.12345
+innotoduck_result: 1	123456789012345678901234567890123.12345
+ducktoinno_result: 1	123456789012345678901234567890123.12345
+ducktoinnotoduck_result: 1	123456789012345678901234567890123.12345
+innodb_checksum: .1	463031321
+duckdb_checksum  : .1	463031321
+duckdb_batch_insert_checksum: .1	463031321
+innotoduck_checksum: .1	463031321
+ducktoinno_checksum: .1	463031321
+# cleanup
+set global duckdb_use_double_for_decimal=default;
+#
+# decimal(5): high precision(>38)  with low precision value(<=38) and duckdb_use_double_for_decimal=off
+#
+set global duckdb_use_double_for_decimal=off;
+# use decimal(38, dec)
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	
+c1	decimal(40,5)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	
+c1	decimal(40,5)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t1 begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t1 ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 2]
+id	1	INTEGER	32
+c1	2	DECIMAL(38,5)	38
+
+
+# ② Print CONSTRAINTs of t1 ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t1	NOT NULL	NOT NULL
+
+
+# ③ Print INDEXs of t1 ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t1 ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t1 end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t1
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t1
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't1' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+c1	MYSQL_TYPE_NEWDECIMAL	1	0	0	NULL	
+id	MYSQL_TYPE_LONG	0	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 4	123456789012345678901234567890.12345
+duckdb_result_1: 4	123456789012345678901234567890.12345
+duckdb_result_2: 4	123456789012345678901234567890.12345
+innotoduck_result: 4	123456789012345678901234567890.12345
+ducktoinno_result: 4	123456789012345678901234567890.12345
+ducktoinnotoduck_result: 4	123456789012345678901234567890.12345
+innodb_checksum: .1	622477275
+duckdb_checksum  : .1	622477275
+duckdb_batch_insert_checksum: .1	622477275
+innotoduck_checksum: .1	622477275
+ducktoinno_checksum: .1	622477275
+# cleanup
+set global duckdb_use_double_for_decimal=default;
+#
+# bit
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	bit(8)	YES		NULL	
+b	bit(8)	YES		NULL	
+c	bit(64)	YES		NULL	
+d	bit(64)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	bit(8)	YES		NULL	
+b	bit(8)	YES		NULL	
+c	bit(64)	YES		NULL	
+d	bit(64)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_bit begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_bit ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+a	1	BIT	NULL
+b	2	BIT	NULL
+c	3	BIT	NULL
+d	4	BIT	NULL
+
+
+# ② Print CONSTRAINTs of t_bit ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_bit ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_bit ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_bit end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_bit
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_bit
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_bit' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_BIT	1	0	0	NULL	
+b	MYSQL_TYPE_BIT	1	0	0	NULL	
+c	MYSQL_TYPE_BIT	1	0	0	NULL	
+d	MYSQL_TYPE_BIT	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : AA	17	FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFB
+duckdb_result_1: AA	17	FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFB
+duckdb_result_2: AA	17	FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFB
+innotoduck_result: AA	17	FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFB
+ducktoinno_result: AA	17	FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFB
+ducktoinnotoduck_result: AA	17	FFFFFFFFFFFFFFFF	FFFFFFFFFFFFFFFB
+innodb_checksum: .	4269358085
+duckdb_checksum  : .	4269358085
+duckdb_batch_insert_checksum: .	4269358085
+innotoduck_checksum: .	4269358085
+ducktoinno_checksum: .	4269358085
+# cleanup
+#
+# char
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	char(1)	YES		NULL	
+b	char(1)	YES		NULL	
+c	char(10)	YES		NULL	
+d	char(64)	YES		NULL	
+e	char(64)	YES		NULL	
+f	char(1)	YES		NULL	
+g	char(32)	YES		NULL	
+h	char(64)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	char(1)	YES		NULL	
+b	char(1)	YES		NULL	
+c	char(10)	YES		NULL	
+d	char(64)	YES		NULL	
+e	char(64)	YES		NULL	
+f	char(1)	YES		NULL	
+g	char(32)	YES		NULL	
+h	char(64)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_char begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_char ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 8]
+a	1	VARCHAR	NULL
+b	2	VARCHAR	NULL
+c	3	VARCHAR	NULL
+d	4	VARCHAR	NULL
+e	5	VARCHAR	NULL
+f	6	VARCHAR	NULL
+g	7	VARCHAR	NULL
+h	8	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_char ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_char ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_char ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_char end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_char
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_char
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_char' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_STRING	1	0	0	NULL	
+b	MYSQL_TYPE_STRING	1	0	0	NULL	
+c	MYSQL_TYPE_STRING	1	0	0	NULL	
+d	MYSQL_TYPE_STRING	1	0	0	NULL	
+e	MYSQL_TYPE_STRING	1	0	0	NULL	
+f	MYSQL_TYPE_STRING	1	0	0	NULL	
+g	MYSQL_TYPE_STRING	1	0	0	NULL	
+h	MYSQL_TYPE_STRING	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+duckdb_result_1: @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+duckdb_result_2: @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+innotoduck_result: @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+ducktoinno_result: @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+ducktoinnotoduck_result: @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+innodb_checksum: .	2458706466
+duckdb_checksum  : .	2458706466
+duckdb_batch_insert_checksum: .	2458706466
+innotoduck_checksum: .	2458706466
+ducktoinno_checksum: .	2458706466
+# cleanup
+#
+# varchar
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	varchar(1)	YES		NULL	
+b	varchar(1)	YES		NULL	
+c	varchar(10)	YES		NULL	
+d	varchar(64)	YES		NULL	
+e	varchar(64)	YES		NULL	
+f	varchar(64)	YES		NULL	
+g	varchar(32)	YES		NULL	
+h	varchar(32)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	varchar(1)	YES		NULL	
+b	varchar(1)	YES		NULL	
+c	varchar(10)	YES		NULL	
+d	varchar(64)	YES		NULL	
+e	varchar(64)	YES		NULL	
+f	varchar(64)	YES		NULL	
+g	varchar(32)	YES		NULL	
+h	varchar(32)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_varchar begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_varchar ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 8]
+a	1	VARCHAR	NULL
+b	2	VARCHAR	NULL
+c	3	VARCHAR	NULL
+d	4	VARCHAR	NULL
+e	5	VARCHAR	NULL
+f	6	VARCHAR	NULL
+g	7	VARCHAR	NULL
+h	8	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_varchar ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_varchar ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_varchar ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_varchar end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_varchar
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_varchar
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_varchar' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+b	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+c	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+d	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+e	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+f	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+g	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+h	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+duckdb_result_1: @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+duckdb_result_2: @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+innotoduck_result: @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+ducktoinno_result: @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+ducktoinnotoduck_result: @	40	A	41		17	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+innodb_checksum: .	1786039948
+duckdb_checksum  : .	1786039948
+duckdb_batch_insert_checksum: .	1786039948
+innotoduck_checksum: .	1786039948
+ducktoinno_checksum: .	1786039948
+# cleanup
+#
+# tinytext
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	tinytext	YES		NULL	
+b	tinytext	YES		NULL	
+d	tinytext	YES		NULL	
+e	tinytext	YES		NULL	
+f	tinytext	YES		NULL	
+g	tinytext	YES		NULL	
+h	tinytext	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	tinytext	YES		NULL	
+b	tinytext	YES		NULL	
+d	tinytext	YES		NULL	
+e	tinytext	YES		NULL	
+f	tinytext	YES		NULL	
+g	tinytext	YES		NULL	
+h	tinytext	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_varchar begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_varchar ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 7]
+a	1	VARCHAR	NULL
+b	2	VARCHAR	NULL
+d	3	VARCHAR	NULL
+e	4	VARCHAR	NULL
+f	5	VARCHAR	NULL
+g	6	VARCHAR	NULL
+h	7	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_varchar ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_varchar ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_varchar ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_varchar end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_varchar
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_varchar
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_varchar' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+b	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+d	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+e	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+f	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+g	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+h	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : @	40	A	41	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+duckdb_result_1: @	40	A	41	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+duckdb_result_2: @	40	A	41	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+innotoduck_result: @	40	A	41	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+ducktoinno_result: @	40	A	41	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+ducktoinnotoduck_result: @	40	A	41	abcdefg0	6162636465666730	1111111111111111111111111111111111111111111111111111111111111011	31313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131313131303131	æ	I'm duckdb	Hello world
+innodb_checksum: .	2311353533
+duckdb_checksum  : .	2311353533
+duckdb_batch_insert_checksum: .	2311353533
+innotoduck_checksum: .	2311353533
+ducktoinno_checksum: .	2311353533
+# cleanup
+#
+# text
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	text	YES		NULL	
+b	text	YES		NULL	
+c	text	YES		NULL	
+d	text	YES		NULL	
+e	text	YES		NULL	
+f	text	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	text	YES		NULL	
+b	text	YES		NULL	
+c	text	YES		NULL	
+d	text	YES		NULL	
+e	text	YES		NULL	
+f	text	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_text begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_text ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 6]
+a	1	VARCHAR	NULL
+b	2	VARCHAR	NULL
+c	3	VARCHAR	NULL
+d	4	VARCHAR	NULL
+e	5	VARCHAR	NULL
+f	6	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_text ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_text ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_text ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_text end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_text
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_text
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_text' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_BLOB	1	0	0	NULL	
+b	MYSQL_TYPE_BLOB	1	0	0	NULL	
+c	MYSQL_TYPE_BLOB	1	0	0	NULL	
+d	MYSQL_TYPE_BLOB	1	0	0	NULL	
+e	MYSQL_TYPE_BLOB	1	0	0	NULL	
+f	MYSQL_TYPE_BLOB	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 30313233343536373839414243444546	65535	30	æ	I'm duckdb	Hello world
+duckdb_result_1: 30313233343536373839414243444546	65535	30	æ	I'm duckdb	Hello world
+duckdb_result_2: 30313233343536373839414243444546	65535	30	æ	I'm duckdb	Hello world
+innotoduck_result: 30313233343536373839414243444546	65535	30	æ	I'm duckdb	Hello world
+ducktoinno_result: 30313233343536373839414243444546	65535	30	æ	I'm duckdb	Hello world
+ducktoinnotoduck_result: 30313233343536373839414243444546	65535	30	æ	I'm duckdb	Hello world
+innodb_checksum: .	3440606212
+duckdb_checksum  : .	3440606212
+duckdb_batch_insert_checksum: .	3440606212
+innotoduck_checksum: .	3440606212
+ducktoinno_checksum: .	3440606212
+# cleanup
+#
+# mediumtext
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	mediumtext	YES		NULL	
+b	mediumtext	YES		NULL	
+c	mediumtext	YES		NULL	
+d	mediumtext	YES		NULL	
+e	mediumtext	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	mediumtext	YES		NULL	
+b	mediumtext	YES		NULL	
+c	mediumtext	YES		NULL	
+d	mediumtext	YES		NULL	
+e	mediumtext	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_mediumtext begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_mediumtext ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	VARCHAR	NULL
+b	2	VARCHAR	NULL
+c	3	VARCHAR	NULL
+d	4	VARCHAR	NULL
+e	5	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_mediumtext ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_mediumtext ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_mediumtext ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_mediumtext end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_mediumtext
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_mediumtext
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_mediumtext' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	NULL	
+b	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	NULL	
+c	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	NULL	
+d	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	NULL	
+e	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 30313233343536373839414243444546	167	æ	I'm duckdb	Hello world
+duckdb_result_1: 30313233343536373839414243444546	167	æ	I'm duckdb	Hello world
+duckdb_result_2: 30313233343536373839414243444546	167	æ	I'm duckdb	Hello world
+innotoduck_result: 30313233343536373839414243444546	167	æ	I'm duckdb	Hello world
+ducktoinno_result: 30313233343536373839414243444546	167	æ	I'm duckdb	Hello world
+ducktoinnotoduck_result: 30313233343536373839414243444546	167	æ	I'm duckdb	Hello world
+innodb_checksum: .	2377660202
+duckdb_checksum  : .	2377660202
+duckdb_batch_insert_checksum: .	2377660202
+innotoduck_checksum: .	2377660202
+ducktoinno_checksum: .	2377660202
+# cleanup
+#
+# longtext
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	longtext	YES		NULL	
+b	longtext	YES		NULL	
+c	longtext	YES		NULL	
+d	longtext	YES		NULL	
+e	longtext	YES		NULL	
+f	longtext	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	longtext	YES		NULL	
+b	longtext	YES		NULL	
+c	longtext	YES		NULL	
+d	longtext	YES		NULL	
+e	longtext	YES		NULL	
+f	longtext	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_longtext begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_longtext ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 6]
+a	1	VARCHAR	NULL
+b	2	VARCHAR	NULL
+c	3	VARCHAR	NULL
+d	4	VARCHAR	NULL
+e	5	VARCHAR	NULL
+f	6	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_longtext ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_longtext ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_longtext ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_longtext end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_longtext
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_longtext
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_longtext' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+b	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+c	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+d	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+e	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+f	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 30313233343536373839414243444546	167	1	æ	I'm duckdb	Hello world
+duckdb_result_1: 30313233343536373839414243444546	167	1	æ	I'm duckdb	Hello world
+duckdb_result_2: 30313233343536373839414243444546	167	1	æ	I'm duckdb	Hello world
+innotoduck_result: 30313233343536373839414243444546	167	1	æ	I'm duckdb	Hello world
+ducktoinno_result: 30313233343536373839414243444546	167	1	æ	I'm duckdb	Hello world
+ducktoinnotoduck_result: 30313233343536373839414243444546	167	1	æ	I'm duckdb	Hello world
+innodb_checksum: .	1541516253
+duckdb_checksum  : .	1541516253
+duckdb_batch_insert_checksum: .	1541516253
+innotoduck_checksum: .	1541516253
+ducktoinno_checksum: .	1541516253
+# cleanup
+#
+# tinyblob
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	tinyblob	YES		NULL	
+b	tinyblob	YES		NULL	
+c	tinyblob	YES		NULL	
+d	tinyblob	YES		NULL	
+e	tinyblob	YES		NULL	
+f	tinyblob	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	tinyblob	YES		NULL	
+b	tinyblob	YES		NULL	
+c	tinyblob	YES		NULL	
+d	tinyblob	YES		NULL	
+e	tinyblob	YES		NULL	
+f	tinyblob	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_tinyblob begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_tinyblob ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 6]
+a	1	BLOB	NULL
+b	2	BLOB	NULL
+c	3	BLOB	NULL
+d	4	BLOB	NULL
+e	5	BLOB	NULL
+f	6	BLOB	NULL
+
+
+# ② Print CONSTRAINTs of t_tinyblob ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_tinyblob ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_tinyblob ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_tinyblob end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_tinyblob
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_tinyblob
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_tinyblob' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+b	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+c	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+d	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+e	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+f	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 30313233343536373839414243444546	616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161	30	Hello	48656C6C6F	I'm duckdb	Hello world
+duckdb_result_1: 30313233343536373839414243444546	616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161	30	Hello	48656C6C6F	I'm duckdb	Hello world
+duckdb_result_2: 30313233343536373839414243444546	616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161	30	Hello	48656C6C6F	I'm duckdb	Hello world
+innotoduck_result: 30313233343536373839414243444546	616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161	30	Hello	48656C6C6F	I'm duckdb	Hello world
+ducktoinno_result: 30313233343536373839414243444546	616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161	30	Hello	48656C6C6F	I'm duckdb	Hello world
+ducktoinnotoduck_result: 30313233343536373839414243444546	616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161616161	30	Hello	48656C6C6F	I'm duckdb	Hello world
+innodb_checksum: .	2145087190
+duckdb_checksum  : .	2145087190
+duckdb_batch_insert_checksum: .	2145087190
+innotoduck_checksum: .	2145087190
+ducktoinno_checksum: .	2145087190
+# cleanup
+#
+# blob
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	blob	YES		NULL	
+b	blob	YES		NULL	
+c	blob	YES		NULL	
+d	blob	YES		NULL	
+e	blob	YES		NULL	
+f	blob	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	blob	YES		NULL	
+b	blob	YES		NULL	
+c	blob	YES		NULL	
+d	blob	YES		NULL	
+e	blob	YES		NULL	
+f	blob	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_blob begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_blob ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 6]
+a	1	BLOB	NULL
+b	2	BLOB	NULL
+c	3	BLOB	NULL
+d	4	BLOB	NULL
+e	5	BLOB	NULL
+f	6	BLOB	NULL
+
+
+# ② Print CONSTRAINTs of t_blob ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_blob ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_blob ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_blob end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_blob
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_blob
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_blob' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_BLOB	1	0	0	NULL	
+b	MYSQL_TYPE_BLOB	1	0	0	NULL	
+c	MYSQL_TYPE_BLOB	1	0	0	NULL	
+d	MYSQL_TYPE_BLOB	1	0	0	NULL	
+e	MYSQL_TYPE_BLOB	1	0	0	NULL	
+f	MYSQL_TYPE_BLOB	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 30313233343536373839414243444546	65535	30	Hello	48656C6C6F	I'm duckdb	Hello world
+duckdb_result_1: 30313233343536373839414243444546	65535	30	Hello	48656C6C6F	I'm duckdb	Hello world
+duckdb_result_2: 30313233343536373839414243444546	65535	30	Hello	48656C6C6F	I'm duckdb	Hello world
+innotoduck_result: 30313233343536373839414243444546	65535	30	Hello	48656C6C6F	I'm duckdb	Hello world
+ducktoinno_result: 30313233343536373839414243444546	65535	30	Hello	48656C6C6F	I'm duckdb	Hello world
+ducktoinnotoduck_result: 30313233343536373839414243444546	65535	30	Hello	48656C6C6F	I'm duckdb	Hello world
+innodb_checksum: .	837462579
+duckdb_checksum  : .	837462579
+duckdb_batch_insert_checksum: .	837462579
+innotoduck_checksum: .	837462579
+ducktoinno_checksum: .	837462579
+# cleanup
+#
+# mediumblob
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	mediumblob	YES		NULL	
+b	mediumblob	YES		NULL	
+c	mediumblob	YES		NULL	
+d	mediumblob	YES		NULL	
+e	mediumblob	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	mediumblob	YES		NULL	
+b	mediumblob	YES		NULL	
+c	mediumblob	YES		NULL	
+d	mediumblob	YES		NULL	
+e	mediumblob	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_mediumblob begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_mediumblob ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	BLOB	NULL
+b	2	BLOB	NULL
+c	3	BLOB	NULL
+d	4	BLOB	NULL
+e	5	BLOB	NULL
+
+
+# ② Print CONSTRAINTs of t_mediumblob ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_mediumblob ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_mediumblob ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_mediumblob end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_mediumblob
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_mediumblob
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_mediumblob' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	NULL	
+b	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	NULL	
+c	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	NULL	
+d	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	NULL	
+e	MYSQL_TYPE_MEDIUM_BLOB	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 30313233343536373839414243444546	167	Hello	48656C6C6F	I'm duckdb	Hello world
+duckdb_result_1: 30313233343536373839414243444546	167	Hello	48656C6C6F	I'm duckdb	Hello world
+duckdb_result_2: 30313233343536373839414243444546	167	Hello	48656C6C6F	I'm duckdb	Hello world
+innotoduck_result: 30313233343536373839414243444546	167	Hello	48656C6C6F	I'm duckdb	Hello world
+ducktoinno_result: 30313233343536373839414243444546	167	Hello	48656C6C6F	I'm duckdb	Hello world
+ducktoinnotoduck_result: 30313233343536373839414243444546	167	Hello	48656C6C6F	I'm duckdb	Hello world
+innodb_checksum: .	1370500407
+duckdb_checksum  : .	1370500407
+duckdb_batch_insert_checksum: .	1370500407
+innotoduck_checksum: .	1370500407
+ducktoinno_checksum: .	1370500407
+# cleanup
+#
+# longblob
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	longblob	YES		NULL	
+b	longblob	YES		NULL	
+c	longblob	YES		NULL	
+d	longblob	YES		NULL	
+e	longblob	YES		NULL	
+f	longblob	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	longblob	YES		NULL	
+b	longblob	YES		NULL	
+c	longblob	YES		NULL	
+d	longblob	YES		NULL	
+e	longblob	YES		NULL	
+f	longblob	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_longblob begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_longblob ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 6]
+a	1	BLOB	NULL
+b	2	BLOB	NULL
+c	3	BLOB	NULL
+d	4	BLOB	NULL
+e	5	BLOB	NULL
+f	6	BLOB	NULL
+
+
+# ② Print CONSTRAINTs of t_longblob ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_longblob ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_longblob ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_longblob end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_longblob
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_longblob
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_longblob' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+b	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+c	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+d	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+e	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+f	MYSQL_TYPE_LONG_BLOB	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 30313233343536373839414243444546	167	1	Hello	48656C6C6F	I'm duckdb	Hello world
+duckdb_result_1: 30313233343536373839414243444546	167	1	Hello	48656C6C6F	I'm duckdb	Hello world
+duckdb_result_2: 30313233343536373839414243444546	167	1	Hello	48656C6C6F	I'm duckdb	Hello world
+innotoduck_result: 30313233343536373839414243444546	167	1	Hello	48656C6C6F	I'm duckdb	Hello world
+ducktoinno_result: 30313233343536373839414243444546	167	1	Hello	48656C6C6F	I'm duckdb	Hello world
+ducktoinnotoduck_result: 30313233343536373839414243444546	167	1	Hello	48656C6C6F	I'm duckdb	Hello world
+innodb_checksum: .	779642098
+duckdb_checksum  : .	779642098
+duckdb_batch_insert_checksum: .	779642098
+innotoduck_checksum: .	779642098
+ducktoinno_checksum: .	779642098
+# cleanup
+#
+# binary
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	binary(16)	YES		NULL	
+b	binary(32)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	binary(16)	YES		NULL	
+b	binary(32)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_binary begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_binary ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 2]
+a	1	BLOB	NULL
+b	2	BLOB	NULL
+
+
+# ② Print CONSTRAINTs of t_binary ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_binary ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_binary ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_binary end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_binary
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_binary
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_binary' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_STRING	1	0	0	NULL	
+b	MYSQL_TYPE_STRING	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : E80B5017098950FC58AAD83C8C14978E	16
+duckdb_result_1: E80B5017098950FC58AAD83C8C14978E	16
+duckdb_result_2: E80B5017098950FC58AAD83C8C14978E	16
+innotoduck_result: E80B5017098950FC58AAD83C8C14978E	16
+ducktoinno_result: E80B5017098950FC58AAD83C8C14978E	16
+ducktoinnotoduck_result: E80B5017098950FC58AAD83C8C14978E	16
+innodb_checksum: .	3309099147
+duckdb_checksum  : .	3309099147
+duckdb_batch_insert_checksum: .	3309099147
+innotoduck_checksum: .	3309099147
+ducktoinno_checksum: .	3309099147
+# cleanup
+#
+# varbinary
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	varbinary(16)	YES		NULL	
+b	binary(32)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	varbinary(16)	YES		NULL	
+b	binary(32)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_varbinary begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_varbinary ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 2]
+a	1	BLOB	NULL
+b	2	BLOB	NULL
+
+
+# ② Print CONSTRAINTs of t_varbinary ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_varbinary ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_varbinary ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_varbinary end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_varbinary
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_varbinary
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_varbinary' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+b	MYSQL_TYPE_STRING	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : E80B5017098950FC58AAD83C8C14978E	16	6161616161616161616161616161616161616161616161616161616161616161	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+duckdb_result_1: E80B5017098950FC58AAD83C8C14978E	16	6161616161616161616161616161616161616161616161616161616161616161	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+duckdb_result_2: E80B5017098950FC58AAD83C8C14978E	16	6161616161616161616161616161616161616161616161616161616161616161	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+innotoduck_result: E80B5017098950FC58AAD83C8C14978E	16	6161616161616161616161616161616161616161616161616161616161616161	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ducktoinno_result: E80B5017098950FC58AAD83C8C14978E	16	6161616161616161616161616161616161616161616161616161616161616161	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+ducktoinnotoduck_result: E80B5017098950FC58AAD83C8C14978E	16	6161616161616161616161616161616161616161616161616161616161616161	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+innodb_checksum: .	446120215
+duckdb_checksum  : .	446120215
+duckdb_batch_insert_checksum: .	446120215
+innotoduck_checksum: .	446120215
+ducktoinno_checksum: .	446120215
+# cleanup
+#
+# year
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	year	YES		NULL	
+b	year	YES		NULL	
+c	year	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	year	YES		NULL	
+b	year	YES		NULL	
+c	year	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_year begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_year ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 3]
+a	1	INTEGER	32
+b	2	INTEGER	32
+c	3	INTEGER	32
+
+
+# ② Print CONSTRAINTs of t_year ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_year ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_year ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_year end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_year
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_year
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_year' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_YEAR	1	1	1	NULL	
+b	MYSQL_TYPE_YEAR	1	1	1	NULL	
+c	MYSQL_TYPE_YEAR	1	1	1	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020	1970	1969
+duckdb_result_1: 2020	1970	1969
+duckdb_result_2: 2020	1970	1969
+innotoduck_result: 2020	1970	1969
+ducktoinno_result: 2020	1970	1969
+ducktoinnotoduck_result: 2020	1970	1969
+innodb_checksum: .	3857304234
+duckdb_checksum  : .	3857304234
+duckdb_batch_insert_checksum: .	3857304234
+innotoduck_checksum: .	3857304234
+ducktoinno_checksum: .	3857304234
+# cleanup
+#
+# date
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	date	YES		NULL	
+b	date	YES		NULL	
+c	date	YES		NULL	
+d	date	YES		NULL	
+e	date	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	date	YES		NULL	
+b	date	YES		NULL	
+c	date	YES		NULL	
+d	date	YES		NULL	
+e	date	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_date begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_date ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	DATE	NULL
+b	2	DATE	NULL
+c	3	DATE	NULL
+d	4	DATE	NULL
+e	5	DATE	NULL
+
+
+# ② Print CONSTRAINTs of t_date ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_date ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_date ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_date end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_date
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_date
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_date' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_NEWDATE	1	0	0	NULL	
+b	MYSQL_TYPE_NEWDATE	1	0	0	NULL	
+c	MYSQL_TYPE_NEWDATE	1	0	0	NULL	
+d	MYSQL_TYPE_NEWDATE	1	0	0	NULL	
+e	MYSQL_TYPE_NEWDATE	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+Warnings:
+Note	1292	Incorrect date value: '2020-01-01 12:00:00' for column 'd' at row 1
+Note	1292	Incorrect date value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect date value: '2020-01-01 12:00:00' for column 'd' at row 1
+Note	1292	Incorrect date value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect date value: '2020-01-01 12:00:00' for column 'd' at row 1
+Note	1292	Incorrect date value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect date value: '2020-01-01 12:00:00' for column 'd' at row 1
+Note	1292	Incorrect date value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect date value: '2020-01-01 12:00:00' for column 'd' at row 1
+Note	1292	Incorrect date value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+# check inserted data
+innodb_result  : 2020-01-01	1970-01-01	1969-01-01	2020-01-01	2020-01-01
+duckdb_result_1: 2020-01-01	1970-01-01	1969-01-01	2020-01-01	2020-01-01
+duckdb_result_2: 2020-01-01	1970-01-01	1969-01-01	2020-01-01	2020-01-01
+innotoduck_result: 2020-01-01	1970-01-01	1969-01-01	2020-01-01	2020-01-01
+ducktoinno_result: 2020-01-01	1970-01-01	1969-01-01	2020-01-01	2020-01-01
+ducktoinnotoduck_result: 2020-01-01	1970-01-01	1969-01-01	2020-01-01	2020-01-01
+innodb_checksum: .	1408669212
+duckdb_checksum  : .	1408669212
+duckdb_batch_insert_checksum: .	1408669212
+innotoduck_checksum: .	1408669212
+ducktoinno_checksum: .	1408669212
+# cleanup
+#
+# time
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	time	YES		NULL	
+b	time	YES		NULL	
+c	time	YES		NULL	
+d	time	YES		NULL	
+e	time	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	time	YES		NULL	
+b	time	YES		NULL	
+c	time	YES		NULL	
+d	time	YES		NULL	
+e	time	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIME	NULL
+b	2	TIME	NULL
+c	3	TIME	NULL
+d	4	TIME	NULL
+e	5	TIME	NULL
+
+
+# ② Print CONSTRAINTs of t_time ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIME2	1	0	0	0	
+b	MYSQL_TYPE_TIME2	1	0	0	0	
+c	MYSQL_TYPE_TIME2	1	0	0	0	
+d	MYSQL_TYPE_TIME2	1	0	0	0	
+e	MYSQL_TYPE_TIME2	1	0	0	0	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+Warnings:
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'a' at row 1
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'a' at row 1
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'a' at row 1
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'a' at row 1
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'a' at row 1
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+# check inserted data
+innodb_result  : 12:00:00	00:00:00	23:59:59	23:59:59	12:00:00
+duckdb_result_1: 12:00:00	00:00:00	23:59:59	23:59:59	12:00:00
+duckdb_result_2: 12:00:00	00:00:00	23:59:59	23:59:59	12:00:00
+innotoduck_result: 12:00:00	00:00:00	23:59:59	23:59:59	12:00:00
+ducktoinno_result: 12:00:00	00:00:00	23:59:59	23:59:59	12:00:00
+ducktoinnotoduck_result: 12:00:00	00:00:00	23:59:59	23:59:59	12:00:00
+innodb_checksum: .	2599517108
+duckdb_checksum  : .	2599517108
+duckdb_batch_insert_checksum: .	2599517108
+innotoduck_checksum: .	2599517108
+ducktoinno_checksum: .	2599517108
+# cleanup
+#
+# time(6)
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	time(6)	YES		NULL	
+b	time(6)	YES		NULL	
+c	time(6)	YES		NULL	
+d	time(6)	YES		NULL	
+e	time(6)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	time(6)	YES		NULL	
+b	time(6)	YES		NULL	
+c	time(6)	YES		NULL	
+d	time(6)	YES		NULL	
+e	time(6)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_6 begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_6 ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIME	NULL
+b	2	TIME	NULL
+c	3	TIME	NULL
+d	4	TIME	NULL
+e	5	TIME	NULL
+
+
+# ② Print CONSTRAINTs of t_time_6 ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_6 ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_6 ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_6 end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_6
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_6
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_6' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIME2	1	0	0	6	
+b	MYSQL_TYPE_TIME2	1	0	0	6	
+c	MYSQL_TYPE_TIME2	1	0	0	6	
+d	MYSQL_TYPE_TIME2	1	0	0	6	
+e	MYSQL_TYPE_TIME2	1	0	0	6	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+Warnings:
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'a' at row 1
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'a' at row 1
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'a' at row 1
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'a' at row 1
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+Warnings:
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'a' at row 1
+Note	1292	Incorrect time value: '2020-01-01 12:00:00.1' for column 'e' at row 1
+# check inserted data
+innodb_result  : 12:00:00.100000	00:00:00.000000	23:59:59.000000	23:59:59.123456	12:00:00.100000
+duckdb_result_1: 12:00:00.100000	00:00:00.000000	23:59:59.000000	23:59:59.123456	12:00:00.100000
+duckdb_result_2: 12:00:00.100000	00:00:00.000000	23:59:59.000000	23:59:59.123456	12:00:00.100000
+innotoduck_result: 12:00:00.100000	00:00:00.000000	23:59:59.000000	23:59:59.123456	12:00:00.100000
+ducktoinno_result: 12:00:00.100000	00:00:00.000000	23:59:59.000000	23:59:59.123456	12:00:00.100000
+ducktoinnotoduck_result: 12:00:00.100000	00:00:00.000000	23:59:59.000000	23:59:59.123456	12:00:00.100000
+innodb_checksum: .6	1377980872
+duckdb_checksum  : .6	1377980872
+duckdb_batch_insert_checksum: .6	1377980872
+innotoduck_checksum: .6	1377980872
+ducktoinno_checksum: .6	1377980872
+# cleanup
+#
+# datetime
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	datetime	YES		NULL	
+b	datetime	YES		NULL	
+c	datetime	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	datetime	YES		NULL	
+b	datetime	YES		NULL	
+c	datetime	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_datetime begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_datetime ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 3]
+a	1	TIMESTAMP	NULL
+b	2	TIMESTAMP	NULL
+c	3	TIMESTAMP	NULL
+
+
+# ② Print CONSTRAINTs of t_datetime ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_datetime ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_datetime ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_datetime end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_datetime
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_datetime
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_datetime' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_DATETIME2	1	0	0	0	
+b	MYSQL_TYPE_DATETIME2	1	0	0	0	
+c	MYSQL_TYPE_DATETIME2	1	0	0	0	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+duckdb_result_1: 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+duckdb_result_2: 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+innotoduck_result: 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+ducktoinno_result: 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+ducktoinnotoduck_result: 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+innodb_checksum: .	2724791001
+duckdb_checksum  : .	2724791001
+duckdb_batch_insert_checksum: .	2724791001
+innotoduck_checksum: .	2724791001
+ducktoinno_checksum: .	2724791001
+# cleanup
+#
+# datetime(6)
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	datetime(6)	YES		NULL	
+b	datetime(6)	YES		NULL	
+c	datetime(6)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	datetime(6)	YES		NULL	
+b	datetime(6)	YES		NULL	
+c	datetime(6)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_datetime_6 begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_datetime_6 ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 3]
+a	1	TIMESTAMP	NULL
+b	2	TIMESTAMP	NULL
+c	3	TIMESTAMP	NULL
+
+
+# ② Print CONSTRAINTs of t_datetime_6 ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_datetime_6 ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_datetime_6 ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_datetime_6 end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_datetime_6
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_datetime_6
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_datetime_6' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_DATETIME2	1	0	0	6	
+b	MYSQL_TYPE_DATETIME2	1	0	0	6	
+c	MYSQL_TYPE_DATETIME2	1	0	0	6	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 12:00:00.000000	1969-01-01 12:00:00.000000	2020-01-01 12:00:00.001000
+duckdb_result_1: 2020-01-01 12:00:00.000000	1969-01-01 12:00:00.000000	2020-01-01 12:00:00.001000
+duckdb_result_2: 2020-01-01 12:00:00.000000	1969-01-01 12:00:00.000000	2020-01-01 12:00:00.001000
+innotoduck_result: 2020-01-01 12:00:00.000000	1969-01-01 12:00:00.000000	2020-01-01 12:00:00.001000
+ducktoinno_result: 2020-01-01 12:00:00.000000	1969-01-01 12:00:00.000000	2020-01-01 12:00:00.001000
+ducktoinnotoduck_result: 2020-01-01 12:00:00.000000	1969-01-01 12:00:00.000000	2020-01-01 12:00:00.001000
+innodb_checksum: .6	3268924007
+duckdb_checksum  : .6	3268924007
+duckdb_batch_insert_checksum: .6	3268924007
+innotoduck_checksum: .6	3268924007
+ducktoinno_checksum: .6	3268924007
+# cleanup
+#
+# timestamp
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp	YES		NULL	
+c	timestamp	YES		NULL	
+d	timestamp	YES		NULL	
+e	timestamp	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp	YES		NULL	
+c	timestamp	YES		NULL	
+d	timestamp	YES		NULL	
+e	timestamp	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_timestamp begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_timestamp ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP WITH TIME ZONE	NULL
+c	3	TIMESTAMP WITH TIME ZONE	NULL
+d	4	TIMESTAMP WITH TIME ZONE	NULL
+e	5	TIMESTAMP WITH TIME ZONE	NULL
+
+
+# ② Print CONSTRAINTs of t_timestamp ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_timestamp ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_timestamp ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_timestamp end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_timestamp
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_timestamp
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_timestamp' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+c	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+d	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+e	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 12:00:00	1970-01-01 12:00:00	2020-01-01 12:00:00	2025-02-21 08:51:01	2025-02-21 08:51:01
+duckdb_result_1: 2020-01-01 12:00:00	1970-01-01 12:00:00	2020-01-01 12:00:00	2025-02-21 08:51:01	2025-02-21 08:51:01
+duckdb_result_2: 2020-01-01 12:00:00	1970-01-01 12:00:00	2020-01-01 12:00:00	2025-02-21 08:51:01	2025-02-21 08:51:01
+innotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00	2020-01-01 12:00:00	2025-02-21 08:51:01	2025-02-21 08:51:01
+ducktoinno_result: 2020-01-01 12:00:00	1970-01-01 12:00:00	2020-01-01 12:00:00	2025-02-21 08:51:01	2025-02-21 08:51:01
+ducktoinnotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00	2020-01-01 12:00:00	2025-02-21 08:51:01	2025-02-21 08:51:01
+innodb_checksum: .	386449502
+duckdb_checksum  : .	386449502
+duckdb_batch_insert_checksum: .	386449502
+innotoduck_checksum: .	386449502
+ducktoinno_checksum: .	386449502
+# cleanup
+#
+# timestamp(6)
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp(6)	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	timestamp(6)	YES		NULL	
+d	timestamp(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp(6)	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	timestamp(6)	YES		NULL	
+d	timestamp(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_timestamp_6 begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_timestamp_6 ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP WITH TIME ZONE	NULL
+c	3	TIMESTAMP WITH TIME ZONE	NULL
+d	4	TIMESTAMP WITH TIME ZONE	NULL
+e	5	TIMESTAMP WITH TIME ZONE	NULL
+
+
+# ② Print CONSTRAINTs of t_timestamp_6 ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_timestamp_6 ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_timestamp_6 ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_timestamp_6 end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_timestamp_6
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_timestamp_6
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_timestamp_6' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+b	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+c	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+d	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+e	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 12:00:00.000000	1970-01-01 12:00:00.000000	2020-01-01 12:00:00.001000	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+duckdb_result_1: 2020-01-01 12:00:00.000000	1970-01-01 12:00:00.000000	2020-01-01 12:00:00.001000	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+duckdb_result_2: 2020-01-01 12:00:00.000000	1970-01-01 12:00:00.000000	2020-01-01 12:00:00.001000	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+innotoduck_result: 2020-01-01 12:00:00.000000	1970-01-01 12:00:00.000000	2020-01-01 12:00:00.001000	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+ducktoinno_result: 2020-01-01 12:00:00.000000	1970-01-01 12:00:00.000000	2020-01-01 12:00:00.001000	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+ducktoinnotoduck_result: 2020-01-01 12:00:00.000000	1970-01-01 12:00:00.000000	2020-01-01 12:00:00.001000	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+innodb_checksum: .6	2418517653
+duckdb_checksum  : .6	2418517653
+duckdb_batch_insert_checksum: .6	2418517653
+innotoduck_checksum: .6	2418517653
+ducktoinno_checksum: .6	2418517653
+# cleanup
+#
+# json, enum, set
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	json	YES		NULL	
+b	enum('v1','v2','v3')	YES		NULL	
+c	set('v1','v2','v3')	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	json	YES		NULL	
+b	enum('v1','v2','v3')	YES		NULL	
+c	set('v1','v2','v3')	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_json begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_json ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 3]
+a	1	JSON	NULL
+b	2	VARCHAR	NULL
+c	3	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_json ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_json ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_json ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_json end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_json
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_json
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_json' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_JSON	1	0	0	NULL	
+b	MYSQL_TYPE_ENUM	1	0	0	NULL	
+c	MYSQL_TYPE_SET	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : {"id": 1, "value": "aaaa"}	v3	v1,v2,v3
+duckdb_result_1: {"id": 1, "value": "aaaa"}	v3	v1,v2,v3
+duckdb_result_2: {"id": 1, "value": "aaaa"}	v3	v1,v2,v3
+innotoduck_result: {"id": 1, "value": "aaaa"}	v3	v1,v2,v3
+ducktoinno_result: {"id": 1, "value": "aaaa"}	v3	v1,v2,v3
+ducktoinnotoduck_result: {"id": 1, "value": "aaaa"}	v3	v1,v2,v3
+innodb_checksum: .	3134165222
+duckdb_checksum  : .	3134165222
+duckdb_batch_insert_checksum: .	3134165222
+innotoduck_checksum: .	3134165222
+ducktoinno_checksum: .	3134165222
+# cleanup
+#
+# NULL
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	int	YES		NULL	
+b	int	YES		NULL	
+c	varchar(32)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	int	YES		NULL	
+b	int	YES		NULL	
+c	varchar(32)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_null begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_null ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 3]
+a	1	INTEGER	32
+b	2	INTEGER	32
+c	3	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_null ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_null ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_null ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_null end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_null
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_null
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_null' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_LONG	1	0	0	NULL	
+b	MYSQL_TYPE_LONG	1	0	0	NULL	
+c	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 1		
+duckdb_result_1: 1		
+duckdb_result_2: 1		
+innotoduck_result: 1		
+ducktoinno_result: 1		
+ducktoinnotoduck_result: 1		
+innodb_checksum: .	1956056120
+duckdb_checksum  : .	1956056120
+duckdb_batch_insert_checksum: .	1956056120
+innotoduck_checksum: .	1956056120
+ducktoinno_checksum: .	1956056120
+# cleanup
+#
+# column with charset ascii
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	varchar(32)	YES		NULL	
+b	char(32)	YES		NULL	
+c	text	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	varchar(32)	YES		NULL	
+b	char(32)	YES		NULL	
+c	text	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_ascii begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_ascii ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 3]
+a	1	VARCHAR	NULL
+b	2	VARCHAR	NULL
+c	3	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_ascii ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_ascii ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_ascii ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_ascii end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_ascii
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_ascii
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_ascii' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+b	MYSQL_TYPE_STRING	1	0	0	NULL	
+c	MYSQL_TYPE_BLOB	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : ascii	ASCII	ascII
+duckdb_result_1: ascii	ASCII	ascII
+duckdb_result_2: ascii	ASCII	ascII
+innotoduck_result: ascii	ASCII	ascII
+ducktoinno_result: ascii	ASCII	ascII
+ducktoinnotoduck_result: ascii	ASCII	ascII
+innodb_checksum: .	1028691471
+duckdb_checksum  : .	1028691471
+duckdb_batch_insert_checksum: .	1028691471
+innotoduck_checksum: .	1028691471
+ducktoinno_checksum: .	1028691471
+# cleanup
+#
+# column with charset latin1
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	varchar(32)	YES		NULL	
+b	varchar(32)	YES		NULL	
+c	varchar(32)	YES		NULL	
+d	char(32)	YES		NULL	
+e	text	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	varchar(32)	YES		NULL	
+b	varchar(32)	YES		NULL	
+c	varchar(32)	YES		NULL	
+d	char(32)	YES		NULL	
+e	text	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_latin1 begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_latin1 ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	VARCHAR	NULL
+b	2	VARCHAR	NULL
+c	3	VARCHAR	NULL
+d	4	VARCHAR	NULL
+e	5	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_latin1 ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_latin1 ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_latin1 ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_latin1 end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_latin1
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_latin1
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_latin1' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+b	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+c	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+d	MYSQL_TYPE_STRING	1	0	0	NULL	
+e	MYSQL_TYPE_BLOB	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : latin1	lAtin1	lÀtin1	lÀTin1	
+duckdb_result_1: latin1	lAtin1	lÀtin1	lÀTin1	
+duckdb_result_2: latin1	lAtin1	lÀtin1	lÀTin1	
+innotoduck_result: latin1	lAtin1	lÀtin1	lÀTin1	
+ducktoinno_result: latin1	lAtin1	lÀtin1	lÀTin1	
+ducktoinnotoduck_result: latin1	lAtin1	lÀtin1	lÀTin1	
+innodb_checksum: .1	2402295621
+duckdb_checksum  : .1	2402295621
+duckdb_batch_insert_checksum: .1	2402295621
+innotoduck_checksum: .1	2402295621
+ducktoinno_checksum: .1	2402295621
+# cleanup
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+e	text	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+e	text	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_latin1 begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_latin1 ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 1]
+e	1	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_latin1 ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_latin1 ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_latin1 ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_latin1 end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_latin1
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_latin1
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_latin1' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+e	MYSQL_TYPE_BLOB	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : lÀTin1
+duckdb_result_1: lÀTin1
+duckdb_result_2: lÀTin1
+innotoduck_result: lÀTin1
+ducktoinno_result: lÀTin1
+ducktoinnotoduck_result: lÀTin1
+innodb_checksum: .1	2529662793
+duckdb_checksum  : .1	2529662793
+duckdb_batch_insert_checksum: .1	2529662793
+innotoduck_checksum: .1	2529662793
+ducktoinno_checksum: .1	2529662793
+# cleanup
+#
+# column with utf8mb4 and emoji
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	varchar(32)	YES		NULL	
+b	char(32)	YES		NULL	
+c	tinytext	YES		NULL	
+d	varchar(32)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	varchar(32)	YES		NULL	
+b	char(32)	YES		NULL	
+c	tinytext	YES		NULL	
+d	varchar(32)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_mb4_emoji begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_mb4_emoji ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 4]
+a	1	VARCHAR	NULL
+b	2	VARCHAR	NULL
+c	3	VARCHAR	NULL
+d	4	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_mb4_emoji ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_mb4_emoji ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_mb4_emoji ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_mb4_emoji end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_mb4_emoji
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_mb4_emoji
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_mb4_emoji' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+b	MYSQL_TYPE_STRING	1	0	0	NULL	
+c	MYSQL_TYPE_TINY_BLOB	1	0	0	NULL	
+d	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 😄	😄	😄	😭h😄h😭
+duckdb_result_1: 😄	😄	😄	😭h😄h😭
+duckdb_result_2: 😄	😄	😄	😭h😄h😭
+innotoduck_result: 😄	😄	😄	😭h😄h😭
+ducktoinno_result: 😄	😄	😄	😭h😄h😭
+ducktoinnotoduck_result: 😄	😄	😄	😭h😄h😭
+innodb_checksum: .4	892280599
+duckdb_checksum  : .4	892280599
+duckdb_batch_insert_checksum: .4	892280599
+innotoduck_checksum: .4	892280599
+ducktoinno_checksum: .4	892280599
+# cleanup

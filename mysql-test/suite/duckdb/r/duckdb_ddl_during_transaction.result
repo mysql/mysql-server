@@ -1,0 +1,66 @@
+###########################################################################
+# Prepare
+###########################################################################
+CREATE TABLE t1 (
+id BIGINT NOT NULL DEFAULT 1,
+c0 SMALLINT NOT NULL DEFAULT 2,
+c1 VARCHAR(20) NOT NULL DEFAULT 'abc',
+PRIMARY KEY (id)
+) ENGINE=DuckDB;
+CREATE TABLE t2 (
+id BIGINT NOT NULL DEFAULT 1,
+c0 SMALLINT NOT NULL DEFAULT 2,
+c1 VARCHAR(20) NOT NULL DEFAULT 'abc',
+PRIMARY KEY (id)
+) ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL DEFAULT '1',
+  `c0` smallint NOT NULL DEFAULT '2',
+  `c1` varchar(20) NOT NULL DEFAULT 'abc',
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` bigint NOT NULL DEFAULT '1',
+  `c0` smallint NOT NULL DEFAULT '2',
+  `c1` varchar(20) NOT NULL DEFAULT 'abc',
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t1 VALUES (3, 4, 'zzz'), (5, 6, 'xxx');
+SELECT * FROM t1;
+id	c0	c1
+3	4	zzz
+5	6	xxx
+###########################################################################
+# Test executing DDL during a DuckDB transaction
+###########################################################################
+# 1. Test for DuckDB Appender
+BEGIN;
+INSERT INTO t2 (id) VALUES (7);
+ALTER TABLE t1 DROP COLUMN c0;
+CALL mtr.add_suppression("Call to EndRow before all columns have been appended to");
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table mtr.test_suppressions and the DUCKDB table test.t2.
+INSERT INTO t1 (c1) VALUES ('xyz');
+ERROR HY000: [DuckDB] DuckDB appender error. Call to EndRow before all columns have been appended to!
+COMMIT;
+SELECT * FROM t1;
+id	c1
+3	zzz
+5	xxx
+include/assert_grep.inc [Check DuckDB Warning]
+# 2. Test for SELECT
+BEGIN;
+SELECT * FROM t2;
+id	c0	c1
+ALTER TABLE t1 DROP COLUMN c1, ADD COLUMN c2 DATE;
+SELECT * FROM t1;
+ERROR HY000: [DuckDB] DuckDB send result error. invalid date field format: "zzz", expected format is (YYYY-MM-DD)
+COMMIT;
+###########################################################################
+# Cleanup
+###########################################################################
+DROP TABLE t1, t2;

@@ -1,0 +1,855 @@
+CREATE TABLE t_innodb (
+id INT PRIMARY KEY,
+col1 TINYINT,
+col2 INT,
+col3 BIGINT,
+col4 DOUBLE,
+col5 DECIMAL(38, 10),
+col6 TIME,
+col7 DATE,
+col8 DATETIME,
+col9 TIMESTAMP,
+col10 VARCHAR(100),
+col11 BLOB
+);
+CREATE TABLE t_duckdb (
+id INT PRIMARY KEY,
+col1 TINYINT,
+col2 INT,
+col3 BIGINT,
+col4 DOUBLE,
+col5 DECIMAL(38, 10),
+col6 TIME,
+col7 DATE,
+col8 DATETIME,
+col9 TIMESTAMP,
+col10 VARCHAR(100),
+col11 BLOB
+) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(2, 10, 123456789, 123456789011121314, 123456789011121314.12345678910, 1234567890111213141516171819.123456789, '23:59:59', '2025-12-31', '9999-12-31 23:59:59', '2025-12-31 23:59:59', '1234567890111213141516171819.123456789', '1234567890111213141516171819.123456789'),
+(3, -10, -123456789, -123456789011121314, -123456789011121314.12345678910, -1234567890111213141516171819.123456789, '00:00:00', '1970-01-01', '0001-01-01 00:00:00', '1970-01-02 00:00:00', '-1234567890111213141516171819.123456789', '-1234567890111213141516171819.123456789'),
+(4, -10, -123456789, -123456789011121314, -123456789011121314.12345678910, -1234567890111213141516171819.123456789, '00:00:00', '1970-01-01', '0001-01-01 00:00:00', '1970-01-02 00:00:00', REPEAT('a', 100), REPEAT('a', 65535));
+INSERT INTO t_duckdb VALUES (1, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(2, 10, 123456789, 123456789011121314, 123456789011121314.12345678910, 1234567890111213141516171819.123456789, '23:59:59', '2025-12-31', '9999-12-31 23:59:59', '2025-12-31 23:59:59', '1234567890111213141516171819.123456789', '1234567890111213141516171819.123456789'),
+(3, -10, -123456789, -123456789011121314, -123456789011121314.12345678910, -1234567890111213141516171819.123456789, '00:00:00', '1970-01-01', '0001-01-01 00:00:00', '1970-01-02 00:00:00', '-1234567890111213141516171819.123456789', '-1234567890111213141516171819.123456789'),
+(4, -10, -123456789, -123456789011121314, -123456789011121314.12345678910, -1234567890111213141516171819.123456789, '00:00:00', '1970-01-01', '0001-01-01 00:00:00', '1970-01-02 00:00:00', REPEAT('a', 100), REPEAT('a', 65535));
+--------------------------
+1. AVG()
+--------------------------
+SELECT AVG(col1), AVG(col2), AVG(col3), AVG(col4),
+AVG(col5), AVG(col6), AVG(col7), AVG(col8),
+AVG(col9), AVG(col10)
+FROM t_innodb;
+AVG(col1)	AVG(col2)	AVG(col3)	AVG(col4)	AVG(col5)	AVG(col6)	AVG(col7)	AVG(col8)	AVG(col9)	AVG(col10)
+-3.3333	-41152263.0000	-41152263003707104.6667	-4.11522630037071e16	-411522630037071047172057273.04115226300000	78653.0000	19883811.0000	33337144411986.3333	19883811745319.6667	0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SELECT AVG(col1), AVG(col2), AVG(col3), AVG(col4),
+AVG(col5), AVG(col6), AVG(col7), AVG(col8),
+AVG(col9), AVG(col10)
+FROM t_duckdb;
+AVG(col1)	AVG(col2)	AVG(col3)	AVG(col4)	AVG(col5)	AVG(col6)	AVG(col7)	AVG(col8)	AVG(col9)	AVG(col10)
+-3.3333333333333335	-41152263	-4.11522630037071e16	-4.11522630037071e16	-4.11522630037071e26	78653	19883811	33337144411986.332	19883811745319.668	0
+SELECT AVG(col11)
+FROM t_duckdb WHERE id <= 3;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'avg(BLOB)'. You might need to add explicit type casts.
+	Candidate functions:
+	avg(DECIMAL) -> DECIMAL
+	avg(SMALLINT) -> DOUBLE
+	avg(INTEGER) -> DOUBLE
+	avg(BIGINT) -> DOUBLE
+	avg(HUGEINT) -> DOUBLE
+	avg(INTERVAL) -> INTERVAL
+	avg(DOUBLE) -> DOUBLE
+
+
+LINE 1: SELECT AVG(col11)
+               ^.
+--------------------------
+2. BIT_AND()
+--------------------------
+SELECT BIT_AND(col1), BIT_AND(col2), BIT_AND(col3)
+FROM t_innodb;
+BIT_AND(col1)	BIT_AND(col2)	BIT_AND(col3)
+2	1	2
+SELECT BIT_AND(col1), BIT_AND(col2), BIT_AND(col3)
+FROM t_duckdb;
+BIT_AND(col1)	BIT_AND(col2)	BIT_AND(col3)
+2	1	2
+SELECT BIT_AND(col4), BIT_AND(col5), BIT_AND(col6),
+BIT_AND(col7), BIT_AND(col8), BIT_AND(col9),
+BIT_AND(col10)
+FROM t_duckdb;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'bit_and(TIME)'. You might need to add explicit type casts.
+	Candidate functions:
+	bit_and(TINYINT) -> UBIGINT
+	bit_and(SMALLINT) -> UBIGINT
+	bit_and(INTEGER) -> UBIGINT
+	bit_and(BIGINT) -> UBIGINT
+	bit_and(HUGEINT) -> HUGEINT
+	bit_and(UTINYINT) -> UBIGINT
+	bit_and(USMALLINT) -> UBIGINT
+	bit_and(UINTEGER) -> UBIGINT
+	bit_and(UBIGINT) -> UBIGINT
+	bit_and(UHUGEINT) -> UHUGEINT
+	bit_and(BIT) -> BIT
+
+
+LINE 1: SELECT BIT_AND(col4), BIT
+--------------------------
+3. BIT_OR()
+--------------------------
+SELECT BIT_OR(col1), BIT_OR(col2), BIT_OR(col3)
+FROM t_innodb;
+BIT_OR(col1)	BIT_OR(col2)	BIT_OR(col3)
+18446744073709551614	18446744073709551615	18446744073709551614
+SELECT BIT_OR(col1), BIT_OR(col2), BIT_OR(col3)
+FROM t_duckdb;
+BIT_OR(col1)	BIT_OR(col2)	BIT_OR(col3)
+18446744073709551614	18446744073709551615	18446744073709551614
+SELECT BIT_OR(col4), BIT_OR(col5), BIT_OR(col6),
+BIT_OR(col7), BIT_OR(col8), BIT_OR(col9),
+BIT_OR(col10)
+FROM t_duckdb;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'bit_or(TIME)'. You might need to add explicit type casts.
+	Candidate functions:
+	bit_or(TINYINT) -> UBIGINT
+	bit_or(SMALLINT) -> UBIGINT
+	bit_or(INTEGER) -> UBIGINT
+	bit_or(BIGINT) -> UBIGINT
+	bit_or(HUGEINT) -> HUGEINT
+	bit_or(UTINYINT) -> UBIGINT
+	bit_or(USMALLINT) -> UBIGINT
+	bit_or(UINTEGER) -> UBIGINT
+	bit_or(UBIGINT) -> UBIGINT
+	bit_or(UHUGEINT) -> UHUGEINT
+	bit_or(BIT) -> BIT
+
+
+LINE 1: SELECT BIT_OR(col4), BIT_OR(col5), BI
+--------------------------
+4. BIT_XOR()
+--------------------------
+SELECT BIT_XOR(col1), BIT_XOR(col2), BIT_XOR(col3)
+FROM t_innodb;
+BIT_XOR(col1)	BIT_XOR(col2)	BIT_XOR(col3)
+10	123456789	123456789011121314
+SELECT BIT_XOR(col1), BIT_XOR(col2), BIT_XOR(col3)
+FROM t_duckdb;
+BIT_XOR(col1)	BIT_XOR(col2)	BIT_XOR(col3)
+10	123456789	123456789011121314
+SELECT BIT_XOR(col4), BIT_XOR(col5), BIT_XOR(col6),
+BIT_XOR(col7), BIT_XOR(col8), BIT_XOR(col9),
+BIT_XOR(col10)
+FROM t_duckdb;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'bit_xor(TIME)'. You might need to add explicit type casts.
+	Candidate functions:
+	bit_xor(TINYINT) -> UBIGINT
+	bit_xor(SMALLINT) -> UBIGINT
+	bit_xor(INTEGER) -> UBIGINT
+	bit_xor(BIGINT) -> UBIGINT
+	bit_xor(HUGEINT) -> HUGEINT
+	bit_xor(UTINYINT) -> UBIGINT
+	bit_xor(USMALLINT) -> UBIGINT
+	bit_xor(UINTEGER) -> UBIGINT
+	bit_xor(UBIGINT) -> UBIGINT
+	bit_xor(UHUGEINT) -> UHUGEINT
+	bit_xor(BIT) -> BIT
+
+
+LINE 1: SELECT BIT_XOR(col4), BIT
+--------------------------
+5. COUNT()
+--------------------------
+SELECT COUNT(col1), COUNT(col2), COUNT(col3), COUNT(col4),
+COUNT(col5), COUNT(col6), COUNT(col7), COUNT(col8),
+COUNT(col9), COUNT(col10), COUNT(col11)
+FROM t_innodb;
+COUNT(col1)	COUNT(col2)	COUNT(col3)	COUNT(col4)	COUNT(col5)	COUNT(col6)	COUNT(col7)	COUNT(col8)	COUNT(col9)	COUNT(col10)	COUNT(col11)
+3	3	3	3	3	3	3	3	3	3	3
+SELECT COUNT(col1), COUNT(col2), COUNT(col3), COUNT(col4),
+COUNT(col5), COUNT(col6), COUNT(col7), COUNT(col8),
+COUNT(col9), COUNT(col10), COUNT(col11)
+FROM t_duckdb;
+COUNT(col1)	COUNT(col2)	COUNT(col3)	COUNT(col4)	COUNT(col5)	COUNT(col6)	COUNT(col7)	COUNT(col8)	COUNT(col9)	COUNT(col10)	COUNT(col11)
+3	3	3	3	3	3	3	3	3	3	3
+SELECT COUNT(DISTINCT col1), COUNT(DISTINCT col2), COUNT(DISTINCT col3), COUNT(DISTINCT col4),
+COUNT(DISTINCT col5), COUNT(DISTINCT col6), COUNT(DISTINCT col7), COUNT(DISTINCT col8),
+COUNT(DISTINCT col9), COUNT(DISTINCT col10), COUNT(DISTINCT col11)
+FROM t_innodb;
+COUNT(DISTINCT col1)	COUNT(DISTINCT col2)	COUNT(DISTINCT col3)	COUNT(DISTINCT col4)	COUNT(DISTINCT col5)	COUNT(DISTINCT col6)	COUNT(DISTINCT col7)	COUNT(DISTINCT col8)	COUNT(DISTINCT col9)	COUNT(DISTINCT col10)	COUNT(DISTINCT col11)
+2	2	2	2	2	2	2	2	2	3	3
+SELECT COUNT(DISTINCT col1), COUNT(DISTINCT col2), COUNT(DISTINCT col3), COUNT(DISTINCT col4),
+COUNT(DISTINCT col5), COUNT(DISTINCT col6), COUNT(DISTINCT col7), COUNT(DISTINCT col8),
+COUNT(DISTINCT col9), COUNT(DISTINCT col10), COUNT(DISTINCT col11)
+FROM t_duckdb;
+COUNT(DISTINCT col1)	COUNT(DISTINCT col2)	COUNT(DISTINCT col3)	COUNT(DISTINCT col4)	COUNT(DISTINCT col5)	COUNT(DISTINCT col6)	COUNT(DISTINCT col7)	COUNT(DISTINCT col8)	COUNT(DISTINCT col9)	COUNT(DISTINCT col10)	COUNT(DISTINCT col11)
+2	2	2	2	2	2	2	2	2	3	3
+--------------------------
+6. GROUP_CONCAT()
+--------------------------
+SET group_concat_max_len = 100000;
+SELECT GROUP_CONCAT(col1), GROUP_CONCAT(col2), GROUP_CONCAT(col3), GROUP_CONCAT(col4),
+GROUP_CONCAT(col5), GROUP_CONCAT(col6), GROUP_CONCAT(col7), GROUP_CONCAT(col8),
+GROUP_CONCAT(col9), LENGTH(GROUP_CONCAT(col10)), LENGTH(GROUP_CONCAT(col11))
+FROM t_innodb;
+GROUP_CONCAT(col1)	GROUP_CONCAT(col2)	GROUP_CONCAT(col3)	GROUP_CONCAT(col4)	GROUP_CONCAT(col5)	GROUP_CONCAT(col6)	GROUP_CONCAT(col7)	GROUP_CONCAT(col8)	GROUP_CONCAT(col9)	LENGTH(GROUP_CONCAT(col10))	LENGTH(GROUP_CONCAT(col11))
+10,-10,-10	123456789,-123456789,-123456789	123456789011121314,-123456789011121314,-123456789011121314	1.2345678901112131e17,-1.2345678901112131e17,-1.2345678901112131e17	1234567890111213141516171819.1234567890,-1234567890111213141516171819.1234567890,-1234567890111213141516171819.1234567890	23:59:59,00:00:00,00:00:00	2025-12-31,1970-01-01,1970-01-01	9999-12-31 23:59:59,0001-01-01 00:00:00,0001-01-01 00:00:00	2025-12-31 23:59:59,1970-01-02 00:00:00,1970-01-02 00:00:00	179	65614
+SELECT GROUP_CONCAT(col1), GROUP_CONCAT(col2), GROUP_CONCAT(col3), GROUP_CONCAT(col4),
+GROUP_CONCAT(col5), GROUP_CONCAT(col6), GROUP_CONCAT(col7), GROUP_CONCAT(col8),
+GROUP_CONCAT(col9), LENGTH(GROUP_CONCAT(col10)), LENGTH(GROUP_CONCAT(col11))
+FROM t_duckdb;
+GROUP_CONCAT(col1)	GROUP_CONCAT(col2)	GROUP_CONCAT(col3)	GROUP_CONCAT(col4)	GROUP_CONCAT(col5)	GROUP_CONCAT(col6)	GROUP_CONCAT(col7)	GROUP_CONCAT(col8)	GROUP_CONCAT(col9)	LENGTH(GROUP_CONCAT(col10))	LENGTH(GROUP_CONCAT(col11))
+10,-10,-10	123456789,-123456789,-123456789	123456789011121314,-123456789011121314,-123456789011121314	1.2345678901112131e17,-1.2345678901112131e17,-1.2345678901112131e17	1234567890111213141516171819.1234567890,-1234567890111213141516171819.1234567890,-1234567890111213141516171819.1234567890	23:59:59,00:00:00,00:00:00	2025-12-31,1970-01-01,1970-01-01	9999-12-31 23:59:59,0001-01-01 00:00:00,0001-01-01 00:00:00	2025-12-31 23:59:59,1970-01-02 00:00:00,1970-01-02 00:00:00	179	65614
+--------------------------
+7. JSON_ARRAYAGG()
+--------------------------
+--------------------------
+8. JSON_OBJECTAGG()
+--------------------------
+CREATE TABLE t_json_obj_innodb (
+id INT PRIMARY KEY,
+col_tinyint TINYINT,
+col_int INT,
+col_bigint BIGINT,
+col_double DOUBLE,
+col_decimal DECIMAL(38, 10),
+col_time TIME,
+col_date DATE,
+col_datetime DATETIME,
+col_timestamp TIMESTAMP,
+col_varchar VARCHAR(100)
+);
+CREATE TABLE t_json_obj_duckdb (
+id INT PRIMARY KEY,
+col_tinyint TINYINT,
+col_int INT,
+col_bigint BIGINT,
+col_double DOUBLE,
+col_decimal DECIMAL(38, 10),
+col_time TIME,
+col_date DATE,
+col_datetime DATETIME,
+col_timestamp TIMESTAMP,
+col_varchar VARCHAR(100)
+) ENGINE=DuckDB;
+INSERT INTO t_json_obj_innodb VALUES
+(1, 1, 100, 1000000000, 1.11, 111.1111111111, '01:00:00', '2020-01-01', '2020-01-01 01:00:00', '2020-01-01 01:00:00', 'key_a'),
+(2, 2, 200, 2000000000, 2.22, 222.2222222222, '02:00:00', '2021-06-15', '2021-06-15 12:30:00', '2021-06-15 12:30:00', 'key_b'),
+(3, 3, 300, 3000000000, 3.33, 333.3333333333, '03:00:00', '2022-12-31', '2022-12-31 23:59:59', '2022-12-31 23:59:59', 'key_c'),
+(4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO t_json_obj_duckdb VALUES
+(1, 1, 100, 1000000000, 1.11, 111.1111111111, '01:00:00', '2020-01-01', '2020-01-01 01:00:00', '2020-01-01 01:00:00', 'key_a'),
+(2, 2, 200, 2000000000, 2.22, 222.2222222222, '02:00:00', '2021-06-15', '2021-06-15 12:30:00', '2021-06-15 12:30:00', 'key_b'),
+(3, 3, 300, 3000000000, 3.33, 333.3333333333, '03:00:00', '2022-12-31', '2022-12-31 23:59:59', '2022-12-31 23:59:59', 'key_c'),
+(4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+SELECT JSON_OBJECTAGG(col_tinyint, col_varchar) FROM t_json_obj_innodb WHERE col_tinyint IS NOT NULL;
+JSON_OBJECTAGG(col_tinyint, col_varchar)
+{"1": "key_a", "2": "key_b", "3": "key_c"}
+SELECT JSON_OBJECTAGG(col_tinyint, col_varchar) FROM t_json_obj_duckdb WHERE col_tinyint IS NOT NULL;
+JSON_OBJECTAGG(col_tinyint, col_varchar)
+{"1": "key_a", "2": "key_b", "3": "key_c"}
+SELECT JSON_OBJECTAGG(col_int, col_varchar) FROM t_json_obj_innodb WHERE col_int IS NOT NULL;
+JSON_OBJECTAGG(col_int, col_varchar)
+{"100": "key_a", "200": "key_b", "300": "key_c"}
+SELECT JSON_OBJECTAGG(col_int, col_varchar) FROM t_json_obj_duckdb WHERE col_int IS NOT NULL;
+JSON_OBJECTAGG(col_int, col_varchar)
+{"100": "key_a", "200": "key_b", "300": "key_c"}
+SELECT JSON_OBJECTAGG(col_bigint, col_varchar) FROM t_json_obj_innodb WHERE col_bigint IS NOT NULL;
+JSON_OBJECTAGG(col_bigint, col_varchar)
+{"1000000000": "key_a", "2000000000": "key_b", "3000000000": "key_c"}
+SELECT JSON_OBJECTAGG(col_bigint, col_varchar) FROM t_json_obj_duckdb WHERE col_bigint IS NOT NULL;
+JSON_OBJECTAGG(col_bigint, col_varchar)
+{"1000000000": "key_a", "2000000000": "key_b", "3000000000": "key_c"}
+SELECT JSON_OBJECTAGG(col_double, col_varchar) FROM t_json_obj_innodb WHERE col_double IS NOT NULL;
+JSON_OBJECTAGG(col_double, col_varchar)
+{"1.11": "key_a", "2.22": "key_b", "3.33": "key_c"}
+SELECT JSON_OBJECTAGG(col_double, col_varchar) FROM t_json_obj_duckdb WHERE col_double IS NOT NULL;
+JSON_OBJECTAGG(col_double, col_varchar)
+{"1.11": "key_a", "2.22": "key_b", "3.33": "key_c"}
+SELECT JSON_OBJECTAGG(col_decimal, col_varchar) FROM t_json_obj_innodb WHERE col_decimal IS NOT NULL;
+JSON_OBJECTAGG(col_decimal, col_varchar)
+{"111.1111111111": "key_a", "222.2222222222": "key_b", "333.3333333333": "key_c"}
+SELECT JSON_OBJECTAGG(col_decimal, col_varchar) FROM t_json_obj_duckdb WHERE col_decimal IS NOT NULL;
+JSON_OBJECTAGG(col_decimal, col_varchar)
+{"111.1111111111": "key_a", "222.2222222222": "key_b", "333.3333333333": "key_c"}
+SELECT JSON_OBJECTAGG(col_time, col_varchar) FROM t_json_obj_innodb WHERE col_time IS NOT NULL;
+JSON_OBJECTAGG(col_time, col_varchar)
+{"01:00:00": "key_a", "02:00:00": "key_b", "03:00:00": "key_c"}
+SELECT JSON_OBJECTAGG(col_time, col_varchar) FROM t_json_obj_duckdb WHERE col_time IS NOT NULL;
+JSON_OBJECTAGG(col_time, col_varchar)
+{"01:00:00": "key_a", "02:00:00": "key_b", "03:00:00": "key_c"}
+SELECT JSON_OBJECTAGG(col_date, col_varchar) FROM t_json_obj_innodb WHERE col_date IS NOT NULL;
+JSON_OBJECTAGG(col_date, col_varchar)
+{"2020-01-01": "key_a", "2021-06-15": "key_b", "2022-12-31": "key_c"}
+SELECT JSON_OBJECTAGG(col_date, col_varchar) FROM t_json_obj_duckdb WHERE col_date IS NOT NULL;
+JSON_OBJECTAGG(col_date, col_varchar)
+{"2020-01-01": "key_a", "2021-06-15": "key_b", "2022-12-31": "key_c"}
+SELECT JSON_OBJECTAGG(col_datetime, col_varchar) FROM t_json_obj_innodb WHERE col_datetime IS NOT NULL;
+JSON_OBJECTAGG(col_datetime, col_varchar)
+{"2020-01-01 01:00:00": "key_a", "2021-06-15 12:30:00": "key_b", "2022-12-31 23:59:59": "key_c"}
+SELECT JSON_OBJECTAGG(col_datetime, col_varchar) FROM t_json_obj_duckdb WHERE col_datetime IS NOT NULL;
+JSON_OBJECTAGG(col_datetime, col_varchar)
+{"2020-01-01 01:00:00": "key_a", "2021-06-15 12:30:00": "key_b", "2022-12-31 23:59:59": "key_c"}
+SELECT JSON_OBJECTAGG(col_timestamp, col_varchar) FROM t_json_obj_innodb WHERE col_timestamp IS NOT NULL;
+JSON_OBJECTAGG(col_timestamp, col_varchar)
+{"2020-01-01 01:00:00": "key_a", "2021-06-15 12:30:00": "key_b", "2022-12-31 23:59:59": "key_c"}
+SELECT JSON_OBJECTAGG(col_timestamp, col_varchar) FROM t_json_obj_duckdb WHERE col_timestamp IS NOT NULL;
+JSON_OBJECTAGG(col_timestamp, col_varchar)
+{"2020-01-01 01:00:00": "key_a", "2021-06-15 12:30:00": "key_b", "2022-12-31 23:59:59": "key_c"}
+SELECT JSON_OBJECTAGG(col_varchar, col_int) FROM t_json_obj_innodb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_int)
+{"key_a": 100, "key_b": 200, "key_c": 300}
+SELECT JSON_OBJECTAGG(col_varchar, col_int) FROM t_json_obj_duckdb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_int)
+{"key_a": 100, "key_b": 200, "key_c": 300}
+SELECT JSON_OBJECTAGG(col_varchar, col_tinyint) FROM t_json_obj_innodb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_tinyint)
+{"key_a": 1, "key_b": 2, "key_c": 3}
+SELECT JSON_OBJECTAGG(col_varchar, col_tinyint) FROM t_json_obj_duckdb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_tinyint)
+{"key_a": 1, "key_b": 2, "key_c": 3}
+SELECT JSON_OBJECTAGG(col_varchar, col_int) FROM t_json_obj_innodb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_int)
+{"key_a": 100, "key_b": 200, "key_c": 300}
+SELECT JSON_OBJECTAGG(col_varchar, col_int) FROM t_json_obj_duckdb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_int)
+{"key_a": 100, "key_b": 200, "key_c": 300}
+SELECT JSON_OBJECTAGG(col_varchar, col_bigint) FROM t_json_obj_innodb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_bigint)
+{"key_a": 1000000000, "key_b": 2000000000, "key_c": 3000000000}
+SELECT JSON_OBJECTAGG(col_varchar, col_bigint) FROM t_json_obj_duckdb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_bigint)
+{"key_a": 1000000000, "key_b": 2000000000, "key_c": 3000000000}
+SELECT JSON_OBJECTAGG(col_varchar, col_double) FROM t_json_obj_innodb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_double)
+{"key_a": 1.11, "key_b": 2.22, "key_c": 3.33}
+SELECT JSON_OBJECTAGG(col_varchar, col_double) FROM t_json_obj_duckdb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_double)
+{"key_a": 1.11, "key_b": 2.22, "key_c": 3.33}
+SELECT JSON_OBJECTAGG(col_varchar, col_decimal) FROM t_json_obj_innodb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_decimal)
+{"key_a": 111.1111111111, "key_b": 222.2222222222, "key_c": 333.3333333333}
+SELECT JSON_OBJECTAGG(col_varchar, col_decimal) FROM t_json_obj_duckdb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_decimal)
+{"key_a": 111.1111111111, "key_b": 222.2222222222, "key_c": 333.3333333333}
+SELECT JSON_OBJECTAGG(col_varchar, col_time) FROM t_json_obj_innodb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_time)
+{"key_a": "01:00:00.000000", "key_b": "02:00:00.000000", "key_c": "03:00:00.000000"}
+SELECT JSON_OBJECTAGG(col_varchar, col_time) FROM t_json_obj_duckdb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_time)
+{"key_a": "01:00:00.000000", "key_b": "02:00:00.000000", "key_c": "03:00:00.000000"}
+SELECT JSON_OBJECTAGG(col_varchar, col_date) FROM t_json_obj_innodb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_date)
+{"key_a": "2020-01-01", "key_b": "2021-06-15", "key_c": "2022-12-31"}
+SELECT JSON_OBJECTAGG(col_varchar, col_date) FROM t_json_obj_duckdb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_date)
+{"key_a": "2020-01-01", "key_b": "2021-06-15", "key_c": "2022-12-31"}
+SELECT JSON_OBJECTAGG(col_varchar, col_datetime) FROM t_json_obj_innodb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_datetime)
+{"key_a": "2020-01-01 01:00:00.000000", "key_b": "2021-06-15 12:30:00.000000", "key_c": "2022-12-31 23:59:59.000000"}
+SELECT JSON_OBJECTAGG(col_varchar, col_datetime) FROM t_json_obj_duckdb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_datetime)
+{"key_a": "2020-01-01 01:00:00.000000", "key_b": "2021-06-15 12:30:00.000000", "key_c": "2022-12-31 23:59:59.000000"}
+SELECT JSON_OBJECTAGG(col_varchar, col_timestamp) FROM t_json_obj_innodb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_timestamp)
+{"key_a": "2020-01-01 01:00:00.000000", "key_b": "2021-06-15 12:30:00.000000", "key_c": "2022-12-31 23:59:59.000000"}
+SELECT JSON_OBJECTAGG(col_varchar, col_timestamp) FROM t_json_obj_duckdb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_timestamp)
+{"key_a": "2020-01-01 01:00:00.000000", "key_b": "2021-06-15 12:30:00.000000", "key_c": "2022-12-31 23:59:59.000000"}
+SELECT JSON_OBJECTAGG(col_varchar, col_varchar) FROM t_json_obj_innodb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_varchar)
+{"key_a": "key_a", "key_b": "key_b", "key_c": "key_c"}
+SELECT JSON_OBJECTAGG(col_varchar, col_varchar) FROM t_json_obj_duckdb WHERE col_varchar IS NOT NULL;
+JSON_OBJECTAGG(col_varchar, col_varchar)
+{"key_a": "key_a", "key_b": "key_b", "key_c": "key_c"}
+SELECT JSON_OBJECTAGG(col_tinyint, col_varchar) FROM t_json_obj_innodb;
+ERROR 22032: JSON documents may not contain NULL member names.
+SELECT JSON_OBJECTAGG(col_tinyint, col_varchar) FROM t_json_obj_duckdb;
+ERROR HY000: [DuckDB] Invalid Input Error: json_objectagg does not allow NULL as key.
+SELECT JSON_OBJECTAGG(col_int, col_varchar) FROM t_json_obj_innodb;
+ERROR 22032: JSON documents may not contain NULL member names.
+SELECT JSON_OBJECTAGG(col_int, col_varchar) FROM t_json_obj_duckdb;
+ERROR HY000: [DuckDB] Invalid Input Error: json_objectagg does not allow NULL as key.
+SELECT JSON_OBJECTAGG(col_varchar, col_int) FROM t_json_obj_innodb;
+ERROR 22032: JSON documents may not contain NULL member names.
+SELECT JSON_OBJECTAGG(col_varchar, col_int) FROM t_json_obj_duckdb;
+ERROR HY000: [DuckDB] Invalid Input Error: json_objectagg does not allow NULL as key.
+CREATE TABLE t_json_obj_null_innodb (
+id INT PRIMARY KEY,
+str_key VARCHAR(20) NOT NULL,
+col_tinyint TINYINT,
+col_int INT,
+col_bigint BIGINT,
+col_double DOUBLE,
+col_decimal DECIMAL(38, 10),
+col_time TIME,
+col_date DATE,
+col_datetime DATETIME,
+col_timestamp TIMESTAMP,
+col_varchar VARCHAR(100)
+);
+CREATE TABLE t_json_obj_null_duckdb (
+id INT PRIMARY KEY,
+str_key VARCHAR(20) NOT NULL,
+col_tinyint TINYINT,
+col_int INT,
+col_bigint BIGINT,
+col_double DOUBLE,
+col_decimal DECIMAL(38, 10),
+col_time TIME,
+col_date DATE,
+col_datetime DATETIME,
+col_timestamp TIMESTAMP,
+col_varchar VARCHAR(100)
+) ENGINE=DuckDB;
+INSERT INTO t_json_obj_null_innodb VALUES
+(1, 'k1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(2, 'k2', 10, 200, 3000000000, 2.22, 222.2222222222, '12:00:00', '2023-01-01', '2023-01-01 12:00:00', '2023-01-01 12:00:00', 'hello'),
+(3, 'k3', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+INSERT INTO t_json_obj_null_duckdb VALUES
+(1, 'k1', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+(2, 'k2', 10, 200, 3000000000, 2.22, 222.2222222222, '12:00:00', '2023-01-01', '2023-01-01 12:00:00', '2023-01-01 12:00:00', 'hello'),
+(3, 'k3', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+SELECT JSON_OBJECTAGG(str_key, col_tinyint) FROM t_json_obj_null_innodb;
+JSON_OBJECTAGG(str_key, col_tinyint)
+{"k1": null, "k2": 10, "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_tinyint) FROM t_json_obj_null_duckdb;
+JSON_OBJECTAGG(str_key, col_tinyint)
+{"k1": null, "k2": 10, "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_int) FROM t_json_obj_null_innodb;
+JSON_OBJECTAGG(str_key, col_int)
+{"k1": null, "k2": 200, "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_int) FROM t_json_obj_null_duckdb;
+JSON_OBJECTAGG(str_key, col_int)
+{"k1": null, "k2": 200, "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_bigint) FROM t_json_obj_null_innodb;
+JSON_OBJECTAGG(str_key, col_bigint)
+{"k1": null, "k2": 3000000000, "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_bigint) FROM t_json_obj_null_duckdb;
+JSON_OBJECTAGG(str_key, col_bigint)
+{"k1": null, "k2": 3000000000, "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_double) FROM t_json_obj_null_innodb;
+JSON_OBJECTAGG(str_key, col_double)
+{"k1": null, "k2": 2.22, "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_double) FROM t_json_obj_null_duckdb;
+JSON_OBJECTAGG(str_key, col_double)
+{"k1": null, "k2": 2.22, "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_decimal) FROM t_json_obj_null_innodb;
+JSON_OBJECTAGG(str_key, col_decimal)
+{"k1": null, "k2": 222.2222222222, "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_decimal) FROM t_json_obj_null_duckdb;
+JSON_OBJECTAGG(str_key, col_decimal)
+{"k1": null, "k2": 222.2222222222, "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_time) FROM t_json_obj_null_innodb;
+JSON_OBJECTAGG(str_key, col_time)
+{"k1": null, "k2": "12:00:00.000000", "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_time) FROM t_json_obj_null_duckdb;
+JSON_OBJECTAGG(str_key, col_time)
+{"k1": null, "k2": "12:00:00.000000", "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_date) FROM t_json_obj_null_innodb;
+JSON_OBJECTAGG(str_key, col_date)
+{"k1": null, "k2": "2023-01-01", "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_date) FROM t_json_obj_null_duckdb;
+JSON_OBJECTAGG(str_key, col_date)
+{"k1": null, "k2": "2023-01-01", "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_datetime) FROM t_json_obj_null_innodb;
+JSON_OBJECTAGG(str_key, col_datetime)
+{"k1": null, "k2": "2023-01-01 12:00:00.000000", "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_datetime) FROM t_json_obj_null_duckdb;
+JSON_OBJECTAGG(str_key, col_datetime)
+{"k1": null, "k2": "2023-01-01 12:00:00.000000", "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_timestamp) FROM t_json_obj_null_innodb;
+JSON_OBJECTAGG(str_key, col_timestamp)
+{"k1": null, "k2": "2023-01-01 12:00:00.000000", "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_timestamp) FROM t_json_obj_null_duckdb;
+JSON_OBJECTAGG(str_key, col_timestamp)
+{"k1": null, "k2": "2023-01-01 12:00:00.000000", "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_varchar) FROM t_json_obj_null_innodb;
+JSON_OBJECTAGG(str_key, col_varchar)
+{"k1": null, "k2": "hello", "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_varchar) FROM t_json_obj_null_duckdb;
+JSON_OBJECTAGG(str_key, col_varchar)
+{"k1": null, "k2": "hello", "k3": null}
+SELECT JSON_OBJECTAGG(col_varchar, col_int) FROM t_json_obj_innodb WHERE id = 999;
+JSON_OBJECTAGG(col_varchar, col_int)
+NULL
+SELECT JSON_OBJECTAGG(col_varchar, col_int) FROM t_json_obj_duckdb WHERE id = 999;
+JSON_OBJECTAGG(col_varchar, col_int)
+NULL
+SELECT JSON_OBJECTAGG(col_varchar, col_int) FROM t_json_obj_innodb WHERE id = 1;
+JSON_OBJECTAGG(col_varchar, col_int)
+{"key_a": 100}
+SELECT JSON_OBJECTAGG(col_varchar, col_int) FROM t_json_obj_duckdb WHERE id = 1;
+JSON_OBJECTAGG(col_varchar, col_int)
+{"key_a": 100}
+CREATE TABLE t_json_obj_grp_innodb (
+id INT PRIMARY KEY,
+grp INT,
+str_key VARCHAR(20),
+val INT
+);
+CREATE TABLE t_json_obj_grp_duckdb (
+id INT PRIMARY KEY,
+grp INT,
+str_key VARCHAR(20),
+val INT
+) ENGINE=DuckDB;
+INSERT INTO t_json_obj_grp_innodb VALUES
+(1, 1, 'a', 10),
+(2, 1, 'b', 20),
+(3, 2, 'c', 30),
+(4, 2, 'd', NULL),
+(5, 3, 'e', 50);
+INSERT INTO t_json_obj_grp_duckdb VALUES
+(1, 1, 'a', 10),
+(2, 1, 'b', 20),
+(3, 2, 'c', 30),
+(4, 2, 'd', NULL),
+(5, 3, 'e', 50);
+SELECT grp, JSON_OBJECTAGG(str_key, val) FROM t_json_obj_grp_innodb GROUP BY grp ORDER BY grp;
+grp	JSON_OBJECTAGG(str_key, val)
+1	{"a": 10, "b": 20}
+2	{"c": 30, "d": null}
+3	{"e": 50}
+SELECT grp, JSON_OBJECTAGG(str_key, val) FROM t_json_obj_grp_duckdb GROUP BY grp ORDER BY grp;
+grp	JSON_OBJECTAGG(str_key, val)
+1	{"a": 10, "b": 20}
+2	{"c": 30, "d": null}
+3	{"e": 50}
+CREATE TABLE t_json_obj_dup_innodb (
+id INT PRIMARY KEY,
+str_key VARCHAR(20),
+val INT
+);
+CREATE TABLE t_json_obj_dup_duckdb (
+id INT PRIMARY KEY,
+str_key VARCHAR(20),
+val INT
+) ENGINE=DuckDB;
+INSERT INTO t_json_obj_dup_innodb VALUES (1, 'dup', 100), (2, 'dup', 200), (3, 'unique', 300);
+INSERT INTO t_json_obj_dup_duckdb VALUES (1, 'dup', 100), (2, 'dup', 200), (3, 'unique', 300);
+SELECT JSON_OBJECTAGG(str_key, val) FROM t_json_obj_dup_innodb;
+JSON_OBJECTAGG(str_key, val)
+{"dup": 200, "unique": 300}
+SELECT JSON_OBJECTAGG(str_key, val) FROM t_json_obj_dup_duckdb;
+JSON_OBJECTAGG(str_key, val)
+{"dup": 200, "unique": 300}
+CREATE TABLE t_json_obj_large_innodb (
+id INT PRIMARY KEY,
+str_key VARCHAR(100),
+val VARCHAR(1000)
+);
+CREATE TABLE t_json_obj_large_duckdb (
+id INT PRIMARY KEY,
+str_key VARCHAR(100),
+val VARCHAR(1000)
+) ENGINE=DuckDB;
+INSERT INTO t_json_obj_large_innodb VALUES
+(1, 'long_key_1', REPEAT('x', 500)),
+(2, 'long_key_2', REPEAT('y', 500)),
+(3, REPEAT('z', 50), 'short_val');
+INSERT INTO t_json_obj_large_duckdb VALUES
+(1, 'long_key_1', REPEAT('x', 500)),
+(2, 'long_key_2', REPEAT('y', 500)),
+(3, REPEAT('z', 50), 'short_val');
+SELECT LENGTH(JSON_OBJECTAGG(str_key, val)) FROM t_json_obj_large_innodb;
+LENGTH(JSON_OBJECTAGG(str_key, val))
+1103
+SELECT LENGTH(JSON_OBJECTAGG(str_key, val)) FROM t_json_obj_large_duckdb;
+LENGTH(JSON_OBJECTAGG(str_key, val))
+1103
+CREATE TABLE t_json_obj_special_innodb (
+id INT PRIMARY KEY,
+str_key VARCHAR(50),
+val VARCHAR(100)
+);
+CREATE TABLE t_json_obj_special_duckdb (
+id INT PRIMARY KEY,
+str_key VARCHAR(50),
+val VARCHAR(100)
+) ENGINE=DuckDB;
+INSERT INTO t_json_obj_special_innodb VALUES
+(1, 'quote_key', 'value with "quotes"'),
+(2, 'slash_key', 'value with \\backslash'),
+(3, 'newline_key', 'value with \nnewline'),
+(4, 'tab_key', 'value with \ttab'),
+(5, 'unicode_key', 'value_unicode_\u0041');
+INSERT INTO t_json_obj_special_duckdb VALUES
+(1, 'quote_key', 'value with "quotes"'),
+(2, 'slash_key', 'value with \\backslash'),
+(3, 'newline_key', 'value with \nnewline'),
+(4, 'tab_key', 'value with \ttab'),
+(5, 'unicode_key', 'value_unicode_\u0041');
+SELECT JSON_OBJECTAGG(str_key, val) FROM t_json_obj_special_innodb;
+JSON_OBJECTAGG(str_key, val)
+{"tab_key": "value with \ttab", "quote_key": "value with \"quotes\"", "slash_key": "value with \\backslash", "newline_key": "value with \nnewline", "unicode_key": "value_unicode_u0041"}
+SELECT JSON_OBJECTAGG(str_key, val) FROM t_json_obj_special_duckdb;
+JSON_OBJECTAGG(str_key, val)
+{"quote_key": "value with \"quotes\"", "slash_key": "value with \\backslash", "newline_key": "value with \nnewline", "tab_key": "value with \ttab", "unicode_key": "value_unicode_u0041"}
+SELECT JSON_OBJECTAGG(str_key, col_tinyint) FROM t_json_obj_null_innodb WHERE id IN (1, 3);
+JSON_OBJECTAGG(str_key, col_tinyint)
+{"k1": null, "k3": null}
+SELECT JSON_OBJECTAGG(str_key, col_tinyint) FROM t_json_obj_null_duckdb WHERE id IN (1, 3);
+JSON_OBJECTAGG(str_key, col_tinyint)
+{"k1": null, "k3": null}
+DROP TABLE t_json_obj_innodb;
+DROP TABLE t_json_obj_duckdb;
+DROP TABLE t_json_obj_null_innodb;
+DROP TABLE t_json_obj_null_duckdb;
+DROP TABLE t_json_obj_grp_innodb;
+DROP TABLE t_json_obj_grp_duckdb;
+DROP TABLE t_json_obj_dup_innodb;
+DROP TABLE t_json_obj_dup_duckdb;
+DROP TABLE t_json_obj_large_innodb;
+DROP TABLE t_json_obj_large_duckdb;
+DROP TABLE t_json_obj_special_innodb;
+DROP TABLE t_json_obj_special_duckdb;
+--------------------------
+9. MIN()
+--------------------------
+SELECT MIN(col1), MIN(col2), MIN(col3), MIN(col4),
+MIN(col5), MIN(col6), MIN(col7), MIN(col8),
+MIN(col9), MIN(col10), MIN(col11)
+FROM t_innodb;
+MIN(col1)	MIN(col2)	MIN(col3)	MIN(col4)	MIN(col5)	MIN(col6)	MIN(col7)	MIN(col8)	MIN(col9)	MIN(col10)	MIN(col11)
+-10	-123456789	-123456789011121314	-1.2345678901112131e17	-1234567890111213141516171819.1234567890	00:00:00	1970-01-01	0001-01-01 00:00:00	1970-01-02 00:00:00	-1234567890111213141516171819.123456789	-1234567890111213141516171819.123456789
+SELECT MIN(col1), MIN(col2), MIN(col3), MIN(col4),
+MIN(col5), MIN(col6), MIN(col7), MIN(col8),
+MIN(col9), MIN(col10), MIN(col11)
+FROM t_duckdb;
+MIN(col1)	MIN(col2)	MIN(col3)	MIN(col4)	MIN(col5)	MIN(col6)	MIN(col7)	MIN(col8)	MIN(col9)	MIN(col10)	MIN(col11)
+-10	-123456789	-123456789011121314	-1.2345678901112131e17	-1234567890111213141516171819.1234567890	00:00:00	1970-01-01	0001-01-01 00:00:00	1970-01-02 00:00:00	-1234567890111213141516171819.123456789	-1234567890111213141516171819.123456789
+--------------------------
+10. MAX()
+--------------------------
+SELECT MAX(col1), MAX(col2), MAX(col3), MAX(col4),
+MAX(col5), MAX(col6), MAX(col7), MAX(col8),
+MAX(col9), LENGTH(MAX(col10)), LENGTH(MAX(col11))
+FROM t_innodb;
+MAX(col1)	MAX(col2)	MAX(col3)	MAX(col4)	MAX(col5)	MAX(col6)	MAX(col7)	MAX(col8)	MAX(col9)	LENGTH(MAX(col10))	LENGTH(MAX(col11))
+10	123456789	123456789011121314	1.2345678901112131e17	1234567890111213141516171819.1234567890	23:59:59	2025-12-31	9999-12-31 23:59:59	2025-12-31 23:59:59	100	65535
+SELECT MAX(col1), MAX(col2), MAX(col3), MAX(col4),
+MAX(col5), MAX(col6), MAX(col7), MAX(col8),
+MAX(col9), LENGTH(MAX(col10)), LENGTH(MAX(col11))
+FROM t_duckdb;
+MAX(col1)	MAX(col2)	MAX(col3)	MAX(col4)	MAX(col5)	MAX(col6)	MAX(col7)	MAX(col8)	MAX(col9)	LENGTH(MAX(col10))	LENGTH(MAX(col11))
+10	123456789	123456789011121314	1.2345678901112131e17	1234567890111213141516171819.1234567890	23:59:59	2025-12-31	9999-12-31 23:59:59	2025-12-31 23:59:59	100	65535
+--------------------------
+11. STD()
+--------------------------
+SELECT STD(col1), STD(col2), STD(col3), STD(col4),
+STD(col5), STD(col6), STD(col7), STD(col8),
+STD(col9), STD(col10)
+FROM t_innodb;
+STD(col1)	STD(col2)	STD(col3)	STD(col4)	STD(col5)	STD(col6)	STD(col7)	STD(col8)	STD(col9)	STD(col10)
+9.428090415820632	116396176.91388902	1.163961769243743e17	1.163961769243743e17	1.1639617692437429e27	111232.13932133105	259805.17354356128	47131556787027.98	259804813371.18005	1.0080204611989621e27
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SELECT STD(col1), STD(col2), STD(col3), STD(col4),
+STD(col5), STD(col6), STD(col7), STD(col8),
+STD(col9), STD(col10)
+FROM t_duckdb;
+STD(col1)	STD(col2)	STD(col3)	STD(col4)	STD(col5)	STD(col6)	STD(col7)	STD(col8)	STD(col9)	STD(col10)
+9.428090415820632	116396176.91388902	1.163961769243743e17	1.163961769243743e17	1.1639617692437429e27	111232.13932133105	259805.17354356128	47131556787027.98	259804813371.18005	1.0080204611989621e27
+SELECT STD(col11)
+FROM t_duckdb WHERE id <= 3;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'std(BLOB)'. You might need to add explicit type casts.
+	Candidate functions:
+	std(DOUBLE) -> DOUBLE
+
+
+LINE 1: SELECT STD(col11)
+               ^.
+--------------------------
+12. STDDEV()
+--------------------------
+SELECT STDDEV(col1), STDDEV(col2), STDDEV(col3), STDDEV(col4),
+STDDEV(col5), STDDEV(col6), STDDEV(col7), STDDEV(col8),
+STDDEV(col9), STDDEV(col10)
+FROM t_innodb;
+STDDEV(col1)	STDDEV(col2)	STDDEV(col3)	STDDEV(col4)	STDDEV(col5)	STDDEV(col6)	STDDEV(col7)	STDDEV(col8)	STDDEV(col9)	STDDEV(col10)
+9.428090415820632	116396176.91388902	1.163961769243743e17	1.163961769243743e17	1.1639617692437429e27	111232.13932133105	259805.17354356128	47131556787027.98	259804813371.18005	1.0080204611989621e27
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SELECT STDDEV(col1), STDDEV(col2), STDDEV(col3), STDDEV(col4),
+STDDEV(col5), STDDEV(col6), STDDEV(col7), STDDEV(col8),
+STDDEV(col9), STDDEV(col10)
+FROM t_duckdb;
+STDDEV(col1)	STDDEV(col2)	STDDEV(col3)	STDDEV(col4)	STDDEV(col5)	STDDEV(col6)	STDDEV(col7)	STDDEV(col8)	STDDEV(col9)	STDDEV(col10)
+9.428090415820632	116396176.91388902	1.163961769243743e17	1.163961769243743e17	1.1639617692437429e27	111232.13932133105	259805.17354356128	47131556787027.98	259804813371.18005	1.0080204611989621e27
+SELECT STDDEV(col11)
+FROM t_duckdb WHERE id <= 3;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'stddev(BLOB)'. You might need to add explicit type casts.
+	Candidate functions:
+	stddev(DOUBLE) -> DOUBLE
+
+
+LINE 1: SELECT STDDEV(col11)
+               ^.
+--------------------------
+13. STDDEV_POP()
+--------------------------
+SELECT STDDEV_POP(col1), STDDEV_POP(col2), STDDEV_POP(col3), STDDEV_POP(col4),
+STDDEV_POP(col5), STDDEV_POP(col6), STDDEV_POP(col7), STDDEV_POP(col8),
+STDDEV_POP(col9), STDDEV_POP(col10)
+FROM t_innodb;
+STDDEV_POP(col1)	STDDEV_POP(col2)	STDDEV_POP(col3)	STDDEV_POP(col4)	STDDEV_POP(col5)	STDDEV_POP(col6)	STDDEV_POP(col7)	STDDEV_POP(col8)	STDDEV_POP(col9)	STDDEV_POP(col10)
+9.428090415820632	116396176.91388902	1.163961769243743e17	1.163961769243743e17	1.1639617692437429e27	111232.13932133105	259805.17354356128	47131556787027.98	259804813371.18005	1.0080204611989621e27
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SELECT STDDEV_POP(col1), STDDEV_POP(col2), STDDEV_POP(col3), STDDEV_POP(col4),
+STDDEV_POP(col5), STDDEV_POP(col6), STDDEV_POP(col7), STDDEV_POP(col8),
+STDDEV_POP(col9), STDDEV_POP(col10)
+FROM t_duckdb;
+STDDEV_POP(col1)	STDDEV_POP(col2)	STDDEV_POP(col3)	STDDEV_POP(col4)	STDDEV_POP(col5)	STDDEV_POP(col6)	STDDEV_POP(col7)	STDDEV_POP(col8)	STDDEV_POP(col9)	STDDEV_POP(col10)
+9.428090415820632	116396176.91388902	1.163961769243743e17	1.163961769243743e17	1.1639617692437429e27	111232.13932133105	259805.17354356128	47131556787027.98	259804813371.18005	1.0080204611989621e27
+SELECT STDDEV_POP(col11)
+FROM t_duckdb WHERE id <= 3;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'stddev_pop(BLOB)'. You might need to add explicit type casts.
+	Candidate functions:
+	stddev_pop(DOUBLE) -> DOUBLE
+
+
+LINE 1: SELECT STDDEV_POP(col11)
+               ^.
+--------------------------
+14. STDDEV_POP()
+--------------------------
+SELECT STDDEV_SAMP(col1), STDDEV_SAMP(col2), STDDEV_SAMP(col3), STDDEV_SAMP(col4),
+STDDEV_SAMP(col5), STDDEV_SAMP(col6), STDDEV_SAMP(col7), STDDEV_SAMP(col8),
+STDDEV_SAMP(col9), STDDEV_SAMP(col10)
+FROM t_innodb;
+STDDEV_SAMP(col1)	STDDEV_SAMP(col2)	STDDEV_SAMP(col3)	STDDEV_SAMP(col4)	STDDEV_SAMP(col5)	STDDEV_SAMP(col6)	STDDEV_SAMP(col7)	STDDEV_SAMP(col8)	STDDEV_SAMP(col9)	STDDEV_SAMP(col10)
+11.547005383792515	142555620.72487366	1.4255562073771544e17	1.4255562073771544e17	1.4255562073771545e27	136230.9921677149	318195.05385847844	57724132455613.96	318194612739.2017	1.2345678901112131e27
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SELECT STDDEV_SAMP(col1), STDDEV_SAMP(col2), STDDEV_SAMP(col3), STDDEV_SAMP(col4),
+STDDEV_SAMP(col5), STDDEV_SAMP(col6), STDDEV_SAMP(col7), STDDEV_SAMP(col8),
+STDDEV_SAMP(col9), STDDEV_SAMP(col10)
+FROM t_duckdb;
+STDDEV_SAMP(col1)	STDDEV_SAMP(col2)	STDDEV_SAMP(col3)	STDDEV_SAMP(col4)	STDDEV_SAMP(col5)	STDDEV_SAMP(col6)	STDDEV_SAMP(col7)	STDDEV_SAMP(col8)	STDDEV_SAMP(col9)	STDDEV_SAMP(col10)
+11.547005383792515	142555620.72487366	1.4255562073771544e17	1.4255562073771544e17	1.4255562073771545e27	136230.9921677149	318195.05385847844	57724132455613.96	318194612739.2017	1.2345678901112131e27
+SELECT STDDEV_SAMP(col11)
+FROM t_duckdb WHERE id <= 3;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'stddev_samp(BLOB)'. You might need to add explicit type casts.
+	Candidate functions:
+	stddev_samp(DOUBLE) -> DOUBLE
+
+
+LINE 1: SELECT STDDEV_SAMP(col11)
+               ^.
+--------------------------
+15. SUM()
+--------------------------
+SELECT SUM(col1), SUM(col2), SUM(col3), SUM(col4),
+SUM(col5), SUM(col6), SUM(col7), SUM(col8),
+SUM(col9), SUM(col10)
+FROM t_innodb;
+SUM(col1)	SUM(col2)	SUM(col3)	SUM(col4)	SUM(col5)	SUM(col6)	SUM(col7)	SUM(col8)	SUM(col9)	SUM(col10)
+-10	-123456789	-123456789011121314	-1.2345678901112131e17	-1234567890111213141516171819.1234567890	235959	59651433	100011433235959	59651435235959	0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SELECT SUM(col1), SUM(col2), SUM(col3), SUM(col4),
+SUM(col5), SUM(col6), SUM(col7), SUM(col8),
+SUM(col9), SUM(col10)
+FROM t_duckdb;
+SUM(col1)	SUM(col2)	SUM(col3)	SUM(col4)	SUM(col5)	SUM(col6)	SUM(col7)	SUM(col8)	SUM(col9)	SUM(col10)
+-10	-123456789	-123456789011121314	-1.2345678901112131e17	-1234567890111213141516171819.1234567890	235959	59651433	100011433235959	59651435235959	0
+SELECT SUM(col11)
+FROM t_duckdb WHERE id <= 3;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'sum(BLOB)'. You might need to add explicit type casts.
+	Candidate functions:
+	sum(DECIMAL) -> DECIMAL
+	sum(BOOLEAN) -> HUGEINT
+	sum(SMALLINT) -> HUGEINT
+	sum(INTEGER) -> HUGEINT
+	sum(BIGINT) -> HUGEINT
+	sum(HUGEINT) -> HUGEINT
+	sum(DOUBLE) -> DOUBLE
+	sum(BIGNUM) -> BIGNUM
+
+
+LINE 1: SELECT SUM(col11)
+               ^.
+--------------------------
+16. VAR_POP()
+--------------------------
+SELECT VAR_POP(col1), VAR_POP(col2), VAR_POP(col3), VAR_POP(col4),
+VAR_POP(col5), VAR_POP(col6), VAR_POP(col7), VAR_POP(col8),
+VAR_POP(col9), VAR_POP(col10)
+FROM t_innodb;
+VAR_POP(col1)	VAR_POP(col2)	VAR_POP(col3)	VAR_POP(col4)	VAR_POP(col5)	VAR_POP(col6)	VAR_POP(col7)	VAR_POP(col8)	VAR_POP(col9)	VAR_POP(col10)
+88.88888888888887	1.3548070000169352e16	1.3548070002610244e34	1.3548070002610244e34	1.3548070002610242e54	12372588818	67498728200	2.2213836451688432e27	6.749854105083369e22	1.0161052501957682e54
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SELECT VAR_POP(col1), VAR_POP(col2), VAR_POP(col3), VAR_POP(col4),
+VAR_POP(col5), VAR_POP(col6), VAR_POP(col7), VAR_POP(col8),
+VAR_POP(col9), VAR_POP(col10)
+FROM t_duckdb;
+VAR_POP(col1)	VAR_POP(col2)	VAR_POP(col3)	VAR_POP(col4)	VAR_POP(col5)	VAR_POP(col6)	VAR_POP(col7)	VAR_POP(col8)	VAR_POP(col9)	VAR_POP(col10)
+88.88888888888887	1.3548070000169352e16	1.3548070002610244e34	1.3548070002610244e34	1.3548070002610242e54	12372588818	67498728200	2.2213836451688432e27	6.749854105083369e22	1.0161052501957682e54
+SELECT VAR_POP(col11)
+FROM t_duckdb WHERE id <= 3;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'var_pop(BLOB)'. You might need to add explicit type casts.
+	Candidate functions:
+	var_pop(DOUBLE) -> DOUBLE
+
+
+LINE 1: SELECT VAR_POP(col11)
+               ^.
+--------------------------
+17. VAR_SAMP()
+--------------------------
+SELECT VAR_SAMP(col1), VAR_SAMP(col2), VAR_SAMP(col3), VAR_SAMP(col4),
+VAR_SAMP(col5), VAR_SAMP(col6), VAR_SAMP(col7), VAR_SAMP(col8),
+VAR_SAMP(col9), VAR_SAMP(col10)
+FROM t_innodb;
+VAR_SAMP(col1)	VAR_SAMP(col2)	VAR_SAMP(col3)	VAR_SAMP(col4)	VAR_SAMP(col5)	VAR_SAMP(col6)	VAR_SAMP(col7)	VAR_SAMP(col8)	VAR_SAMP(col9)	VAR_SAMP(col10)
+133.33333333333331	2.0322105000254028e16	2.0322105003915366e34	2.0322105003915366e34	2.0322105003915365e54	18558883227	101248092300	3.332075467753265e27	1.0124781157625054e23	1.5241578752936524e54
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SELECT VAR_SAMP(col1), VAR_SAMP(col2), VAR_SAMP(col3), VAR_SAMP(col4),
+VAR_SAMP(col5), VAR_SAMP(col6), VAR_SAMP(col7), VAR_SAMP(col8),
+VAR_SAMP(col9), VAR_SAMP(col10)
+FROM t_duckdb;
+VAR_SAMP(col1)	VAR_SAMP(col2)	VAR_SAMP(col3)	VAR_SAMP(col4)	VAR_SAMP(col5)	VAR_SAMP(col6)	VAR_SAMP(col7)	VAR_SAMP(col8)	VAR_SAMP(col9)	VAR_SAMP(col10)
+133.33333333333331	2.0322105000254028e16	2.0322105003915366e34	2.0322105003915366e34	2.0322105003915365e54	18558883227	101248092300	3.332075467753265e27	1.0124781157625054e23	1.5241578752936524e54
+SELECT VAR_SAMP(col11)
+FROM t_duckdb WHERE id <= 3;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'var_samp(BLOB)'. You might need to add explicit type casts.
+	Candidate functions:
+	var_samp(DOUBLE) -> DOUBLE
+
+
+LINE 1: SELECT VAR_SAMP(col11)
+               ^.
+--------------------------
+18. VARIANCE()
+--------------------------
+SELECT VARIANCE(col1), VARIANCE(col2), VARIANCE(col3), VARIANCE(col4),
+VARIANCE(col5), VARIANCE(col6), VARIANCE(col7), VARIANCE(col8),
+VARIANCE(col9), VARIANCE(col10)
+FROM t_innodb;
+VARIANCE(col1)	VARIANCE(col2)	VARIANCE(col3)	VARIANCE(col4)	VARIANCE(col5)	VARIANCE(col6)	VARIANCE(col7)	VARIANCE(col8)	VARIANCE(col9)	VARIANCE(col10)
+88.88888888888887	1.3548070000169352e16	1.3548070002610244e34	1.3548070002610244e34	1.3548070002610242e54	12372588818	67498728200	2.2213836451688432e27	6.749854105083369e22	1.0161052501957682e54
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+SELECT VARIANCE(col1), VARIANCE(col2), VARIANCE(col3), VARIANCE(col4),
+VARIANCE(col5), VARIANCE(col6), VARIANCE(col7), VARIANCE(col8),
+VARIANCE(col9), VARIANCE(col10)
+FROM t_duckdb;
+VARIANCE(col1)	VARIANCE(col2)	VARIANCE(col3)	VARIANCE(col4)	VARIANCE(col5)	VARIANCE(col6)	VARIANCE(col7)	VARIANCE(col8)	VARIANCE(col9)	VARIANCE(col10)
+88.88888888888887	1.3548070000169352e16	1.3548070002610244e34	1.3548070002610244e34	1.3548070002610242e54	12372588818	67498728200	2.2213836451688432e27	6.749854105083369e22	1.0161052501957682e54
+SELECT VARIANCE(col11)
+FROM t_duckdb WHERE id <= 3;
+ERROR HY000: [DuckDB] Binder Error: No function matches the given name and argument types 'variance(BLOB)'. You might need to add explicit type casts.
+	Candidate functions:
+	variance(DOUBLE) -> DOUBLE
+
+
+LINE 1: SELECT VARIANCE(col11)
+               ^.
+DROP TABLE t_innodb;
+DROP TABLE t_duckdb;

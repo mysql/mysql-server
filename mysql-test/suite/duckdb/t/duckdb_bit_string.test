@@ -1,0 +1,92 @@
+--echo
+--echo 1. Basic test
+--echo
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(100)) ENGINE=DuckDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, col1 BLOB) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1, 'A'), (2, x'41'), (3, b'01000001');
+INSERT INTO t2 VALUES (1, 'A'), (2, x'41'), (3, b'01000001'), (4, 0xFF), (5, x'FF'), (6, b'11111111');
+
+SELECT * FROM t1 WHERE col1 = 'A';
+SELECT * FROM t1 WHERE col1 = x'41';
+SELECT * FROM t1 WHERE col1 = b'01000001';
+
+SELECT * FROM t2 WHERE col1 = 'A';
+SELECT * FROM t2 WHERE col1 = x'41';
+SELECT * FROM t2 WHERE col1 = b'01000001';
+
+# Bit strings starting with 0x are not currently supported.
+--error ER_DUCKDB_CLIENT
+SELECT id, hex(col1) FROM t2 WHERE col1 = 0xFF;
+
+SELECT id, hex(col1) FROM t2 WHERE col1 = x'FF';
+SELECT id, hex(col1) FROM t2 WHERE col1 = b'11111111';
+
+DELETE FROM t1 WHERE col1 = x'41';
+SELECT * FROM t1;
+
+DELETE FROM t2 WHERE col1 = x'41';
+SELECT id, hex(col1) FROM t2;
+DELETE FROM t2 WHERE col1 = x'FF';
+SELECT id, hex(col1) FROM t2;
+
+DROP TABLE t1;
+DROP TABLE t2;
+
+--echo
+--echo 2. Comparison of BLOB and VARCHAR
+--echo
+
+--echo 2.1 When comparing VARCHAR type and BLOB_LITERAL, the BLOB_LITERAL value is converted to VARCHAR.
+
+CREATE TABLE t1 (
+	id INT PRIMARY KEY,
+	col1 VARCHAR(100) COLLATE utf8mb4_general_ci,
+	col2 VARCHAR(100) COLLATE utf8mb4_bin
+) ENGINE = DuckDB;
+
+INSERT INTO t1 VALUES (1, 'A', 'A'), (2, 'a', 'a'), (3, 'Z', 'Z');
+SELECT col1 = x'41', col1 < x'41'
+	, col1 > x'41', col1 <= x'41'
+	, col1 >= x'41', col1 BETWEEN x'42' AND x'61'
+	, col2 = x'41', col2 < x'41'
+	, col2 > x'41', col2 <= x'41'
+	, col2 >= x'41', col2 BETWEEN x'42' AND x'61'
+FROM t1;
+
+--echo 2.2 When comparing VARCHAR type and BLOB, the VARCHAR value is converted to BLOB.
+
+CREATE TABLE t2 (
+    id INT PRIMARY KEY,
+    col1 BLOB
+) ENGINE = DuckDB;
+
+INSERT INTO t2 VALUES (1, x'41'), (2, x'61'), (3, x'5A');
+SELECT t1.*, t2.*, t1.col1 = t2.col1
+	, t1.col1 < t2.col1, t1.col1 > t2.col1
+	, t1.col1 <= t2.col1, t1.col1 >= t2.col1
+	, t1.col1 BETWEEN t2.col1 AND t2.col1, t1.col2 = t2.col1, t1.col2 < t2.col1
+	, t1.col2 > t2.col1, t1.col2 <= t2.col1
+	, t1.col2 >= t2.col1, t1.col2 BETWEEN t2.col1 AND t2.col1
+FROM t1, t2 ORDER BY t1.id, t2.id;
+
+--echo 2.3 When comparing STRING_LITERAL type and BLOB, the STRING_LITERAL value is converted to BLOB.
+
+SELECT col1 = 'Z', col1 < 'Z'
+	, col1 > 'Z', col1 <= 'Z'
+	, col1 >= 'Z', col1 BETWEEN 'a' AND 'A'
+FROM t1;
+
+--echo 2.4 When comparing STRING_LITERAL type and BLOB_LITERAL, the STRING_LITERAL value is converted to BLOB.
+
+SELECT 'a' = x'41', 'a' = x'61'
+	, 'A' = x'41', 'A' = x'61'
+	, 'a' >= x'41', 'a' <= x'41'
+	, 'a' < x'41', 'a' > x'41'
+	, 'a' BETWEEN x'41' AND x'61'
+FROM t1
+LIMIT 1;
+
+DROP TABLE t1;
+DROP TABLE t2;

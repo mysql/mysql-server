@@ -1,0 +1,145 @@
+# name: test/sql/storage/background_checkpoint_slow.test_slow
+# description: Slow tests for background checkpoint with debug_checkpoint_sleep_ms
+# group: [storage]
+
+# -------------------------------------------------------
+# Test 1: Non-force CHECKPOINT while background checkpoint is running
+# should fail because background thread holds checkpoint_lock
+# -------------------------------------------------------
+load __TEST_DIR__/bg_ckpt_slow_manual.db
+
+statement ok
+SET enable_background_checkpoint = true
+
+statement ok
+SET checkpoint_threshold='10KB'
+
+statement ok
+SET debug_checkpoint_sleep_ms=2000
+
+statement ok
+CREATE TABLE slow_test (a INTEGER, b VARCHAR)
+
+# this large insert triggers auto-checkpoint which runs slowly in background
+statement ok
+INSERT INTO slow_test SELECT i, repeat('s', 200) FROM range(2000) t(i)
+
+# non-force CHECKPOINT should fail because background thread holds the lock
+statement error
+CHECKPOINT
+----
+Cannot CHECKPOINT
+
+# FORCE CHECKPOINT should wait for background checkpoint then succeed
+statement ok
+FORCE CHECKPOINT
+
+# reset sleep for restart
+statement ok
+SET debug_checkpoint_sleep_ms=0
+
+restart
+
+query I
+SELECT COUNT(*) FROM slow_test
+----
+2000
+
+# -------------------------------------------------------
+# Test 2: Multiple inserts while background checkpoint is slow
+# Subsequent inserts should NOT block, they just skip checkpointing
+# -------------------------------------------------------
+load __TEST_DIR__/bg_ckpt_slow_multi.db
+
+statement ok
+SET enable_background_checkpoint = true
+
+statement ok
+SET checkpoint_threshold='10KB'
+
+statement ok
+SET debug_checkpoint_sleep_ms=1000
+
+statement ok
+CREATE TABLE multi_test (a INTEGER, b VARCHAR)
+
+# first insert triggers slow background checkpoint
+statement ok
+INSERT INTO multi_test SELECT i, repeat('a', 200) FROM range(1000) t(i)
+
+# these inserts should proceed immediately (checkpoint skipped, WAL only)
+statement ok
+INSERT INTO multi_test SELECT i, repeat('b', 200) FROM range(1000, 2000) t(i)
+
+statement ok
+INSERT INTO multi_test SELECT i, repeat('c', 200) FROM range(2000, 3000) t(i)
+
+statement ok
+INSERT INTO multi_test SELECT i, repeat('d', 200) FROM range(3000, 4000) t(i)
+
+query I
+SELECT COUNT(*) FROM multi_test
+----
+4000
+
+# wait for background checkpoint to finish, then do final checkpoint
+statement ok
+SET debug_checkpoint_sleep_ms=0
+
+statement ok
+FORCE CHECKPOINT
+
+restart
+
+query I
+SELECT COUNT(*) FROM multi_test
+----
+4000
+
+query II
+SELECT MIN(a), MAX(a) FROM multi_test
+----
+0	3999
+
+# -------------------------------------------------------
+# Test 3: DETACH while background checkpoint is slow
+# -------------------------------------------------------
+load __TEST_DIR__/bg_ckpt_slow_detach_main.db
+
+statement ok
+SET enable_background_checkpoint = true
+
+statement ok
+SET debug_checkpoint_sleep_ms=1000
+
+statement ok
+SET checkpoint_threshold='10KB'
+
+statement ok
+ATTACH '__TEST_DIR__/bg_ckpt_slow_detach.db' AS detach_db
+
+statement ok
+CREATE TABLE detach_db.t (a INTEGER, b VARCHAR)
+
+# trigger slow background checkpoint
+statement ok
+INSERT INTO detach_db.t SELECT i, repeat('x', 200) FROM range(2000) t(i)
+
+# detach - Close() should wait via ShutdownBackgroundCheckpoint
+statement ok
+DETACH detach_db
+
+statement ok
+SET debug_checkpoint_sleep_ms=0
+
+# reattach and verify
+statement ok
+ATTACH '__TEST_DIR__/bg_ckpt_slow_detach.db' AS detach_db (READ_ONLY)
+
+query I
+SELECT COUNT(*) FROM detach_db.t
+----
+2000
+
+statement ok
+DETACH detach_db

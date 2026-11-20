@@ -1,0 +1,191 @@
+# -----------------------------------------------------------------
+#
+# 1. binlog on, check 2pc
+#
+#
+# Crash between binlog write and duckdb commit
+# It should not cause inconsistency.
+#
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+CREATE TABLE t_innodb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=innodb;
+# Check duckdb transaction
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:1';
+BEGIN;
+INSERT INTO t_duckdb VALUES (1, "1");
+COMMIT;
+SET SESSION DEBUG="+d,crash_after_binlog_sync";
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:2';
+BEGIN;
+INSERT INTO t_duckdb VALUES(2, '2');
+COMMIT;
+# restart
+SET SESSION DEBUG="-d,crash_after_binlog_sync";
+# Duckdb doesn't support 2pc, but we have a mechanism to keep the
+# consistenty between duckdb engine, innodb engine and binlog.
+SELECT * FROM t_duckdb;
+id	name
+1	1
+SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(@@global.gtid_executed, ',', FIND_IN_SET('0ccccccc-cccc-cccc-cccc-cccccccccccc', REPLACE(@@global.gtid_executed, ':', ','))), ',', -1) AS filtered_gtid;
+filtered_gtid
+0ccccccc-cccc-cccc-cccc-cccccccccccc:1
+# Check innodb transaction
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:3';
+BEGIN;
+INSERT INTO t_innodb VALUES (1, "1");
+COMMIT;
+SET SESSION DEBUG="+d,crash_after_binlog_sync";
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:4';
+BEGIN;
+INSERT INTO t_innodb VALUES(2, '2');
+COMMIT;
+# restart
+SET SESSION DEBUG="-d,crash_after_binlog_sync";
+# innodb can keep consistent between innodb and binlog.
+SELECT * FROM t_innodb;
+id	name
+1	1
+SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(@@global.gtid_executed, ',', FIND_IN_SET('0ccccccc-cccc-cccc-cccc-cccccccccccc', REPLACE(@@global.gtid_executed, ':', ','))), ',', -1) AS filtered_gtid;
+filtered_gtid
+0ccccccc-cccc-cccc-cccc-cccccccccccc:1:3
+# Check duckdb and innodb mix transaction
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:5';
+BEGIN;
+INSERT INTO t_innodb VALUES (100, "100");
+INSERT INTO t_duckdb VALUES (100, "100");
+Warnings:
+Warning	6414	Combining the storage engines DUCKDB and InnoDB is deprecated, but the statement or transaction updates both the DUCKDB table test.t_duckdb and the InnoDB table test.t_innodb.
+COMMIT;
+SET SESSION DEBUG="+d,crash_after_binlog_sync";
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:6';
+BEGIN;
+INSERT INTO t_innodb VALUES (101, "101");
+INSERT INTO t_duckdb VALUES (101, "101");
+Warnings:
+Warning	6414	Combining the storage engines DUCKDB and InnoDB is deprecated, but the statement or transaction updates both the DUCKDB table test.t_duckdb and the InnoDB table test.t_innodb.
+COMMIT;
+# restart
+SET SESSION DEBUG="-d,crash_after_binlog_sync";
+# This trancation consists both innodb and duckdb operation.
+# The whole transaction is set_no_2pc .
+# So innodb and duckdb both lost the data of 101.
+# This is also by design.
+SELECT * FROM t_innodb;
+id	name
+1	1
+100	100
+SELECT * FROM t_duckdb;
+id	name
+1	1
+100	100
+SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(@@global.gtid_executed, ',', FIND_IN_SET('0ccccccc-cccc-cccc-cccc-cccccccccccc', REPLACE(@@global.gtid_executed, ':', ','))), ',', -1) AS filtered_gtid;
+filtered_gtid
+0ccccccc-cccc-cccc-cccc-cccccccccccc:1:3:5
+SET GTID_NEXT = AUTOMATIC;
+DROP TABLE t_duckdb;
+DROP TABLE t_innodb;
+RESET BINARY LOGS AND GTIDS;
+# -----------------------------------------------------------------
+#
+# 2. binlog off, check 2pc
+#
+# restart: --skip-log-bin
+#
+# Crash between binlog write and duckdb commit
+# May leave inconsistency of duckdb and binlog gtid
+#
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+CREATE TABLE t_innodb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=innodb;
+# ① Check duckdb transaction
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:1';
+BEGIN;
+INSERT INTO t_duckdb VALUES (1, "1");
+COMMIT;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table mysql.gtid_executed and the DUCKDB table test.t_duckdb.
+SET SESSION DEBUG="+d,crash_before_duckdb_commit";
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:2';
+BEGIN;
+INSERT INTO t_duckdb VALUES(2, '2');
+COMMIT;
+# restart: --skip-log-bin
+SET SESSION DEBUG="-d,crash_before_duckdb_commit";
+# duckdb not support 2pc commit, so the data of '2' is lost by duckdb but binlog consist this.
+# We admit this inconsistency between duckdb and binlog is by design.
+SELECT * FROM t_duckdb;
+id	name
+1	1
+SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(@@global.gtid_executed, ',', FIND_IN_SET('0ccccccc-cccc-cccc-cccc-cccccccccccc', REPLACE(@@global.gtid_executed, ':', ','))), ',', -1) AS filtered_gtid;
+filtered_gtid
+0ccccccc-cccc-cccc-cccc-cccccccccccc:1
+# ② Check duckdb and innodb mix transaction
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:3';
+BEGIN;
+INSERT INTO t_innodb VALUES (3, "3");
+INSERT INTO t_duckdb VALUES (3, "3");
+Warnings:
+Warning	6414	Combining the storage engines DUCKDB and InnoDB is deprecated, but the statement or transaction updates both the DUCKDB table test.t_duckdb and the InnoDB table test.t_innodb.
+COMMIT;
+SET SESSION DEBUG="+d,crash_before_duckdb_commit";
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:4';
+BEGIN;
+INSERT INTO t_innodb VALUES (4, "4");
+INSERT INTO t_duckdb VALUES (4, "4");
+Warnings:
+Warning	6414	Combining the storage engines DUCKDB and InnoDB is deprecated, but the statement or transaction updates both the DUCKDB table test.t_duckdb and the InnoDB table test.t_innodb.
+COMMIT;
+# restart: --skip-log-bin
+SET SESSION DEBUG="-d,crash_before_duckdb_commit";
+# This trancation consists both innodb and duckdb operation.
+# gtid_executed is persisted by innodb.
+# The commit order of duckdb and inoodb is undefined(mainly by the order of regist trx)
+# The case ③ is the situation where duckdb is committed before innodb.
+# So the data of 4 is lost by innodb and duckdb both, and gtid_execute also lost the :4 gtid.
+SELECT * FROM t_innodb;
+id	name
+3	3
+SELECT * FROM t_duckdb;
+id	name
+1	1
+3	3
+SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(@@global.gtid_executed, ',', FIND_IN_SET('0ccccccc-cccc-cccc-cccc-cccccccccccc', REPLACE(@@global.gtid_executed, ':', ','))), ',', -1) AS filtered_gtid;
+filtered_gtid
+0ccccccc-cccc-cccc-cccc-cccccccccccc:1:3
+# ④ Check duckdb and innodb mix transaction2
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:5';
+BEGIN;
+INSERT INTO t_innodb VALUES (5, "5");
+INSERT INTO t_duckdb VALUES (5, "5");
+Warnings:
+Warning	6414	Combining the storage engines DUCKDB and InnoDB is deprecated, but the statement or transaction updates both the DUCKDB table test.t_duckdb and the InnoDB table test.t_innodb.
+COMMIT;
+SET SESSION DEBUG="+d,crash_before_duckdb_commit";
+SET GTID_NEXT = '0ccccccc-cccc-cccc-cccc-cccccccccccc:6';
+BEGIN;
+INSERT INTO t_duckdb VALUES (6, "6");
+INSERT INTO t_innodb VALUES (6, "6");
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.t_innodb and the DUCKDB table test.t_duckdb.
+COMMIT;
+# restart: --skip-log-bin
+SET SESSION DEBUG="-d,crash_before_duckdb_commit";
+# This trancation consists both innodb and duckdb operation.
+# gtid_executed is persisted by innodb.
+# The commit order of duckdb and inoodb is undefined(mainly by the order of regist trx)
+# The case ④ is the situation where duckdb is committed after innodb.
+# So the data('6') is lost by duckdb only, innodb and gtid_execute have the gtid('6') remained.
+SELECT * FROM t_innodb;
+id	name
+3	3
+5	5
+SELECT * FROM t_duckdb;
+id	name
+1	1
+3	3
+5	5
+SELECT SUBSTRING_INDEX(SUBSTRING_INDEX(@@global.gtid_executed, ',', FIND_IN_SET('0ccccccc-cccc-cccc-cccc-cccccccccccc', REPLACE(@@global.gtid_executed, ':', ','))), ',', -1) AS filtered_gtid;
+filtered_gtid
+0ccccccc-cccc-cccc-cccc-cccccccccccc:1:3:5
+SET GTID_NEXT = AUTOMATIC;
+DROP TABLE t_duckdb;
+DROP TABLE t_innodb;
+RESET BINARY LOGS AND GTIDS;

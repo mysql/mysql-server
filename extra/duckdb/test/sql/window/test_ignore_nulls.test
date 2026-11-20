@@ -1,0 +1,354 @@
+# name: test/sql/window/test_ignore_nulls.test
+# description: Test IGNORE NULLS window syntax
+# group: [window]
+
+statement ok
+PRAGMA enable_verification
+
+# Issue #2549
+statement ok
+CREATE TABLE issue2549 AS SELECT * FROM (VALUES
+	(0, 1, 614),
+	(1, 1, null),
+	(2, 1, null),
+	(3, 1, 639),
+	(4, 1, 2027)
+) tbl(id, user_id, order_id);
+
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  LAST_VALUE (order_id IGNORE NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+    ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	NULL
+1	1	NULL	614
+2	1	NULL	614
+3	1	639	614
+4	1	2027	639
+
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  FIRST_VALUE (order_id IGNORE NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+    ROWS BETWEEN 1 PRECEDING AND UNBOUNDED FOLLOWING
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	614
+1	1	NULL	614
+2	1	NULL	639
+3	1	639	639
+4	1	2027	639
+
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  NTH_VALUE (order_id, 2 IGNORE NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+    ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	NULL
+1	1	NULL	NULL
+2	1	NULL	NULL
+3	1	639	NULL
+4	1	2027	639
+
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  LEAD(order_id, 1, -1 IGNORE NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	639
+1	1	NULL	639
+2	1	NULL	639
+3	1	639	2027
+4	1	2027	-1
+
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  LAG(order_id, 1, -1 IGNORE NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	-1
+1	1	NULL	614
+2	1	NULL	614
+3	1	639	614
+4	1	2027	639
+
+# Zero LAG is always identity
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  LAG(order_id, 0, -1 IGNORE NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	614
+1	1	NULL	NULL
+2	1	NULL	NULL
+3	1	639	639
+4	1	2027	2027
+
+#
+# RESPECT NULLS should be the default
+#
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  LAST_VALUE (order_id RESPECT NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+    ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	NULL
+1	1	NULL	614
+2	1	NULL	NULL
+3	1	639	NULL
+4	1	2027	639
+
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  FIRST_VALUE (order_id RESPECT NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+    ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	NULL
+1	1	NULL	614
+2	1	NULL	614
+3	1	639	614
+4	1	2027	614
+
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  NTH_VALUE (order_id, 2 RESPECT NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+    ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	NULL
+1	1	NULL	NULL
+2	1	NULL	NULL
+3	1	639	NULL
+4	1	2027	NULL
+
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  LEAD(order_id, 1, -1 RESPECT NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	NULL
+1	1	NULL	NULL
+2	1	NULL	639
+3	1	639	2027
+4	1	2027	-1
+
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  LAG(order_id, 1, -1 RESPECT NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	-1
+1	1	NULL	614
+2	1	NULL	NULL
+3	1	639	NULL
+4	1	2027	639
+
+# Zero LAG is always identity
+query IIII
+SELECT
+  id,
+  user_id,
+  order_id,
+  LAG(order_id, 0, -1 RESPECT NULLS) over (
+    PARTITION BY user_id
+    ORDER BY id
+  ) AS last_order_id
+FROM issue2549
+ORDER BY ALL
+----
+0	1	614	614
+1	1	NULL	NULL
+2	1	NULL	NULL
+3	1	639	639
+4	1	2027	2027
+
+# Edge cases for FIRST/LAST/NTH_VALUE
+statement ok
+CREATE TABLE IF NOT EXISTS issue6635(index INTEGER, data INTEGER);
+
+statement ok
+insert into issue6635 values 
+	(1,1),
+	(2,2),
+	(3,NULL),
+	(4,NULL),
+	(5,5),
+	(6,NULL),
+	(7,NULL)
+;
+
+query IIIII
+SELECT *, 
+	first(data IGNORE NULLS) OVER w, 
+	last(data IGNORE NULLS) OVER w,
+	nth_value(data, 1 IGNORE NULLS) OVER w
+FROM issue6635
+WINDOW w AS (
+	ORDER BY index 
+	ROWS BETWEEN 1 FOLLOWING 
+	 AND UNBOUNDED FOLLOWING
+)
+;
+----
+1	1	2	5	2
+2	2	5	5	5
+3	NULL	5	5	5
+4	NULL	5	5	5
+5	5	NULL	NULL	NULL
+6	NULL	NULL	NULL	NULL
+7	NULL	NULL	NULL	NULL
+
+# Multiple blocks for ignore nulls
+query IIII
+WITH gen AS (
+    SELECT *,
+        ((id * 1327) % 9973) / 10000.0 AS rnd
+    FROM generate_series(1, 10000) tbl(id)
+),
+lvl AS (
+    SELECT id,
+        rnd,
+        CASE
+            WHEN rnd <= 0.1 THEN 'shallow'
+            WHEN rnd >= 0.9 THEN 'high'
+        END AS water_level
+    FROM gen
+)
+SELECT *,
+    LAST_VALUE(water_level IGNORE NULLS) OVER (
+        ORDER BY id
+    ) AS grade
+FROM lvl
+ORDER BY id
+----
+40000 values hashing to c302c8b0f3c10c1e5cc7211c4af7a8d6
+
+# Independent INGORE/RESPECT NULLS with shared input.
+query III
+SELECT 
+	v, 
+	lead(v) OVER (ORDER BY id), 
+	lead(v IGNORE NULLS) OVER (ORDER BY id) 
+FROM (VALUES 
+	(1, 1), 
+	(2, NULL), 
+	(3, 2), 
+	(4, NULL), 
+	(5, 3), 
+	(6, NULL)
+) tbl(id, v);
+----
+1	NULL	2
+NULL	2	2
+2	NULL	3
+NULL	3	3
+3	NULL	NULL
+NULL	NULL	NULL
+
+#
+# Unsupported
+#
+
+foreach modifier IGNORE RESPECT
+
+# Regular function
+statement error
+SELECT ABS(x ${modifier} NULLS) FROM range(10) tbl(x)
+----
+Parser Error: RESPECT/IGNORE NULLS is not supported for non-window functions
+
+# Aggregate function
+statement error
+SELECT SUM(x ${modifier} NULLS)
+FROM range(10) tbl(x)
+----
+Parser Error: RESPECT/IGNORE NULLS is not supported for non-window functions
+
+# Windowed aggregate
+statement error
+SELECT SUM(x ${modifier} NULLS) OVER (PARTITION BY (x / 3) ORDER BY x % 3)
+FROM range(10) tbl(x)
+----
+Parser Error: RESPECT/IGNORE NULLS is not supported for windowed aggregates
+
+endloop

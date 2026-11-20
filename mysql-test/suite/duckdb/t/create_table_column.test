@@ -1,0 +1,523 @@
+# file: duckdb_create_table.test
+#
+# Test case for creating tables with various MySQL field types in DuckDB.
+#
+--source include/have_debug.inc
+
+--echo # 1) Prepare
+--echo
+
+--echo # 2) Create table
+--echo
+--let $DB_NAME=test
+
+CREATE TABLE test_table (
+  id INT PRIMARY KEY,
+  name VARCHAR(32),
+  index idx_id(name),
+  unique index uk_name(name),
+  unique index uk_id(id),
+  unique index uk_id_name(id,name)
+) engine=duckdb;
+
+--let $table_name=test_table
+--source suite/duckdb/include/show_duckdb_table_structure.inc
+--source suite/duckdb/include/check_mysql_dd_structure.inc
+
+DROP TABLE test_table;
+
+#
+# Numeric Types
+#
+
+--echo # Range for each integer type from MySQL
+# https://dev.mysql.com/doc/refman/8.4/en/integer-types.html
+# a: Minimum Value Signed
+# b: Maximum Value Signed
+# c: Minimum Value Unsigned
+# d: Maximum Value Unsigned
+
+--echo #
+--echo # Tinyint
+--echo #
+--let $create_sql = create table t_tinyint (a tinyint, b tinyint, c tinyint unsigned, d tinyint unsigned)
+--let $table_name = t_tinyint
+--let $insert_sql = insert into t_tinyint values (-128, 127, 0, 255);
+--let $select_sql = select a, hex(a), b, hex(b) from t_tinyint
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # smallint
+--echo #
+--let $create_sql = create table t_smallint (a smallint, b smallint, c smallint unsigned, d smallint unsigned)
+--let $table_name = t_smallint
+--let $insert_sql = insert into t_smallint values (-32768, 32767, 0, 65535);
+--let $select_sql = select a, hex(a), b, hex(b) from t_smallint
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # mediumint
+--echo #
+--let $create_sql = create table t_mediumint (a mediumint, b mediumint, c mediumint unsigned, d mediumint unsigned)
+--let $table_name = t_mediumint
+--let $insert_sql = insert into t_mediumint values (-8388608, 8388607, 0, 16777215);
+--let $select_sql = select a, hex(a), b, hex(b) from t_mediumint
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # int
+--echo #
+--let $create_sql = create table t_int (a int, b int, c int unsigned, d int unsigned)
+--let $table_name = t_int
+--let $insert_sql = insert into t_int values (-2147483648, 2147483647, 0, 4294967295);
+--let $select_sql = select a, hex(a), b, hex(b) from t_int
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # bigint
+--echo #
+--let $create_sql = create table t_bigint (a bigint, b bigint, c bigint unsigned, d bigint unsigned)
+--let $table_name = t_bigint
+--let $insert_sql = insert into t_bigint values (-2147483648, 2147483647, 0, 4294967295);
+--let $select_sql = select a, hex(a), b, hex(b) from t_bigint
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # bool
+--echo #
+--let $create_sql = create table t_bool (a bool, b bool, c bool, d bool)
+--let $table_name = t_bool
+--let $insert_sql = insert into t_bool values (1, true, 0, '1')
+--let $select_sql = select a, hex(a), b, hex(b), c, hex(c), d, hex(d) from t_bool
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # float
+--echo #
+--let $create_sql = create table t_float (a float, b float(7,4), c float, d float)
+--let $table_name = t_float
+--let $insert_sql = insert into t_float values (1.01, 1.01, 99999, 3.40282E+20)
+--let $select_sql = select a, b, c, d from t_float
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # float with high precision
+--echo #
+--let $create_sql = create table t_float (b float, c float, d float, e float)
+--let $table_name = t_float
+--let $insert_sql = insert into t_float values (3.402823466E+38, -3.402823466E+38, 1.175494351E-38, -1.175494351E-38)
+--let $select_sql = select b,c,d, e from t_float
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # double
+--echo #
+--let $create_sql = create table t_double (a double, b double(7,4), c double, d double)
+--let $table_name = t_double
+--let $insert_sql = insert into t_double values (1.01, 1.01, 99999,  3.40282E+20)
+--let $select_sql = select a,b,c,d from t_double
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # double with high precision
+--echo #
+--let $create_sql = create table t_double (b double, c double, d double, e double)
+--let $table_name = t_double
+--let $insert_sql = insert into t_double values (3.402823466E+38, -3.402823466E+38, 1.175494351E-38, -1.175494351E-38)
+--let $select_sql = select  b, c, d, e from t_double
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+
+--echo #
+--echo # decimal 
+--echo #
+--let $create_sql = create table t_decimal (g decimal(9,9),h decimal(9,4),i decimal(9,0))
+--let $table_name = t_decimal
+--let $insert_sql = insert into t_decimal values (0.99999999,99999.9999,999999999)
+--let $select_sql = select g, h, i from t_decimal
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # decimal with high precision
+--echo #
+--let $create_sql = create table t_decimal (a decimal(65, 30),b decimal(65, 15),c decimal(65, 0),d decimal(38,30),e decimal(38,18),f decimal(38,0),g decimal(9,9),h decimal(9,4),i decimal(9,0))
+--let $table_name = t_decimal
+--let $insert_sql = insert into t_decimal values (99999999999999999999999999999999999.999999999999999999999999999999,99999999999999999999999999999999999999999999999999.999999999999999,99999999999999999999999999999999999999999999999999999999999999999,99999999.999999999999999999999999999999,99999999999999999999.999999999999999999,99999999999999999999999999999999999999,0.99999999,99999.9999,999999999)
+--let $select_sql = select a, b, c, d, e, f, g, h,i from t_decimal
+# decimal precision more than 38 is not supported, use double by default
+--let $die_on_error=0
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # check all possibilities of decimal with kinds of precisions
+--echo #
+
+--echo #
+--echo # decimal(1): low precision(<=38)  with low precision value and duckdb_use_double_for_decimal=on
+--echo #
+set global duckdb_use_double_for_decimal=on;
+--let $create_sql = CREATE TABLE t1(id int primary key, c1 decimal(38, 5), c2 decimal(38, 5), c3 decimal(38, 5))
+--let $table_name = t1
+--let $insert_sql = INSERT INTO t1 values (1, 123456789012345678901234567890123.12345, 0, 0000000.0000000);
+--let $select_sql = select id, c1,c2,c3 from t1
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+set global duckdb_use_double_for_decimal=default;
+
+--echo #
+--echo # decimal(2): high precision(>38)  with low precision value(<=38) and duckdb_use_double_for_decimal=on
+--echo #
+set global duckdb_use_double_for_decimal=on;
+--let $create_sql = CREATE TABLE t1(id int primary key, c1 decimal(40, 5), c2 decimal(40, 5), c3 decimal(40, 5))
+--let $table_name = t1
+--let $insert_sql = INSERT INTO t1 values (4, 123456789012345678901234567890.12345, 0, 0000000.0000000);
+--let $select_sql = select id, c1 from t1
+--echo # use double
+--let $die_on_error=0
+--source suite/duckdb/include/check_field_correctness.inc
+set global duckdb_use_double_for_decimal=default;
+
+--echo #
+--echo # decimal(3): high precision(>38)  with high precision value(>38)  and duckdb_use_double_for_decimal=on
+--echo #
+set global duckdb_use_double_for_decimal=on;
+--let $create_sql = CREATE TABLE t1(id int primary key, c1 decimal(40, 5),c2 decimal(40, 5), c3 decimal(40, 5))
+--let $table_name = t1
+--let $insert_sql = INSERT INTO t1 values (4, 12345678901234567890123456789012345.12345, 0, 0000000.0000000);
+--let $select_sql = select id, c1 from t1
+--echo # use double
+--let $die_on_error=0
+--source suite/duckdb/include/check_field_correctness.inc
+set global duckdb_use_double_for_decimal=default;
+
+
+--echo #
+--echo # decimal(4): low precision(<=38)  with low precision value and duckdb_use_double_for_decimal=off
+--echo #
+set global duckdb_use_double_for_decimal=off;
+--let $create_sql = CREATE TABLE t1(id int primary key, c1 decimal(38, 5)) 
+--let $table_name = t1
+--let $insert_sql = INSERT INTO t1 values (1, 123456789012345678901234567890123.12345);
+--let $select_sql = select id, c1 from t1
+--echo # use decimal
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+set global duckdb_use_double_for_decimal=default;
+
+--echo #
+--echo # decimal(5): high precision(>38)  with low precision value(<=38) and duckdb_use_double_for_decimal=off
+--echo #
+set global duckdb_use_double_for_decimal=off;
+--let $create_sql = CREATE TABLE t1(id int primary key, c1 decimal(40, 5)) 
+--let $table_name = t1
+--let $insert_sql = INSERT INTO t1 values (4, 123456789012345678901234567890.12345);
+--let $select_sql = select id, c1 from t1
+--echo # use decimal(38, dec)
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+set global duckdb_use_double_for_decimal=default;
+
+--echo #
+--echo # bit
+--echo #
+--let $create_sql = create table t_bit (a bit(8), b bit(8), c bit(64), d bit(64))
+--let $table_name = t_bit
+--let $insert_sql = insert into t_bit values(b'10101010', b'10111', b'1111111111111111111111111111111111111111111111111111111111111111', b'1111111111111111111111111111111111111111111111111111111111111011')
+--let $select_sql = select hex(a), hex(b), hex(c), hex(d) from t_bit
+# note: hex() display different in mysql and duckdb, (F and 0F)
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # char
+--echo #
+--let $create_sql = create table t_char (a char(1), b char(1), c char(10), d char(64), e char(64), f char(1), g char(32), h char(64))
+--let $table_name = t_char
+--let $insert_sql = insert into t_char values(char(64),'A', b'10111', 'abcdefg0', '1111111111111111111111111111111111111111111111111111111111111011', 0xC3A6, "I'm duckdb", 0x48656C6C6F00776F726C64)
+--let $select_sql = select a, hex(a), b, hex(b), c, hex(c), d, hex(d), e, hex(e), f, g, h from t_char
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # varchar
+--echo #
+--let $create_sql = create table t_varchar (a varchar(1), b varchar(1), c varchar(10), d varchar(64), e varchar(64), f varchar(64), g varchar(32), h varchar(32))
+--let $table_name = t_varchar
+--let $insert_sql = insert into t_varchar values(char(64),'A', b'10111', 'abcdefg0', '1111111111111111111111111111111111111111111111111111111111111011', 0xC3A6, "I'm duckdb", 0x48656C6C6F00776F726C64)
+--let $select_sql = select a, hex(a), b, hex(b), c, hex(c), d, hex(d), e, hex(e), f, g, h from t_varchar
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # tinytext
+--echo #
+--let $create_sql = create table t_varchar (a tinytext, b tinytext, d tinytext, e tinytext, f tinytext, g tinytext, h tinytext)
+--let $table_name = t_varchar
+--let $insert_sql = insert into t_varchar values(char(64),'A', 'abcdefg0', '1111111111111111111111111111111111111111111111111111111111111011', 0xC3A6, "I'm duckdb", 0x48656C6C6F00776F726C64)
+--let $select_sql = select a, hex(a), b, hex(b), d, hex(d), e, hex(e), f, g, h from t_varchar
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # text
+--echo #
+--let $create_sql = create table t_text (a text, b text, c text, d text, e text, f text)
+--let $table_name = t_text
+--let $insert_sql = insert into t_text values('0123456789ABCDEF', repeat('a', 65535), 0, 0xC3A6, "I'm duckdb", 0x48656C6C6F00776F726C64)
+--let $select_sql = select hex(a),  length(b), hex(c), d, e, f from t_text
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # mediumtext
+--echo #
+--let $create_sql = create table t_mediumtext (a mediumtext, b mediumtext, c mediumtext, d mediumtext, e mediumtext)
+--let $table_name = t_mediumtext
+--let $insert_sql = insert into t_mediumtext values('0123456789ABCDEF', repeat('a', 167), 0xC3A6, "I'm duckdb", 0x48656C6C6F00776F726C64)
+--let $select_sql = select hex(a),  length(b), c, d, e from t_mediumtext
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # longtext
+--echo #
+--let $create_sql = create table t_longtext (a longtext, b longtext, c longtext, d longtext, e longtext, f longtext)
+--let $table_name = t_longtext
+--let $insert_sql = insert into t_longtext values('0123456789ABCDEF', repeat('a', 167), 0, 0xC3A6, "I'm duckdb", 0x48656C6C6F00776F726C64)
+--let $select_sql = select hex(a),  length(b), length(c), d, e, f from t_longtext
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # tinyblob
+--echo #
+--let $create_sql = create table t_tinyblob (a tinyblob, b tinyblob, c tinyblob, d tinyblob, e tinyblob, f tinyblob)
+--let $table_name = t_tinyblob
+--let $insert_sql = insert into t_tinyblob values('0123456789ABCDEF', repeat('a', 255), 0, X'48656C6C6F', "I'm duckdb", 0x48656C6C6F00776F726C64)
+--let $select_sql = select hex(a),  hex(b), hex(c), d, hex(d), e, f from t_tinyblob
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # blob
+--echo #
+--let $create_sql = create table t_blob (a blob, b blob, c blob, d blob, e blob, f blob)
+--let $table_name = t_blob
+--let $insert_sql = insert into t_blob values('0123456789ABCDEF', repeat('a', 65535), 0, X'48656C6C6F', "I'm duckdb", 0x48656C6C6F00776F726C64)
+--let $select_sql = select hex(a),  length(b), hex(c), d, hex(d), e, f from t_blob
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # mediumblob
+--echo #
+--let $create_sql = create table t_mediumblob (a mediumblob, b mediumblob, c mediumblob, d mediumblob, e mediumblob)
+--let $table_name = t_mediumblob
+--let $insert_sql = insert into t_mediumblob values('0123456789ABCDEF', repeat('a', 167), X'48656C6C6F', "I'm duckdb", 0x48656C6C6F00776F726C64)
+--let $select_sql = select hex(a),  octet_length(b), c, hex(c), d, e from t_mediumblob
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # longblob
+--echo #
+--let $create_sql = create table t_longblob (a longblob, b longblob, c longblob, d longblob, e longblob, f longblob)
+--let $table_name = t_longblob
+--let $insert_sql = insert into t_longblob values('0123456789ABCDEF', repeat('a', 167), 0, X'48656C6C6F', "I'm duckdb", 0x48656C6C6F00776F726C64)
+--let $select_sql = select hex(a),  octet_length(b), octet_length(c), d, hex(d), e, f from t_longblob
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # binary
+--echo #
+--let $create_sql = CREATE TABLE t_binary (a BINARY(16), b BINARY(32))
+--let $table_name = t_binary
+--let $insert_sql = INSERT INTO t_binary (a, b) VALUES(UNHEX('e80b5017098950fc58aad83c8c14978e'), repeat('a', 32))
+--let $select_sql = select hex(a), octet_length(a) from t_binary
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # varbinary
+--echo #
+--let $create_sql = CREATE TABLE t_varbinary (a VARBINARY(16), b BINARY(32))
+--let $table_name = t_varbinary
+--let $insert_sql = INSERT INTO t_varbinary (a, b) VALUES(UNHEX('e80b5017098950fc58aad83c8c14978e'),  repeat('a', 32))
+--let $select_sql = select hex(a), octet_length(a), hex(b), b from t_varbinary
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # year
+--echo #
+
+--let $create_sql = CREATE TABLE t_year (a year, b year, c year)
+--let $table_name = t_year
+--let $insert_sql = insert into t_year values ('2020', '1970', '1969');
+--let $select_sql = select a, b, c from t_year
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # date
+--echo #
+
+--let $create_sql = CREATE TABLE t_date (a date, b date, c date, d date, e date)
+--let $table_name = t_date
+--let $insert_sql = insert into t_date values ('2020-01-01', '1970-01-01', '1969-01-01', '2020-01-01 12:00:00', '2020-01-01 12:00:00.1')
+--let $select_sql = select a, b, c, d, e from t_date
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # time
+--echo #
+
+--let $create_sql = CREATE TABLE t_time (a time, b time, c time, d time, e time)
+--let $table_name = t_time
+--let $insert_sql = insert into t_time values ('2020-01-01 12:00:00.1', '00:00:00', '23:59:59', '23:59:59.123456', '2020-01-01 12:00:00.1')
+--let $select_sql = select a, b, c, d, e from t_time
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # time(6)
+--echo #
+
+
+--let $create_sql = CREATE TABLE t_time_6 (a time(6), b time(6), c time(6), d time(6), e time(6))
+--let $table_name = t_time_6
+--let $insert_sql = insert into t_time_6 values ('2020-01-01 12:00:00.1', '00:00:00', '23:59:59', '23:59:59.123456', '2020-01-01 12:00:00.1')
+--let $select_sql = select a, b, c, d, e from t_time_6
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # datetime
+--echo #
+
+--let $create_sql = CREATE TABLE t_datetime (a datetime, b datetime, c datetime)
+--let $table_name = t_datetime
+--let $insert_sql = insert into t_datetime values ('2020-01-01 12:00:00', '1969-01-01 12:00:00', '2020-01-01 12:00:00.001')
+--let $select_sql = select a, b, c from t_datetime
+# Note: inconsistency occurs when '1969-01-01 12:00:00'
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # datetime(6)
+--echo #
+
+--let $create_sql = CREATE TABLE t_datetime_6 (a datetime(6), b datetime(6), c datetime(6))
+--let $table_name = t_datetime_6
+--let $insert_sql = insert into t_datetime_6 values ('2020-01-01 12:00:00', '1969-01-01 12:00:00', '2020-01-01 12:00:00.001')
+--let $select_sql = select a, b, c from t_datetime_6
+# Note: inconsistency occurs when '1969-01-01 12:00:00'
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # timestamp
+--echo #
+--let $create_sql = CREATE TABLE t_timestamp (a timestamp, b timestamp, c timestamp, d timestamp, e timestamp)
+--let $table_name = t_timestamp
+--let $insert_sql = insert into t_timestamp values ('2020-01-01 12:00:00', '1970-01-01 12:00:00', '2020-01-01 12:00:00.001', from_unixtime(1740117061), from_unixtime(1740117061.1234));
+--let $select_sql = select a, b, c, d, e from t_timestamp
+--let $die_on_error=1
+# Note: not inconsist
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # timestamp(6)
+--echo #
+--let $create_sql = CREATE TABLE t_timestamp_6 (a timestamp(6), b timestamp(6), c timestamp(6), d timestamp(6), e timestamp(6))
+--let $table_name = t_timestamp_6
+--let $insert_sql = insert into t_timestamp_6 values ('2020-01-01 12:00:00', '1970-01-01 12:00:00', '2020-01-01 12:00:00.001', from_unixtime(1740117061), from_unixtime(1740117061.1234));
+--let $select_sql = select a, b, c, d, e from t_timestamp_6
+--let $die_on_error=1
+# Note: not inconsist
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # json, enum, set
+--echo #
+--let $create_sql = CREATE TABLE t_json (a json, b enum('v1', 'v2', 'v3'), c set('v1', 'v2', 'v3'))
+--let $table_name = t_json
+--let $insert_sql = insert into t_json values ('{"id": 1, "value":"aaaa"}', 3, 'v1,v2,v3');
+--let $select_sql = select a, b, c from t_json
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # NULL
+--echo #
+--let $create_sql = CREATE TABLE t_null (a int, b int default null, c varchar(32) default null)
+--let $table_name = t_null
+--let $insert_sql = insert into t_null(a) values (1);
+--let $select_sql = select a, b, c from t_null
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+
+--echo #
+--echo # column with charset ascii
+--echo #
+--let $create_sql = CREATE TABLE t_ascii (a varchar(32) CHARACTER SET ascii, b char(32) CHARACTER SET ascii, c text CHARACTER SET ascii)
+--let $table_name = t_ascii
+--let $insert_sql = insert into t_ascii(a, b, c) values ('ascii', 'ASCII', 'ascII');
+--let $select_sql = select a, b, c from t_ascii
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # column with charset latin1
+--echo #
+--let $create_sql = CREATE TABLE t_latin1 (a varchar(32) CHARACTER SET latin1, b varchar(32) CHARACTER SET latin1, c varchar(32) CHARACTER SET latin1, d char(32) CHARACTER SET latin1, e text CHARACTER SET latin1)
+--let $table_name = t_latin1
+--let $insert_sql = insert into t_latin1(a, b, c, d) values ('latin1', 'lAtin1', 'lÀtin1', 'lÀTin1');
+--let $select_sql = select a, b, c, d, e from t_latin1;
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--let $create_sql = CREATE TABLE t_latin1 (e text CHARACTER SET latin1)
+--let $table_name = t_latin1
+--let $insert_sql = insert into t_latin1(e) values ('lÀTin1');
+--let $select_sql = select e from t_latin1;
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc
+
+--echo #
+--echo # column with utf8mb4 and emoji
+--echo #
+--let $create_sql = CREATE TABLE t_mb4_emoji (a varchar(32) CHARSET utf8mb4,  b char(32) CHARSET utf8mb4,  c text(32) CHARSET utf8mb4,  d varchar(32) CHARSET utf8mb4)
+--let $table_name = t_mb4_emoji
+--let $insert_sql = insert into t_mb4_emoji(a, b, c, d) values (UNHEX('F09F9884'), UNHEX('F09F9884'), UNHEX('F09F9884'), '😭h😄h😭');
+--let $select_sql = select a, b, c, d from t_mb4_emoji
+--let $die_on_error=1
+--source suite/duckdb/include/check_field_correctness.inc

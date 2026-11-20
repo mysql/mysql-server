@@ -1,0 +1,83 @@
+--source include/have_binlog_format_mixed.inc
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # Init
+--echo #
+CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY, c2 VARCHAR(200)) ENGINE = DUCKDB;
+
+# MySQL removed the primary key for duckdb engine automatically, we need to
+# add the primary key back. Thus it can trigger an error at commit
+call dbms_duckdb.query("DROP TABLE test.t1");
+call dbms_duckdb.query("CREATE TABLE test.t1(c1 INT NOT NULL PRIMARY KEY, c2 VARCHAR(200))");
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+call dbms_duckdb.query("DROP TABLE test.t1");
+call dbms_duckdb.query("CREATE TABLE test.t1(c1 INT NOT NULL PRIMARY KEY, c2 VARCHAR(200))");
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES(1, "1"), (2, "2"), (3, "3");
+
+--echo #
+--echo # Use a single INSERT transaction to trigger duplicate key error at
+--echo # prepare
+--echo #
+--error ER_DUCKDB_PREPARE_ERROR
+INSERT INTO t1 VALUES(3, "duplicate key");
+SELECT * FROM t1 ORDER BY c1;
+
+INSERT INTO t1 VALUES(4, "4");
+
+--let $binlog_file = query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $server_uuid=`SELECT @@server_uuid`
+--replace_column 4 #
+--replace_result $server_uuid SERVER_UUID
+--replace_regex /Server ver.*/Server ver: #.#.#/ /xid=[0-9]*/xid=#/
+eval SHOW BINLOG EVENTS IN '$binlog_file';
+
+
+--let $rpl_diff_statement= SELECT * FROM t1 ORDER BY c1
+--source include/rpl/diff.inc
+
+--echo #
+--echo # Same to above test but the INSERT in a multiple statement transaction.
+--echo # COMMIT will trigger the duplicate key error.
+--echo #
+--source include/rpl/connection_source.inc
+BEGIN;
+UPDATE t1 SET c2 = "test";
+INSERT INTO t1 VALUES(4, "duplicate key");
+SELECT * FROM t1 ORDER BY c1;
+--error ER_DUCKDB_PREPARE_ERROR
+COMMIT;
+SELECT * FROM t1 ORDER BY c1;
+
+--let $binlog_file = query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $server_uuid=`SELECT @@server_uuid`
+--replace_column 4 #
+--replace_result $server_uuid SERVER_UUID
+--replace_regex /Server ver.*/Server ver: #.#.#/ /xid=[0-9]*/xid=#/
+eval SHOW BINLOG EVENTS IN '$binlog_file';
+
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_source.inc
+# Test FLUSH BINARY LOGS works well.
+FLUSH BINARY LOGS;
+
+INSERT INTO t1 VALUES(6, "6");
+SELECT * FROM t1 ORDER BY c1;
+
+--let $binlog_file = query_get_value("SHOW BINARY LOG STATUS", File, 1)
+--let $server_uuid=`SELECT @@server_uuid`
+--replace_column 4 #
+--replace_result $server_uuid SERVER_UUID
+--replace_regex /Server ver.*/Server ver: #.#.#/ /xid=[0-9]*/xid=#/
+eval SHOW BINLOG EVENTS IN '$binlog_file';
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t1;
+--source include/rpl/deinit.inc
+

@@ -1,0 +1,11 @@
+--echo #
+--echo # NOT NULL, NOT PARTIAL UNIQUE KEY IS UPGRADED TO PRIMARY KEY.
+--echo #
+# If DDL statement is from user thread, ER_MULTIPLE_PRI_KEY will be reported. Because we do not know primary key is upgraded or not.
+CREATE TABLE t(a INT NOT NULL, b INT NOT NULL, UNIQUE INDEX idx_b(b)) ENGINE = DuckDB;
+--source suite/duckdb/include/check_upgraded_pk.inc
+--error ER_MULTIPLE_PRI_KEY
+ALTER TABLE t ADD PRIMARY KEY(a), ALGORITHM = INPLACE;
+--error ER_MULTIPLE_PRI_KEY
+ALTER TABLE t ADD PRIMARY KEY(a);
+DROP TABLE t;

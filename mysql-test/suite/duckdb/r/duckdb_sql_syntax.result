@@ -1,0 +1,137 @@
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT, col2 INT);
+SELECT id, col1, col2 FROM t1 GROUP BY id, col1, col2 WITH ROLLUP;
+id	col1	col2
+NULL	NULL	NULL
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT id, col1, col2 FROM t1 GROUP BY id, col1, col2 WITH ROLLUP;
+id	col1	col2
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT, col2 INT);
+CREATE TABLE t2 (id INT PRIMARY KEY, col1 INT, col2 INT);
+INSERT INTO t1 VALUES (1, 1, 1);
+INSERT INTO t2 VALUES (2, 2, 2);
+SELECT * FROM t1 JOIN t2;
+id	col1	col2	id	col1	col2
+1	1	1	2	2	2
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+SELECT * FROM t1 JOIN t2;
+id	col1	col2	id	col1	col2
+1	1	1	2	2	2
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT);
+INSERT INTO t1 VALUES (1, 1), (2, 1);
+SELECT DISTINCT col1 FROM t1;
+col1
+1
+SELECT ALL col1 FROM t1;
+col1
+1
+1
+SELECT HIGH_PRIORITY * FROM t1;
+id	col1
+1	1
+2	1
+SELECT SQL_SMALL_RESULT * FROM t1;
+id	col1
+1	1
+2	1
+SELECT SQL_BIG_RESULT * FROM t1;
+id	col1
+1	1
+2	1
+SELECT SQL_BUFFER_RESULT * FROM t1;
+id	col1
+1	1
+2	1
+SELECT SQL_CALC_FOUND_ROWS * FROM t1;
+id	col1
+1	1
+2	1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+SELECT SQL_NO_CACHE * FROM t1;
+id	col1
+1	1
+2	1
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT DISTINCT col1 FROM t1;
+col1
+1
+SELECT ALL col1 FROM t1;
+col1
+1
+1
+SELECT HIGH_PRIORITY * FROM t1;
+id	col1
+1	1
+2	1
+SELECT SQL_SMALL_RESULT * FROM t1;
+id	col1
+1	1
+2	1
+SELECT SQL_BIG_RESULT * FROM t1;
+id	col1
+1	1
+2	1
+SELECT SQL_BUFFER_RESULT * FROM t1;
+id	col1
+1	1
+2	1
+SELECT SQL_CALC_FOUND_ROWS * FROM t1;
+id	col1
+1	1
+2	1
+Warnings:
+Warning	1287	SQL_CALC_FOUND_ROWS is deprecated and will be removed in a future release. Consider using two separate queries instead.
+SELECT SQL_NO_CACHE * FROM t1;
+id	col1
+1	1
+2	1
+Warnings:
+Warning	1681	'SQL_NO_CACHE' is deprecated and will be removed in a future release.
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3), (4), (5);
+SELECT * FROM t1 LIMIT 2,2;
+id
+3
+4
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT * FROM t1 LIMIT 2,2;
+id
+3
+4
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT);
+SELECT * FROM t1 FORCE INDEX(PRI);
+id	col1
+SELECT * FROM t1 IGNORE INDEX(PRI);
+id	col1
+SELECT * FROM t1 USE INDEX(PRI);
+id	col1
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT * FROM t1 FORCE INDEX(PRI);
+id	col1
+SELECT * FROM t1 IGNORE INDEX(PRI);
+id	col1
+SELECT * FROM t1 USE INDEX(PRI);
+id	col1
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT);
+CREATE TABLE t2 (id INT PRIMARY KEY, col1 INT);
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (2, 2);
+SELECT * FROM t1 STRAIGHT_JOIN t2;
+id	col1	id	col1
+1	1	2	2
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+SELECT * FROM t1 STRAIGHT_JOIN t2;
+id	col1	id	col1
+1	1	2	2
+DROP TABLE t1;
+DROP TABLE t2;

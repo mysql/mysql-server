@@ -1,0 +1,4 @@
+--log-bin
+--binlog-format=mixed
+--duckdb_dml_in_batch=on
+--duckdb_multi_trx_in_batch=off

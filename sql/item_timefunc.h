@@ -1205,6 +1205,8 @@ class Item_func_date_format final : public Item_str_func {
   bool resolve_type(THD *thd) override;
   uint format_length(const String *format);
   bool eq_specific(const Item *item) const override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_from_unixtime final : public Item_datetime_func {
@@ -1245,6 +1247,8 @@ class Item_func_convert_tz final : public Item_datetime_func {
   bool resolve_type(THD *) override;
   bool val_datetime(Datetime_val *dt, my_time_flags_t flags) override;
   void cleanup() override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_sec_to_time final : public Item_time_func {
@@ -1602,6 +1606,14 @@ class Item_func_last_day final : public Item_date_func {
   enum Functype functype() const override { return LAST_DAY_FUNC; }
   bool resolve_type(THD *thd) override;
   bool val_date(Date_val *date, my_time_flags_t flags) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override {
+    if (query_type & QT_DUCKDB_REWRITE) {
+      Item_func::print(thd, str, query_type);
+    } else {
+      Item_temporal_func::print(thd, str, query_type);
+    }
+  }
 };
 
 class Item_func_internal_update_time final : public Item_datetime_func {

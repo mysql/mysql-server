@@ -1,0 +1,124 @@
+# ===========================================================
+# Test: duckdb_datetime_zero_date
+# Description:
+#   Regression test for GitHub issue#131.
+#   Inserting an invalid integer (e.g. 57399) into a DATETIME
+#   column on a DuckDB engine table used to crash the server
+#   due to an assertion failure in sec_since_epoch() when
+#   month=0 (zero date).
+#
+#   This test verifies that DuckDB and InnoDB produce
+#   identical results for various invalid/zero-date INSERT
+#   scenarios.
+#
+# Tested feature: DuckDB DATETIME zero-date handling
+# Related source: storage/duckdb/delta_appender.cc
+# ===========================================================
+
+--echo #
+--echo # Setup
+--echo #
+--write_file $MYSQL_TMP_DIR/init_datetime_test.inc
+  --disable_warnings
+  DROP TABLE IF EXISTS t_duckdb, t_innodb;
+  --enable_warnings
+  CREATE TABLE t_duckdb (
+    id INT NOT NULL AUTO_INCREMENT,
+    col1 DATETIME NULL DEFAULT '2026-01-01 00:00:00',
+    PRIMARY KEY (id)
+  ) ENGINE=DuckDB;
+
+  CREATE TABLE t_innodb (
+    id INT NOT NULL AUTO_INCREMENT,
+    col1 DATETIME NULL DEFAULT '2026-01-01 00:00:00',
+    PRIMARY KEY (id)
+  ) ENGINE=InnoDB;
+EOF
+
+--write_file $MYSQL_TMP_DIR/check_duckdb_datetime.inc
+  SELECT * FROM t_duckdb ORDER BY id;
+  SELECT * FROM t_innodb ORDER BY id;
+
+  --let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+  --let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+  --let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+  --let $assert_text= Checksum is the same
+  --source include/assert.inc
+EOF
+
+
+--echo # =========================================================
+--echo # Scenario 1: INSERT with invalid integer (57399)
+--echo #   This is the original crash case from GitHub issue#131.
+--echo # =========================================================
+--source $MYSQL_TMP_DIR/init_datetime_test.inc
+
+INSERT IGNORE INTO t_duckdb (id, col1) VALUES (1, 57399);
+INSERT IGNORE INTO t_innodb (id, col1) VALUES (1, 57399);
+
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t_duckdb (id, col1) VALUES (2, 57399);
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t_innodb (id, col1) VALUES (2, 57399);
+
+SET @saved_sql_mode = @@SESSION.sql_mode;
+SET sql_mode = '';
+INSERT INTO t_duckdb (id, col1) VALUES (2, 57399);
+INSERT INTO t_innodb (id, col1) VALUES (2, 57399);
+SET sql_mode = @saved_sql_mode;
+
+--source $MYSQL_TMP_DIR/check_duckdb_datetime.inc
+--echo # Scenario 1 PASSED: checksums match
+
+
+--echo # ==================================================
+--echo # Scenario 2: INSERT with various invalid integers
+--echo # ==================================================
+--source $MYSQL_TMP_DIR/init_datetime_test.inc
+
+# 0: zero value
+# 101: boundary (min valid YYMMDD-like is 101 -> 2000-01-01)
+# 99: below minimum valid
+# 57399: invalid month=73
+# 13320199: invalid day=99
+# -1: negative value
+INSERT IGNORE INTO t_duckdb (id, col1) VALUES
+  (1, 0), (2, 99), (3, 101), (4, 57399), (5, 13320199), (6, -1);
+INSERT IGNORE INTO t_innodb (id, col1) VALUES
+  (1, 0), (2, 99), (3, 101), (4, 57399), (5, 13320199), (6, -1);
+
+--source $MYSQL_TMP_DIR/check_duckdb_datetime.inc
+--echo # Scenario 2 PASSED: checksums match
+
+
+--echo # =========================================================
+--echo # Scenario 3: INSERT with mixing valid and invalid values
+--echo # =========================================================
+--source $MYSQL_TMP_DIR/init_datetime_test.inc
+
+INSERT IGNORE INTO t_duckdb (id, col1) VALUES
+  (1, '2026-06-15 10:30:00'),
+  (2, 57399),
+  (3, '2020-01-01 00:00:00'),
+  (4, 0),
+  (5, 20240615103000),
+  (6, NULL),
+  (7, '0000-00-00 00:00:00');
+INSERT IGNORE INTO t_innodb (id, col1) VALUES
+  (1, '2026-06-15 10:30:00'),
+  (2, 57399),
+  (3, '2020-01-01 00:00:00'),
+  (4, 0),
+  (5, 20240615103000),
+  (6, NULL),
+  (7, '0000-00-00 00:00:00');
+
+--source $MYSQL_TMP_DIR/check_duckdb_datetime.inc
+--echo # Scenario 3 PASSED: checksums match
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t_duckdb, t_innodb;
+--remove_file $MYSQL_TMP_DIR/init_datetime_test.inc
+--remove_file $MYSQL_TMP_DIR/check_duckdb_datetime.inc

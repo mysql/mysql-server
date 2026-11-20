@@ -1,0 +1,585 @@
+SET duckdb_sql_normalization = on;
+#
+# When duckdb_sql_normalization is enabled, the following
+# previously unsupported syntax will be supported.
+#
+--echo --------------------------
+--echo 1. Supports binary strings in '0x' format.
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1);
+
+SELECT 0xFFFF FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 2. Date functions support STRING_LITERAL and VARCHAR as input.
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1);
+
+SELECT LAST_DAY('2025-12-25') FROM t1;
+SELECT DATE_FORMAT('2025-12-25', '%W %M %Y') FROM t1;
+SELECT TIME_FORMAT('12:25:30', '%H %i %s') FROM t1;
+SELECT DATE_ADD('2025-12-25', INTERVAL 1 DAY)
+	, DATE_ADD('2025-12-25', INTERVAL 1 SECOND)
+	, DATE_ADD('2025-12-25 10:47:30', INTERVAL 1 DAY)
+	, DATE_ADD('2025-12-25 10:47:30', INTERVAL 1 SECOND)
+FROM t1;
+SELECT EXTRACT(YEAR FROM '2025-12-25')
+    , EXTRACT(SECOND FROM '10:47:30')
+    , EXTRACT(YEAR FROM '2025-12-25 10:47:30')
+    , EXTRACT(SECOND FROM '2025-12-25 10:47:30')
+FROM t1;
+SELECT ADDTIME('2007-12-31 23:59:59.999999', '1 1:1:1.000002'), ADDTIME('01:00:00.999999', '02:00:00.999998') FROM t1;
+SELECT TIMESTAMPDIFF(MONTH,'2003-02-01','2003-05-01') FROM t1;
+SELECT HOUR('10:47:30'), MINUTE('10:47:30')
+	, SECOND('10:47:30'), MICROSECOND('10:47:30')
+	, HOUR('2025-12-25 10:47:30'), MINUTE('2025-12-25 10:47:30')
+	, SECOND('2025-12-25 10:47:30'), MICROSECOND('2025-12-25 10:47:30')
+	, DAYNAME('2025-12-25 10:47:30'), WEEK('2025-12-25 10:47:30')
+	, DAYOFYEAR('2025-12-25 10:47:30'), QUARTER('2025-12-25 10:47:30')
+	, YEAR('2025-12-25 10:47:30'), MONTH('2025-12-25 10:47:30')
+FROM t1;
+SELECT CONVERT_TZ('2025-12-25 10:47:30', 'GMT', 'Asia/Shanghai') FROM t1;
+SET timestamp = 1753226301;
+SELECT UNIX_TIMESTAMP('2025-12-25 10:47:30'), UNIX_TIMESTAMP('2025-12-25'), UNIX_TIMESTAMP() FROM t1;
+SET timestamp = default;
+
+CREATE TABLE t2 (id INT PRIMARY KEY, date_char VARCHAR(100), time_char VARCHAR(100), timestamp_char VARCHAR(100)) ENGINE=DuckDB;
+INSERT INTO t2 VALUES (1, '2025-12-25', '10:47:30', '2025-12-25 10:47:30');
+SELECT LAST_DAY(date_char), LAST_DAY(timestamp_char)
+FROM t2;
+SELECT DATE_FORMAT(date_char, '%W %M %Y')
+	, DATE_FORMAT(timestamp_char, '%W %M %Y %H %i %s')
+FROM t2;
+SELECT TIME_FORMAT(time_char, '%H %i %s')
+FROM t2;
+SELECT EXTRACT(YEAR FROM date_char), EXTRACT(SECOND FROM time_char), EXTRACT(YEAR FROM timestamp_char), EXTRACT(SECOND FROM timestamp_char)
+FROM t2;
+SELECT HOUR(time_char), MINUTE(time_char)
+	, SECOND(time_char), MICROSECOND(time_char)
+	, HOUR(timestamp_char), MINUTE(timestamp_char)
+	, SECOND(timestamp_char), MICROSECOND(timestamp_char)
+	, DAYNAME(timestamp_char), WEEK(timestamp_char)
+	, DAYOFYEAR(timestamp_char), QUARTER(timestamp_char)
+	, YEAR(timestamp_char), MONTH(timestamp_char)
+FROM t2;
+SELECT CONVERT_TZ(timestamp_char, 'GMT', 'Asia/Shanghai') FROM t2;
+SET timestamp = 1753226301;
+SELECT UNIX_TIMESTAMP(timestamp_char), UNIX_TIMESTAMP(date_char), UNIX_TIMESTAMP() FROM t2;
+SET timestamp = default;
+
+# TEXT columns (BLOB type with non-binary charset) should also trigger CAST
+CREATE TABLE t3 (id INT PRIMARY KEY, date_text TEXT, time_text TEXT, timestamp_text TEXT) ENGINE=DuckDB;
+INSERT INTO t3 VALUES (1, '2025-12-25', '10:47:30', '2025-12-25 10:47:30');
+
+# Item_func::print - date functions with TEXT arg -> CAST AS TIMESTAMP
+SELECT LAST_DAY(date_text), LAST_DAY(timestamp_text)
+FROM t3;
+SELECT DAYNAME(timestamp_text), WEEK(timestamp_text)
+	, DAYOFYEAR(timestamp_text), QUARTER(timestamp_text)
+	, YEAR(timestamp_text), MONTH(timestamp_text)
+FROM t3;
+SELECT CONVERT_TZ(timestamp_text, 'GMT', 'Asia/Shanghai') FROM t3;
+SET timestamp = 1753226301;
+SELECT UNIX_TIMESTAMP(timestamp_text), UNIX_TIMESTAMP(date_text), UNIX_TIMESTAMP() FROM t3;
+SET timestamp = default;
+
+# Item_func::print - time functions with TEXT arg -> CAST AS TIME
+SELECT HOUR(time_text), MINUTE(time_text)
+	, SECOND(time_text), MICROSECOND(time_text)
+FROM t3;
+
+# Item_func_date_format::print - DATE_FORMAT/TIME_FORMAT with TEXT arg
+SELECT DATE_FORMAT(timestamp_text, '%W %M %Y %H %i %s') FROM t3;
+SELECT TIME_FORMAT(time_text, '%H %i %s') FROM t3;
+
+# Item_extract::print - EXTRACT with TEXT arg
+SELECT EXTRACT(YEAR FROM date_text), EXTRACT(SECOND FROM time_text)
+	, EXTRACT(YEAR FROM timestamp_text), EXTRACT(SECOND FROM timestamp_text)
+FROM t3;
+
+# Item_func_timestamp_diff::print - TIMESTAMPDIFF with TEXT args
+SELECT TIMESTAMPDIFF(MONTH, date_text, timestamp_text) FROM t3;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+
+CREATE TABLE t1 (id INT PRIMARY KEY, date_char CHAR(20)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, '2020-01-01'), (2, '2020-01-01 12:13:14');
+SELECT date_char + INTERVAL 1 DAY, date_char + INTERVAL 1 SECOND
+	, DATE_SUB(DATE_FORMAT('2020-01-01', '%Y-%m-%d'), INTERVAL 1 DAY)
+	, DATE_SUB(DATE_FORMAT('2020-01-01', '%Y-%m-%d'), INTERVAL 1 SECOND)
+FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 3. Support interval expr unit
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1);
+
+SELECT DATE_ADD('2025-12-25', INTERVAL -1 DAY) FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 4. Count multi column
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT, col2 INT) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1, 1, 1), (2, 1, 1);
+
+SELECT COUNT(DISTINCT col1, col2) FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+	id INT PRIMARY KEY,
+	col1 INT,
+	col2 VARCHAR(256),
+	col3 VARCHAR(256)
+) ENGINE = DuckDB;
+
+INSERT INTO t1
+VALUES (1, 1, 'ab', 'c'),
+	(2, 1, 'a', 'bc'),
+	(3, 1, NULL, 'd'),
+	(4, 1, 'd', NULL),
+	(5, 1, NULL, NULL),
+	(6, 1, '0', '0'),
+	(7, 2, 'ab', 'c'),
+	(8, 2, 'a', 'bc'),
+	(9, 2, NULL, 'd'),
+	(10, 2, 'd', NULL),
+	(11, 2, '0', '0'),
+	(12, 2, NULL, NULL),
+	(13, 2, '0', '0');
+
+
+SELECT COUNT(DISTINCT col2, col3) FROM t1;
+SELECT COUNT(DISTINCT col2, 'a') FROM t1;
+SELECT COUNT(DISTINCT col2, col3) FROM t1 GROUP BY col1;
+SELECT COUNT(DISTINCT col2, 'a') FROM t1 GROUP BY col1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 5. Group_concat
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT, col2 INT) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1, 1, 1), (2, 1, 1), (3, 0, 2);
+
+SELECT GROUP_CONCAT(col1, col2 ORDER BY col1 SEPARATOR ' ') FROM t1;
+SELECT GROUP_CONCAT(col1, col2 ORDER BY col1 SEPARATOR ' ') FROM t1;
+SELECT GROUP_CONCAT(DISTINCT col1, col2 SEPARATOR ' ') in ('11 02', '02 11') FROM t1;
+SELECT GROUP_CONCAT(col1, '🟥' ORDER BY col1 SEPARATOR '🟥') FROM t1;
+
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+	id INT PRIMARY KEY,
+	col1 INT,
+	col2 VARCHAR(256),
+	col3 VARCHAR(256)
+) ENGINE = DuckDB;
+
+INSERT INTO t1
+VALUES (1, 1, 'ab', 'c'),
+	(2, 1, 'a', 'bc'),
+	(3, 1, NULL, 'd'),
+	(4, 1, 'd', NULL),
+	(5, 1, NULL, NULL),
+	(6, 1, '0', '0'),
+	(7, 2, 'ab', 'c'),
+	(8, 2, 'a', 'bc'),
+	(9, 2, NULL, 'd'),
+	(10, 2, 'd', NULL),
+	(11, 2, '0', '0'),
+	(12, 2, NULL, NULL),
+	(13, 2, '0', '0');
+
+SELECT GROUP_CONCAT(col2, 'a' ORDER BY 1) FROM t1;
+SELECT GROUP_CONCAT(col2, 'a' ORDER BY 1, 2) FROM t1;
+SELECT GROUP_CONCAT(col2, col3 ORDER BY col2, col3) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT col2, col3 ORDER BY 1, 2) FROM t1;
+SELECT GROUP_CONCAT(DISTINCT col2, col3 ORDER BY 2, 1 SEPARATOR ' ') FROM t1;
+SELECT GROUP_CONCAT(DISTINCT col2, col3 ORDER BY 1, 2 SEPARATOR ' ') FROM t1;
+SELECT GROUP_CONCAT(DISTINCT col2, col3 ORDER BY 2, 1 SEPARATOR ' ') FROM t1;
+SELECT GROUP_CONCAT(col2, 'a' ORDER BY 1) FROM t1 GROUP BY col1;
+SELECT GROUP_CONCAT(col2, 'a' ORDER BY 1, 2) FROM t1 GROUP BY col1;
+SELECT GROUP_CONCAT(col2, col3 ORDER BY col2, col3) FROM t1 GROUP BY col1;
+SELECT GROUP_CONCAT(DISTINCT col2, col3 ORDER BY 1, 2) FROM t1 GROUP BY col1;
+SELECT GROUP_CONCAT(DISTINCT col2, col3 ORDER BY 2, 1 SEPARATOR ' ') FROM t1 GROUP BY col1;
+SELECT GROUP_CONCAT(DISTINCT col2, col3 ORDER BY 1, 2 SEPARATOR ' ') FROM t1 GROUP BY col1;
+SELECT GROUP_CONCAT(DISTINCT col2, col3 ORDER BY 2, 1 SEPARATOR ' ') FROM t1 GROUP BY col1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 6. Priority of symbol associativity
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 JSON) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1, '{"a":"b"}');
+
+SELECT 1 = 1 and col1->>'$.a' = 'b', 1!=-1, 1--1 FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 7. Alias
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+SELECT id 'id' FROM t1;
+SELECT id "id" FROM t1;
+
+SELECT id time FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 8. Comparison of year type and numeric literal
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 year) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1, 1970);
+
+SELECT * FROM t1 WHERE col1 = 70;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 9. Mixture of implicit join and explicit join
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 year) ENGINE=DuckDB;
+
+SELECT * FROM t1 d1 JOIN (t1 d2, t1 d3);
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 10. Supports Dual
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1);
+
+SELECT 1 AS id FROM DUAL;
+SELECT 1 AS id FROM DUAL WHERE 1 = -1;
+SELECT * FROM t1 WHERE id in (SELECT 1 FROM DUAL WHERE 1=0);
+SELECT * FROM t1 WHERE id in (SELECT 1 FROM DUAL WHERE 1=1);
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 11. When string is converted to signed, it will be truncated.
+--echo --------------------------
+
+CREATE TABLE t1 (id VARCHAR(100) PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t1
+VALUES ('-9223372036854775808.4'),
+	('-9223372036854775808.5'),
+	('-9223372036854775808.6'),
+	('0.4'),
+	('0.5'),
+	('0.6'),
+	('9223372036854775807.4'),
+	('9223372036854775807.5'),
+	('9223372036854775807.6'),
+	('5.5.5'),
+	('5.5e5'),
+	('5'),
+	('e5');
+SELECT CAST(id AS SIGNED) FROM t1;
+
+DROP TABLE t1;
+
+# CAST AS SIGNED with TEXT column (Item_typecast_signed::print)
+CREATE TABLE t2 (id INT PRIMARY KEY, num_text TEXT) ENGINE=DuckDB;
+INSERT INTO t2 VALUES (1, '12345'), (2, '67.89');
+SELECT CAST(num_text AS SIGNED) FROM t2;
+DROP TABLE t2;
+
+--echo --------------------------
+--echo 12. Index hint
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT, KEY index_col1(col1)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 1);
+
+SELECT * FROM t1 USE INDEX (PRIMARY);
+SELECT * FROM t1 IGNORE INDEX (PRIMARY);
+SELECT * FROM t1 FORCE INDEX (PRIMARY);
+
+SELECT * FROM t1 USE INDEX (index_col1);
+SELECT * FROM t1 IGNORE INDEX (index_col1);
+SELECT * FROM t1 FORCE INDEX (index_col1);
+
+SELECT * FROM t1 USE INDEX (index_col2);
+SELECT * FROM t1 IGNORE INDEX (index_col2);
+SELECT * FROM t1 FORCE INDEX (index_col2);
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 13. Convert
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(20) CHARSET utf8mb3) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 'abc');
+SELECT CONVERT(col1 USING utf8mb4) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(20) CHARSET latin1) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 'úú');
+SELECT * FROM t1 WHERE col1 = CONCAT('ú', 'ú');
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 14. Member of
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1);
+
+SELECT 17 MEMBER OF('[23, "abc", 17, "ab", 10]') FROM t1;
+SELECT 'ab' MEMBER OF('[23, "abc", 17, "ab", 10]') FROM t1;
+SELECT 7 MEMBER OF('[23, "abc", 17, "ab", 10]') FROM t1;
+SELECT 'a' MEMBER OF('[23, "abc", 17, "ab", 10]') FROM t1;
+SELECT 17 MEMBER OF('[23, "abc", "17", "ab", 10]'), "17" MEMBER OF('[23, "abc", 17, "ab", 10]') FROM t1;
+SELECT CAST('[4,5]' AS JSON) MEMBER OF('[[3,4],[4,5]]') FROM t1;
+SELECT '[4,5]' MEMBER OF('[[3,4],[4,5]]') FROM t1;
+SELECT '\"' MEMBER OF('["\\\""]'), '"' MEMBER OF('["\\\""]') FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 15. VALUES ROW
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 3);
+
+SELECT * FROM (VALUES ROW(1, 2), ROW(3, 4) UNION SELECT * FROM t1) d ORDER BY column_1;
+SELECT column_1 FROM (VALUES ROW(1, 2), ROW(3, 4) UNION SELECT * FROM t1) d ORDER BY column_1;
+SELECT * FROM (VALUES ROW(1, 2), ROW(3, 4)) d1, t1 WHERE d1.column_0 = t1.id ORDER BY column_1, t1.id;
+SELECT * FROM (VALUES ROW(1, 2), ROW(3, 4)) d1(id, col1), t1 WHERE d1.id = t1.id ORDER BY d1.id, t1.id;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 16. System variable replacement for DuckDB
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1);
+
+# time_zone variable should be converted to IANA timezone name for DuckDB
+SET time_zone = '+00:00';
+SELECT @@session.time_zone FROM t1;
+SET time_zone = default;
+
+# Numeric system variable should be printed as plain number
+SELECT @@session.auto_increment_increment FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 17. Temporal columns in boolean context (zero date comparison)
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY, ts TIMESTAMP NULL DEFAULT NULL, d DATE DEFAULT NULL) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, '2025-01-01 00:00:00', '2025-01-01');
+INSERT INTO t1 VALUES (2, NULL, NULL);
+
+# timestamp column in boolean context: (ts OR ...) should be rewritten as (ts <> 0 OR ...)
+# instead of (ts <> '0000-00-00 00:00:00' OR ...) which DuckDB cannot parse.
+SELECT * FROM t1 WHERE ts OR id = 2 ORDER BY id;
+
+# date column in boolean context: same rewrite needed for zero date '0000-00-00'
+SELECT * FROM t1 WHERE d OR id = 2 ORDER BY id;
+
+DROP TABLE t1;
+
+#
+# The following test cases is already supported when duckdb_sql_normalization is disabled. 
+# We include these tests to ensure such cases remain correctly supported.
+#
+
+
+--echo --------------------------
+--echo 1. GROUP BY ... WITH ROLLUP ORDER BY ...
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+CREATE TABLE t2 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (2), (1);
+
+SELECT t1.id, t2.id FROM t1, t2 GROUP BY t1.id, t2.id WITH ROLLUP ORDER BY t1.id, t2.id;
+
+DROP TABLE t1, t2;
+
+--echo --------------------------
+--echo 2. The string contains single quotes
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1);
+
+SELECT '''', '\'' FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 3. Empty alias
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1);
+
+SELECT 1 '' FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 4. Date cast functions
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1);
+
+SELECT CAST('2025-12-25 12:25:40' AS DATETIME(4)) FROM t1;
+SELECT CAST('12:25:40' AS TIME(4)) FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 5. bin/oct functions
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1);
+
+SELECT BIN(2025), OCT(2025) FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 6. String cast functions
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+INSERT INTO t1 VALUES (1);
+
+SELECT CAST('abc' AS CHAR), CAST('abc' AS BINARY) FROM t1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 7. Query across database
+--echo --------------------------
+
+show variables like '%sql_nor%';
+CREATE DATABASE duckdb1;
+USE duckdb1;
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1), (2);
+CREATE DATABASE duckdb2;
+USE duckdb2;
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (3), (4);
+
+USE duckdb1;
+SELECT * FROM duckdb1.t1, duckdb2.t1;
+SELECT * FROM duckdb1.t1 a, duckdb2.t1;
+SELECT * FROM duckdb1.t1 a, duckdb2.t1 b;
+SELECT a.id FROM duckdb1.t1 a, duckdb2.t1;
+SELECT t1.id FROM duckdb1.t1 a, duckdb2.t1;
+SELECT a.id FROM duckdb1.t1 a, duckdb2.t1 b;
+
+USE duckdb2;
+SELECT * FROM duckdb1.t1, duckdb2.t1;
+SELECT * FROM duckdb1.t1 a, duckdb2.t1;
+SELECT * FROM duckdb1.t1 a, duckdb2.t1 b;
+SELECT a.id FROM duckdb1.t1 a, duckdb2.t1;
+SELECT t1.id FROM duckdb1.t1 a, duckdb2.t1;
+SELECT a.id FROM duckdb1.t1 a, duckdb2.t1 b;
+
+USE mysql;
+SELECT * FROM duckdb1.t1, duckdb2.t1;
+SELECT * FROM duckdb1.t1 a, duckdb2.t1;
+SELECT * FROM duckdb1.t1 a, duckdb2.t1 b;
+SELECT a.id FROM duckdb1.t1 a, duckdb2.t1;
+SELECT t1.id FROM duckdb1.t1 a, duckdb2.t1;
+SELECT a.id FROM duckdb1.t1 a, duckdb2.t1 b;
+
+DROP DATABASE duckdb1;
+DROP DATABASE duckdb2;
+
+--echo --------------------------
+--echo 9. Utf8mb4
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(10) CHARSET utf8mb4) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, '🟥'), (2, '🟩');
+SELECT * FROM t1;
+
+SELECT * FROM t1 WHERE col1 = '🟩';
+SELECT '🟩' FROM t1 LIMIT 1;
+
+DROP TABLE t1;
+
+--echo --------------------------
+--echo 10. @NULL
+--echo --------------------------
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(20)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, '1'), (2, '2');
+SELECT @NULL FROM t1;
+SELECT * FROM t1 WHERE @NULL is NULL;
+SELECT * FROM t1 WHERE col1 LIKE @NULL;
+
+DROP TABLE t1;
+
+#
+# dudkcdb_sql_normalization changes between the prepare and execute
+#
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 1);
+SET duckdb_sql_normalization = 0;
+PREPARE STMT1 FROM "SELECT UNIX_TIMESTAMP('2020-01-01') FROM t1";
+--error ER_DUCKDB_CLIENT
+EXECUTE STMT1;
+SET duckdb_sql_normalization = 1;
+EXECUTE STMT1;
+SET duckdb_sql_normalization = 0;
+--error ER_DUCKDB_CLIENT
+EXECUTE STMT1;
+DROP TABLE t1;

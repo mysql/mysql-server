@@ -1,0 +1,91 @@
+# name: test/sql/alter/rename_table/test_rename_table_transactions.test
+# description: Test RENAME TABLE two parallel transactions
+# group: [rename_table]
+
+statement ok con1
+CREATE TABLE tbl(i INTEGER)
+
+statement ok con1
+INSERT INTO tbl VALUES (999), (100)
+
+statement ok con1
+BEGIN TRANSACTION
+
+statement ok con2
+BEGIN TRANSACTION
+
+statement ok con1
+ALTER TABLE tbl RENAME TO tbl2
+
+query I con1
+SELECT * FROM tbl2
+----
+999
+100
+
+statement error con1
+SELECT * FROM tbl
+----
+Catalog Error: Table with name tbl does not exist
+
+query I con2
+SELECT * FROM tbl
+----
+999
+100
+
+statement error con2
+SELECT * FROM tbl2
+----
+Catalog Error: Table with name tbl2 does not exist
+
+statement ok con1
+COMMIT
+
+statement ok con2
+COMMIT
+
+statement error con1
+SELECT * FROM tbl
+----
+Catalog Error: Table with name tbl does not exist
+
+statement error con2
+SELECT * FROM tbl
+----
+Catalog Error: Table with name tbl does not exist
+
+query I con1
+SELECT * FROM tbl2
+----
+999
+100
+
+query I con2
+SELECT * FROM tbl2
+----
+999
+100
+
+# we can create "tbl" again
+statement ok con1
+CREATE TABLE tbl(i INTEGER);
+
+# tbl2 is still occupied though
+statement error con1
+CREATE TABLE tbl2(i INTEGER);
+----
+Catalog Error: Table with name "tbl2" already exists
+
+# we can drop and re-create the table
+statement ok con1
+DROP TABLE tbl2;
+
+statement ok con1
+CREATE TABLE tbl2(i INTEGER);
+
+# a rename fails now
+statement error con1
+ALTER TABLE tbl RENAME TO tbl2
+----
+Catalog Error: Could not rename "tbl" to "tbl2"

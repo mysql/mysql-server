@@ -89,6 +89,14 @@ class Item_func_regexp : public Item_func {
   Item_func_regexp(const POS &pos, PT_item_list *opt_list)
       : Item_func(pos, opt_list) {}
 
+  Item_func_regexp(const POS &pos, PT_item_list *opt_list, MEM_ROOT *mem_root)
+      : Item_func(pos, opt_list, mem_root) {
+    m_facade = make_unique_destroy_only<regexp::Regexp_facade>(mem_root);
+    m_mem_root = mem_root;
+    caller_is_duckdb = true;
+    m_facade->m_caller_is_duckdb = true;
+    fixed = true;
+  }
   /**
     Resolves the collation to use for comparison. The type resolution is done
     in the subclass constructors.
@@ -224,6 +232,10 @@ class Item_func_regexp : public Item_func {
   bool set_pattern();
 
   unique_ptr_destroy_only<regexp::Regexp_facade> m_facade;
+
+  MEM_ROOT *m_mem_root = nullptr;
+
+  bool caller_is_duckdb = false;
 };
 
 class Item_func_regexp_instr : public Item_func_regexp {
@@ -233,6 +245,11 @@ class Item_func_regexp_instr : public Item_func_regexp {
     set_data_type_longlong();
   }
 
+  Item_func_regexp_instr(const POS &pos, PT_item_list *opt_list,
+                         MEM_ROOT *mem_root)
+      : Item_func_regexp(pos, opt_list, mem_root) {
+    set_data_type_longlong();
+  }
   Item_result result_type() const override { return INT_RESULT; }
 
   bool fix_fields(THD *thd, Item **arguments) override;
@@ -292,6 +309,12 @@ class Item_func_regexp_like : public Item_func_regexp {
     set_data_type_bool();
   }
 
+  Item_func_regexp_like(const POS &pos, PT_item_list *opt_list,
+                        MEM_ROOT *mem_root)
+      : Item_func_regexp(pos, opt_list, mem_root) {
+    set_data_type_bool();
+  }
+
   Item_result result_type() const override { return INT_RESULT; }
 
   String *val_str(String *str) override { return convert_int_to_str(str); }
@@ -334,6 +357,10 @@ class Item_func_regexp_replace : public Item_func_regexp {
   Item_func_regexp_replace(const POS &pos, PT_item_list *item_list)
       : Item_func_regexp(pos, item_list) {}
 
+  Item_func_regexp_replace(const POS &pos, PT_item_list *item_list,
+                           MEM_ROOT *mem_root)
+      : Item_func_regexp(pos, item_list, mem_root) {}
+
   Item_result result_type() const override { return STRING_RESULT; }
 
   bool resolve_type(THD *) final;
@@ -374,6 +401,10 @@ class Item_func_regexp_substr : public Item_func_regexp {
  public:
   Item_func_regexp_substr(const POS &pos, PT_item_list *item_list)
       : Item_func_regexp(pos, item_list) {}
+
+  Item_func_regexp_substr(const POS &pos, PT_item_list *item_list,
+                          MEM_ROOT *mem_root)
+      : Item_func_regexp(pos, item_list, mem_root) {}
 
   Item_result result_type() const override { return STRING_RESULT; }
 

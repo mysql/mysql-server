@@ -1,0 +1,105 @@
+# ===========================================================
+# Test: bugfix_convert_table_retry_for_view
+# Description:
+#   When multiple threads concurrently convert InnoDB tables
+#   to DuckDB at startup, VIEW MDL deadlocks can occur in
+#   update_referencing_views_metadata(). This test uses a
+#   debug barrier (sync_before_update_view_metadata) to make
+#   two threads reach the view-metadata-update point at the
+#   same time, deterministically triggering the deadlock.
+#   The single-threaded retry mechanism should recover from
+#   the deadlock and all tables should be converted.
+#
+# Tested feature: duckdb_convert_all_at_startup retry logic
+# Related source: sql/dd/impl/upgrade/server_ext.cc
+# ===========================================================
+
+--source include/have_debug.inc
+
+
+--echo # === Setup: Create tables and a shared view ===
+
+# Two tables referenced by the same view.
+# During parallel conversion, both threads hold MDL_EXCLUSIVE
+# on their own table, then try to update the shared view's
+# metadata — this creates the deadlock cycle:
+#   Thread A: holds EXCLUSIVE(t1), needs SHARED(t2) via v1
+#   Thread B: holds EXCLUSIVE(t2), needs EXCLUSIVE(v1)
+CREATE TABLE t1 (id INT PRIMARY KEY, val VARCHAR(100))
+  ENGINE=InnoDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, val VARCHAR(100))
+  ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
+INSERT INTO t2 VALUES (1, 'c'), (2, 'd');
+
+CREATE VIEW v1 AS
+  SELECT a.id, a.val, b.val AS val2
+  FROM t1 a JOIN t2 b ON a.id = b.id;
+
+
+--echo # === Restart with debug barrier to trigger deadlock ===
+
+# sync_before_update_view_metadata: a barrier in sql_table.cc
+# that ensures both ALTER TABLE threads reach
+# update_referencing_views_metadata() simultaneously while
+# each holds MDL_EXCLUSIVE on its own table. This triggers a
+# real MDL deadlock (ER_LOCK_DEADLOCK).
+--let $error_log = $MYSQLTEST_VARDIR/log/retry_view.err
+--let restart_parameters="restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_at_startup_ignore_error=ON --duckdb_convert_all_at_startup_threads=2 --duckdb_convert_all_skip_mtr_db=ON --log-error=$error_log --debug='+d,sync_before_update_view_metadata'"
+--replace_result $error_log MYSQLD_ERROR_LOG
+--source include/restart_mysqld.inc
+
+--let $wait_condition= SELECT VARIABLE_VALUE = "FINISHED" FROM performance_schema.global_status WHERE VARIABLE_NAME = 'DuckDB_convert_stage_at_startup'
+--source include/wait_condition.inc
+
+
+--echo # === Verify all tables converted to DuckDB ===
+
+--sorted_result
+SELECT TABLE_NAME, ENGINE
+  FROM information_schema.tables
+  WHERE TABLE_SCHEMA = 'test'
+    AND TABLE_TYPE = 'BASE TABLE'
+  ORDER BY TABLE_NAME;
+
+# Verify data integrity after conversion.
+SELECT * FROM t1 ORDER BY id;
+SELECT * FROM t2 ORDER BY id;
+
+# Verify the view still works after retry.
+SET duckdb_sql_normalization = on;
+SELECT * FROM v1 ORDER BY id;
+
+
+--echo # === Verify error log ===
+
+--let $assert_file = $error_log
+
+# Deadlock was detected during the parallel phase.
+--let $assert_text = MDL deadlock detected during parallel conversion
+--let $assert_select = Deadlock found when trying to get lock
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+# Retry was triggered.
+--let $assert_text = Retry was triggered for failed tables
+--let $assert_select = table.s. single-threaded to avoid VIEW MDL conflicts
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+# No tables still failed after retry.
+--let $assert_text = No tables failed after retry
+--let $assert_select = table.s. still failed after single-threaded retry
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+
+--echo # === Cleanup ===
+
+DROP VIEW v1;
+DROP TABLE t1, t2;
+
+--disable_query_log
+CALL mtr.add_suppression("\\[ERROR\\] \\[MY-013140\\] \\[Server\\] .*");
+--enable_query_log

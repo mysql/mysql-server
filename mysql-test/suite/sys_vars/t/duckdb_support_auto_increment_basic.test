@@ -1,0 +1,22 @@
+--source include/have_duckdb.inc
+
+SET @saved = @@global.duckdb_support_auto_increment;
+SELECT @@global.duckdb_support_auto_increment;
+SHOW GLOBAL VARIABLES LIKE 'duckdb_support_auto_increment';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.duckdb_support_auto_increment;
+--error ER_GLOBAL_VARIABLE
+SET SESSION duckdb_support_auto_increment = ON;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL duckdb_support_auto_increment = 2;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL duckdb_support_auto_increment = 'invalid';
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL duckdb_support_auto_increment = NULL;
+
+SET GLOBAL duckdb_support_auto_increment = ON;
+SELECT @@global.duckdb_support_auto_increment;
+SET GLOBAL duckdb_support_auto_increment = DEFAULT;
+SELECT @@global.duckdb_support_auto_increment;
+SET GLOBAL duckdb_support_auto_increment = @saved;

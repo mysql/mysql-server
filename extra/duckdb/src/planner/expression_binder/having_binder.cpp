@@ -1,0 +1,114 @@
+#include "duckdb/planner/expression_binder/having_binder.hpp"
+
+#include "duckdb/parser/expression/columnref_expression.hpp"
+#include "duckdb/parser/expression/window_expression.hpp"
+#include "duckdb/planner/binder.hpp"
+#include "duckdb/common/string_util.hpp"
+#include "duckdb/planner/query_node/bound_select_node.hpp"
+#include "duckdb/main/client_config.hpp"
+#include "duckdb/common/enums/sql_mode.hpp"
+#include "duckdb/main/settings.hpp"
+#include "duckdb/planner/expression_binder.hpp"
+#include "duckdb/parser/expression/function_expression.hpp"
+
+namespace duckdb {
+
+HavingBinder::HavingBinder(Binder &binder, ClientContext &context, BoundSelectNode &node, BoundGroupInformation &info,
+                           AggregateHandling aggregate_handling)
+    : BaseSelectBinder(binder, context, node, info), column_alias_binder(node.bind_state),
+      aggregate_handling(aggregate_handling) {
+	target_type = LogicalType(LogicalTypeId::BOOLEAN);
+}
+
+bool HavingBinder::DoesColumnAliasExist(const ColumnRefExpression &colref) {
+	return column_alias_binder.DoesColumnAliasExist(colref);
+}
+
+BindResult HavingBinder::BindLambdaReference(LambdaRefExpression &expr, idx_t depth) {
+	D_ASSERT(lambda_bindings && expr.lambda_idx < lambda_bindings->size());
+	auto &lambda_ref = expr.Cast<LambdaRefExpression>();
+	return (*lambda_bindings)[expr.lambda_idx].Bind(lambda_ref, depth);
+}
+
+unique_ptr<ParsedExpression> HavingBinder::QualifyColumnName(ColumnRefExpression &colref, ErrorData &error) {
+	auto qualified_colref = ExpressionBinder::QualifyColumnName(colref, error);
+	if (!qualified_colref) {
+		return nullptr;
+	}
+
+	auto group_index = TryBindGroup(*qualified_colref);
+	if (group_index != DConstants::INVALID_INDEX) {
+		return qualified_colref;
+	}
+	if (column_alias_binder.DoesColumnAliasExist(colref)) {
+		return nullptr;
+	}
+	return qualified_colref;
+}
+
+BindResult HavingBinder::BindColumnRef(unique_ptr<ParsedExpression> &expr_ptr, idx_t depth, bool root_expression) {
+	// Keep the original column name to return a meaningful error message.
+	auto col_ref = expr_ptr->Cast<ColumnRefExpression>();
+	const auto &column_name = col_ref.GetColumnName();
+
+	if (!col_ref.IsQualified()) {
+		// Try binding as a lambda parameter.
+		auto lambda_ref = LambdaRefExpression::FindMatchingBinding(lambda_bindings, col_ref.GetColumnName());
+		if (lambda_ref) {
+			return BindLambdaReference(lambda_ref->Cast<LambdaRefExpression>(), depth);
+		}
+		// column was not found - check if it is a SQL value function
+		auto value_function = GetSQLValueFunction(col_ref.GetColumnName());
+		if (value_function) {
+			return BindExpression(value_function, depth);
+		}
+	}
+
+	// Bind the alias.
+	BindResult alias_result;
+	auto found_alias = column_alias_binder.BindAlias(*this, expr_ptr, depth, root_expression, alias_result);
+	if (found_alias) {
+		if (depth > 0) {
+			throw BinderException("Having clause cannot reference alias \"%s\" in correlated subquery", column_name);
+		}
+		return alias_result;
+	}
+
+	if (aggregate_handling != AggregateHandling::FORCE_AGGREGATES) {
+		bool only_full_group_by = (ClientConfig::GetConfig(context).sql_mode &
+		                           1ULL << static_cast<uint8_t>(SqlModeType::MODE_ONLY_FULL_GROUP_BY));
+		if (!only_full_group_by) {
+			vector<unique_ptr<ParsedExpression>> func_children;
+			func_children.push_back(std::move(expr_ptr));
+			unique_ptr<ParsedExpression> any_value =
+			    std::move(make_uniq<FunctionExpression>("any_value", std::move(func_children)));
+			auto result = ExpressionBinder::BindExpression(any_value, depth, root_expression);
+			return result;
+		}
+		return BindResult(StringUtil::Format(
+		    "column %s must appear in the GROUP BY clause or be used in an aggregate function", column_name));
+	}
+
+	if (depth > 0) {
+		throw BinderException("Having clause cannot reference column \"%s\" in correlated subquery and group by all",
+		                      column_name);
+	}
+
+	auto expr = duckdb::BaseSelectBinder::BindColumnRef(expr_ptr, depth, root_expression);
+	if (expr.HasError()) {
+		return expr;
+	}
+
+	// Return a GROUP BY column reference expression.
+	auto return_type = expr.expression->return_type;
+	auto column_binding = ColumnBinding(node.group_index, node.groups.group_expressions.size());
+	auto group_ref = make_uniq<BoundColumnRefExpression>(return_type, column_binding);
+	node.groups.group_expressions.push_back(std::move(expr.expression));
+	return BindResult(std::move(group_ref));
+}
+
+BindResult HavingBinder::BindWindow(WindowExpression &expr, idx_t depth) {
+	throw BinderException::Unsupported(expr, "HAVING clause cannot contain window functions!");
+}
+
+} // namespace duckdb

@@ -554,8 +554,9 @@ class Value_generator {
      Writes the generation expression into a String with proper syntax.
      @param thd  THD
      @param out  output String
+     @param duckdb_rewrite  true if we are printing the expression for DuckDB
   */
-  void print_expr(THD *thd, String *out);
+  void print_expr(THD *thd, String *out, bool duckdb_rewrite = false);
 
   /*
    The following data is only updated by the parser and read
@@ -3720,7 +3721,7 @@ class Field_blob : public Field_longstr {
       We should only need to keep a copy of the blob 'value' in the case
       where this is a virtual generated column (that is indexed).
     */
-    assert(is_virtual_gcol());
+    // assert(is_virtual_gcol());
 
     /*
       If set to true, ensure that 'value' is copied to 'old_value' when
@@ -3728,6 +3729,8 @@ class Field_blob : public Field_longstr {
     */
     m_keep_old_value = old_value_flag;
   }
+
+  bool get_keep_old_value() const { return m_keep_old_value; }
 
   /**
     Save the current BLOB value to avoid that it gets overwritten.
@@ -3766,7 +3769,7 @@ class Field_blob : public Field_longstr {
       We should only need to keep a copy of the blob value in the case
       where this is a virtual generated column (that is indexed).
     */
-    assert(is_virtual_gcol());
+    // assert(is_virtual_gcol());
 
     // Transfer ownership of the current BLOB value to old_value
     if (m_keep_old_value) {

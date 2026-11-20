@@ -26,6 +26,9 @@
 #include "include/mysqld_errmsg.h"  // ER_OUT_OF_RESOURCES_MSG
 #include "include/scope_guard.h"
 #include "mysql/components/services/log_builtins.h"
+#ifdef HAVE_DUCKDB
+#include "sql/duckdb/duckdb_context.h"
+#endif
 #include "sql/log.h"
 #include "sql/mysqld.h"
 #include "sql/rpl_replica.h"
@@ -33,6 +36,9 @@
 #include "sql/rpl_rli_pdb.h"
 #include "sql/sql_backup_lock.h"
 #include "string_with_len.h"
+
+#include "sql/duckdb/duckdb_log.h"
+bool duckdb_commit_multi_trx_due_to_reader = true;
 
 /**
    It manages a stage and the related mutex and makes the process of
@@ -234,6 +240,34 @@ Log_event *Rpl_applier_reader::read_next_event() {
           return nullptr;
         }
       }
+
+      mysql_mutex_unlock(&m_rli->data_lock);
+
+#ifdef HAVE_DUCKDB
+      if (duckdb_commit_multi_trx_due_to_reader &&
+          m_rli->info_thd->multi_trx_in_batch()) {
+        DBUG_EXECUTE_IF("debug_sync_before_reader_commit", {
+          const char act[] = "now SIGNAL commit_signal WAIT_FOR resume_signal";
+          assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+        };);
+
+        if (myduck::duckdb_log_options & LOG_DUCKDB_MULTI_TRX_BATCH_COMMIT) {
+          myduck::log_duckdb_multi_trx_batch_commit("reader");
+        }
+
+        if (m_rli->info_thd->get_duckdb_context()->implicit_commit_batch()) {
+          mysql_mutex_lock(&m_rli->data_lock);
+          return nullptr;
+        }
+
+        DBUG_EXECUTE_IF("debug_sync_after_reader_commit", {
+          const char act[] = "now SIGNAL commit_signal WAIT_FOR resume_signal";
+          assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+        };);
+      }
+#endif  // HAVE_DUCKDB
+
+      mysql_mutex_lock(&m_rli->data_lock);
 
       /* Lock LOCK_binlog_end_pos before wait */
       Stage_controller stage_controller(

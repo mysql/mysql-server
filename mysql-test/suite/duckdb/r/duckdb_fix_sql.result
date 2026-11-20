@@ -1,0 +1,901 @@
+CREATE TABLE fake_innodb_table (id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO fake_innodb_table VALUES (0);
+CREATE TABLE fake_duckdb_table (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO fake_duckdb_table VALUES (0);
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+SELECT BIT_AND(id), BIT_OR(id), BIT_XOR(id) FROM t1;
+BIT_AND(id)	BIT_OR(id)	BIT_XOR(id)
+18446744073709551615	0	0
+ALTER TABLE t1 ENGINE = DuckDB;
+SELECT BIT_AND(id), BIT_OR(id), BIT_XOR(id) FROM t1;
+BIT_AND(id)	BIT_OR(id)	BIT_XOR(id)
+18446744073709551615	0	0
+DROP TABLE t1;
+SELECT microsecond(TIME '12:12:12.123456') FROM fake_innodb_table;
+microsecond(TIME '12:12:12.123456')
+123456
+SELECT microsecond(TIME '12:12:12.123456') FROM fake_duckdb_table;
+microsecond(TIME '12:12:12.123456')
+123456
+SELECT LEAST('a', NULL) FROM fake_innodb_table;
+LEAST('a', NULL)
+NULL
+SELECT LEAST('a', NULL) FROM fake_duckdb_table;
+LEAST('a', NULL)
+NULL
+SELECT oct(123.123) FROM fake_innodb_table;
+oct(123.123)
+173
+SELECT oct(123.123) FROM fake_duckdb_table;
+oct(123.123)
+173
+SELECT oct('123.123a') FROM fake_innodb_table;
+oct('123.123a')
+173
+SELECT oct('123.123a') FROM fake_duckdb_table;
+oct('123.123a')
+173
+SELECT bin(123.123) FROM fake_innodb_table;
+bin(123.123)
+1111011
+SELECT bin(123.123) FROM fake_duckdb_table;
+bin(123.123)
+1111011
+SELECT bin('123.123a') FROM fake_innodb_table;
+bin('123.123a')
+1111011
+SELECT bin('123.123a') FROM fake_duckdb_table;
+bin('123.123a')
+1111011
+SELECT hex(123.123) FROM fake_innodb_table;
+hex(123.123)
+7B
+SELECT hex(123.123) FROM fake_duckdb_table;
+hex(123.123)
+7B
+SELECT hex('123.123a') FROM fake_innodb_table;
+hex('123.123a')
+3132332E31323361
+SELECT hex('123.123a') FROM fake_duckdb_table;
+hex('123.123a')
+3132332E31323361
+SELECT left('abc', -1) FROM fake_innodb_table;
+left('abc', -1)
+
+SELECT left('abc', -1) FROM fake_duckdb_table;
+left('abc', -1)
+
+SELECT right('abc', -1) FROM fake_innodb_table;
+right('abc', -1)
+
+SELECT right('abc', -1) FROM fake_duckdb_table;
+right('abc', -1)
+
+SELECT trim('ab' from 'aaab') FROM fake_innodb_table;
+trim('ab' from 'aaab')
+aa
+SELECT trim('ab' from 'aaab') FROM fake_duckdb_table;
+trim('ab' from 'aaab')
+aa
+CREATE TABLE t1 (id TIMESTAMP PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES('2020-01-01 12:12:12.123');
+SELECT CONVERT(id, TIME) FROM t1;
+CONVERT(id, TIME)
+12:12:12
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT CONVERT(id, TIME) FROM t1;
+CONVERT(id, TIME)
+12:12:12
+DROP TABLE t1;
+SELECT time_to_sec('2020-01-01 12:12:12') FROM fake_innodb_table;
+time_to_sec('2020-01-01 12:12:12')
+43932
+SELECT time_to_sec('2020-01-01 12:12:12') FROM fake_duckdb_table;
+time_to_sec('2020-01-01 12:12:12')
+43932
+SELECT strcmp('a', NULL) FROM fake_innodb_table;
+strcmp('a', NULL)
+NULL
+SELECT strcmp('a', NULL) FROM fake_duckdb_table;
+strcmp('a', NULL)
+NULL
+SELECT substring_index(NULL, 'ab', 2) FROM fake_innodb_table;
+substring_index(NULL, 'ab', 2)
+NULL
+SELECT substring_index(NULL, 'ab', 2) FROM fake_duckdb_table;
+substring_index(NULL, 'ab', 2)
+NULL
+SELECT substring_index('ddabddabcc', NULL, 2) FROM fake_innodb_table;
+substring_index('ddabddabcc', NULL, 2)
+NULL
+SELECT substring_index('ddabddabcc', NULL, 2) FROM fake_duckdb_table;
+substring_index('ddabddabcc', NULL, 2)
+NULL
+SELECT substring_index('ddabddabcc', 'ab', NULL) FROM fake_innodb_table;
+substring_index('ddabddabcc', 'ab', NULL)
+NULL
+SELECT substring_index('ddabddabcc', 'ab', NULL) FROM fake_duckdb_table;
+substring_index('ddabddabcc', 'ab', NULL)
+NULL
+SELECT substring_index('ddabddabcc', 'ab', 2) FROM fake_innodb_table;
+substring_index('ddabddabcc', 'ab', 2)
+ddabdd
+SELECT substring_index('ddabddabcc', 'ab', 2) FROM fake_duckdb_table;
+substring_index('ddabddabcc', 'ab', 2)
+ddabdd
+CREATE TABLE t1 (id TIMESTAMP PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('2020-01-01 12:12:12');
+SELECT weekday(id) FROM t1;
+weekday(id)
+2
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT weekday(id) FROM t1;
+weekday(id)
+2
+DROP TABLE t1;
+SELECT CONVERT('2020-01-01', TIME) FROM fake_innodb_table;
+CONVERT('2020-01-01', TIME)
+00:20:20
+Warnings:
+Warning	1292	Truncated incorrect time value: '2020-01-01'
+SELECT CONVERT('2020-01-01', TIME) FROM fake_duckdb_table;
+CONVERT('2020-01-01', TIME)
+00:20:20
+SELECT CONVERT('20-01-01', DATE) FROM fake_innodb_table;
+CONVERT('20-01-01', DATE)
+2020-01-01
+SELECT CONVERT('20-01-01', DATE) FROM fake_duckdb_table;
+CONVERT('20-01-01', DATE)
+2020-01-01
+SELECT CONVERT('90-01-01', DATE) FROM fake_innodb_table;
+CONVERT('90-01-01', DATE)
+1990-01-01
+SELECT CONVERT('90-01-01', DATE) FROM fake_duckdb_table;
+CONVERT('90-01-01', DATE)
+1990-01-01
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT, col2 INT) ENGINE=InnoDB;
+SELECT id, col1, col2 FROM t1 GROUP BY id, col1, col2 WITH ROLLUP;
+id	col1	col2
+NULL	NULL	NULL
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT id, col1, col2 FROM t1 GROUP BY id, col1, col2 WITH ROLLUP;
+id	col1	col2
+DROP TABLE t1;
+SELECT 5.6 DIV 2.2 FROM fake_innodb_table;
+5.6 DIV 2.2
+2
+SELECT 5.6 DIV 2.2 FROM fake_duckdb_table;
+5.6 DIV 2.2
+2
+SELECT concat('a', NULL) FROM fake_innodb_table;
+concat('a', NULL)
+NULL
+SELECT concat('a', NULL) FROM fake_duckdb_table;
+concat('a', NULL)
+NULL
+CREATE TABLE t1 (id VARCHAR(20) PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('abc\\b');
+SELECT id LIKE 'abc\\b', id LIKE 'abc\\\\b' FROM t1;
+id LIKE 'abc\\b'	id LIKE 'abc\\\\b'
+0	1
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT id LIKE 'abc\\b', id LIKE 'abc\\\\b' FROM t1;
+id LIKE 'abc\\b'	id LIKE 'abc\\\\b'
+0	1
+DROP TABLE t1;
+SELECT substring('abcde', 0, 2) FROM fake_innodb_table;
+substring('abcde', 0, 2)
+
+SELECT substring('abcde', 0, 2) FROM fake_duckdb_table;
+substring('abcde', 0, 2)
+
+CREATE TABLE t1 (id VARCHAR(20) collate utf8mb3_general_ci PRIMARY KEY);
+Warnings:
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t1 VALUES ('abc');
+SELECT position('C' IN id) FROM t1;
+position('C' IN id)
+3
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT position('C' IN id) FROM t1;
+position('C' IN id)
+3
+DROP TABLE t1;
+CREATE TABLE t1 (id VARCHAR(20) collate utf8mb3_bin PRIMARY KEY);
+Warnings:
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t1 VALUES ('abc');
+SELECT position('C' IN id) FROM t1;
+position('C' IN id)
+0
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT position('C' IN id) FROM t1;
+position('C' IN id)
+0
+DROP TABLE t1;
+SELECT CONVERT('', DOUBLE), CONVERT('123.123a', DOUBLE), CONVERT('a123', DOUBLE), CONVERT('1_23', DOUBLE) FROM fake_innodb_table;
+CONVERT('', DOUBLE)	CONVERT('123.123a', DOUBLE)	CONVERT('a123', DOUBLE)	CONVERT('1_23', DOUBLE)
+0	123.123	0	1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '123.123a'
+Warning	1292	Truncated incorrect DOUBLE value: 'a123'
+Warning	1292	Truncated incorrect DOUBLE value: '1_23'
+SELECT CONVERT('', DOUBLE), CONVERT('123.123a', DOUBLE), CONVERT('a123', DOUBLE), CONVERT('1_23', DOUBLE) FROM fake_duckdb_table;
+CONVERT('', DOUBLE)	CONVERT('123.123a', DOUBLE)	CONVERT('a123', DOUBLE)	CONVERT('1_23', DOUBLE)
+0	123.123	0	1
+CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 INT) ENGINE=InnoDB;
+CREATE TABLE t2 (col3 INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (1);
+SELECT col1, col2, col3 FROM t1 JOIN t2 ON t1.col1 = t2.col3 GROUP BY col1, col2, col3 WITH ROLLUP ORDER BY 1, 2, 3;
+col1	col2	col3
+NULL	NULL	NULL
+1	NULL	NULL
+1	1	NULL
+1	1	1
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+SELECT col1, col2, col3 FROM t1 JOIN t2 ON t1.col1 = t2.col3 GROUP BY col1, col2, col3 WITH ROLLUP ORDER BY 1, 2, 3;
+col1	col2	col3
+NULL	NULL	NULL
+1	NULL	NULL
+1	1	NULL
+1	1	1
+DROP TABLE t1;
+DROP TABLE t2;
+SELECT CONVERT('abcde', CHAR(3)) FROM fake_innodb_table;
+CONVERT('abcde', CHAR(3))
+abc
+Warnings:
+Warning	1292	Truncated incorrect CHAR(3) value: 'abcde'
+SELECT CONVERT('abcde', CHAR(3)) FROM fake_duckdb_table;
+CONVERT('abcde', CHAR(3))
+abc
+SELECT CONVERT(12345.12345, DECIMAL) FROM fake_innodb_table;
+CONVERT(12345.12345, DECIMAL)
+12345
+SELECT CONVERT(12345.12345, DECIMAL) FROM fake_duckdb_table;
+CONVERT(12345.12345, DECIMAL)
+12345
+CREATE TABLE t1(id VARCHAR(20) COLLATE utf8mb3_general_ci PRIMARY KEY);
+Warnings:
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+CREATE TABLE t2(id VARCHAR(20) COLLATE utf8mb3_general_ci PRIMARY KEY);
+Warnings:
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t1 VALUES ('A');
+INSERT INTO t2 VALUES ('a');
+SELECT COUNT(*) FROM (SELECT * FROM t1 UNION SELECT * FROM t2) d;
+COUNT(*)
+1
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+SELECT COUNT(*) FROM (SELECT * FROM t1 UNION SELECT * FROM t2) d;
+COUNT(*)
+1
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1(id VARCHAR(20) COLLATE utf8mb3_bin PRIMARY KEY);
+Warnings:
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+CREATE TABLE t2(id VARCHAR(20) COLLATE utf8mb3_general_ci PRIMARY KEY);
+Warnings:
+Warning	3778	'utf8mb3_general_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+INSERT INTO t1 VALUES ('A');
+INSERT INTO t2 VALUES ('a');
+SELECT COUNT(*) FROM (SELECT * FROM t1 UNION SELECT * FROM t2) d;
+COUNT(*)
+2
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+SELECT COUNT(*) FROM (SELECT * FROM t1 UNION SELECT * FROM t2) d;
+COUNT(*)
+2
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1(id INT PRIMARY KEY, col1 VARCHAR(20) COLLATE utf8mb4_0900_ai_ci) ENGINE=InnoDB;
+CREATE TABLE t2(id INT PRIMARY KEY, col1 VARCHAR(20) COLLATE utf8mb4_0900_as_ci) ENGINE=InnoDB;
+CREATE TABLE t3(id INT PRIMARY KEY, col1 VARCHAR(20) COLLATE utf8mb4_0900_as_cs) ENGINE=InnoDB;
+CREATE TABLE t4(id INT PRIMARY KEY, col1 VARCHAR(20) COLLATE utf8mb4_bin) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'A'), (3, 'ä');
+INSERT INTO t2 VALUES (1, 'a'), (2, 'A'), (3, 'ä');
+INSERT INTO t3 VALUES (1, 'a'), (2, 'A'), (3, 'ä');
+INSERT INTO t4 VALUES (1, 'a'), (2, 'A'), (3, 'ä');
+SELECT * FROM t1 d1, t1 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+1	a	2	A
+1	a	3	ä
+2	A	1	a
+2	A	2	A
+2	A	3	ä
+3	ä	1	a
+3	ä	2	A
+3	ä	3	ä
+SELECT * FROM t2 d1, t2 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+1	a	2	A
+2	A	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t3 d1, t3 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t4 d1, t4 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t1 d1, (SELECT * FROM t1 UNION SELECT * FROM t1) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+1	a	2	A
+1	a	3	ä
+2	A	1	a
+2	A	2	A
+2	A	3	ä
+3	ä	1	a
+3	ä	2	A
+3	ä	3	ä
+SELECT * FROM t2 d1, (SELECT * FROM t2 UNION SELECT * FROM t2) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+1	a	2	A
+2	A	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t3 d1, (SELECT * FROM t3 UNION SELECT * FROM t3) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t4 d1, (SELECT * FROM t4 UNION SELECT * FROM t4) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
+ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8mb4_0900_as_ci,IMPLICIT) for operation '='
+SELECT * FROM t1 UNION SELECT * FROM t2;
+ERROR HY000: Illegal mix of collations for operation 'UNION'
+SELECT * FROM t1 d1, (SELECT * FROM t2 UNION SELECT * FROM t2) d2 WHERE d1.col1 = d2.col1;
+ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8mb4_0900_as_ci,IMPLICIT) for operation '='
+SELECT * FROM t1, t4 WHERE t1.col1 = t4.col1 ORDER BY t1.id, t4.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t1 UNION SELECT * FROM t4 ORDER BY id, col1;
+id	col1
+1	a
+2	A
+3	ä
+SELECT * FROM t1 d1, (SELECT * FROM t2 UNION SELECT * FROM t4) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+ALTER TABLE t3 ENGINE=DuckDB;
+ALTER TABLE t4 ENGINE=DuckDB;
+SELECT * FROM t1 d1, t1 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+1	a	2	A
+1	a	3	ä
+2	A	1	a
+2	A	2	A
+2	A	3	ä
+3	ä	1	a
+3	ä	2	A
+3	ä	3	ä
+SELECT * FROM t2 d1, t2 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+1	a	2	A
+2	A	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t3 d1, t3 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t4 d1, t4 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t1 d1, (SELECT * FROM t1 UNION SELECT * FROM t1) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+1	a	2	A
+1	a	3	ä
+2	A	1	a
+2	A	2	A
+2	A	3	ä
+3	ä	1	a
+3	ä	2	A
+3	ä	3	ä
+SELECT * FROM t2 d1, (SELECT * FROM t2 UNION SELECT * FROM t2) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+1	a	2	A
+2	A	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t3 d1, (SELECT * FROM t3 UNION SELECT * FROM t3) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t4 d1, (SELECT * FROM t4 UNION SELECT * FROM t4) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
+ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8mb4_0900_as_ci,IMPLICIT) for operation '='
+SELECT * FROM t1 UNION SELECT * FROM t2;
+ERROR HY000: Illegal mix of collations for operation 'UNION'
+SELECT * FROM t1 d1, (SELECT * FROM t2 UNION SELECT * FROM t2) d2 WHERE d1.col1 = d2.col1;
+ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8mb4_0900_as_ci,IMPLICIT) for operation '='
+SELECT * FROM t1, t4 WHERE t1.col1 = t4.col1 ORDER BY t1.id, t4.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+SELECT * FROM t1 UNION SELECT * FROM t4 ORDER BY id, col1;
+id	col1
+1	a
+2	A
+3	ä
+SELECT * FROM t1 d1, (SELECT * FROM t2 UNION SELECT * FROM t4) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+id	col1	id	col1
+1	a	1	a
+2	A	2	A
+3	ä	3	ä
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT);
+INSERT INTO t1 VALUES (1, 2), (2, 1);
+SELECT GROUP_CONCAT(col1 ORDER BY 1) FROM t1;
+GROUP_CONCAT(col1 ORDER BY 1)
+1,2
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT GROUP_CONCAT(col1 ORDER BY 1) FROM t1;
+GROUP_CONCAT(col1 ORDER BY 1)
+1,2
+DROP TABLE t1;
+SELECT CASE WHEN 1 = 2 THEN 1 WHEN 1 = 1 THEN '1a' ELSE NULL END FROM fake_innodb_table;
+CASE WHEN 1 = 2 THEN 1 WHEN 1 = 1 THEN '1a' ELSE NULL END
+1a
+SELECT CASE WHEN 1 = 2 THEN 1 WHEN 1 = 1 THEN '1a' ELSE NULL END FROM fake_duckdb_table;
+CASE WHEN 1 = 2 THEN 1 WHEN 1 = 1 THEN '1a' ELSE NULL END
+1a
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+SELECT CASE WHEN 1 = 2 THEN id WHEN 1 = 1 THEN '1a' ELSE NULL END FROM t1;
+CASE WHEN 1 = 2 THEN id WHEN 1 = 1 THEN '1a' ELSE NULL END
+1a
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT CASE WHEN 1 = 2 THEN id WHEN 1 = 1 THEN '1a' ELSE NULL END FROM t1;
+CASE WHEN 1 = 2 THEN id WHEN 1 = 1 THEN '1a' ELSE NULL END
+1a
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT);
+INSERT INTO t1 VALUES (1, 1), (2, NULL);
+SELECT IFNULL(col1, '1a') FROM t1;
+IFNULL(col1, '1a')
+1
+1a
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT IFNULL(col1, '1a') FROM t1;
+IFNULL(col1, '1a')
+1
+1a
+DROP TABLE t1;
+CREATE TABLE t1 (id1 INT PRIMARY KEY, col1 INT);
+CREATE TABLE t2 (id2 INT PRIMARY KEY, col1 INT);
+SELECT * FROM t1 JOIN t2 USING(col1);
+col1	id1	id2
+SELECT * FROM t1 LEFT JOIN t2 USING(col1);
+col1	id1	id2
+SELECT * FROM t1 RIGHT JOIN t2 USING(col1);
+col1	id2	id1
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+SELECT * FROM t1 JOIN t2 USING(col1);
+col1	id1	id2
+SELECT * FROM t1 LEFT JOIN t2 USING(col1);
+col1	id1	id2
+SELECT * FROM t1 RIGHT JOIN t2 USING(col1);
+col1	id2	id1
+DROP TABLE t1;
+DROP TABLE t2;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 DOUBLE);
+INSERT INTO t1 VALUES (1, 1e30);
+INSERT INTO t1 VALUES (2, 0);
+SELECT CONVERT(id, CHAR) FROM t1;
+CONVERT(id, CHAR)
+1
+2
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT CONVERT(id, CHAR) FROM t1;
+CONVERT(id, CHAR)
+1
+2
+DROP TABLE t1;
+DROP TABLE fake_innodb_table;
+DROP TABLE fake_duckdb_table;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 BLOB);
+INSERT INTO t1 VALUES (1, 0xFF), (2, 0x61), (3, 0xE695B0E68DAEE5BA93);
+SELECT CAST(col1 AS CHAR) FROM t1;
+CAST(col1 AS CHAR)
+NULL
+a
+数据库
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FF'
+SELECT CAST(col1 AS CHAR) like '%据%' FROM t1;
+CAST(col1 AS CHAR) like '%据%'
+NULL
+0
+1
+Warnings:
+Warning	1300	Invalid utf8mb4 character string: 'FF'
+SELECT FROM_BASE64(TO_BASE64('数据库')), CAST(FROM_BASE64(TO_BASE64('数据库')) AS CHAR) LIKE '%据%' FROM t1 LIMIT 1;
+FROM_BASE64(TO_BASE64('数据库'))	CAST(FROM_BASE64(TO_BASE64('数据库')) AS CHAR) LIKE '%据%'
+数据库	1
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT CAST(col1 AS CHAR) FROM t1;
+CAST(col1 AS CHAR)
+NULL
+a
+数据库
+SELECT CAST(col1 AS CHAR) like '%据%' FROM t1;
+CAST(col1 AS CHAR) like '%据%'
+NULL
+0
+1
+SELECT FROM_BASE64(TO_BASE64('数据库')), CAST(FROM_BASE64(TO_BASE64('数据库')) AS CHAR) LIKE '%据%' FROM t1 LIMIT 1;
+FROM_BASE64(TO_BASE64('数据库'))	CAST(FROM_BASE64(TO_BASE64('数据库')) AS CHAR) LIKE '%据%'
+数据库	1
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(10));
+INSERT INTO t1 VALUES (1, '1'), (2, '0'), (3, 'yes'), (4, 'no'), (5, 'true'), (6, 'false'), (7, '0.1'), (8, '0.0'), (9, '2.0');
+SELECT 1 = true, col1 = true FROM t1;
+1 = true	col1 = true
+1	1
+1	0
+1	0
+1	0
+1	0
+1	0
+1	0
+1	0
+1	0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'yes'
+Warning	1292	Truncated incorrect DOUBLE value: 'no'
+Warning	1292	Truncated incorrect DOUBLE value: 'true'
+Warning	1292	Truncated incorrect DOUBLE value: 'false'
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT 1 = true, col1 = true FROM t1;
+1 = true	col1 = true
+1	1
+1	0
+1	0
+1	0
+1	0
+1	0
+1	0
+1	0
+1	0
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 int);
+INSERT INTO t1 VALUES (1, 2), (2, 1);
+SELECT * FROM t1 ORDER BY 'abc', '', 1.1, 2;
+id	col1
+2	1
+1	2
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT * FROM t1 ORDER BY 'abc', '', 1.1, 2;
+id	col1
+2	1
+1	2
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+col1 DATE,
+col2 TIMESTAMP,
+col3 DATETIME,
+col4 TIME,
+col5 TIMESTAMP(6),
+col6 TIME(6)
+);
+CREATE TABLE t_int (
+id INT PRIMARY KEY,
+lower BIGINT,
+higher BIGINT,
+equal BIGINT
+);
+CREATE TABLE t_decimal (
+id INT PRIMARY KEY,
+lower DECIMAL(38, 10),
+higher DECIMAL(38, 10),
+equal DECIMAL(38, 10)
+);
+CREATE TABLE t_double (
+id INT PRIMARY KEY,
+lower DOUBLE,
+higher DOUBLE,
+equal DOUBLE
+);
+INSERT INTO t1 VALUES (1, '2020-01-01', '2020-01-01 12:00:00', '2020-01-01 12:00:00', '12:00:00', '2020-01-01 12:00:00.123456', '12:00:00.123456');
+INSERT INTO t_int
+VALUES (1, 20200100, 20200102, 20200101),
+(2, 20200101119999, 20200101120001, 20200101120000),
+(3, 20200101119999, 20200101120001, 20200101120000),
+(4, 119999, 120001, 120000);
+INSERT INTO t_decimal
+VALUES (1, 20200100, 20200102, 20200101),
+(2, 20200101119999, 20200101120001, 20200101120000),
+(3, 20200101119999, 20200101120001, 20200101120000),
+(4, 119999, 120001, 120000),
+(5, 20200101120000.123455, 20200101120000.123457, 20200101120000.123456),
+(6, 120000.123455, 120000.123457, 120000.123456);
+INSERT INTO t_double
+VALUES (1, 20200100, 20200102, 20200101),
+(2, 20200101119999, 20200101120001, 20200101120000),
+(3, 20200101119999, 20200101120001, 20200101120000),
+(4, 119999, 120001, 120000),
+(5, 20200101120000.123455, 20200101120000.123457, 20200101120000.123456),
+(6, 120000.123455, 120000.123457, 120000.123456);
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+, col1 = equal, col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col3 > lower
+, col3 < higher, col3 BETWEEN lower AND higher
+, col3 = equal, col4 > lower
+, col4 < higher, col4 BETWEEN lower AND higher
+, col4 = equal,  col5 > lower
+, col5 < higher, col5 BETWEEN lower AND higher
+, col5 = equal,  col6 > lower
+, col6 < higher, col6 BETWEEN lower AND higher
+, col6 = equal
+FROM t1, t_int;
+col1 > lower	col1 < higher	col1 BETWEEN lower AND higher	col1 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col3 > lower	col3 < higher	col3 BETWEEN lower AND higher	col3 = equal	col4 > lower	col4 < higher	col4 BETWEEN lower AND higher	col4 = equal	col5 > lower	col5 < higher	col5 BETWEEN lower AND higher	col5 = equal	col6 > lower	col6 < higher	col6 BETWEEN lower AND higher	col6 = equal
+1	1	1	1	1	0	0	0	1	0	0	0	1	0	0	0	0	1	0	0	1	0	0	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	1	1	1	1	1	0	0	0	1	1	1	0
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+, col1 = equal, col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col3 > lower
+, col3 < higher, col3 BETWEEN lower AND higher
+, col3 = equal, col4 > lower
+, col4 < higher, col4 BETWEEN lower AND higher
+, col4 = equal,  col5 > lower
+, col5 < higher, col5 BETWEEN lower AND higher
+, col5 = equal,  col6 > lower
+, col6 < higher, col6 BETWEEN lower AND higher
+, col6 = equal
+FROM t1, t_decimal;
+col1 > lower	col1 < higher	col1 BETWEEN lower AND higher	col1 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col3 > lower	col3 < higher	col3 BETWEEN lower AND higher	col3 = equal	col4 > lower	col4 < higher	col4 BETWEEN lower AND higher	col4 = equal	col5 > lower	col5 < higher	col5 BETWEEN lower AND higher	col5 = equal	col6 > lower	col6 < higher	col6 BETWEEN lower AND higher	col6 = equal
+1	1	1	1	1	0	0	0	1	0	0	0	1	0	0	0	0	1	0	0	1	0	0	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	1	1	1	1	1	0	0	0	1	1	1	0
+0	1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	0	1	1	0	1	0	0
+1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	0	1	0	0	1	0	0	0	1	1	1	1
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+, col1 = equal, col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col3 > lower
+, col3 < higher, col3 BETWEEN lower AND higher
+, col3 = equal, col4 > lower
+, col4 < higher, col4 BETWEEN lower AND higher
+, col4 = equal,  col5 > lower
+, col5 < higher, col5 BETWEEN lower AND higher
+, col5 = equal,  col6 > lower
+, col6 < higher, col6 BETWEEN lower AND higher
+, col6 = equal
+FROM t1, t_double;
+col1 > lower	col1 < higher	col1 BETWEEN lower AND higher	col1 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col3 > lower	col3 < higher	col3 BETWEEN lower AND higher	col3 = equal	col4 > lower	col4 < higher	col4 BETWEEN lower AND higher	col4 = equal	col5 > lower	col5 < higher	col5 BETWEEN lower AND higher	col5 = equal	col6 > lower	col6 < higher	col6 BETWEEN lower AND higher	col6 = equal
+1	1	1	1	1	0	0	0	1	0	0	0	1	0	0	0	0	1	0	0	1	0	0	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	1	1	1	1	1	0	0	0	1	1	1	0
+0	1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	0	1	1	0	1	0	0
+1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	0	1	0	0	1	0	0	0	1	1	1	1
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t_int ENGINE=DuckDB;
+ALTER TABLE t_decimal ENGINE=DuckDB;
+ALTER TABLE t_double ENGINE=DuckDB;
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+, col1 = equal, col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col3 > lower
+, col3 < higher, col3 BETWEEN lower AND higher
+, col3 = equal, col4 > lower
+, col4 < higher, col4 BETWEEN lower AND higher
+, col4 = equal,  col5 > lower
+, col5 < higher, col5 BETWEEN lower AND higher
+, col5 = equal,  col6 > lower
+, col6 < higher, col6 BETWEEN lower AND higher
+, col6 = equal
+FROM t1, t_int;
+col1 > lower	col1 < higher	col1 BETWEEN lower AND higher	col1 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col3 > lower	col3 < higher	col3 BETWEEN lower AND higher	col3 = equal	col4 > lower	col4 < higher	col4 BETWEEN lower AND higher	col4 = equal	col5 > lower	col5 < higher	col5 BETWEEN lower AND higher	col5 = equal	col6 > lower	col6 < higher	col6 BETWEEN lower AND higher	col6 = equal
+1	1	1	1	1	0	0	0	1	0	0	0	1	0	0	0	0	1	0	0	1	0	0	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	1	1	1	1	1	0	0	0	1	1	1	0
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+, col1 = equal, col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col3 > lower
+, col3 < higher, col3 BETWEEN lower AND higher
+, col3 = equal, col4 > lower
+, col4 < higher, col4 BETWEEN lower AND higher
+, col4 = equal,  col5 > lower
+, col5 < higher, col5 BETWEEN lower AND higher
+, col5 = equal,  col6 > lower
+, col6 < higher, col6 BETWEEN lower AND higher
+, col6 = equal
+FROM t1, t_decimal;
+col1 > lower	col1 < higher	col1 BETWEEN lower AND higher	col1 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col3 > lower	col3 < higher	col3 BETWEEN lower AND higher	col3 = equal	col4 > lower	col4 < higher	col4 BETWEEN lower AND higher	col4 = equal	col5 > lower	col5 < higher	col5 BETWEEN lower AND higher	col5 = equal	col6 > lower	col6 < higher	col6 BETWEEN lower AND higher	col6 = equal
+1	1	1	1	1	0	0	0	1	0	0	0	1	0	0	0	0	1	0	0	1	0	0	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	1	1	1	1	1	0	0	0	1	1	1	0
+0	1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	0	1	1	0	1	0	0
+1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	0	1	0	0	1	0	0	0	1	1	1	1
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+, col1 = equal, col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col2 > lower
+, col2 < higher, col2 BETWEEN lower AND higher
+, col2 = equal,  col3 > lower
+, col3 < higher, col3 BETWEEN lower AND higher
+, col3 = equal, col4 > lower
+, col4 < higher, col4 BETWEEN lower AND higher
+, col4 = equal,  col5 > lower
+, col5 < higher, col5 BETWEEN lower AND higher
+, col5 = equal,  col6 > lower
+, col6 < higher, col6 BETWEEN lower AND higher
+, col6 = equal
+FROM t1, t_double;
+col1 > lower	col1 < higher	col1 BETWEEN lower AND higher	col1 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col2 > lower	col2 < higher	col2 BETWEEN lower AND higher	col2 = equal	col3 > lower	col3 < higher	col3 BETWEEN lower AND higher	col3 = equal	col4 > lower	col4 < higher	col4 BETWEEN lower AND higher	col4 = equal	col5 > lower	col5 < higher	col5 BETWEEN lower AND higher	col5 = equal	col6 > lower	col6 < higher	col6 BETWEEN lower AND higher	col6 = equal
+1	1	1	1	1	0	0	0	1	0	0	0	1	0	0	0	0	1	0	0	1	0	0	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+0	1	0	0	1	1	1	1	1	1	1	1	1	1	1	1	0	1	0	0	1	1	1	0	0	1	0	0
+1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	1	1	1	1	1	0	0	0	1	1	1	0
+0	1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	0	1	1	0	1	0	0
+1	0	0	0	1	0	0	0	1	0	0	0	1	0	0	0	0	1	0	0	1	0	0	0	1	1	1	1
+DROP TABLE t1;
+DROP TABLE t_int;
+DROP TABLE t_decimal;
+DROP TABLE t_double;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(10)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, '-'), (2, '--'), (3, '-a'), (4, '-1');
+SELECT CAST(col1 AS DOUBLE) FROM t1;
+CAST(col1 AS DOUBLE)
+0
+0
+0
+-1
+SELECT SUM(col1) FROM t1;
+SUM(col1)
+-1
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 DECIMAL(18, 2), col2 INT) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 9999999999999999.99, 99999999);
+SELECT col1 * col1 FROM t1;
+ERROR HY000: [DuckDB] Out of Range Error: Overflow in multiplication of DECIMAL(18) (999999999999999999 * 999999999999999999). You might want to add an explicit cast to a bigger decimal..
+SELECT col2 * 1.00000000001 FROM t1;
+ERROR HY000: [DuckDB] Out of Range Error: Overflow in multiplication of DECIMAL(18) (99999999 * 100000000001). You might want to add an explicit cast to a bigger decimal..
+SELECT col1 + col2 FROM t1;
+ERROR HY000: [DuckDB] Out of Range Error: Overflow in addition of DECIMAL(18) (999999999999999999 + 9999999900). You might want to add an explicit cast to a bigger decimal..
+SET duckdb_prefer_high_precision = true;
+SELECT col1 * col1, col2 * 1.00000000001, col1 + col2 FROM t1;
+col1 * col1	col2 * 1.00000000001	col1 + col2
+99999999999999999800000000000000.0001	99999999.00099999999	10000000099999998.99
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 BIT(64) DEFAULT b'111111110000000011111111') ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, x'00'), (2, x'01'), (3, b'1111111111'), (4, x'00FF00FF00FF00FF');
+INSERT INTO t1 (id) VALUES (5);
+col1	LENGTH(col1)
+0x0000000000000000	8
+0x0000000000000001	8
+0x00000000000003FF	8
+0x00FF00FF00FF00FF	8
+0x0000000000FF00FF	8
+col1
+0x0000000000000001
+col1
+0x0000000000000000
+col1
+0x0000000000000001
+0x00000000000003FF
+0x00FF00FF00FF00FF
+0x0000000000FF00FF
+col1
+0x0000000000000000
+col1
+0x0000000000000001
+SELECT col1 + 1, col1 * 2 FROM t1;
+col1 + 1	col1 * 2
+1	0
+2	2
+1024	2046
+71777214294589696	143554428589179390
+16711936	33423870
+SELECT id, col1 = 1, col1 > 1, col1 < 1 FROM t1;
+id	col1 = 1	col1 > 1	col1 < 1
+1	0	0	1
+2	1	0	0
+3	0	1	0
+4	0	1	0
+5	0	1	0
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(10), col2 BLOB) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 'abc', 0xFFFF);
+CONCAT(col1, col2)
+0x616263FFFF
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(20)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, NULL);
+SELECT GREATEST(col1, 0) FROM t1;
+GREATEST(col1, 0)
+NULL
+DROP TABLE t1;
+CREATE TABLE t1 (id INT PRIMARY KEY, text VARCHAR(100)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, '{"a":a1}');
+SELECT * FROM t1 WHERE json_valid(text) = 1 and (json_extract(text,'$.a') is not null);
+id	text
+DROP TABLE t1;
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+col1 DECIMAL(5, 2),
+col2 FLOAT,
+col3 DOUBLE
+) ENGINE = DuckDB;
+INSERT INTO t1
+VALUES (1, 0.49, 0.49, 0.49),
+(2, 0.5, 0.5, 0.5),
+(3, 0.51, 0.51, 0.51);
+SET duckdb_sql_normalization = ON;
+SELECT TIMESTAMP '2020-01-01 12:00:00' + INTERVAL col1 DAY, TIMESTAMP '2020-01-01 12:00:00' + INTERVAL col1 SECOND
+, TIMESTAMP '2020-01-01 12:00:00' + INTERVAL col1 MICROSECOND
+FROM t1;
+TIMESTAMP '2020-01-01 12:00:00' + INTERVAL col1 DAY	TIMESTAMP '2020-01-01 12:00:00' + INTERVAL col1 SECOND	TIMESTAMP '2020-01-01 12:00:00' + INTERVAL col1 MICROSECOND
+2020-01-01 12:00:00	2020-01-01 12:00:00.49	2020-01-01 12:00:00.000000
+2020-01-02 12:00:00	2020-01-01 12:00:00.50	2020-01-01 12:00:00.000001
+2020-01-02 12:00:00	2020-01-01 12:00:00.51	2020-01-01 12:00:00.000001
+SELECT TIMESTAMP '2020-01-01 12:00:00' + INTERVAL -col1 DAY, TIMESTAMP '2020-01-01 12:00:00' + INTERVAL -col1 SECOND
+, TIMESTAMP '2020-01-01 12:00:00' + INTERVAL -col1 MICROSECOND
+FROM t1;
+TIMESTAMP '2020-01-01 12:00:00' + INTERVAL -col1 DAY	TIMESTAMP '2020-01-01 12:00:00' + INTERVAL -col1 SECOND	TIMESTAMP '2020-01-01 12:00:00' + INTERVAL -col1 MICROSECOND
+2020-01-01 12:00:00	2020-01-01 11:59:59.51	2020-01-01 12:00:00.000000
+2019-12-31 12:00:00	2020-01-01 11:59:59.50	2020-01-01 11:59:59.999999
+2019-12-31 12:00:00	2020-01-01 11:59:59.49	2020-01-01 11:59:59.999999
+SET duckdb_sql_normalization = OFF;
+DROP TABLE t1;

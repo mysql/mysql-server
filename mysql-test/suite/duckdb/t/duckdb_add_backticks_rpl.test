@@ -1,0 +1,77 @@
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # Test: create tables with a name containing only digits.
+--echo #
+--disable_warnings
+DROP DATABASE IF EXISTS `001test_db`;
+CREATE DATABASE `001test_db`;
+USE  `001test_db`;
+CREATE TABLE t (`000000000000000000000` bigint NOT NULL DEFAULT '0' ) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb3;
+--enable_warnings
+INSERT INTO t VALUES (1),(2),(3);
+
+SELECT schema_name FROM information_schema.schemata WHERE schema_name = '001test_db';
+SHOW CREATE TABLE `001test_db`.t;
+SELECT * FROM `001test_db`.t;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SELECT schema_name FROM information_schema.schemata WHERE schema_name = '001test_db';
+SHOW CREATE TABLE `001test_db`.t;
+SELECT * FROM `001test_db`.t;
+
+--echo #
+--echo # Test: create tables with a name containing special characters.
+--echo #
+--source include/rpl/connection_source.inc
+--disable_warnings
+DROP DATABASE IF EXISTS mydb1;
+--enable_warnings
+CREATE DATABASE mydb1;
+
+--disable_warnings
+DROP TABLE IF EXISTS mydb1.t;
+DROP TABLE IF EXISTS mydb1.y;
+--enable_warnings
+
+CREATE TABLE mydb1.t (i INT, d DECIMAL, f FLOAT);
+INSERT INTO mydb1.t VALUES(1,1,1),(2,2,2),(3,3,3);
+CREATE TABLE mydb1.y SELECT AVG(i), AVG(d), AVG(f) FROM mydb1.t;  
+
+SHOW CREATE TABLE mydb1.y; 
+SELECT * FROM mydb1.y;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE mydb1.y; 
+SELECT * FROM mydb1.y;
+
+--source include/rpl/connection_source.inc
+CREATE TABLE mydb1.t6 (a int);
+INSERT INTO mydb1.t6 VALUES (1), (2), (3), (4);
+CREATE VIEW mydb1.v11 AS SELECT a+1 FROM mydb1.t6;
+CREATE TABLE mydb1.t7 SELECT * FROM mydb1.v11;   
+
+SHOW CREATE TABLE mydb1.t7;
+SELECT * FROM mydb1.t7;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE mydb1.t7;
+SELECT * FROM mydb1.t7;
+
+
+--echo #
+--echo # CLEANUP
+--echo #
+--source include/rpl/connection_source.inc
+--disable_warnings
+DROP DATABASE IF EXISTS `001test_db`;
+DROP DATABASE IF EXISTS mydb1;
+--enable_warnings
+--source include/rpl/connection_source.inc
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc
+

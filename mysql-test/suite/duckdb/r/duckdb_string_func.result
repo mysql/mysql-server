@@ -1,0 +1,894 @@
+CREATE DATABASE test_duckdb;
+USE test_duckdb;
+CREATE TABLE t_innodb(col1 VARCHAR(20) PRIMARY KEY, col2 BLOB);
+CREATE TABLE t_duckdb(col1 VARCHAR(20) PRIMARY KEY, col2 BLOB) ENGINE=DuckDB;
+insert into t_innodb values ('MySQL', 0x4D7953514CF09FA686);
+insert into t_duckdb values ('MySQL', 0x4D7953514CF09FA686);
+insert into t_innodb values ('数据库', 0xE695B0E68DAEE5BA93);
+insert into t_duckdb values ('数据库', 0xE695B0E68DAEE5BA93);
+--------------------------
+1. ASCII()
+--------------------------
+SELECT ASCII('MySQL'), ASCII('数据库'), ASCII(col1) FROM t_innodb;
+ASCII('MySQL')	ASCII('数据库')	ASCII(col1)
+77	230	77
+77	230	230
+SELECT ASCII('MySQL'), ASCII('数据库'), ASCII(col1) FROM t_duckdb;
+ASCII('MySQL')	ASCII('数据库')	ASCII(col1)
+77	230	77
+77	230	230
+--------------------------
+2. BIN()
+--------------------------
+SELECT BIN('MySQL'), BIN('数据库'), BIN(123), BIN(col1) FROM t_innodb;
+BIN('MySQL')	BIN('数据库')	BIN(123)	BIN(col1)
+0	0	1111011	0
+0	0	1111011	0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'MySQL'
+Warning	1292	Truncated incorrect DECIMAL value: '数据库'
+Warning	1292	Truncated incorrect DECIMAL value: 'MySQL'
+Warning	1292	Truncated incorrect DECIMAL value: 'MySQL'
+Warning	1292	Truncated incorrect DECIMAL value: '数据库'
+Warning	1292	Truncated incorrect DECIMAL value: '数据库'
+SELECT BIN('MySQL'), BIN('数据库'), BIN(123), BIN(col1) FROM t_duckdb;
+BIN('MySQL')	BIN('数据库')	BIN(123)	BIN(col1)
+0	0	1111011	0
+0	0	1111011	0
+--------------------------
+3. BIT_LENGTH()
+--------------------------
+SELECT BIT_LENGTH('MySQL'), BIT_LENGTH('数据库'), BIT_LENGTH(col1) FROM t_innodb;
+BIT_LENGTH('MySQL')	BIT_LENGTH('数据库')	BIT_LENGTH(col1)
+40	72	40
+40	72	72
+SELECT BIT_LENGTH('MySQL'), BIT_LENGTH('数据库'), BIT_LENGTH(col1) FROM t_duckdb;
+BIT_LENGTH('MySQL')	BIT_LENGTH('数据库')	BIT_LENGTH(col1)
+40	72	40
+40	72	72
+--------------------------
+4. CHAR()
+--------------------------
+--------------------------
+5. CHAR_LENGTH()
+--------------------------
+SELECT CHAR_LENGTH('MySQL'), CHAR_LENGTH('数据库'), CHAR_LENGTH(col1) FROM t_innodb;
+CHAR_LENGTH('MySQL')	CHAR_LENGTH('数据库')	CHAR_LENGTH(col1)
+5	3	5
+5	3	3
+SELECT CHAR_LENGTH('MySQL'), CHAR_LENGTH('数据库'), CHAR_LENGTH(col1) FROM t_duckdb;
+CHAR_LENGTH('MySQL')	CHAR_LENGTH('数据库')	CHAR_LENGTH(col1)
+5	3	5
+5	3	3
+--------------------------
+6. CHARACTER_LENGTH()
+--------------------------
+SELECT CHARACTER_LENGTH('MySQL'), CHARACTER_LENGTH('数据库'), CHARACTER_LENGTH(col1) FROM t_innodb;
+CHARACTER_LENGTH('MySQL')	CHARACTER_LENGTH('数据库')	CHARACTER_LENGTH(col1)
+5	3	5
+5	3	3
+SELECT CHARACTER_LENGTH('MySQL'), CHARACTER_LENGTH('数据库'), CHARACTER_LENGTH(col1) FROM t_duckdb;
+CHARACTER_LENGTH('MySQL')	CHARACTER_LENGTH('数据库')	CHARACTER_LENGTH(col1)
+5	3	5
+5	3	3
+--------------------------
+7. CONCAT()
+--------------------------
+SELECT CONCAT('MySQL', '数据库'), CONCAT(col1, 'RDS') FROM t_innodb;
+CONCAT('MySQL', '数据库')	CONCAT(col1, 'RDS')
+MySQL数据库	MySQLRDS
+MySQL数据库	数据库RDS
+SELECT CONCAT('MySQL', '数据库'), CONCAT(col1, 'RDS') FROM t_duckdb;
+CONCAT('MySQL', '数据库')	CONCAT(col1, 'RDS')
+MySQL数据库	MySQLRDS
+MySQL数据库	数据库RDS
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT, col2 INT) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 1, NULL), (2, 2, 2);
+SELECT CONCAT(id, 'a', col2) FROM t1;
+CONCAT(id, 'a', col2)
+NULL
+2a2
+DROP TABLE t1;
+--------------------------
+8. CONCAT_WS()
+--------------------------
+SELECT CONCAT_WS(',', 'MySQL', '数据库'), CONCAT_WS(',', col1, 'RDS') FROM t_innodb;
+CONCAT_WS(',', 'MySQL', '数据库')	CONCAT_WS(',', col1, 'RDS')
+MySQL,数据库	MySQL,RDS
+MySQL,数据库	数据库,RDS
+SELECT CONCAT_WS(',', 'MySQL', '数据库'), CONCAT_WS(',', col1, 'RDS') FROM t_duckdb;
+CONCAT_WS(',', 'MySQL', '数据库')	CONCAT_WS(',', col1, 'RDS')
+MySQL,数据库	MySQL,RDS
+MySQL,数据库	数据库,RDS
+--------------------------
+9. ELT()
+--------------------------
+--------------------------
+10. EXPORT_SET()
+--------------------------
+--------------------------
+11. FIELD()
+--------------------------
+SELECT FIELD('Bb', 'Aa', 'Bb', 'Cc', 'Dd', 'Ff'), FIELD('Gg', 'Aa', 'Bb', 'Cc', 'Dd', 'Ff') FROM t_innodb;
+FIELD('Bb', 'Aa', 'Bb', 'Cc', 'Dd', 'Ff')	FIELD('Gg', 'Aa', 'Bb', 'Cc', 'Dd', 'Ff')
+2	0
+2	0
+SELECT FIELD('Bb', 'Aa', 'Bb', 'Cc', 'Dd', 'Ff'), FIELD('Gg', 'Aa', 'Bb', 'Cc', 'Dd', 'Ff') FROM t_duckdb;
+FIELD('Bb', 'Aa', 'Bb', 'Cc', 'Dd', 'Ff')	FIELD('Gg', 'Aa', 'Bb', 'Cc', 'Dd', 'Ff')
+2	0
+2	0
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+col1 VARCHAR(20) COLLATE utf8mb4_0900_ai_ci,
+col2 VARCHAR(20) COLLATE utf8mb4_0900_as_cs,
+col3 INT,
+col4 DECIMAL(20, 10),
+col5 DOUBLE
+) ENGINE = DuckDB;
+INSERT INTO t1 VALUES (1, '1.23A', '1.23a', 1, 1.23, 1.23), (2, '2.34A', '2.34a', 3, 3.45, 4.56);
+SET duckdb_sql_normalization = ON;
+SELECT FIELD(col1, col2) FROM t1;
+FIELD(col1, col2)
+1
+1
+SELECT FIELD(col2, col1) FROM t1;
+FIELD(col2, col1)
+0
+0
+SELECT FIELD(col3, col4) FROM t1;
+FIELD(col3, col4)
+0
+0
+SELECT FIELD(col3, col3) FROM t1;
+FIELD(col3, col3)
+1
+1
+SELECT FIELD(col1, col5) FROM t1;
+FIELD(col1, col5)
+1
+0
+SELECT FIELD(col3, col5) FROM t1;
+FIELD(col3, col5)
+0
+0
+SELECT FIELD(col4, col5) FROM t1;
+FIELD(col4, col5)
+1
+0
+SET duckdb_sql_normalization = OFF;
+DROP TABLE t1;
+--------------------------
+12. FIND_IN_SET()
+--------------------------
+SELECT FIND_IN_SET('MySQL', 'MySQL,RDS'), FIND_IN_SET('数据库', 'MySQL,RDS'), FIND_IN_SET(col1, 'MySQL,RDS') FROM t_innodb;
+FIND_IN_SET('MySQL', 'MySQL,RDS')	FIND_IN_SET('数据库', 'MySQL,RDS')	FIND_IN_SET(col1, 'MySQL,RDS')
+1	0	1
+1	0	0
+SELECT FIND_IN_SET('MySQL', 'MySQL,RDS'), FIND_IN_SET('数据库', 'MySQL,RDS'), FIND_IN_SET(col1, 'MySQL,RDS') FROM t_duckdb;
+FIND_IN_SET('MySQL', 'MySQL,RDS')	FIND_IN_SET('数据库', 'MySQL,RDS')	FIND_IN_SET(col1, 'MySQL,RDS')
+1	0	1
+1	0	0
+SELECT FIND_IN_SET('MySQL', 'MySQL,MySQL'), FIND_IN_SET('数据库', 'MySQL,MySQL'), FIND_IN_SET(col1, 'MySQL,MySQL') FROM t_innodb;
+FIND_IN_SET('MySQL', 'MySQL,MySQL')	FIND_IN_SET('数据库', 'MySQL,MySQL')	FIND_IN_SET(col1, 'MySQL,MySQL')
+1	0	1
+1	0	0
+SELECT FIND_IN_SET('MySQL', 'MySQL,MySQL'), FIND_IN_SET('数据库', 'MySQL,MySQL'), FIND_IN_SET(col1, 'MySQL,MySQL') FROM t_duckdb;
+FIND_IN_SET('MySQL', 'MySQL,MySQL')	FIND_IN_SET('数据库', 'MySQL,MySQL')	FIND_IN_SET(col1, 'MySQL,MySQL')
+1	0	1
+1	0	0
+SET collation_connection = 'utf8mb4_0900_ai_ci';
+SELECT FIND_IN_SET('mysql', 'MySQL,mysql'), FIND_IN_SET('', ''), FIND_IN_SET('mysql', '') FROM t_duckdb;
+FIND_IN_SET('mysql', 'MySQL,mysql')	FIND_IN_SET('', '')	FIND_IN_SET('mysql', '')
+1	0	0
+1	0	0
+SET collation_connection = 'utf8mb4_0900_as_cs';
+SELECT FIND_IN_SET('mysql', 'MySQL,mysql'), FIND_IN_SET('', ''), FIND_IN_SET('mysql', '') FROM t_duckdb;
+FIND_IN_SET('mysql', 'MySQL,mysql')	FIND_IN_SET('', '')	FIND_IN_SET('mysql', '')
+2	0	0
+2	0	0
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+col1 VARCHAR(20) COLLATE utf8mb4_0900_ai_ci,
+col2 VARCHAR(20) COLLATE utf8mb4_0900_as_cs
+) ENGINE = DuckDB;
+INSERT INTO t1 VALUES (1, 'MySQL', 'MySQL,mysql'), (2, 'MySQL,mysql', 'MySQL');
+SELECT FIND_IN_SET(col1, col2) FROM t1;
+ERROR HY000: Illegal mix of collations (utf8mb4_0900_ai_ci,IMPLICIT) and (utf8mb4_0900_as_cs,IMPLICIT) for operation 'find_in_set'
+SET collation_connection = 'utf8mb4_0900_ai_ci';
+SELECT FIND_IN_SET('mysql', col1), FIND_IN_SET('mysql', col2) FROM t1;
+FIND_IN_SET('mysql', col1)	FIND_IN_SET('mysql', col2)
+1	2
+1	0
+SET collation_connection = 'utf8mb4_0900_as_cs';
+SELECT FIND_IN_SET('mysql', col1), FIND_IN_SET('mysql', col2) FROM t1;
+FIND_IN_SET('mysql', col1)	FIND_IN_SET('mysql', col2)
+1	2
+1	0
+SET collation_connection = DEFAULT;
+DROP TABLE t1;
+--------------------------
+13. FORMAT()
+--------------------------
+--------------------------
+14. HEX()
+--------------------------
+SELECT HEX('MySQL'), HEX(70), HEX(col1) FROM t_innodb;
+HEX('MySQL')	HEX(70)	HEX(col1)
+4D7953514C	46	4D7953514C
+4D7953514C	46	E695B0E68DAEE5BA93
+SELECT HEX('MySQL'), HEX(70), HEX(col1) FROM t_duckdb;
+HEX('MySQL')	HEX(70)	HEX(col1)
+4D7953514C	46	4D7953514C
+4D7953514C	46	E695B0E68DAEE5BA93
+--------------------------
+15. INSERT()
+--------------------------
+SELECT INSERT('Quadratic', 3, 4, 'What'), INSERT('Quadratic', -1, 4, 'What'), INSERT('Quadratic', 3, 100, 'What') FROM t_innodb;
+INSERT('Quadratic', 3, 4, 'What')	INSERT('Quadratic', -1, 4, 'What')	INSERT('Quadratic', 3, 100, 'What')
+QuWhattic	Quadratic	QuWhat
+QuWhattic	Quadratic	QuWhat
+SELECT INSERT('Quadratic', 3, 4, 'What'), INSERT('Quadratic', -1, 4, 'What'), INSERT('Quadratic', 3, 100, 'What') FROM t_duckdb;
+INSERT('Quadratic', 3, 4, 'What')	INSERT('Quadratic', -1, 4, 'What')	INSERT('Quadratic', 3, 100, 'What')
+QuWhattic	Quadratic	QuWhat
+QuWhattic	Quadratic	QuWhat
+--------------------------
+16. INSTR()
+--------------------------
+SELECT INSTR('MySQL数据库', '数据库'), INSTR('MySQL数据库', col1) FROM t_innodb;
+INSTR('MySQL数据库', '数据库')	INSTR('MySQL数据库', col1)
+6	1
+6	6
+SELECT INSTR('MySQL数据库', '数据库'), INSTR('MySQL数据库', col1) FROM t_duckdb;
+INSTR('MySQL数据库', '数据库')	INSTR('MySQL数据库', col1)
+6	1
+6	6
+--------------------------
+17. LCASE()
+--------------------------
+SELECT LCASE('MySQL'), LCASE('数据库'), LCASE(col1) FROM t_innodb;
+LCASE('MySQL')	LCASE('数据库')	LCASE(col1)
+mysql	数据库	mysql
+mysql	数据库	数据库
+SELECT LCASE('MySQL'), LCASE('数据库'), LCASE(col1) FROM t_duckdb;
+LCASE('MySQL')	LCASE('数据库')	LCASE(col1)
+mysql	数据库	mysql
+mysql	数据库	数据库
+--------------------------
+18. LEFT()
+--------------------------
+SELECT LEFT('MySQL', 2), LEFT('数据库', 2), LEFT(col1, 2) FROM t_innodb;
+LEFT('MySQL', 2)	LEFT('数据库', 2)	LEFT(col1, 2)
+My	数据	My
+My	数据	数据
+SELECT LEFT('MySQL', 2), LEFT('数据库', 2), LEFT(col1, 2) FROM t_duckdb;
+LEFT('MySQL', 2)	LEFT('数据库', 2)	LEFT(col1, 2)
+My	数据	My
+My	数据	数据
+--------------------------
+19. LENGTH()
+--------------------------
+SELECT LENGTH('MySQL'), LENGTH('数据库'), LENGTH(col1), LENGTH(col2) FROM t_innodb;
+LENGTH('MySQL')	LENGTH('数据库')	LENGTH(col1)	LENGTH(col2)
+5	9	5	9
+5	9	9	9
+SELECT LENGTH('MySQL'), LENGTH('数据库'), LENGTH(col1), LENGTH(col2) FROM t_duckdb;
+LENGTH('MySQL')	LENGTH('数据库')	LENGTH(col1)	LENGTH(col2)
+5	9	5	9
+5	9	9	9
+--------------------------
+20. LIKE
+--------------------------
+SELECT 'MySQL' LIKE '%SQL', col1 LIKE '%SQL' FROM t_innodb;
+'MySQL' LIKE '%SQL'	col1 LIKE '%SQL'
+1	1
+1	0
+SELECT 'MySQL' LIKE '%SQL', col1 LIKE '%SQL' FROM t_duckdb;
+'MySQL' LIKE '%SQL'	col1 LIKE '%SQL'
+1	1
+1	0
+--------------------------
+21. LOAD_FILE()
+--------------------------
+--------------------------
+22. LOCATE()
+--------------------------
+SELECT LOCATE('SQL', 'MySQLSQL'), LOCATE('SQL', 'MySQLSQL', 3), LOCATE('SQL', 'MySQLSQL', 7) FROM t_innodb;
+LOCATE('SQL', 'MySQLSQL')	LOCATE('SQL', 'MySQLSQL', 3)	LOCATE('SQL', 'MySQLSQL', 7)
+3	3	0
+3	3	0
+SELECT LOCATE('SQL', 'MySQLSQL'), LOCATE('SQL', 'MySQLSQL', 3), LOCATE('SQL', 'MySQLSQL', 7) FROM t_duckdb;
+LOCATE('SQL', 'MySQLSQL')	LOCATE('SQL', 'MySQLSQL', 3)	LOCATE('SQL', 'MySQLSQL', 7)
+3	3	0
+3	3	0
+--------------------------
+23. LOWER()
+--------------------------
+SELECT LOWER('MySQL'), LOWER('数据库'), LOWER(col1) FROM t_innodb;
+LOWER('MySQL')	LOWER('数据库')	LOWER(col1)
+mysql	数据库	mysql
+mysql	数据库	数据库
+SELECT LOWER('MySQL'), LOWER('数据库'), LOWER(col1) FROM t_duckdb;
+LOWER('MySQL')	LOWER('数据库')	LOWER(col1)
+mysql	数据库	mysql
+mysql	数据库	数据库
+--------------------------
+24. LPAD()
+--------------------------
+SELECT LPAD('MySQL', '3', 'My'), LPAD('MySQL', '10', 'My'), LPAD(col1, '10', 'My') FROM t_innodb;
+LPAD('MySQL', '3', 'My')	LPAD('MySQL', '10', 'My')	LPAD(col1, '10', 'My')
+MyS	MyMyMMySQL	MyMyMMySQL
+MyS	MyMyMMySQL	MyMyMyM数据库
+SELECT LPAD('MySQL', '3', 'My'), LPAD('MySQL', '10', 'My'), LPAD(col1, '10', 'My') FROM t_duckdb;
+LPAD('MySQL', '3', 'My')	LPAD('MySQL', '10', 'My')	LPAD(col1, '10', 'My')
+MyS	MyMyMMySQL	MyMyMMySQL
+MyS	MyMyMMySQL	MyMyMyM数据库
+--------------------------
+25. LTRIM()
+--------------------------
+SELECT LTRIM('   MySQL'), LTRIM('    数据库') FROM t_innodb;
+LTRIM('   MySQL')	LTRIM('    数据库')
+MySQL	数据库
+MySQL	数据库
+SELECT LTRIM('   MySQL'), LTRIM('    数据库') FROM t_duckdb;
+LTRIM('   MySQL')	LTRIM('    数据库')
+MySQL	数据库
+MySQL	数据库
+--------------------------
+26. MAKE_SET()
+--------------------------
+--------------------------
+27. MATCH()
+--------------------------
+--------------------------
+28. MID()
+--------------------------
+SELECT MID('MySQL数据库', 3), MID('MySQL数据库', 3, 10), MID('MySQL数据库', 3, 5) FROM t_innodb;
+MID('MySQL数据库', 3)	MID('MySQL数据库', 3, 10)	MID('MySQL数据库', 3, 5)
+SQL数据库	SQL数据库	SQL数据
+SQL数据库	SQL数据库	SQL数据
+SELECT MID('MySQL数据库', 3), MID('MySQL数据库', 3, 10), MID('MySQL数据库', 3, 5) FROM t_duckdb;
+MID('MySQL数据库', 3)	MID('MySQL数据库', 3, 10)	MID('MySQL数据库', 3, 5)
+SQL数据库	SQL数据库	SQL数据
+SQL数据库	SQL数据库	SQL数据
+--------------------------
+29. NOT LIKE
+--------------------------
+SELECT 'MySQL' NOT LIKE '%SQL', col1 LIKE '%SQL' FROM t_innodb;
+'MySQL' NOT LIKE '%SQL'	col1 LIKE '%SQL'
+0	1
+0	0
+SELECT 'MySQL' NOT LIKE '%SQL', col1 LIKE '%SQL' FROM t_duckdb;
+'MySQL' NOT LIKE '%SQL'	col1 LIKE '%SQL'
+0	1
+0	0
+--------------------------
+30. NOT REGEXP
+--------------------------
+SELECT 'Michael!' NOT REGEXP '.*' FROM t_innodb;
+'Michael!' NOT REGEXP '.*'
+0
+0
+SELECT 'Michael!' NOT REGEXP '.*' FROM t_duckdb;
+'Michael!' NOT REGEXP '.*'
+0
+0
+SELECT 'new*\n*line' NOT REGEXP 'new\\*.\\*line' FROM t_innodb;
+'new*\n*line' NOT REGEXP 'new\\*.\\*line'
+1
+1
+SELECT 'new*\n*line' NOT REGEXP 'new\\*.\\*line' FROM t_duckdb;
+'new*\n*line' NOT REGEXP 'new\\*.\\*line'
+1
+1
+SELECT 'a' NOT REGEXP '^[a-d]' FROM t_innodb;
+'a' NOT REGEXP '^[a-d]'
+0
+0
+SELECT 'a' NOT REGEXP '^[a-d]' FROM t_duckdb;
+'a' NOT REGEXP '^[a-d]'
+0
+0
+CREATE TABLE t_regexp (id INT PRIMARY KEY, col1 VARCHAR(100), col2 VARCHAR(100));
+INSERT INTO t_regexp VALUES (1, 'Michael!', '.*'), (2, 'new*\n*line', 'new\\*.\\*line'),
+(3, 'a', '^[a-d]'), (4, NULL, 'abc'), (5, 'abc', NULL);
+SELECT col1 NOT REGEXP col2 FROM t_regexp;
+col1 NOT REGEXP col2
+0
+1
+0
+NULL
+NULL
+ALTER TABLE t_regexp ENGINE=DuckDB;
+SELECT col1 NOT REGEXP col2 FROM t_regexp;
+col1 NOT REGEXP col2
+0
+1
+0
+NULL
+NULL
+DROP TABLE t_regexp;
+--------------------------
+31. OCT()
+--------------------------
+SELECT OCT('MySQL'), OCT(20250328), OCT(col1) FROM t_innodb;
+OCT('MySQL')	OCT(20250328)	OCT(col1)
+0	115177330	0
+0	115177330	0
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: 'MySQL'
+Warning	1292	Truncated incorrect DECIMAL value: 'MySQL'
+Warning	1292	Truncated incorrect DECIMAL value: 'MySQL'
+Warning	1292	Truncated incorrect DECIMAL value: '数据库'
+SELECT OCT('MySQL'), OCT(20250328), OCT(col1) FROM t_duckdb;
+OCT('MySQL')	OCT(20250328)	OCT(col1)
+0	115177330	0
+0	115177330	0
+--------------------------
+32. OCTET_LENGTH()
+--------------------------
+SELECT OCTET_LENGTH('MySQL'), OCTET_LENGTH('数据库'), OCTET_LENGTH(col1), OCTET_LENGTH(col2) FROM t_innodb;
+OCTET_LENGTH('MySQL')	OCTET_LENGTH('数据库')	OCTET_LENGTH(col1)	OCTET_LENGTH(col2)
+5	9	5	9
+5	9	9	9
+SELECT OCTET_LENGTH('MySQL'), OCTET_LENGTH('数据库'), OCTET_LENGTH(col1), OCTET_LENGTH(col2) FROM t_duckdb;
+OCTET_LENGTH('MySQL')	OCTET_LENGTH('数据库')	OCTET_LENGTH(col1)	OCTET_LENGTH(col2)
+5	9	5	9
+5	9	9	9
+--------------------------
+33. ORD()
+--------------------------
+SELECT ORD('MySQL'), ORD('数据库'), ORD(col1) FROM t_innodb;
+ORD('MySQL')	ORD('数据库')	ORD(col1)
+77	15111600	77
+77	15111600	15111600
+SELECT ORD('MySQL'), ORD('数据库'), ORD(col1) FROM t_duckdb;
+ORD('MySQL')	ORD('数据库')	ORD(col1)
+77	15111600	77
+77	15111600	15111600
+--------------------------
+34. POSITION()
+--------------------------
+SELECT POSITION('SQL' IN 'MySQLSQL'), POSITION('SQL' IN 'MySQLSQL'), POSITION('SQL' IN 'MySQLSQL') FROM t_innodb;
+POSITION('SQL' IN 'MySQLSQL')	POSITION('SQL' IN 'MySQLSQL')	POSITION('SQL' IN 'MySQLSQL')
+3	3	3
+3	3	3
+SELECT POSITION('SQL' IN 'MySQLSQL'), POSITION('SQL' IN 'MySQLSQL'), POSITION('SQL' IN 'MySQLSQL') FROM t_duckdb;
+POSITION('SQL' IN 'MySQLSQL')	POSITION('SQL' IN 'MySQLSQL')	POSITION('SQL' IN 'MySQLSQL')
+3	3	3
+3	3	3
+--------------------------
+35. QUOTE()
+--------------------------
+--------------------------
+36. REGEXP
+--------------------------
+SELECT 'Michael!' REGEXP '.*' FROM t_innodb;
+'Michael!' REGEXP '.*'
+1
+1
+SELECT 'Michael!' REGEXP '.*' FROM t_duckdb;
+'Michael!' REGEXP '.*'
+1
+1
+SELECT 'new*\n*line' REGEXP 'new\\*.\\*line' FROM t_innodb;
+'new*\n*line' REGEXP 'new\\*.\\*line'
+0
+0
+SELECT 'new*\n*line' REGEXP 'new\\*.\\*line' FROM t_duckdb;
+'new*\n*line' REGEXP 'new\\*.\\*line'
+0
+0
+SELECT 'a' REGEXP '^[a-d]' FROM t_innodb;
+'a' REGEXP '^[a-d]'
+1
+1
+SELECT 'a' REGEXP '^[a-d]' FROM t_duckdb;
+'a' REGEXP '^[a-d]'
+1
+1
+CREATE TABLE t_regexp (id INT PRIMARY KEY, col1 VARCHAR(100), col2 VARCHAR(100));
+INSERT INTO t_regexp VALUES (1, 'Michael!', '.*'), (2, 'new*\n*line', 'new\\*.\\*line'),
+(3, 'a', '^[a-d]'), (4, NULL, 'abc'), (5, 'abc', NULL);
+SELECT col1 REGEXP col2 FROM t_regexp;
+col1 REGEXP col2
+1
+0
+1
+NULL
+NULL
+ALTER TABLE t_regexp ENGINE=DuckDB;
+SELECT col1 REGEXP col2 FROM t_regexp;
+col1 REGEXP col2
+1
+0
+1
+NULL
+NULL
+DROP TABLE t_regexp;
+--------------------------
+37. REGEXP_INSTR()
+--------------------------
+SELECT REGEXP_INSTR('dog cat dog', 'dog') FROM t_innodb;
+REGEXP_INSTR('dog cat dog', 'dog')
+1
+1
+SELECT REGEXP_INSTR('dog cat dog', 'dog') FROM t_duckdb;
+REGEXP_INSTR('dog cat dog', 'dog')
+1
+1
+SELECT REGEXP_INSTR('dog cat dog', 'dog', 2) FROM t_innodb;
+REGEXP_INSTR('dog cat dog', 'dog', 2)
+9
+9
+SELECT REGEXP_INSTR('dog cat dog', 'dog', 2) FROM t_duckdb;
+REGEXP_INSTR('dog cat dog', 'dog', 2)
+9
+9
+SELECT REGEXP_INSTR('aa aaa aaaa', 'a{2}') FROM t_innodb;
+REGEXP_INSTR('aa aaa aaaa', 'a{2}')
+1
+1
+SELECT REGEXP_INSTR('aa aaa aaaa', 'a{2}') FROM t_duckdb;
+REGEXP_INSTR('aa aaa aaaa', 'a{2}')
+1
+1
+SELECT REGEXP_INSTR('aa aaa aaaa', 'a{4}') FROM t_innodb;
+REGEXP_INSTR('aa aaa aaaa', 'a{4}')
+8
+8
+SELECT REGEXP_INSTR('aa aaa aaaa', 'a{4}') FROM t_duckdb;
+REGEXP_INSTR('aa aaa aaaa', 'a{4}')
+8
+8
+CREATE TABLE t_regexp (id INT PRIMARY KEY, col1 VARCHAR(100), col2 VARCHAR(100));
+INSERT INTO t_regexp VALUES (1, 'dog cat dog', 'dog'), (2, 'aa aaa aaaa', 'a{2}'),
+(3, 'aa aaa aaaa', 'a{4}'), (4, NULL, 'abc'), (5, 'abc', NULL);
+SELECT REGEXP_INSTR(col1, col2) FROM t_regexp;
+REGEXP_INSTR(col1, col2)
+1
+1
+8
+NULL
+NULL
+ALTER TABLE t_regexp ENGINE=DuckDB;
+SELECT REGEXP_INSTR(col1, col2) FROM t_regexp;
+REGEXP_INSTR(col1, col2)
+1
+1
+8
+NULL
+NULL
+DROP TABLE t_regexp;
+--------------------------
+38. REGEXP_LIKE()
+--------------------------
+SELECT REGEXP_LIKE('Michael!', '.*') FROM t_innodb;
+REGEXP_LIKE('Michael!', '.*')
+1
+1
+SELECT REGEXP_LIKE('Michael!', '.*') FROM t_duckdb;
+REGEXP_LIKE('Michael!', '.*')
+1
+1
+SELECT REGEXP_LIKE('new*\n*line', 'new\\*.\\*line') FROM t_innodb;
+REGEXP_LIKE('new*\n*line', 'new\\*.\\*line')
+0
+0
+SELECT REGEXP_LIKE('new*\n*line', 'new\\*.\\*line') FROM t_duckdb;
+REGEXP_LIKE('new*\n*line', 'new\\*.\\*line')
+0
+0
+SELECT REGEXP_LIKE('a', '^[a-d]') FROM t_innodb;
+REGEXP_LIKE('a', '^[a-d]')
+1
+1
+SELECT REGEXP_LIKE('a', '^[a-d]') FROM t_duckdb;
+REGEXP_LIKE('a', '^[a-d]')
+1
+1
+CREATE TABLE t_regexp (id INT PRIMARY KEY, col1 VARCHAR(100), col2 VARCHAR(100));
+INSERT INTO t_regexp VALUES (1, 'Michael!', '.*'), (2, 'new*\n*line', 'new\\*.\\*line'),
+(3, 'a', '^[a-d]'), (4, NULL, 'abc'), (5, 'abc', NULL);
+SELECT REGEXP_LIKE(col1, col2) FROM t_regexp;
+REGEXP_LIKE(col1, col2)
+1
+0
+1
+NULL
+NULL
+ALTER TABLE t_regexp ENGINE=DuckDB;
+SELECT REGEXP_LIKE(col1, col2) FROM t_regexp;
+REGEXP_LIKE(col1, col2)
+1
+0
+1
+NULL
+NULL
+DROP TABLE t_regexp;
+--------------------------
+39. REGEXP_REPLACE()
+--------------------------
+SELECT REGEXP_REPLACE('a b c', 'b', 'X') FROM t_innodb;
+REGEXP_REPLACE('a b c', 'b', 'X')
+a X c
+a X c
+SELECT REGEXP_REPLACE('a b c', 'b', 'X') FROM t_duckdb;
+REGEXP_REPLACE('a b c', 'b', 'X')
+a X c
+a X c
+SELECT REGEXP_REPLACE('abc def ghi', '[a-z]+', 'X', 1, 3) FROM t_innodb;
+REGEXP_REPLACE('abc def ghi', '[a-z]+', 'X', 1, 3)
+abc def X
+abc def X
+SELECT REGEXP_REPLACE('abc def ghi', '[a-z]+', 'X', 1, 3) FROM t_duckdb;
+REGEXP_REPLACE('abc def ghi', '[a-z]+', 'X', 1, 3)
+abc def X
+abc def X
+CREATE TABLE t_regexp (id INT PRIMARY KEY, col1 VARCHAR(100), col2 VARCHAR(100), col3 VARCHAR(100));
+INSERT INTO t_regexp VALUES (1, 'a b c', 'b', 'X'), (2, 'abc def ghi', '[a-z]+', 'X'),
+(3, NULL, 'a{4}', 'X'), (4, 'abc def ghi', NULL, 'X'), (5, 'abc def ghi', '[a-z]+', NULL);
+SELECT REGEXP_REPLACE(col1, col2, col3) FROM t_regexp;
+REGEXP_REPLACE(col1, col2, col3)
+a X c
+X X X
+NULL
+NULL
+NULL
+ALTER TABLE t_regexp ENGINE=DuckDB;
+SELECT REGEXP_REPLACE(col1, col2, col3) FROM t_regexp;
+REGEXP_REPLACE(col1, col2, col3)
+a X c
+X X X
+NULL
+NULL
+NULL
+DROP TABLE t_regexp;
+--------------------------
+40. REGEXP_SUBSTR()
+--------------------------
+SELECT REGEXP_SUBSTR('abc def ghi', '[a-z]+') FROM t_innodb;
+REGEXP_SUBSTR('abc def ghi', '[a-z]+')
+abc
+abc
+SELECT REGEXP_SUBSTR('abc def ghi', '[a-z]+') FROM t_duckdb;
+REGEXP_SUBSTR('abc def ghi', '[a-z]+')
+abc
+abc
+SELECT REGEXP_SUBSTR('abc def ghi', '[a-z]+', 1, 3) FROM t_innodb;
+REGEXP_SUBSTR('abc def ghi', '[a-z]+', 1, 3)
+ghi
+ghi
+SELECT REGEXP_SUBSTR('abc def ghi', '[a-z]+', 1, 3) FROM t_duckdb;
+REGEXP_SUBSTR('abc def ghi', '[a-z]+', 1, 3)
+ghi
+ghi
+CREATE TABLE t_regexp (id INT PRIMARY KEY, col1 VARCHAR(100), col2 VARCHAR(100));
+INSERT INTO t_regexp VALUES (1, 'a b c', 'b'), (2, 'abc def ghi', '[a-z]+');
+SELECT REGEXP_SUBSTR(col1, col2) FROM t_regexp;
+REGEXP_SUBSTR(col1, col2)
+b
+abc
+ALTER TABLE t_regexp ENGINE=DuckDB;
+SELECT REGEXP_SUBSTR(col1, col2) FROM t_regexp;
+REGEXP_SUBSTR(col1, col2)
+b
+abc
+DROP TABLE t_regexp;
+--------------------------
+41. REPEAT()
+--------------------------
+SELECT REPEAT('MySQL', 2), REPEAT('数据库', 2), REPEAT(col1, 2) FROM t_innodb;
+REPEAT('MySQL', 2)	REPEAT('数据库', 2)	REPEAT(col1, 2)
+MySQLMySQL	数据库数据库	MySQLMySQL
+MySQLMySQL	数据库数据库	数据库数据库
+SELECT REPEAT('MySQL', 2), REPEAT('数据库', 2), REPEAT(col1, 2) FROM t_duckdb;
+REPEAT('MySQL', 2)	REPEAT('数据库', 2)	REPEAT(col1, 2)
+MySQLMySQL	数据库数据库	MySQLMySQL
+MySQLMySQL	数据库数据库	数据库数据库
+--------------------------
+42. REPLACE()
+--------------------------
+SELECT REPLACE('MySQL', 'SQL', 'Database'), REPLACE('数据库', '库', '管理'), REPLACE(col1, 'SQL', 'Database') FROM t_innodb;
+REPLACE('MySQL', 'SQL', 'Database')	REPLACE('数据库', '库', '管理')	REPLACE(col1, 'SQL', 'Database')
+MyDatabase	数据管理	MyDatabase
+MyDatabase	数据管理	数据库
+SELECT REPLACE('MySQL', 'SQL', 'Database'), REPLACE('数据库', '库', '管理'), REPLACE(col1, 'SQL', 'Database') FROM t_duckdb;
+REPLACE('MySQL', 'SQL', 'Database')	REPLACE('数据库', '库', '管理')	REPLACE(col1, 'SQL', 'Database')
+MyDatabase	数据管理	MyDatabase
+MyDatabase	数据管理	数据库
+--------------------------
+43. REVERSE()
+--------------------------
+SELECT REVERSE('MySQL'), REVERSE('数据库'), REVERSE(col1) FROM t_innodb;
+REVERSE('MySQL')	REVERSE('数据库')	REVERSE(col1)
+LQSyM	库据数	LQSyM
+LQSyM	库据数	库据数
+SELECT REVERSE('MySQL'), REVERSE('数据库'), REVERSE(col1) FROM t_duckdb;
+REVERSE('MySQL')	REVERSE('数据库')	REVERSE(col1)
+LQSyM	库据数	LQSyM
+LQSyM	库据数	库据数
+--------------------------
+44. RIGHT()
+--------------------------
+SELECT RIGHT('MySQL', 2), RIGHT('数据库', 2), RIGHT(col1, 2) FROM t_innodb;
+RIGHT('MySQL', 2)	RIGHT('数据库', 2)	RIGHT(col1, 2)
+QL	据库	QL
+QL	据库	据库
+SELECT RIGHT('MySQL', 2), RIGHT('数据库', 2), RIGHT(col1, 2) FROM t_duckdb;
+RIGHT('MySQL', 2)	RIGHT('数据库', 2)	RIGHT(col1, 2)
+QL	据库	QL
+QL	据库	据库
+--------------------------
+45. RLIKE
+--------------------------
+SELECT 'Michael!' RLIKE '.*' FROM t_innodb;
+'Michael!' RLIKE '.*'
+1
+1
+SELECT 'Michael!' RLIKE '.*' FROM t_duckdb;
+'Michael!' RLIKE '.*'
+1
+1
+SELECT 'new*\n*line' RLIKE 'new\\*.\\*line' FROM t_innodb;
+'new*\n*line' RLIKE 'new\\*.\\*line'
+0
+0
+SELECT 'new*\n*line' RLIKE 'new\\*.\\*line' FROM t_duckdb;
+'new*\n*line' RLIKE 'new\\*.\\*line'
+0
+0
+SELECT 'a' RLIKE '^[a-d]' FROM t_innodb;
+'a' RLIKE '^[a-d]'
+1
+1
+SELECT 'a' RLIKE '^[a-d]' FROM t_duckdb;
+'a' RLIKE '^[a-d]'
+1
+1
+--------------------------
+46. RPAD()
+--------------------------
+SELECT RPAD('MySQL', '3', 'My'), RPAD('MySQL', '10', 'My'), RPAD(col1, '10', 'My') FROM t_innodb;
+RPAD('MySQL', '3', 'My')	RPAD('MySQL', '10', 'My')	RPAD(col1, '10', 'My')
+MyS	MySQLMyMyM	MySQLMyMyM
+MyS	MySQLMyMyM	数据库MyMyMyM
+SELECT RPAD('MySQL', '3', 'My'), RPAD('MySQL', '10', 'My'), RPAD(col1, '10', 'My') FROM t_duckdb;
+RPAD('MySQL', '3', 'My')	RPAD('MySQL', '10', 'My')	RPAD(col1, '10', 'My')
+MyS	MySQLMyMyM	MySQLMyMyM
+MyS	MySQLMyMyM	数据库MyMyMyM
+--------------------------
+47. RTRIM()
+--------------------------
+SELECT RTRIM('MySQL   '), RTRIM('数据库   ') FROM t_innodb;
+RTRIM('MySQL   ')	RTRIM('数据库   ')
+MySQL	数据库
+MySQL	数据库
+SELECT RTRIM('MySQL   '), RTRIM('数据库   ') FROM t_duckdb;
+RTRIM('MySQL   ')	RTRIM('数据库   ')
+MySQL	数据库
+MySQL	数据库
+--------------------------
+48. SOUNDEX()
+--------------------------
+--------------------------
+49. SOUNDS LIKE
+--------------------------
+--------------------------
+50. SPACE()
+--------------------------
+--------------------------
+51. STRCMP()
+--------------------------
+SELECT STRCMP('MySQL', 'mysql'), STRCMP('MySQL', 'DuckDB') FROM t_innodb;
+STRCMP('MySQL', 'mysql')	STRCMP('MySQL', 'DuckDB')
+0	1
+0	1
+SELECT STRCMP('MySQL', 'mysql'), STRCMP('MySQL', 'DuckDB') FROM t_duckdb;
+STRCMP('MySQL', 'mysql')	STRCMP('MySQL', 'DuckDB')
+0	1
+0	1
+--------------------------
+52. SUBSTR()
+--------------------------
+SELECT SUBSTR('MySQL数据库', 3), SUBSTR('MySQL数据库', 3, 10), SUBSTR('MySQL数据库', 3, 5) FROM t_innodb;
+SUBSTR('MySQL数据库', 3)	SUBSTR('MySQL数据库', 3, 10)	SUBSTR('MySQL数据库', 3, 5)
+SQL数据库	SQL数据库	SQL数据
+SQL数据库	SQL数据库	SQL数据
+SELECT SUBSTR('MySQL数据库', 3), SUBSTR('MySQL数据库', 3, 10), SUBSTR('MySQL数据库', 3, 5) FROM t_duckdb;
+SUBSTR('MySQL数据库', 3)	SUBSTR('MySQL数据库', 3, 10)	SUBSTR('MySQL数据库', 3, 5)
+SQL数据库	SQL数据库	SQL数据
+SQL数据库	SQL数据库	SQL数据
+--------------------------
+53. SUBSTRING()
+--------------------------
+SELECT SUBSTRING('MySQL数据库', 3), SUBSTRING('MySQL数据库', 3, 10), SUBSTRING('MySQL数据库', 3, 5) FROM t_innodb;
+SUBSTRING('MySQL数据库', 3)	SUBSTRING('MySQL数据库', 3, 10)	SUBSTRING('MySQL数据库', 3, 5)
+SQL数据库	SQL数据库	SQL数据
+SQL数据库	SQL数据库	SQL数据
+SELECT SUBSTRING('MySQL数据库', 3), SUBSTRING('MySQL数据库', 3, 10), SUBSTRING('MySQL数据库', 3, 5) FROM t_duckdb;
+SUBSTRING('MySQL数据库', 3)	SUBSTRING('MySQL数据库', 3, 10)	SUBSTRING('MySQL数据库', 3, 5)
+SQL数据库	SQL数据库	SQL数据
+SQL数据库	SQL数据库	SQL数据
+--------------------------
+54. SUBSTRING_INDEX()
+--------------------------
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 2) FROM t_innodb;
+SUBSTRING_INDEX('www.mysql.com', '.', 2)
+www.mysql
+www.mysql
+SELECT SUBSTRING_INDEX('www.mysql.com', '.', 2) FROM t_duckdb;
+SUBSTRING_INDEX('www.mysql.com', '.', 2)
+www.mysql
+www.mysql
+--------------------------
+55. TRIM()
+--------------------------
+SELECT TRIM('  bar   '), TRIM(LEADING 'x' FROM 'xxxbarxxx'), TRIM(BOTH 'x' FROM 'xxxbarxxx'), TRIM(TRAILING 'xyz' FROM 'barxxyz') FROM t_innodb;
+TRIM('  bar   ')	TRIM(LEADING 'x' FROM 'xxxbarxxx')	TRIM(BOTH 'x' FROM 'xxxbarxxx')	TRIM(TRAILING 'xyz' FROM 'barxxyz')
+bar	barxxx	bar	barx
+bar	barxxx	bar	barx
+SELECT TRIM('  bar   '), TRIM(LEADING 'x' FROM 'xxxbarxxx'), TRIM(BOTH 'x' FROM 'xxxbarxxx'), TRIM(TRAILING 'xyz' FROM 'barxxyz') FROM t_duckdb;
+TRIM('  bar   ')	TRIM(LEADING 'x' FROM 'xxxbarxxx')	TRIM(BOTH 'x' FROM 'xxxbarxxx')	TRIM(TRAILING 'xyz' FROM 'barxxyz')
+bar	barxxx	bar	barx
+bar	barxxx	bar	barx
+--------------------------
+56. UCASE()
+--------------------------
+SELECT UCASE('MySQL'), UCASE('数据库'), UCASE(col1) FROM t_innodb;
+UCASE('MySQL')	UCASE('数据库')	UCASE(col1)
+MYSQL	数据库	MYSQL
+MYSQL	数据库	数据库
+SELECT UCASE('MySQL'), UCASE('数据库'), UCASE(col1) FROM t_duckdb;
+UCASE('MySQL')	UCASE('数据库')	UCASE(col1)
+MYSQL	数据库	MYSQL
+MYSQL	数据库	数据库
+--------------------------
+57. UNHEX()
+--------------------------
+SELECT UNHEX('4D7953514C'), UNHEX('E695B0E68DAEE5BA93'), UNHEX(HEX(col1)) FROM t_innodb;
+UNHEX('4D7953514C')	UNHEX('E695B0E68DAEE5BA93')	UNHEX(HEX(col1))
+MySQL	数据库	MySQL
+MySQL	数据库	数据库
+SELECT UNHEX('4D7953514C'), UNHEX('E695B0E68DAEE5BA93'), UNHEX(HEX(col1)) FROM t_duckdb;
+UNHEX('4D7953514C')	UNHEX('E695B0E68DAEE5BA93')	UNHEX(HEX(col1))
+MySQL	数据库	MySQL
+MySQL	数据库	数据库
+--------------------------
+58. UPPER()
+--------------------------
+SELECT UPPER('MySQL'), UPPER('数据库'), UPPER(col1) FROM t_innodb;
+UPPER('MySQL')	UPPER('数据库')	UPPER(col1)
+MYSQL	数据库	MYSQL
+MYSQL	数据库	数据库
+SELECT UPPER('MySQL'), UPPER('数据库'), UPPER(col1) FROM t_duckdb;
+UPPER('MySQL')	UPPER('数据库')	UPPER(col1)
+MYSQL	数据库	MYSQL
+MYSQL	数据库	数据库
+--------------------------
+59. WEIGHT_STRING()
+--------------------------
+--------------------------
+59. TO_BASE64()
+--------------------------
+SELECT TO_BASE64('MySQL'), TO_BASE64('数据库'), TO_BASE64(col1) FROM t_innodb;
+TO_BASE64('MySQL')	TO_BASE64('数据库')	TO_BASE64(col1)
+TXlTUUw=	5pWw5o2u5bqT	TXlTUUw=
+TXlTUUw=	5pWw5o2u5bqT	5pWw5o2u5bqT
+SELECT TO_BASE64('MySQL'), TO_BASE64('数据库'), TO_BASE64(col1) FROM t_duckdb;
+TO_BASE64('MySQL')	TO_BASE64('数据库')	TO_BASE64(col1)
+TXlTUUw=	5pWw5o2u5bqT	TXlTUUw=
+TXlTUUw=	5pWw5o2u5bqT	5pWw5o2u5bqT
+--------------------------
+59. FROM_BASE64()
+--------------------------
+SELECT FROM_BASE64(TO_BASE64('MySQL')), FROM_BASE64(TO_BASE64('数据库')), FROM_BASE64(TO_BASE64(col1)) FROM t_innodb;
+FROM_BASE64(TO_BASE64('MySQL'))	FROM_BASE64(TO_BASE64('数据库'))	FROM_BASE64(TO_BASE64(col1))
+MySQL	数据库	MySQL
+MySQL	数据库	数据库
+SELECT FROM_BASE64(TO_BASE64('MySQL')), FROM_BASE64(TO_BASE64('数据库')), FROM_BASE64(TO_BASE64(col1)) FROM t_duckdb;
+FROM_BASE64(TO_BASE64('MySQL'))	FROM_BASE64(TO_BASE64('数据库'))	FROM_BASE64(TO_BASE64(col1))
+MySQL	数据库	MySQL
+MySQL	数据库	数据库
+DROP TABLE t_innodb;
+DROP TABLE t_duckdb;
+DROP DATABASE test_duckdb;

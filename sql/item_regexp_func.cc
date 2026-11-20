@@ -34,6 +34,9 @@
 
 #include <optional>
 
+#ifdef HAVE_DUCKDB
+#include "duckdb/common/exception.hpp"
+#endif
 #include "my_dbug.h"
 #include "mysql/strings/m_ctype.h"
 #include "mysql_com.h"      // MAX_BLOB_WIDTH
@@ -149,11 +152,16 @@ bool Item_func_regexp::set_pattern() {
   uint32_t icu_flags = 0;  // Avoids compiler warning on gcc 4.8.5.
   // match_parameter overrides coercion type.
   if (ParseRegexpOptions(mp.value(), is_case_sensitive, &icu_flags)) {
+#ifdef HAVE_DUCKDB
+    if (caller_is_duckdb) {
+      throw duckdb::InvalidInputException("Invalid regexp options");
+    }
+#endif
     my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
     return true;
   }
 
-  return m_facade->SetPattern(pattern(), icu_flags);
+  return m_facade->SetPattern(pattern(), icu_flags, m_mem_root);
 }
 
 bool Item_func_regexp_instr::fix_fields(THD *thd, Item **arguments) {
@@ -206,7 +214,7 @@ longlong Item_func_regexp_instr::val_int() {
 
   std::optional<int32_t> result =
       m_facade->Find(subject(), pos.value(), occ.value(), retopt.value());
-  if (current_thd->is_error()) return error_int();
+  if (!caller_is_duckdb && current_thd->is_error()) return error_int();
 
   if (result.has_value()) {
     null_value = false;
@@ -230,7 +238,7 @@ longlong Item_func_regexp_like::val_int() {
   */
   std::optional<bool> result =
       m_facade->Matches(subject(), position().value(), occurrence().value());
-  if (current_thd->is_error()) return error_int();
+  if (!caller_is_duckdb && current_thd->is_error()) return error_int();
 
   if (result.has_value()) {
     null_value = false;
@@ -285,6 +293,13 @@ String *Item_func_regexp_replace::val_str(String *buf) {
   }
 
   if (pos.value() < 1) {
+#ifdef HAVE_DUCKDB
+    if (caller_is_duckdb) {
+      throw duckdb::InvalidInputException(
+          "Incorrect parameters in the call to native function "
+          "'regexp_replace'");
+    }
+#endif
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
     return error_str();
   }
@@ -292,7 +307,7 @@ String *Item_func_regexp_replace::val_str(String *buf) {
   buf->set_charset(collation.collation);
   String *result = m_facade->Replace(subject(), replacement(), pos.value(),
                                      occ.value(), buf);
-  if (current_thd->is_error()) return error_str();
+  if (!caller_is_duckdb && current_thd->is_error()) return error_str();
 
   null_value = (result == nullptr);
   return result;
@@ -317,12 +332,19 @@ String *Item_func_regexp_substr::val_str(String *buf) {
     return null_return_str();
   }
   if (pos.value() < 1) {
+#ifdef HAVE_DUCKDB
+    if (caller_is_duckdb) {
+      throw duckdb::InvalidInputException(
+          "Incorrect parameters in the call to native function "
+          "'regexp_substr'");
+    }
+#endif
     my_error(ER_WRONG_PARAMETERS_TO_NATIVE_FCT, MYF(0), func_name());
     return error_str();
   }
   buf->set_charset(collation.collation);
   String *result = m_facade->Substr(subject(), pos.value(), occ.value(), buf);
-  if (current_thd->is_error()) return error_str();
+  if (!caller_is_duckdb && current_thd->is_error()) return error_str();
 
   null_value = (result == nullptr);
   return result;

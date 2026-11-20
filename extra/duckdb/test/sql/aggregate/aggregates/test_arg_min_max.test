@@ -1,0 +1,214 @@
+# name: test/sql/aggregate/aggregates/test_arg_min_max.test
+# description: Test argmin and argmax operator
+# group: [aggregates]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+PRAGMA verify_external
+
+#Corner cases
+statement error
+select argmin()
+----
+
+query I
+select argmin(NULL,NULL)
+----
+NULL
+
+query I
+select argmin(1,1)
+----
+1
+
+statement error
+select argmin(*)
+----
+
+query I
+select argmin(i,i) from range (100) tbl(i);
+----
+0
+
+query I
+select argmin(i,i) from range (100) tbl(i) where 1 = 0;
+----
+NULL
+
+statement error
+select argmax()
+----
+
+query I
+select argmax(NULL,NULL)
+----
+NULL
+
+query I
+select argmax(1,1)
+----
+1
+
+statement error
+select argmax(*)
+----
+
+query I
+select argmax(i,i) from range (100) tbl(i);
+----
+99
+
+query I
+select argmax(i,i) from range (100) tbl(i) where 1 = 0;
+----
+NULL
+
+statement ok
+create table args (a integer, b integer)
+
+statement ok
+insert into args values (1,1), (2,2), (8,8), (10,10)
+
+query II
+select argmin(a,b), argmax(a,b) from args;
+----
+1.000000	10.000000
+
+query II
+select argmin(a,b), argmax(a,b) from args group by a%2 ORDER BY argmin(a,b);
+----
+1	1
+2	10
+
+# Avoid lossy promotion from hugeint to double
+statement ok
+CREATE TABLE hugeints (z HUGEINT);
+
+statement ok
+insert into hugeints values
+	(-168123123123200005565479978461862821890),
+	(-168123123123200005565479978461862821889),
+	(-168123123123200005565479978461862821888),
+	(-168123123123200005565479978461862821893)
+
+query I
+SELECT min(z) - arg_min(z,z) FROM hugeints;
+----
+0
+
+statement ok
+CREATE TABLE blobs (b BYTEA, a BIGINT);
+
+statement ok
+INSERT INTO blobs VALUES('\xaa\xff\xaa',5), ('\xAA\xFF\xAA\xAA\xFF\xAA',30), ('\xAA\xFF\xAA\xAA\xFF\xAA\xAA\xFF\xAA',20)
+
+query II
+select argmin(b,a), argmax(b,a)  from blobs ;
+----
+\xAA\xFF\xAA	\xAA\xFF\xAA\xAA\xFF\xAA
+
+query II
+select argmin(a,b), argmax(a,b)  from blobs;
+----
+5	20
+
+# Window Function
+query I rowsort
+select argmin(a,b) over ( partition by a%2) from args;
+----
+1
+2
+2
+2
+
+query I rowsort
+select argmax(a,b) over ( partition by a%2) from args;
+----
+1
+10
+10
+10
+
+statement ok
+create table names (name string, salary integer)
+
+statement ok
+insert into names values ('Pedro',10), ('Hannes',20), ('Mark',15), ('Hubert-Blaine-Wolfeschlegelsteinhausenbergerdorff',30)
+
+query II
+select argmin(name,salary),argmax(name,salary)  from names;
+----
+Pedro	Hubert-Blaine-Wolfeschlegelsteinhausenbergerdorff
+
+query II
+select argmin(salary,name),argmax(salary,name)  from names;
+----
+20	10
+
+# test min_by max_by alias
+query II
+select min_by(name,salary),max_by(name,salary)  from names;
+----
+Pedro	Hubert-Blaine-Wolfeschlegelsteinhausenbergerdorff
+
+# test arg_min arg_max alias
+query II
+select arg_min(name,salary),arg_max(name,salary)  from names;
+----
+Pedro	Hubert-Blaine-Wolfeschlegelsteinhausenbergerdorff
+
+statement ok
+drop table names;
+
+statement ok
+CREATE OR REPLACE TABLE employees(
+	employee_id NUMERIC,
+	department_id NUMERIC,
+	salary NUMERIC);
+
+statement ok
+INSERT INTO employees VALUES
+  (1001, 10, 10000),
+  (1020, 10, 9000),
+  (1030, 10, 8000),
+  (900, 20, 15000),
+  (2000, 20, NULL),
+  (2010, 20, 15000),
+  (2020, 20, 8000);
+
+foreach casting true false
+
+statement ok
+SET old_implicit_casting=${casting};
+
+query I
+SELECT MAX_BY(employee_id, salary) as employee_with_biggest_salary
+FROM employees;
+----
+900
+
+query I
+SELECT MIN_BY(employee_id, salary) as employee_with_least_salary
+FROM employees;
+----
+1030
+
+endloop
+
+query I
+SELECT max_by(c0, c1) FROM (values (1, null)) t(c0,c1);
+----
+NULL
+
+statement ok
+create table names (first_name string, last_name string)
+
+statement ok
+insert into names values ('PedroPedroPedroPedroPedro','HolandaHolandaHolandaHolandaHolanda'), ('HannesHannesHannesHannesHannesHannes','MuhleisenMuhleisenMuhleisenMuhleisenMuhleisenMuhleisen'), ('MarkMarkMark','RaasveldtRaasveldtRaasveldtRaasveldtRaasveldtRaasveldt'), ('Hubert-BlaineHubert-BlaineHubert-BlaineHubert-Blaine','WolfeschlegelsteinhausenbergerdorffWolfeschlegelsteinhausenbergerdorffWolfeschlegelsteinhausenbergerdorff')
+
+query II
+select arg_min(first_name,last_name),arg_max(first_name,last_name)  from names;
+----
+PedroPedroPedroPedroPedro	Hubert-BlaineHubert-BlaineHubert-BlaineHubert-Blaine

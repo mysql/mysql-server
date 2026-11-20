@@ -1,0 +1,34 @@
+# === Setup ===
+CREATE TABLE t1 (id INT PRIMARY KEY, val VARCHAR(100)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b'), (3, 'c');
+# === Partition operations should fail with error, not crash ===
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+ERROR HY000: Partition management on a not partitioned table is not possible
+ALTER TABLE t1 DROP PARTITION p1;
+ERROR HY000: Partition management on a not partitioned table is not possible
+ALTER TABLE t1 REBUILD PARTITION p1;
+ERROR HY000: Partition management on a not partitioned table is not possible
+ALTER TABLE t1 OPTIMIZE PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	Error	Partition management on a not partitioned table is not possible
+test.t1	optimize	status	Operation failed
+ALTER TABLE t1 ANALYZE PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	Error	Partition management on a not partitioned table is not possible
+test.t1	analyze	status	Operation failed
+ALTER TABLE t1 CHECK PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	Error	Partition management on a not partitioned table is not possible
+test.t1	check	status	Operation failed
+ALTER TABLE t1 REPAIR PARTITION p1;
+Table	Op	Msg_type	Msg_text
+test.t1	repair	Error	Partition management on a not partitioned table is not possible
+test.t1	repair	status	Operation failed
+# === Verify table is still intact ===
+SELECT * FROM t1 ORDER BY id;
+id	val
+1	a
+2	b
+3	c
+# === Cleanup ===
+DROP TABLE t1;

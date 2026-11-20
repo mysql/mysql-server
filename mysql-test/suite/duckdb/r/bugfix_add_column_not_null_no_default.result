@@ -1,0 +1,364 @@
+#
+# 1) All feasible types — default algorithm
+#
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+ALTER TABLE t_innodb ADD COLUMN c_int INT NOT NULL,
+ADD COLUMN c_bigint BIGINT NOT NULL,
+ADD COLUMN c_tinyint TINYINT NOT NULL,
+ADD COLUMN c_bool BOOL NOT NULL,
+ADD COLUMN c_smallint SMALLINT NOT NULL,
+ADD COLUMN c_mediumint MEDIUMINT NOT NULL,
+ADD COLUMN c_float FLOAT NOT NULL,
+ADD COLUMN c_double DOUBLE NOT NULL,
+ADD COLUMN c_decimal DECIMAL(12,2) NOT NULL,
+ADD COLUMN c_varchar VARCHAR(100) NOT NULL,
+ADD COLUMN c_char CHAR(10) NOT NULL,
+ADD COLUMN c_text TEXT NOT NULL,
+ADD COLUMN c_tinytext TINYTEXT NOT NULL,
+ADD COLUMN c_mediumtext MEDIUMTEXT NOT NULL,
+ADD COLUMN c_longtext LONGTEXT NOT NULL,
+ADD COLUMN c_blob BLOB NOT NULL,
+ADD COLUMN c_tinyblob TINYBLOB NOT NULL,
+ADD COLUMN c_mediumblob MEDIUMBLOB NOT NULL,
+ADD COLUMN c_longblob LONGBLOB NOT NULL,
+ADD COLUMN c_varbinary VARBINARY(100) NOT NULL,
+ADD COLUMN c_time TIME NOT NULL,
+ADD COLUMN c_time6 TIME(6) NOT NULL,
+ADD COLUMN c_json JSON NOT NULL,
+ADD COLUMN c_bit BIT(8) NOT NULL,
+ADD COLUMN c_bit64 BIT(64) NOT NULL,
+ADD COLUMN c_set SET('x','y','z') NOT NULL,
+ADD COLUMN c_enum ENUM('a','b','c') NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN c_int INT NOT NULL,
+ADD COLUMN c_bigint BIGINT NOT NULL,
+ADD COLUMN c_tinyint TINYINT NOT NULL,
+ADD COLUMN c_bool BOOL NOT NULL,
+ADD COLUMN c_smallint SMALLINT NOT NULL,
+ADD COLUMN c_mediumint MEDIUMINT NOT NULL,
+ADD COLUMN c_float FLOAT NOT NULL,
+ADD COLUMN c_double DOUBLE NOT NULL,
+ADD COLUMN c_decimal DECIMAL(12,2) NOT NULL,
+ADD COLUMN c_varchar VARCHAR(100) NOT NULL,
+ADD COLUMN c_char CHAR(10) NOT NULL,
+ADD COLUMN c_text TEXT NOT NULL,
+ADD COLUMN c_tinytext TINYTEXT NOT NULL,
+ADD COLUMN c_mediumtext MEDIUMTEXT NOT NULL,
+ADD COLUMN c_longtext LONGTEXT NOT NULL,
+ADD COLUMN c_blob BLOB NOT NULL,
+ADD COLUMN c_tinyblob TINYBLOB NOT NULL,
+ADD COLUMN c_mediumblob MEDIUMBLOB NOT NULL,
+ADD COLUMN c_longblob LONGBLOB NOT NULL,
+ADD COLUMN c_varbinary VARBINARY(100) NOT NULL,
+ADD COLUMN c_time TIME NOT NULL,
+ADD COLUMN c_time6 TIME(6) NOT NULL,
+ADD COLUMN c_json JSON NOT NULL,
+ADD COLUMN c_bit BIT(8) NOT NULL,
+ADD COLUMN c_bit64 BIT(64) NOT NULL,
+ADD COLUMN c_set SET('x','y','z') NOT NULL,
+ADD COLUMN c_enum ENUM('a','b','c') NOT NULL;
+include/assert.inc [Checksum is the same after ALTER]
+INSERT INTO t_innodb (id, c_int) VALUES (4, NULL);
+ERROR 23000: Column 'c_int' cannot be null
+INSERT INTO t_duckdb (id, c_int) VALUES (4, NULL);
+ERROR 23000: Column 'c_int' cannot be null
+INSERT INTO t_innodb VALUES (5, 1,1,1,1,1,1, 1,1,1.00, 'a','a', 'a','a','a','a', 'a','a','a','a','a', '01:00:00','01:00:00.000000', '1', 1, 1, 'x', 'a');
+INSERT INTO t_duckdb VALUES (5, 1,1,1,1,1,1, 1,1,1.00, 'a','a', 'a','a','a','a', 'a','a','a','a','a', '01:00:00','01:00:00.000000', '1', 1, 1, 'x', 'a');
+include/assert.inc [Checksum is the same after data insert]
+SELECT column_name, column_default, is_nullable
+FROM information_schema.columns
+WHERE table_schema='test' AND table_name='t_innodb'
+ ORDER BY ordinal_position;
+COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE
+id	NULL	NO
+c_int	NULL	NO
+c_bigint	NULL	NO
+c_tinyint	NULL	NO
+c_bool	NULL	NO
+c_smallint	NULL	NO
+c_mediumint	NULL	NO
+c_float	NULL	NO
+c_double	NULL	NO
+c_decimal	NULL	NO
+c_varchar	NULL	NO
+c_char	NULL	NO
+c_text	NULL	NO
+c_tinytext	NULL	NO
+c_mediumtext	NULL	NO
+c_longtext	NULL	NO
+c_blob	NULL	NO
+c_tinyblob	NULL	NO
+c_mediumblob	NULL	NO
+c_longblob	NULL	NO
+c_varbinary	NULL	NO
+c_time	NULL	NO
+c_time6	NULL	NO
+c_json	NULL	NO
+c_bit	NULL	NO
+c_bit64	NULL	NO
+c_set	NULL	NO
+c_enum	NULL	NO
+SELECT column_name, column_default, is_nullable
+FROM information_schema.columns
+WHERE table_schema='test' AND table_name='t_duckdb'
+ ORDER BY ordinal_position;
+COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE
+id	NULL	NO
+c_int	NULL	NO
+c_bigint	NULL	NO
+c_tinyint	NULL	NO
+c_bool	NULL	NO
+c_smallint	NULL	NO
+c_mediumint	NULL	NO
+c_float	NULL	NO
+c_double	NULL	NO
+c_decimal	NULL	NO
+c_varchar	NULL	NO
+c_char	NULL	NO
+c_text	NULL	NO
+c_tinytext	NULL	NO
+c_mediumtext	NULL	NO
+c_longtext	NULL	NO
+c_blob	NULL	NO
+c_tinyblob	NULL	NO
+c_mediumblob	NULL	NO
+c_longblob	NULL	NO
+c_varbinary	NULL	NO
+c_time	NULL	NO
+c_time6	NULL	NO
+c_json	NULL	NO
+c_bit	NULL	NO
+c_bit64	NULL	NO
+c_set	NULL	NO
+c_enum	NULL	NO
+CALL dbms_duckdb.query("SELECT column_name, column_default, is_nullable FROM information_schema.columns WHERE table_name='t_duckdb' ORDER BY ordinal_position");
+RESULT
+column_name	column_default	is_nullable	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 28]
+id	NULL	NO
+c_int	NULL	NO
+c_bigint	NULL	NO
+c_tinyint	NULL	NO
+c_bool	NULL	NO
+c_smallint	NULL	NO
+c_mediumint	NULL	NO
+c_float	NULL	NO
+c_double	NULL	NO
+c_decimal	NULL	NO
+c_varchar	NULL	NO
+c_char	NULL	NO
+c_text	NULL	NO
+c_tinytext	NULL	NO
+c_mediumtext	NULL	NO
+c_longtext	NULL	NO
+c_blob	NULL	NO
+c_tinyblob	NULL	NO
+c_mediumblob	NULL	NO
+c_longblob	NULL	NO
+c_varbinary	NULL	NO
+c_time	NULL	NO
+c_time6	NULL	NO
+c_json	NULL	NO
+c_bit	NULL	NO
+c_bit64	NULL	NO
+c_set	NULL	NO
+c_enum	NULL	NO
+
+
+DROP TABLE t_innodb, t_duckdb;
+#
+# 2) NOT NULL without DEFAULT on empty table (should always succeed)
+#
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+ALTER TABLE t_innodb ADD COLUMN c1 INT NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN c1 INT NOT NULL;
+INSERT INTO t_innodb VALUES (1, NULL);
+ERROR 23000: Column 'c1' cannot be null
+INSERT INTO t_duckdb VALUES (1, NULL);
+ERROR 23000: Column 'c1' cannot be null
+INSERT INTO t_innodb VALUES (1, 100);
+INSERT INTO t_duckdb VALUES (1, 100);
+include/assert.inc [Checksum is the same]
+DROP TABLE t_innodb, t_duckdb;
+#
+# 3) Mix of NOT NULL with DEFAULT and NOT NULL without DEFAULT
+#
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+ALTER TABLE t_innodb ADD COLUMN a INT NOT NULL,
+ADD COLUMN b INT NOT NULL DEFAULT 42;
+ALTER TABLE t_duckdb ADD COLUMN a INT NOT NULL,
+ADD COLUMN b INT NOT NULL DEFAULT 42;
+include/assert.inc [Checksum is the same]
+CALL dbms_duckdb.query("SELECT column_name, column_default FROM information_schema.columns WHERE table_name='t_duckdb' AND column_name IN ('a','b') ORDER BY column_name");
+RESULT
+column_name	column_default	
+VARCHAR	VARCHAR	
+[ Rows: 2]
+a	NULL
+b	'42'
+
+
+DROP TABLE t_innodb, t_duckdb;
+#
+# 4) Regression: TIMESTAMP NOT NULL DEFAULT now() still works
+#
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+SET TIMESTAMP=UNIX_TIMESTAMP('2001-01-01 00:00:00');
+ALTER TABLE t_innodb ADD COLUMN c1 TIMESTAMP NOT NULL DEFAULT now();
+ALTER TABLE t_duckdb ADD COLUMN c1 TIMESTAMP NOT NULL DEFAULT now();
+include/assert.inc [Checksum is the same]
+INSERT INTO t_innodb VALUES (4, NULL);
+ERROR 23000: Column 'c1' cannot be null
+INSERT INTO t_duckdb VALUES (4, NULL);
+ERROR 23000: Column 'c1' cannot be null
+DROP TABLE t_innodb, t_duckdb;
+SET TIMESTAMP=DEFAULT;
+#
+# 5) Regression: nullable column must NOT have implicit default injected
+#
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+ALTER TABLE t_innodb ADD COLUMN c_int INT,
+ADD COLUMN c_str VARCHAR(20),
+ADD COLUMN c_date DATE;
+ALTER TABLE t_duckdb ADD COLUMN c_int INT,
+ADD COLUMN c_str VARCHAR(20),
+ADD COLUMN c_date DATE;
+SELECT id, c_int, c_str, c_date FROM t_duckdb ORDER BY id;
+id	c_int	c_str	c_date
+1	NULL	NULL	NULL
+2	NULL	NULL	NULL
+3	NULL	NULL	NULL
+include/assert.inc [Checksum is the same]
+INSERT INTO t_innodb VALUES (4, NULL, NULL, NULL);
+INSERT INTO t_duckdb VALUES (4, NULL, NULL, NULL);
+include/assert.inc [Checksum is the same]
+CALL dbms_duckdb.query("SELECT column_name, column_default FROM information_schema.columns WHERE table_name='t_duckdb' AND column_name IN ('c_int','c_str','c_date') ORDER BY column_name");
+RESULT
+column_name	column_default	
+VARCHAR	VARCHAR	
+[ Rows: 3]
+c_date	NULL
+c_int	NULL
+c_str	NULL
+
+
+DROP TABLE t_innodb, t_duckdb;
+#
+# 6) DECIMAL precision × duckdb_use_double_for_decimal modes
+#
+SET @saved_use_double = @@global.duckdb_use_double_for_decimal;
+#
+# 6a) use_double=off — DuckDB stores both as DECIMAL (high precision capped at 38)
+#
+SET GLOBAL duckdb_use_double_for_decimal=off;
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+ALTER TABLE t_innodb ADD COLUMN d_low DECIMAL(38,5) NOT NULL,
+ADD COLUMN d_high DECIMAL(40,5) NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN d_low DECIMAL(38,5) NOT NULL,
+ADD COLUMN d_high DECIMAL(40,5) NOT NULL;
+include/assert.inc [Checksum is the same (use_double=off)]
+DROP TABLE t_innodb, t_duckdb;
+#
+# 6b) use_double=on — DuckDB stores high-precision as DOUBLE
+#
+SET GLOBAL duckdb_use_double_for_decimal=on;
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+ALTER TABLE t_innodb ADD COLUMN d_low DECIMAL(38,5) NOT NULL,
+ADD COLUMN d_high DECIMAL(40,5) NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN d_low DECIMAL(38,5) NOT NULL,
+ADD COLUMN d_high DECIMAL(40,5) NOT NULL;
+include/assert.inc [Checksum is the same (use_double=on)]
+DROP TABLE t_innodb, t_duckdb;
+SET GLOBAL duckdb_use_double_for_decimal = @saved_use_double;
+#
+# 7) BINARY(10) ADD COLUMN — verify LENGTH matches InnoDB
+#
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+ALTER TABLE t_innodb ADD COLUMN c BINARY(10) NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN c BINARY(10) NOT NULL;
+SELECT id, HEX(c), LENGTH(c) FROM t_innodb ORDER BY id;
+id	HEX(c)	LENGTH(c)
+1	00000000000000000000	10
+2	00000000000000000000	10
+3	00000000000000000000	10
+SELECT id, HEX(c), LENGTH(c) FROM t_duckdb ORDER BY id;
+id	HEX(c)	LENGTH(c)
+1	00000000000000000000	10
+2	00000000000000000000	10
+3	00000000000000000000	10
+include/assert.inc [BINARY(10) ADD COLUMN LENGTH parity]
+DROP TABLE t_innodb, t_duckdb;
+#
+# 8) sql_mode parity for INSERT omitting NOT NULL column without DEFAULT
+#
+SET @saved_sql_mode = @@SESSION.sql_mode;
+#
+# 8a) Non-strict — implicit default fills omitted column
+#
+SET SESSION sql_mode = '';
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+ALTER TABLE t_innodb ADD COLUMN c INT NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN c INT NOT NULL;
+INSERT INTO t_innodb (id) VALUES (4);
+Warnings:
+Warning	1364	Field 'c' doesn't have a default value
+INSERT INTO t_duckdb (id) VALUES (4);
+Warnings:
+Warning	1364	Field 'c' doesn't have a default value
+SELECT id, c FROM t_innodb ORDER BY id;
+id	c
+1	0
+2	0
+3	0
+4	0
+SELECT id, c FROM t_duckdb ORDER BY id;
+id	c
+1	0
+2	0
+3	0
+4	0
+include/assert.inc [Non-strict implicit-default parity for omitted NOT NULL column]
+DROP TABLE t_innodb, t_duckdb;
+#
+# 8b) Strict — same INSERT must be rejected on both engines
+#
+SET SESSION sql_mode = 'STRICT_TRANS_TABLES';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+ALTER TABLE t_innodb ADD COLUMN c INT NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN c INT NOT NULL;
+INSERT INTO t_innodb (id) VALUES (4);
+ERROR HY000: Field 'c' doesn't have a default value
+INSERT INTO t_duckdb (id) VALUES (4);
+ERROR HY000: Field 'c' doesn't have a default value
+DROP TABLE t_innodb, t_duckdb;
+SET SESSION sql_mode = @saved_sql_mode;

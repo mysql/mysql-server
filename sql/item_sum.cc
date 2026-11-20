@@ -2328,6 +2328,31 @@ void Item_sum_count::cleanup() {
   Item_sum_int::cleanup();
 }
 
+void Item_sum_count::print(const THD *thd, String *str,
+                           enum_query_type query_type) const {
+  if (query_type & QT_DUCKDB_REWRITE) {
+    if (arg_count > 1) {
+      str->append(STRING_WITH_LEN("multi_count"));
+    } else {
+      str->append(func_name());
+    }
+    str->append('(');
+    if (has_with_distinct()) str->append("distinct ");
+    for (uint i = 0; i < arg_count; i++) {
+      if (i) str->append(',');
+      args[i]->print(thd, str, query_type);
+    }
+    str->append(')');
+
+    if (m_window) {
+      str->append(" OVER ");
+      m_window->print(thd, str, query_type, false);
+    }
+  } else {
+    Item_sum::print(thd, str, query_type);
+  }
+}
+
 bool Item_sum_avg::resolve_type(THD *thd) {
   if (Item_sum_sum::resolve_type(thd)) return true;
 
@@ -4704,7 +4729,7 @@ bool Item_func_group_concat::fix_fields(THD *thd, Item **ref) {
     Item *item = args[i];
     fields.push_back(item);
     if (item->const_item() && !thd->lex->is_view_context_analysis() &&
-        item->is_null()) {
+        item->is_null() && thd->lex->optimizer_rewrite_enabled) {
       // "is_null()" may cause error:
       if (thd->is_error()) return true;
       m_null_resolved = true;
@@ -4888,6 +4913,73 @@ String *Item_func_group_concat::val_str(String *) {
 
 void Item_func_group_concat::print(const THD *thd, String *str,
                                    enum_query_type query_type) const {
+  if (query_type & QT_DUCKDB_REWRITE) {
+    if (m_field_arg_count > 1) {
+      str->append("multi_group_concat(");
+    } else {
+      str->append(STRING_WITH_LEN("group_concat("));
+    }
+    if (distinct) str->append(STRING_WITH_LEN("distinct "));
+
+    if (m_field_arg_count > 1) {
+      str->append(STRING_WITH_LEN("\'"));
+      if (query_type & QT_TO_SYSTEM_CHARSET) {
+        // Convert to system charset.
+        convert_and_print(separator, str, system_charset_info, true);
+      } else if (query_type & QT_TO_ARGUMENT_CHARSET) {
+        /*
+          Convert the string literals to str->charset(),
+          which is typically equal to charset_set_client.
+        */
+        convert_and_print(separator, str, str->charset(), true);
+      } else {
+        separator->print(str);
+      }
+      str->append('\'');
+      str->append(',');
+    }
+    for (uint i = 0; i < m_field_arg_count; i++) {
+      if (i) str->append(',');
+      args[i]->print(thd, str, query_type);
+    }
+    if (m_field_arg_count == 1) {
+      str->append(STRING_WITH_LEN(", \'"));
+      if (query_type & QT_TO_SYSTEM_CHARSET) {
+        // Convert to system charset.
+        convert_and_print(separator, str, system_charset_info, true);
+      } else if (query_type & QT_TO_ARGUMENT_CHARSET) {
+        /*
+          Convert the string literals to str->charset(),
+          which is typically equal to charset_set_client.
+        */
+        convert_and_print(separator, str, str->charset(), true);
+      } else {
+        separator->print(str);
+      }
+      str->append('\'');
+    }
+
+    if (m_order_arg_count > 0) {
+      str->append(STRING_WITH_LEN(" order by "));
+      for (uint i = 0; i < m_order_arg_count; i++) {
+        if (i) str->append(',');
+        if (args[i + m_field_arg_count]->type() == INT_ITEM) {
+          longlong idx = args[i + m_field_arg_count]->val_int();
+          if (idx <= m_field_arg_count) {
+            args[idx - 1]->print(thd, str, query_type);
+          }
+        } else {
+          args[i + m_field_arg_count]->print(thd, str, query_type);
+        }
+        if (order_array[i].direction == ORDER_ASC)
+          str->append(STRING_WITH_LEN(" ASC"));
+        else
+          str->append(STRING_WITH_LEN(" DESC"));
+      }
+    }
+    str->append(')');
+    return;
+  }
   str->append(STRING_WITH_LEN("group_concat("));
   if (distinct) str->append(STRING_WITH_LEN("distinct "));
   for (uint i = 0; i < m_field_arg_count; i++) {

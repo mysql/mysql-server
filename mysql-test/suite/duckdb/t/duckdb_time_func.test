@@ -1,0 +1,854 @@
+# Compared with MySQL, duckdb's date functions generally have the following incompatibilities:
+# 1. Conversion between integer type and date/timestamp/time type
+# 2. When invalid date is used as a parameter, MySQL will return NULL and DuckDB will report an error.
+# 3. MySQL allows a larger time range : -838:59:59 ~ 838:59:59, but duckdb : 00:00:00 ~ 23:59:59
+# 4. DuckDB does not support some interval unit such as SECOND_MICROSECOND, MINUTE_MICROSECOND, MINUTE_SECOND, etc.
+# 5. DuckDB does not supoort compound expression unit, such as 'interval -1 day'.
+# 6. [Partially Solved]Duckdb does not support week format, which will affect week(), yearweek(), str_to_date(), date_format() functions.
+# 7. [Partially Solved] For a time type field, when implicitly converted to TIMESTAMP, MySQL will be current_date + time, while duckdb will be 1970-01-01 + time or cannot convert.
+# 8. [Solved] For CURRENT_TIME(), CURRENT_TIMESTAMP(), CURTIME(), LOCALTIME(), LOCALTIMESTAMP(), NOW(), UTC_TIME(), UTC_TIMESTAMP(), the fsp argument is not support.
+# 9. MySQL accepts NULL as function input but DuckDB does not.
+# The above scenarios cannot guarantee compatibility and therefore will not appear in this test case.
+
+CREATE DATABASE test_duckdb;
+USE test_duckdb;
+CREATE TABLE t (id INT PRIMARY KEY) ENGINE = DuckDB;
+INSERT INTO t VALUES (1);
+
+--echo ---------------------------
+--echo 1. ADDDATE()
+--echo ---------------------------
+SELECT ADDDATE(DATE '2020-01-01', interval 1 day);
+SELECT ADDDATE(DATE '2020-01-01', interval 1 day) FROM t;
+SELECT ADDDATE(DATE '2020-01-01', interval 1 hour);
+SELECT ADDDATE(DATE '2020-01-01', interval 1 hour) FROM t;
+SELECT ADDDATE(DATE '2020-01-01', 1);
+SELECT ADDDATE(DATE '2020-01-01', 1) FROM t;
+SELECT ADDDATE(TIMESTAMP '2020-01-01 12:00:00', interval 1 day);
+SELECT ADDDATE(TIMESTAMP '2020-01-01 12:00:00', interval 1 day) FROM t;
+SET timestamp = 1753226301;
+SELECT ADDDATE(TIME '12:00:00', interval 1 hour);
+SELECT ADDDATE(TIME '12:00:00', interval 1 hour) FROM t;
+
+# Incompatibilities 7
+SELECT ADDDATE(TIME '12:00:00', interval 1 day);
+SELECT ADDDATE(TIME '12:00:00', interval 1 day) FROM t;
+SET timestamp = default;
+
+--echo ---------------------------
+--echo 2. ADDTIME()
+--echo ---------------------------
+
+SELECT addtime(TIMESTAMP '2007-12-31 23:59:59.999999', '1 1:1:1.000002');
+SELECT addtime(TIMESTAMP '2007-12-31 23:59:59.999999', '1 1:1:1.000002') FROM t;
+SELECT addtime(TIMESTAMP '2007-12-31 23:59:59.999999', '1:1:1.000002');
+SELECT addtime(TIMESTAMP '2007-12-31 23:59:59.999999', '1:1:1.000002') FROM t;
+
+# Incompatibilities 3
+SET timestamp = 1753226301;
+SELECT addtime(TIME '23:59:59.999999', '1 1:1:1.000002');
+SELECT addtime(TIME '23:59:59.999999', '1 1:1:1.000002') FROM t;
+SET timestamp = default;
+
+--echo ---------------------------
+--echo 3. CONVERT_TZ()
+--echo ---------------------------
+
+SELECT CONVERT_TZ(TIMESTAMP '2004-01-01 12:00:00','GMT','MET');
+SELECT CONVERT_TZ(TIMESTAMP '2004-01-01 12:00:00','GMT','MET') FROM t;
+
+SELECT CONVERT_TZ(TIMESTAMP '2004-01-01 12:00:00','+00:00','+10:00');
+SELECT CONVERT_TZ(TIMESTAMP '2004-01-01 12:00:00','+00:00','+10:00') FROM t;
+
+--echo ---------------------------
+--echo 4. CURDATE()
+--echo ---------------------------
+
+SET timestamp = 1753226301;
+SELECT CURDATE();
+SELECT CURDATE() FROM t;
+SET timestamp = default;
+
+--echo ---------------------------
+--echo 5. CURRENT_DATE, CURRENT_TIME()
+--echo ---------------------------
+
+SET timestamp = 1753226301;
+SELECT CURRENT_DATE;
+SELECT CURRENT_DATE FROM t;
+SELECT CURRENT_DATE();
+SELECT CURRENT_DATE() FROM t;
+
+SELECT CURRENT_TIME;
+SELECT CURRENT_TIME FROM t;
+SELECT CURRENT_TIME();
+SELECT CURRENT_TIME() FROM t;
+
+SELECT CURRENT_TIME(1);
+SELECT CURRENT_TIME(1) FROM t;
+
+SELECT CURRENT_TIME(6);
+SELECT CURRENT_TIME(6) FROM t;
+SET timestamp = default;
+
+--echo ---------------------------
+--echo 6. CURRENT_TIMESTAMP, CURRENT_TIMESTAMP()
+--echo ---------------------------
+
+SET timestamp = 1753226301;
+SELECT CURRENT_TIMESTAMP;
+SELECT CURRENT_TIMESTAMP FROM t;
+SELECT CURRENT_TIMESTAMP();
+SELECT CURRENT_TIMESTAMP() FROM t;
+
+SELECT CURRENT_TIMESTAMP(1);
+SELECT CURRENT_TIMESTAMP(1) FROM t;
+SELECT CURRENT_TIMESTAMP(6);
+SELECT CURRENT_TIMESTAMP(6) FROM t;
+SET timestamp = default;
+
+--echo ---------------------------
+--echo 7. CURTIME()
+--echo ---------------------------
+
+SET timestamp = 1753226301;
+SELECT CURTIME();
+SELECT CURTIME() FROM t;
+
+SELECT CURTIME(1);
+SELECT CURTIME(1) FROM t;
+SELECT CURTIME(6);
+SELECT CURTIME(6) FROM t;
+SET timestamp = default;
+
+--echo ---------------------------
+--echo 8. DATE()
+--echo ---------------------------
+
+SELECT DATE(TIMESTAMP '2003-12-31 01:02:03');
+SELECT DATE(TIMESTAMP '2003-12-31 01:02:03') FROM t;
+SELECT DATE(DATE '2003-12-31');
+SELECT DATE(DATE '2003-12-31') FROM t;
+
+# Incompatibilities 7
+SET timestamp = 1753226301;
+SELECT DATE(TIME '01:02:03');
+--error ER_DUCKDB_CLIENT
+SELECT DATE(TIME '01:02:03') FROM t;
+SET timestamp = default;
+
+--echo ---------------------------
+--echo 9. DATEDIFF()
+--echo ---------------------------
+
+SELECT DATEDIFF(TIMESTAMP '2007-12-31 23:59:59', DATE '2007-12-30');
+SELECT DATEDIFF(TIMESTAMP '2007-12-31 23:59:59', DATE '2007-12-30') FROM t;
+SELECT DATEDIFF(TIMESTAMP '2010-11-30 23:59:59', DATE '2010-12-31');
+SELECT DATEDIFF(TIMESTAMP '2010-11-30 23:59:59', DATE '2010-12-31') FROM t;
+
+SET timestamp = 1753226301;
+SELECT DATEDIFF(TIMESTAMP '2007-12-31 23:59:59', TIME '23:59:59');
+SELECT DATEDIFF(TIMESTAMP '2007-12-31 23:59:59', TIME '23:59:59') FROM t;
+SET timestamp = default;
+
+--echo ---------------------------
+--echo 10. DATE_ADD(),DATE_SUB()
+--echo ---------------------------
+
+SELECT DATE_ADD(DATE '2020-01-01', interval 1 day);
+SELECT DATE_ADD(DATE '2020-01-01', interval 1 day) FROM t;
+SELECT DATE_ADD(DATE '2020-01-01', interval 1 hour);
+SELECT DATE_ADD(DATE '2020-01-01', interval 1 hour) FROM t;
+SELECT DATE_ADD(TIMESTAMP '2020-01-01 12:00:00', interval 1 day);
+SELECT DATE_ADD(TIMESTAMP '2020-01-01 12:00:00', interval 1 day) FROM t;
+SELECT DATE_ADD(TIME '12:00:00', interval 1 hour);
+SELECT DATE_ADD(TIME '12:00:00', interval 1 hour) FROM t;
+
+# Incompatibilities 3
+SET timestamp = 1753226301;
+SELECT DATE_ADD(TIME '12:00:00', interval 1 day);
+SELECT DATE_ADD(TIME '12:00:00', interval 1 day) FROM t;
+SET timestamp = default;
+
+SELECT DATE_SUB(DATE '2020-01-01', interval 1 day);
+SELECT DATE_SUB(DATE '2020-01-01', interval 1 day) FROM t;
+SELECT DATE_SUB(DATE '2020-01-01', interval 1 hour);
+SELECT DATE_SUB(DATE '2020-01-01', interval 1 hour) FROM t;
+SELECT DATE_SUB(TIMESTAMP '2020-01-01 12:00:00', interval 1 day);
+SELECT DATE_SUB(TIMESTAMP '2020-01-01 12:00:00', interval 1 day) FROM t;
+SET timestamp = 1753226301;
+SELECT DATE_SUB(TIME '12:00:00', interval 1 hour);
+SELECT DATE_SUB(TIME '12:00:00', interval 1 hour) FROM t;
+
+# Incompatibilities 7
+SELECT DATE_SUB(TIME '12:00:00', interval 1 day);
+SELECT DATE_SUB(TIME '12:00:00', interval 1 day) FROM t;
+SET timestamp = default;
+
+--echo ---------------------------
+--echo 11. DATE_FORMAT()
+--echo ---------------------------
+
+SELECT DATE_FORMAT(TIMESTAMP '2009-10-04 22:23:00.123456', '%a %b %c %D %d %e %f %H %h %I %i %j %k %l %M %m %p %r %S %s %T %W %w %Y %y %U %x %v');
+SELECT DATE_FORMAT(TIMESTAMP '2009-10-04 22:23:00.123456', '%a %b %c %D %d %e %f %H %h %I %i %j %k %l %M %m %p %r %S %s %T %W %w %Y %y %U %x %v') FROM t;
+
+SELECT DATE_FORMAT(DATE '2009-10-04', '%a %b %c %D %d %e %f %H %h %I %i %j %k %l %M %m %p %r %S %s %T %W %w %Y %y %U %x %v');
+SELECT DATE_FORMAT(DATE '2009-10-04', '%a %b %c %D %d %e %f %H %h %I %i %j %k %l %M %m %p %r %S %s %T %W %w %Y %y %U %x %v') FROM t;
+
+# Incompatibilities 3
+SET timestamp = 1753226301;
+SELECT DATE_FORMAT(TIME '22:23:00.123456', '%a %b %c %D %d %e %f %H %h %I %i %j %k %l %M %m %p %r %S %s %T %W %w %Y %y %U %x %v');
+SELECT DATE_FORMAT(TIME '22:23:00.123456', '%a %b %c %D %d %e %f %H %h %I %i %j %k %l %M %m %p %r %S %s %T %W %w %Y %y %U %x %v') FROM t;
+SET timestamp = default;
+
+# Incompatibilities 6: %u, %V, %X is not supoorted now.
+SELECT DATE_FORMAT(TIMESTAMP '2009-10-04 22:23:00.123456', '%V, %X, %u');
+--error ER_DUCKDB_CLIENT
+SELECT DATE_FORMAT(TIMESTAMP '2009-10-04 22:23:00.123456', '%V, %X, %u') FROM t;
+
+--echo ---------------------------
+--echo 12. DAY()
+--echo ---------------------------
+
+SELECT DAY(DATE '2007-02-03');
+SELECT DAY(DATE '2007-02-03') FROM t;
+SELECT DAY(TIMESTAMP '2007-02-03 22:23:00.123456');
+SELECT DAY(TIMESTAMP '2007-02-03 22:23:00.123456') FROM t;
+
+SET timestamp = 1753226301;
+SELECT DAY(TIME '22:23:00.123456');
+SELECT DAY(TIME '22:23:00.123456') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 13. DAYNAME()
+--echo --------------------------
+
+SELECT DAYNAME(DATE '2007-02-03');
+SELECT DAYNAME(DATE '2007-02-03') FROM t;
+SELECT DAYNAME(TIMESTAMP '2007-02-03 22:23:00.123456');
+SELECT DAYNAME(TIMESTAMP '2007-02-03 22:23:00.123456') FROM t;
+
+SET timestamp = 1753226301;
+SELECT DAYNAME(TIME '22:23:00.123456');
+SELECT DAYNAME(TIME '22:23:00.123456') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 14. DAYOFMONTH()
+--echo --------------------------
+
+SELECT DAYOFMONTH(DATE '2007-02-03');
+SELECT DAYOFMONTH(DATE '2007-02-03') FROM t;
+SELECT DAYOFMONTH(TIMESTAMP '2007-02-03 22:23:00.123456');
+SELECT DAYOFMONTH(TIMESTAMP '2007-02-03 22:23:00.123456') FROM t;
+
+SET timestamp = 1753226301;
+SELECT DAYOFMONTH(TIME '22:23:00.123456');
+SELECT DAYOFMONTH(TIME '22:23:00.123456') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 15. DAYOFWEEK()
+--echo --------------------------
+
+SELECT DAYOFWEEK(DATE '2007-02-03');
+SELECT DAYOFWEEK(DATE '2007-02-03') FROM t;
+SELECT DAYOFWEEK(TIMESTAMP '2007-02-03 22:23:00.123456');
+SELECT DAYOFWEEK(TIMESTAMP '2007-02-03 22:23:00.123456') FROM t;
+
+SET timestamp = 1753226301;
+SELECT DAYOFWEEK(TIME '22:23:00.123456');
+SELECT DAYOFWEEK(TIME '22:23:00.123456') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 16. DAYOFYEAR()
+--echo --------------------------
+
+SELECT DAYOFYEAR(DATE '2007-02-03');
+SELECT DAYOFYEAR(DATE '2007-02-03') FROM t;
+SELECT DAYOFYEAR(TIMESTAMP '2007-02-03 22:23:00.123456');
+SELECT DAYOFYEAR(TIMESTAMP '2007-02-03 22:23:00.123456') FROM t;
+
+SET timestamp = 1753226301;
+SELECT DAYOFYEAR(TIME '22:23:00.123456');
+SELECT DAYOFYEAR(TIME '22:23:00.123456') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 17. EXTRACT()
+--echo --------------------------
+
+SELECT EXTRACT(YEAR FROM DATE '2019-07-02');
+SELECT EXTRACT(HOUR FROM DATE '2019-07-02');
+SELECT EXTRACT(YEAR FROM DATE '2019-07-02') FROM t;
+SELECT EXTRACT(HOUR FROM DATE '2019-07-02') FROM t;
+
+SELECT EXTRACT(YEAR FROM TIMESTAMP '2019-07-02 01:02:03');
+SELECT EXTRACT(HOUR FROM TIMESTAMP '2019-07-02 01:02:03');
+SELECT EXTRACT(YEAR FROM TIMESTAMP '2019-07-02 01:02:03') FROM t;
+SELECT EXTRACT(HOUR FROM TIMESTAMP '2019-07-02 01:02:03') FROM t;
+
+SELECT EXTRACT(HOUR FROM TIME '01:02:03');
+SELECT EXTRACT(HOUR FROM TIME '01:02:03') FROM t;
+
+SET timestamp = 1753226301;
+SELECT EXTRACT(YEAR FROM TIME '01:02:03');
+SELECT EXTRACT(YEAR FROM TIME '01:02:03') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 18. FROM_DAYS()
+--echo --------------------------
+
+SELECT FROM_DAYS(0);
+SELECT FROM_DAYS(0) FROM t;
+SELECT FROM_DAYS(730669);
+SELECT FROM_DAYS(730669) FROM t;
+
+--echo --------------------------
+--echo 19. FROM_UNIXTIME()
+--echo --------------------------
+
+SELECT FROM_UNIXTIME(1447430881);
+SELECT FROM_UNIXTIME(1447430881) FROM t;
+
+SELECT FROM_UNIXTIME(1447430881, '%Y %D %M %h:%i:%s');
+SELECT FROM_UNIXTIME(1447430881, '%Y %D %M %h:%i:%s') FROM t;
+
+--echo --------------------------
+--echo 20. GET_FORMAT()
+--echo --------------------------
+
+# Not support yet
+
+--echo --------------------------
+--echo 21. HOUR()
+--echo --------------------------
+
+SELECT HOUR(TIME '10:05:03');
+SELECT HOUR(TIME '10:05:03') FROM t;
+
+SELECT HOUR(DATE '2019-07-02');
+SELECT HOUR(DATE '2019-07-02') FROM t;
+
+--echo --------------------------
+--echo 22. LAST_DAY()
+--echo --------------------------
+
+SELECT LAST_DAY(DATE '2003-02-05');
+SELECT LAST_DAY(DATE '2003-02-05') FROM t;
+
+SELECT LAST_DAY(DATE '2004-02-05');
+SELECT LAST_DAY(DATE '2004-02-05') FROM t;
+
+SELECT LAST_DAY(TIMESTAMP '2004-01-01 01:01:01');
+SELECT LAST_DAY(TIMESTAMP '2004-01-01 01:01:01') FROM t;
+
+SET timestamp = 1753226301;
+SELECT LAST_DAY(TIME '01:01:01');
+SELECT LAST_DAY(TIME '01:01:01') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 23. LOCALTIME, LOCALTIME()
+--echo --------------------------
+
+SET timestamp = 1753226301;
+SELECT LOCALTIME;
+SELECT LOCALTIME FROM t;
+SELECT LOCALTIME();
+SELECT LOCALTIME() FROM t;
+
+SELECT LOCALTIME(1);
+SELECT LOCALTIME(1) FROM t;
+SELECT LOCALTIME(6);
+SELECT LOCALTIME(6) FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 24. LOCALTIMESTAMP, LOCALTIMESTAMP()
+--echo --------------------------
+
+SET timestamp = 1753226301;
+SELECT LOCALTIMESTAMP;
+SELECT LOCALTIMESTAMP FROM t;
+SELECT LOCALTIMESTAMP();
+SELECT LOCALTIMESTAMP() FROM t;
+
+SELECT LOCALTIMESTAMP(1);
+SELECT LOCALTIMESTAMP(1) FROM t;
+SELECT LOCALTIMESTAMP(6);
+SELECT LOCALTIMESTAMP(6) FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 25. MAKEDATE()
+--echo --------------------------
+
+SELECT MAKEDATE(2011,31), MAKEDATE(2011,32);
+SELECT MAKEDATE(2011,31), MAKEDATE(2011,32) FROM t;
+SELECT MAKEDATE(2011,365), MAKEDATE(2014,365);
+SELECT MAKEDATE(2011,365), MAKEDATE(2014,365) FROM t;
+SELECT MAKEDATE(2011,0);
+SELECT MAKEDATE(2011,0) FROM t;
+
+--echo --------------------------
+--echo 26. MAKETIME()
+--echo --------------------------
+
+SELECT MAKETIME(12,15,30);
+SELECT MAKETIME(12,15,30) FROM t;
+
+# Incompatibilities 3
+SELECT MAKETIME(838,59,59);
+--error ER_DUCKDB_CLIENT
+SELECT MAKETIME(838,59,59) FROM t;
+
+--echo --------------------------
+--echo 27. MICROSECOND()
+--echo --------------------------
+
+SELECT MICROSECOND(DATE '2007-02-03');
+SELECT MICROSECOND(DATE '2007-02-03') FROM t;
+SELECT MICROSECOND(TIMESTAMP '2007-02-03 22:23:00.123456');
+SELECT MICROSECOND(TIMESTAMP '2007-02-03 22:23:00.123456') FROM t;
+
+SELECT MICROSECOND(TIME '22:23:00.123456');
+SELECT MICROSECOND(TIME '22:23:00.123456') FROM t;
+
+--echo --------------------------
+--echo 28. MINUTE()
+--echo --------------------------
+
+SELECT MINUTE(DATE '2007-02-03');
+SELECT MINUTE(DATE '2007-02-03') FROM t;
+SELECT MINUTE(TIMESTAMP '2007-02-03 22:23:00.123456');
+SELECT MINUTE(TIMESTAMP '2007-02-03 22:23:00.123456') FROM t;
+
+SELECT MINUTE(TIME '22:23:00.123456');
+SELECT MINUTE(TIME '22:23:00.123456') FROM t;
+
+--echo --------------------------
+--echo 29. MONTHNAME()
+--echo --------------------------
+
+SELECT MONTHNAME(DATE '2007-02-03');
+SELECT MONTHNAME(DATE '2007-02-03') FROM t;
+SELECT MONTHNAME(TIMESTAMP '2007-02-03 22:23:00.123456');
+SELECT MONTHNAME(TIMESTAMP '2007-02-03 22:23:00.123456') FROM t;
+
+SET timestamp = 1753226301;
+SELECT MONTHNAME(TIME '22:23:00.123456');
+SELECT MONTHNAME(TIME '22:23:00.123456') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 30. NOW()
+--echo --------------------------
+
+SET timestamp = 1753226301;
+SELECT NOW();
+SELECT NOW() FROM t;
+
+SELECT NOW(1);
+SELECT NOW(1) FROM t;
+
+SELECT NOW(6);
+SELECT NOW(6) FROM t;
+
+SET timestamp = default;
+
+--echo --------------------------
+--echo 31. PERIOD_ADD()
+--echo --------------------------
+
+SELECT PERIOD_ADD(200801,2);
+SELECT PERIOD_ADD(200801,2) FROM t;
+SELECT PERIOD_ADD(801,2);
+SELECT PERIOD_ADD(801,2) FROM t;
+SELECT PERIOD_ADD(8801,2);
+SELECT PERIOD_ADD(8801,2) FROM t;
+SELECT PERIOD_ADD(1,2);
+SELECT PERIOD_ADD(1,2) FROM t;
+SELECT PERIOD_ADD(10101, 2);
+SELECT PERIOD_ADD(10101, 2) FROM t;
+
+# The year range of duckdb only supports 0000~9999
+SELECT PERIOD_ADD(12340101, 2);
+SELECT PERIOD_ADD(12340101, 2) FROM t;
+
+--echo --------------------------
+--echo 32. PERIOD_DIFF()
+--echo --------------------------
+
+SELECT PERIOD_DIFF(200801,801);
+SELECT PERIOD_DIFF(200801,801) FROM t;
+SELECT PERIOD_DIFF(200801,8801);
+SELECT PERIOD_DIFF(200801,8801) FROM t;
+SELECT PERIOD_DIFF(200801,1);
+SELECT PERIOD_DIFF(200801,1) FROM t;
+SELECT PERIOD_DIFF(200801,10101);
+SELECT PERIOD_DIFF(200801,10101) FROM t;
+
+# The year range of duckdb only supports 0000~9999
+SELECT PERIOD_DIFF(200801, 12340101);
+SELECT PERIOD_DIFF(200801, 12340101) FROM t;
+
+--echo --------------------------
+--echo 33. QUARTER()
+--echo --------------------------
+
+SELECT QUARTER(DATE '2007-02-03');
+SELECT QUARTER(DATE '2007-02-03') FROM t;
+SELECT QUARTER(TIMESTAMP '2007-02-03 22:23:00.123456');
+SELECT QUARTER(TIMESTAMP '2007-02-03 22:23:00.123456') FROM t;
+
+SET timestamp = 1753226301;
+SELECT QUARTER(TIME '22:23:00.123456');
+SELECT QUARTER(TIME '22:23:00.123456') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 34. SECOND()
+--echo --------------------------
+
+SELECT SECOND(DATE '2007-02-03');
+SELECT SECOND(DATE '2007-02-03') FROM t;
+SELECT SECOND(TIMESTAMP '2007-02-03 22:23:00.123456');
+SELECT SECOND(TIMESTAMP '2007-02-03 22:23:00.123456') FROM t;
+
+SELECT SECOND(TIME '22:23:00.123456');
+SELECT SECOND(TIME '22:23:00.123456') FROM t;
+
+--echo --------------------------
+--echo 35. SEC_TO_TIME()
+--echo --------------------------
+
+SELECT SEC_TO_TIME(10000);
+SELECT SEC_TO_TIME(10000) FROM t;
+
+# Incompatibilities 3
+SELECT SEC_TO_TIME(100000);
+SELECT SEC_TO_TIME(100000) FROM t;
+
+--echo --------------------------
+--echo 36. STR_TO_DATE()
+--echo --------------------------
+
+SELECT STR_TO_DATE('01,5,2013','%d,%m,%Y');
+SELECT STR_TO_DATE('01,5,2013','%d,%m,%Y') FROM t;
+
+SELECT STR_TO_DATE('a09:30:17','a%h:%i:%s');
+SELECT STR_TO_DATE('a09:30:17','a%h:%i:%s') FROM t;
+
+SELECT STR_TO_DATE('May 1, 2013','%M %d,%Y');
+SELECT STR_TO_DATE('May 1, 2013','%M %d,%Y') FROM t;
+
+SELECT STR_TO_DATE('a09:30:17','%h:%i:%s');
+SELECT STR_TO_DATE('a09:30:17','%h:%i:%s') FROM t;
+
+SELECT STR_TO_DATE('abc','abc');
+SELECT STR_TO_DATE('abc','abc') FROM t;
+
+SELECT STR_TO_DATE('9','%m');
+SELECT STR_TO_DATE('9','%m') FROM t;
+
+SELECT STR_TO_DATE('09:30:17a','%h:%i:%s');
+SELECT STR_TO_DATE('09:30:17a','%h:%i:%s') FROM t;
+
+# Besides, the sql_mode will affect sql results in MySQL.
+
+--echo --------------------------
+--echo 37. SUBDATE()
+--echo --------------------------
+
+SELECT SUBDATE(DATE '2020-01-01', interval 1 day);
+SELECT SUBDATE(DATE '2020-01-01', interval 1 day) FROM t;
+SELECT SUBDATE(DATE '2020-01-01', interval 1 hour);
+SELECT SUBDATE(DATE '2020-01-01', interval 1 hour) FROM t;
+SELECT SUBDATE(DATE '2020-01-01', 1);
+SELECT SUBDATE(DATE '2020-01-01', 1) FROM t;
+SELECT SUBDATE(TIMESTAMP '2020-01-01 12:00:00', interval 1 day);
+SELECT SUBDATE(TIMESTAMP '2020-01-01 12:00:00', interval 1 day) FROM t;
+SET timestamp = 1753226301;
+SELECT SUBDATE(TIME '12:00:00', interval 1 hour);
+SELECT SUBDATE(TIME '12:00:00', interval 1 hour) FROM t;
+
+# Incompatibilities 7
+SELECT SUBDATE(TIME '12:00:00', interval 1 day);
+SELECT SUBDATE(TIME '12:00:00', interval 1 day) FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 38. SUBTIME()
+--echo --------------------------
+
+SELECT SUBTIME(TIMESTAMP '2007-12-31 23:59:59.999999', '1 1:1:1.000002');
+SELECT SUBTIME(TIMESTAMP '2007-12-31 23:59:59.999999', '1 1:1:1.000002') FROM t;
+SELECT SUBTIME(TIMESTAMP '2007-12-31 23:59:59.999999', '1:1:1.000002');
+SELECT SUBTIME(TIMESTAMP '2007-12-31 23:59:59.999999', '1:1:1.000002') FROM t;
+
+# Incompatibilities 3
+SELECT SUBTIME(TIME '23:59:59.999999', '1 1:1:1.000002');
+SELECT SUBTIME(TIME '23:59:59.999999', '1 1:1:1.000002') FROM t;
+
+--echo --------------------------
+--echo 39. SYSDATE()
+--echo --------------------------
+
+# SELECT SYSDATE();
+# SELECT SYSDATE() FROM t;
+
+--echo --------------------------
+--echo 40. TIME()
+--echo --------------------------
+
+# Not support yet
+
+--echo --------------------------
+--echo 41. TIMEDIFF()
+--echo --------------------------
+
+# Not support yet
+
+--echo --------------------------
+--echo 42. TIMESTAMP()
+--echo --------------------------
+
+# Not support yet
+
+--echo --------------------------
+--echo 42. TIMESTAMPADD()
+--echo --------------------------
+
+SELECT TIMESTAMPADD(MINUTE, 1, DATE '2003-01-02');
+SELECT TIMESTAMPADD(MINUTE, 1, DATE '2003-01-02') FROM t;
+
+SELECT TIMESTAMPADD(WEEK, 1, DATE '2003-01-02');
+SELECT TIMESTAMPADD(WEEK, 1, DATE '2003-01-02') FROM t;
+
+--echo --------------------------
+--echo 43. TIMESTAMPDIFF()
+--echo --------------------------
+
+SELECT TIMESTAMPDIFF(MONTH, DATE '2003-02-01', DATE '2003-05-01');
+SELECT TIMESTAMPDIFF(MONTH, DATE '2003-02-01', DATE '2003-05-01') FROM t;
+
+SELECT TIMESTAMPDIFF(YEAR, DATE '2002-05-01', DATE '2001-01-01');
+SELECT TIMESTAMPDIFF(YEAR, DATE '2002-05-01', DATE '2001-01-01') FROM t;
+
+SELECT TIMESTAMPDIFF(MINUTE, DATE '2003-02-01', TIMESTAMP '2003-05-01 12:05:55');
+SELECT TIMESTAMPDIFF(MINUTE, DATE '2003-02-01', TIMESTAMP '2003-05-01 12:05:55') FROM t;
+
+--echo --------------------------
+--echo 44. TIME_FORMAT()
+--echo --------------------------
+
+SELECT TIME_FORMAT(TIME '01:02:03', '%H %k %h %I %l');
+SELECT TIME_FORMAT(TIME '01:02:03', '%H %k %h %I %l') FROM t;
+
+# Incompatibilities 3
+SELECT TIME_FORMAT(TIME '100:02:03', '%H %k %h %I %l');
+--error ER_DUCKDB_CLIENT
+SELECT TIME_FORMAT(TIME '100:02:03', '%H %k %h %I %l') FROM t;
+
+--echo --------------------------
+--echo 44. TIME_TO_SEC()
+--echo --------------------------
+
+SELECT TIME_TO_SEC(TIME '22:23:00');
+SELECT TIME_TO_SEC(TIME '22:23:00') FROM t;
+
+# Incompatibilities 3
+SELECT TIME_TO_SEC(TIME '220:23:00');
+--error ER_DUCKDB_CLIENT
+SELECT TIME_TO_SEC(TIME '220:23:00') FROM t;
+
+--echo --------------------------
+--echo 45. TO_DAYS()
+--echo --------------------------
+
+SELECT TO_DAYS('2007-10-07');
+SELECT TO_DAYS('2007-10-07') FROM t;
+
+# Incompatibilities 7
+SET timestamp = 1753226301;
+SELECT TO_DAYS(TIME '12:00:00');
+SELECT TO_DAYS(TIME '12:00:00') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 46. TO_SECONDS()
+--echo --------------------------
+
+SELECT TO_SECONDS(DATE '2009-11-29');
+SELECT TO_SECONDS(DATE '2009-11-29') FROM t;
+
+SELECT TO_SECONDS(TIMESTAMP '2009-11-29 13:43:32');
+SELECT TO_SECONDS(TIMESTAMP '2009-11-29 13:43:32') FROM t;
+
+SET timestamp = 1753226301;
+SELECT TO_SECONDS(TIME '12:00:00');
+SELECT TO_SECONDS(TIME '12:00:00') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 47. UNIX_TIMESTAMP()
+--echo --------------------------
+
+SELECT UNIX_TIMESTAMP(TIMESTAMP '2015-11-13 10:20:19');
+SELECT UNIX_TIMESTAMP(TIMESTAMP '2015-11-13 10:20:19') FROM t;
+
+SET timestamp = 1753226301;
+SELECT UNIX_TIMESTAMP();
+SELECT UNIX_TIMESTAMP() FROM t;
+SET timestamp = default;
+
+SET @old_time_zone = @@TIME_ZONE;
+SET TIME_ZONE = "+05:00";
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 timestamp, col2 datetime, col3 date);
+INSERT INTO t1 VALUES (1, '2015-11-13 10:20:19', '2015-11-13 10:20:19', '2015-11-13');
+SELECT UNIX_TIMESTAMP(col1), UNIX_TIMESTAMP(col2), UNIX_TIMESTAMP(col3) FROM t1;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT UNIX_TIMESTAMP(col1), UNIX_TIMESTAMP(col2), UNIX_TIMESTAMP(col3) FROM t1;
+DROP TABLE t1;
+
+SET TIME_ZONE = @old_time_zone;
+
+--echo --------------------------
+--echo 48. UTC_DATE()
+--echo --------------------------
+
+SET timestamp = 1753226301;
+SELECT UTC_DATE();
+SELECT UTC_DATE() FROM t;
+SELECT UTC_DATE;
+SELECT UTC_DATE FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 49. UTC_TIME()
+--echo --------------------------
+
+SET timestamp = 1753226301;
+SELECT UTC_TIME();
+SELECT UTC_TIME() FROM t;
+SELECT UTC_TIME;
+SELECT UTC_TIME FROM t;
+SELECT UTC_TIME(1);
+SELECT UTC_TIME(1) FROM t;
+SELECT UTC_TIME(6);
+SELECT UTC_TIME(6) FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 50. UTC_TIMESTAMP()
+--echo --------------------------
+
+SET timestamp = 1753226301;
+SELECT UTC_TIMESTAMP();
+SELECT UTC_TIMESTAMP() FROM t;
+SELECT UTC_TIMESTAMP;
+SELECT UTC_TIMESTAMP FROM t;
+
+SELECT UTC_TIMESTAMP(1);
+SELECT UTC_TIMESTAMP(1) FROM t;
+SELECT UTC_TIMESTAMP(6);
+SELECT UTC_TIMESTAMP(6) FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 51. WEEK()
+--echo --------------------------
+
+SELECT WEEK(DATE '2009-01-01');
+SELECT WEEK(DATE '2009-01-01') FROM t;
+set @old_default_week_format = @@default_week_format;
+set default_week_format = 1;
+SELECT WEEK(DATE '2009-01-01');
+SELECT WEEK(DATE '2009-01-01') FROM t;
+set default_week_format = 2;
+SELECT WEEK(DATE '2009-01-01');
+SELECT WEEK(DATE '2009-01-01') FROM t;
+set default_week_format = 3;
+SELECT WEEK(DATE '2009-01-01');
+SELECT WEEK(DATE '2009-01-01') FROM t;
+set default_week_format = @old_default_week_format;
+
+SELECT WEEK(DATE '2009-01-01', 4);
+SELECT WEEK(DATE '2009-01-01', 4) FROM t;
+SELECT WEEK(DATE '2009-01-01', 5);
+SELECT WEEK(DATE '2009-01-01', 5) FROM t;
+SELECT WEEK(DATE '2009-01-01', 6);
+SELECT WEEK(DATE '2009-01-01', 6) FROM t;
+SELECT WEEK(DATE '2009-01-01', 7);
+SELECT WEEK(DATE '2009-01-01', 7) FROM t;
+
+--echo --------------------------
+--echo 52. WEEKDAY()
+--echo --------------------------
+
+SELECT WEEKDAY(TIMESTAMP '2008-02-03 22:23:00');
+SELECT WEEKDAY(TIMESTAMP '2008-02-03 22:23:00') FROM t;
+
+--echo --------------------------
+--echo 53. WEEKOFYEAR()
+--echo --------------------------
+
+SELECT WEEKOFYEAR(DATE '2008-02-20');
+SELECT WEEKOFYEAR(DATE '2008-02-20') FROM t;
+SELECT WEEKOFYEAR(TIMESTAMP '2008-02-03 22:23:00');
+SELECT WEEKOFYEAR(TIMESTAMP '2008-02-03 22:23:00') FROM t;
+
+SET timestamp = 1753226301;
+SELECT WEEKOFYEAR(TIME '12:20:22');
+SELECT WEEKOFYEAR(TIME '12:20:22') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 54. YEAR()
+--echo --------------------------
+
+SELECT YEAR(DATE '1987-01-01');
+SELECT YEAR(DATE '1987-01-01') FROM t;
+SELECT YEAR(TIMESTAMP '1987-01-01 13:12:14');
+SELECT YEAR(TIMESTAMP '1987-01-01 13:12:14') FROM t;
+
+SET timestamp = 1753226301;
+SELECT YEAR(TIME '12:20:22');
+SELECT YEAR(TIME '12:20:22') FROM t;
+SET timestamp = default;
+
+--echo --------------------------
+--echo 55. YEARWEEK()
+--echo --------------------------
+
+SELECT YEARWEEK(DATE '2009-01-01');
+SELECT YEARWEEK(DATE '2009-01-01') FROM t;
+
+set @old_default_week_format = @@default_week_format;
+set default_week_format = 1;
+SELECT YEARWEEK(DATE '2009-01-01');
+SELECT YEARWEEK(DATE '2009-01-01') FROM t;
+set default_week_format = @old_default_week_format;
+
+SELECT YEARWEEK(DATE '2009-01-01', 1);
+SELECT YEARWEEK(DATE '2009-01-01', 1) FROM t;
+SELECT YEARWEEK(DATE '2009-01-01', 2);
+SELECT YEARWEEK(DATE '2009-01-01', 2) FROM t;
+SELECT YEARWEEK(DATE '2009-01-01', 3);
+SELECT YEARWEEK(DATE '2009-01-01', 3) FROM t;
+SELECT YEARWEEK(DATE '2009-01-01', 4);
+SELECT YEARWEEK(DATE '2009-01-01', 4) FROM t;
+SELECT YEARWEEK(DATE '2009-01-01', 5);
+SELECT YEARWEEK(DATE '2009-01-01', 5) FROM t;
+SELECT YEARWEEK(DATE '2009-01-01', 6);
+SELECT YEARWEEK(DATE '2009-01-01', 6) FROM t;
+SELECT YEARWEEK(DATE '2009-01-01', 7);
+SELECT YEARWEEK(DATE '2009-01-01', 7) FROM t;
+
+DROP TABLE t;
+DROP DATABASE test_duckdb;

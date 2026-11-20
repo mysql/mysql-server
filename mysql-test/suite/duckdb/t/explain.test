@@ -1,0 +1,54 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+
+--connection master
+create table tt(id bigint not null primary key, name varchar(128));
+show create table tt;
+insert into tt values(1, 'mysql maries duckdb');
+insert into tt values(2, 'mysql maries duckdb');
+insert into tt values(3, 'mysql maries duckdb');
+insert into tt values(4, 'mysql maries duckdb');
+insert into tt values(5, 'mysql maries duckdb');
+insert into tt values(6, 'mysql maries duckdb');
+insert into tt values(7, 'mysql maries duckdb');
+insert into tt values(8, 'mysql maries duckdb');
+insert into tt values(9, 'mysql maries duckdb');
+insert into tt values(10, 'mysql maries duckdb');
+insert into tt values(11, 'mysql maries duckdb');
+insert into tt values(12, 'mysql maries duckdb');
+explain select count(*) from tt;
+
+--sleep 1
+
+--source include/rpl/sync.inc
+--connection slave
+show create table tt;
+
+set duckdb_explain_output="PHYSICAL_ONLY";
+show variables like 'duckdb_explain_output';
+explain select * from tt;
+--replace_regex /0.\d{4}s/x.xxxxs/
+explain analyze select * from tt;
+
+set duckdb_explain_output="OPTIMIZED_ONLY";
+show variables like 'duckdb_explain_output';
+explain select * from tt;
+--replace_regex /0.\d{4}s/x.xxxxs/
+explain analyze select * from tt;
+
+set duckdb_explain_output="ALL";
+show variables like 'duckdb_explain_output';
+explain select * from tt;
+--replace_regex /0.\d{4}s/x.xxxxs/
+explain analyze select * from tt;
+
+--error 1231
+set duckdb_explain_output="LOGICAL_ONLY";
+
+set duckdb_explain_output="PHYSICAL_ONLY";
+
+--connection master
+drop table tt;
+
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

@@ -1,0 +1,40 @@
+#
+# 1) PREPARE
+#
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t VALUES (1, 1, 1, 1);
+INSERT INTO t VALUES (2, 2, 2, 2);
+INSERT INTO t VALUES (3, 3, 3, 3);
+#
+# 2) MAINTENANCE STATEMENTS
+#
+ANALYZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	analyze	note	The storage engine for the table doesn't support analyze
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	note	The storage engine for the table doesn't support check
+CHECKSUM TABLE t;
+Table	Checksum
+test.t	932102713
+OPTIMIZE TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	optimize	note	The storage engine for the table doesn't support optimize
+REPAIR TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	repair	note	The storage engine for the table doesn't support repair
+#
+# 3) TRUNCATE TABLE
+#
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	2	2	2
+3	3	3	3
+TRUNCATE TABLE t;
+SELECT * FROM t;
+id	a	b	c
+#
+# 4) CLEANUP
+#
+DROP TABLE t;

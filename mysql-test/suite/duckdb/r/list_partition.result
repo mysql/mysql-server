@@ -1,0 +1,481 @@
+CREATE DATABASE IF NOT EXISTS test_partition;
+USE test_partition;
+#
+# 1) Convert engine between InnoDB and DuckDB
+#
+CREATE TABLE t_list (
+id int KEY
+)
+PARTITION BY LIST COLUMNS(id) (
+PARTITION p0 VALUES IN (0, 10, 20, 30, 40, 50),
+PARTITION p1 VALUES IN (1, 11, 21, 31, 41, 51),
+PARTITION p2 VALUES IN (2, 12, 22, 32, 42, 52),
+PARTITION p3 VALUES IN (3, 13, 23, 33, 43, 53)
+);
+INSERT INTO t_list VALUES (0), (1), (2), (3);
+ALTER TABLE t_list ENGINE = DuckDB;
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = DUCKDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = DUCKDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = DUCKDB,
+ PARTITION p3 VALUES IN (3,13,23,33,43,53) ENGINE = DUCKDB) */
+INSERT INTO t_list VALUES (10), (11), (12), (13);
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = InnoDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = InnoDB,
+ PARTITION p3 VALUES IN (3,13,23,33,43,53) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+id
+0
+10
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+id
+1
+11
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+id
+2
+12
+SELECT * FROM t_list PARTITION(p3) ORDER BY id;
+id
+3
+13
+#
+# 2) Add partition, which is no operation in DuckDB
+#
+ALTER TABLE t_list ENGINE = DuckDB;
+ALTER TABLE t_list ADD PARTITION (
+PARTITION p4 VALUES IN (4, 14, 24, 34, 44, 54)
+);
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = DUCKDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = DUCKDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = DUCKDB,
+ PARTITION p3 VALUES IN (3,13,23,33,43,53) ENGINE = DUCKDB,
+ PARTITION p4 VALUES IN (4,14,24,34,44,54) ENGINE = DUCKDB) */
+INSERT INTO t_list VALUES (4);
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = InnoDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = InnoDB,
+ PARTITION p3 VALUES IN (3,13,23,33,43,53) ENGINE = InnoDB,
+ PARTITION p4 VALUES IN (4,14,24,34,44,54) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+id
+0
+10
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+id
+1
+11
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+id
+2
+12
+SELECT * FROM t_list PARTITION(p3) ORDER BY id;
+id
+3
+13
+SELECT * FROM t_list PARTITION(p4) ORDER BY id;
+id
+4
+#
+# 3) Reorganize partition into, which is no operation in DuckDB
+#
+ALTER TABLE t_list ENGINE = DuckDB;
+ALTER TABLE t_list REORGANIZE PARTITION p3, p4 INTO (
+PARTITION p3_new VALUES in (4, 14, 24, 34, 44, 54),
+PARTITION p4_new VALUES in (3, 13, 23, 33, 43, 53)
+);
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = DUCKDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = DUCKDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = DUCKDB,
+ PARTITION p3_new VALUES IN (4,14,24,34,44,54) ENGINE = DUCKDB,
+ PARTITION p4_new VALUES IN (3,13,23,33,43,53) ENGINE = DUCKDB) */
+INSERT INTO t_list VALUES (23), (24);
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = InnoDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = InnoDB,
+ PARTITION p3_new VALUES IN (4,14,24,34,44,54) ENGINE = InnoDB,
+ PARTITION p4_new VALUES IN (3,13,23,33,43,53) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+id
+0
+10
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+id
+1
+11
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+id
+2
+12
+SELECT * FROM t_list PARTITION(p3_new) ORDER BY id;
+id
+4
+24
+SELECT * FROM t_list PARTITION(p4_new) ORDER BY id;
+id
+3
+13
+23
+#
+# 4) Rebuild partition, which is no operation in DuckDB
+#
+ALTER TABLE t_list ENGINE = DuckDB;
+ALTER TABLE t_list REBUILD PARTITION ALL;
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = DUCKDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = DUCKDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = DUCKDB,
+ PARTITION p3_new VALUES IN (4,14,24,34,44,54) ENGINE = DUCKDB,
+ PARTITION p4_new VALUES IN (3,13,23,33,43,53) ENGINE = DUCKDB) */
+INSERT INTO t_list VALUES (20), (21), (22);
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = InnoDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = InnoDB,
+ PARTITION p3_new VALUES IN (4,14,24,34,44,54) ENGINE = InnoDB,
+ PARTITION p4_new VALUES IN (3,13,23,33,43,53) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+id
+0
+10
+20
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+id
+1
+11
+21
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+id
+2
+12
+22
+SELECT * FROM t_list PARTITION(p3_new) ORDER BY id;
+id
+4
+24
+SELECT * FROM t_list PARTITION(p4_new) ORDER BY id;
+id
+3
+13
+23
+#
+# 5) Remove partitioning, which is no operation in DuckDB
+#
+ALTER TABLE t_list ENGINE = DuckDB;
+CREATE TABLE t_list_2 LIKE t_list;
+ALTER TABLE t_list_2 REMOVE PARTITIONING;
+SHOW CREATE TABLE t_list_2;
+Table	Create Table
+t_list_2	CREATE TABLE `t_list_2` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_list_2 SELECT * FROM t_list;
+ALTER TABLE t_list_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_list_2;
+Table	Create Table
+t_list_2	CREATE TABLE `t_list_2` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/assert.inc [CHECKSUM is the same]
+#
+# 6) Exchange partition, which is not implemented
+#
+ALTER TABLE t_list_2 ENGINE = DuckDB;
+ALTER TABLE t_list EXCHANGE PARTITION p1 WITH TABLE t_list_2;
+ERROR HY000: Partition management on a not partitioned table is not possible
+#
+# 7) Partitioning, which is no operation in DuckDB
+#
+ALTER TABLE t_list_2 PARTITION BY LIST COLUMNS(id) (
+PARTITION p0 VALUES IN (0, 10, 20, 30, 40, 50),
+PARTITION p1 VALUES IN (1, 11, 21, 31, 41, 51),
+PARTITION p2 VALUES IN (2, 12, 22, 32, 42, 52),
+PARTITION p3 VALUES IN (3, 13, 23, 33, 43, 53),
+PARTITION p4 VALUES IN (4, 14, 24, 34, 44, 54)
+);
+SHOW CREATE TABLE t_list_2;
+Table	Create Table
+t_list_2	CREATE TABLE `t_list_2` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = DUCKDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = DUCKDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = DUCKDB,
+ PARTITION p3 VALUES IN (3,13,23,33,43,53) ENGINE = DUCKDB,
+ PARTITION p4 VALUES IN (4,14,24,34,44,54) ENGINE = DUCKDB) */
+ALTER TABLE t_list_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_list_2;
+Table	Create Table
+t_list_2	CREATE TABLE `t_list_2` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = InnoDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = InnoDB,
+ PARTITION p3 VALUES IN (3,13,23,33,43,53) ENGINE = InnoDB,
+ PARTITION p4 VALUES IN (4,14,24,34,44,54) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_list_2 PARTITION(p0) ORDER BY id;
+id
+0
+10
+20
+SELECT * FROM t_list_2 PARTITION(p1) ORDER BY id;
+id
+1
+11
+21
+SELECT * FROM t_list_2 PARTITION(p2) ORDER BY id;
+id
+2
+12
+22
+SELECT * FROM t_list_2 PARTITION(p3) ORDER BY id;
+id
+3
+13
+23
+SELECT * FROM t_list_2 PARTITION(p4) ORDER BY id;
+id
+4
+24
+#
+# 8) Truncate partition, which is deleting all rows in the partition
+#
+ALTER TABLE t_list TRUNCATE PARTITION p4_new;
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = DUCKDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = DUCKDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = DUCKDB,
+ PARTITION p3_new VALUES IN (4,14,24,34,44,54) ENGINE = DUCKDB,
+ PARTITION p4_new VALUES IN (3,13,23,33,43,53) ENGINE = DUCKDB) */
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = InnoDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = InnoDB,
+ PARTITION p3_new VALUES IN (4,14,24,34,44,54) ENGINE = InnoDB,
+ PARTITION p4_new VALUES IN (3,13,23,33,43,53) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+id
+0
+10
+20
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+id
+1
+11
+21
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+id
+2
+12
+22
+SELECT * FROM t_list PARTITION(p3_new) ORDER BY id;
+id
+4
+24
+SELECT * FROM t_list PARTITION(p4_new) ORDER BY id;
+id
+#
+# 9) Drop partition, which is deleting all rows in the partition
+#
+ALTER TABLE t_list ENGINE = DuckDB;
+ALTER TABLE t_list DROP PARTITION p3_new;
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = DUCKDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = DUCKDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = DUCKDB,
+ PARTITION p4_new VALUES IN (3,13,23,33,43,53) ENGINE = DUCKDB) */
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+Table	Create Table
+t_list	CREATE TABLE `t_list` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50500 PARTITION BY LIST  COLUMNS(id)
+(PARTITION p0 VALUES IN (0,10,20,30,40,50) ENGINE = InnoDB,
+ PARTITION p1 VALUES IN (1,11,21,31,41,51) ENGINE = InnoDB,
+ PARTITION p2 VALUES IN (2,12,22,32,42,52) ENGINE = InnoDB,
+ PARTITION p4_new VALUES IN (3,13,23,33,43,53) ENGINE = InnoDB) */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+id
+0
+10
+20
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+id
+1
+11
+21
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+id
+2
+12
+22
+SELECT * FROM t_list PARTITION(p4_new) ORDER BY id;
+id
+#
+# 10) ADMIN PARTITION
+#
+ALTER TABLE t_list ENGINE = DuckDB;
+ALTER TABLE t_list OPTIMIZE PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_list	optimize	note	The storage engine for the table doesn't support optimize
+ALTER TABLE t_list ANALYZE PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_list	analyze	note	The storage engine for the table doesn't support analyze
+ALTER TABLE t_list CHECK PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_list	check	note	The storage engine for the table doesn't support check
+ALTER TABLE t_list REPAIR PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_list	repair	note	The storage engine for the table doesn't support repair
+#
+# 11) DML which specify partition
+#
+DELETE FROM t_list PARTITION(p0) WHERE id = 0;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: DELETE FROM t_list PARTITION(p0) WHERE id = 0
+                           ^.
+SELECT * FROM t_list PARTITION(p0);
+ERROR HY000: [DuckDB] Parser Error: errhint NOT IMPLEMENTED.
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = OFF;
+INSERT INTO t_list PARTITION(p0) VALUES (50);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_list PARTITION(p0) WHERE id = 0;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: DELETE FROM t_list PARTITION(p0) WHERE id = 0
+                           ^.
+UPDATE t_list PARTITION (p0) SET id = 50 WHERE id = 0;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: UPDATE t_list PARTITION (p0) SET id = 50 WHERE id = 0
+                      ^.
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = ON;
+INSERT INTO t_list PARTITION(p0) VALUES (50);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_list PARTITION(p0) WHERE id = 0;
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+UPDATE t_list PARTITION (p0) SET id = 50 WHERE id = 0;
+ERROR HY000: [DuckDB] Data import mode: update is not allowed.
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = ON;
+INSERT INTO t_list PARTITION(p0) VALUES (50);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_list PARTITION(p0) WHERE id = 0;
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+UPDATE t_list PARTITION (p0) SET id = 50 WHERE id = 0;
+ERROR HY000: [DuckDB] Data import mode: update is not allowed.
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = OFF;
+INSERT INTO t_list PARTITION(p0) VALUES (50);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_list PARTITION(p0) WHERE id = 0;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: DELETE FROM t_list PARTITION(p0) WHERE id = 0
+                           ^.
+UPDATE t_list PARTITION (p0) SET id = 50 WHERE id = 0;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: UPDATE t_list PARTITION (p0) SET id = 50 WHERE id = 0
+                      ^.
+#
+# 12) Cleanup
+#
+SET GLOBAL duckdb_dml_in_batch = default;
+DROP DATABASE test_partition;

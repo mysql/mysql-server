@@ -1,0 +1,11 @@
+# name: benchmark/tpch/expression_reordering/adaptive_mixed_reordering_and.benchmark
+# description: Re-order mixed comparisons adaptively
+# group: [expression_reordering]
+
+include benchmark/tpch/tpch_load.benchmark.in
+
+run
+SELECT COUNT(*) FROM lineitem WHERE l_returnflag = 'R' AND l_orderkey > 5000 AND l_shipdate > DATE '1990-01-01';
+
+result I sf=1
+1477624

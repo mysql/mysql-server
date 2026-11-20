@@ -1,0 +1,152 @@
+# name: test/sql/collate/test_icu_collate.test
+# description: Test basic ICU extension usage
+# group: [collate]
+
+require icu
+
+statement ok
+CREATE TABLE strings(s VARCHAR);
+
+statement ok
+INSERT INTO strings VALUES ('Gabel'), ('Göbel'), ('Goethe'), ('Goldmann'), ('Göthe'), ('Götz');
+
+# ordering
+query T
+SELECT * FROM strings ORDER BY s COLLATE de;
+----
+Gabel
+Göbel
+Goethe
+Goldmann
+Göthe
+Götz
+
+# range filter
+query T
+SELECT * FROM strings WHERE 'Goethe' > s COLLATE de ORDER BY 1
+----
+Gabel
+Göbel
+
+# default binary collation, Göbel is not smaller than Gabel in UTF8 encoding
+query T
+SELECT * FROM strings WHERE 'Goethe' > s ORDER BY 1
+----
+Gabel
+
+# we can also combine this collation with NOCASE
+query T
+SELECT * FROM strings WHERE 'goethe' > s COLLATE de.NOCASE ORDER BY 1
+----
+Gabel
+Göbel
+
+query T
+SELECT * FROM strings WHERE 'goethe' > s COLLATE NOCASE.de ORDER BY 1
+----
+Gabel
+Göbel
+
+# and with NOACCENT
+query I
+SELECT * FROM strings WHERE 'goethe' > s COLLATE NOACCENT.de ORDER BY 1
+----
+Gabel
+Göbel
+
+# japanese collation
+statement ok
+DELETE FROM strings
+
+statement ok
+INSERT INTO strings VALUES ('賃貸人側連絡先 (Lessor side contact)'), ('賃借人側連絡先 (Lessee side contact)'), ('解約連絡先 (Termination contacts)'), ('更新連絡先 (Update contact)')
+
+query T
+SELECT * FROM strings ORDER BY s
+----
+更新連絡先 (Update contact)
+解約連絡先 (Termination contacts)
+賃借人側連絡先 (Lessee side contact)
+賃貸人側連絡先 (Lessor side contact)
+
+query T
+SELECT * FROM strings ORDER BY s COLLATE ja.NOCASE
+----
+解約連絡先 (Termination contacts)
+更新連絡先 (Update contact)
+賃借人側連絡先 (Lessee side contact)
+賃貸人側連絡先 (Lessor side contact)
+
+# test icu_sort_key function
+statement ok
+select icu_sort_key('Ş', 'ro');
+
+statement error
+SELECT icu_sort_key('goose', 'DUCK_DUCK_ENUM');
+----
+Invalid Input Error
+
+statement ok
+select icu_sort_key('æ', 'icu_noaccent');
+
+statement ok
+select icu_sort_key('Æ', 'icu_noaccent');
+
+# issue duckdb/duckdb#9692
+query I
+select chr(2*16*256+1*256+2*16+11) collate da  =chr(12*16+5) collate da;
+----
+True
+
+
+query I
+select icu_sort_key(chr(2*16*256+1*256+2*16+11),'da')=icu_sort_key(chr(12*16+5),'da');
+----
+True
+
+query I
+select chr(2*16*256+1*256+2*16+11) collate da > chr(12*16+5) collate da;
+----
+FALSE
+
+query I
+select chr(2*16*256+1*256+2*16+11) collate da > chr(12*16+5) collate da;
+----
+FALSE
+
+query I
+select count(*) from (select chr(2*16*256+1*256+2*16+11) union select chr(12*16+5)) as t(s) group by s collate da;
+----
+2
+
+query I
+select nfc_normalize(chr(2*16*256+1*256+2*16+11))=nfc_normalize(chr(12*16+5));
+----
+TRUE
+
+query I
+select count(*) from (select chr(2*16*256+1*256+2*16+11) union select chr(12*16+5)) as t(s) group by s collate nfc;
+----
+2
+
+# ICU noaccent collate
+statement ok
+CREATE TABLE t1 (c1 CHAR(10))
+
+statement ok
+INSERT INTO t1 VALUES('z'),('Z'),('a'),('A'),('æ'),('Æ'),('à'),('À'),('á'),('Á'),('â'),('Â'),
+('ã'),('Ã'),('ä'),('Ä'),('å'),('Å'),('b'),('B')
+
+query I
+SELECT GROUP_CONCAT(c1, '') as group_c1 FROM t1 GROUP BY c1  COLLATE "NOCASE.ICU_NOACCENT" ORDER BY group_c1 COLLATE "NOCASE.ICU_NOACCENT"
+----
+aAàÀáÁâÂãÃäÄåÅ
+æÆ
+bB
+zZ
+
+statement ok
+SELECT 'Á' COLLATE "ICU_NOACCENT.NOACCENT"
+
+statement ok
+SELECT 'Á' COLLATE "NOACCENT.ICU_NOACCENT"

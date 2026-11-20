@@ -1,0 +1,83 @@
+#
+# Test DuckDB engine behavior with auto_increment
+#
+CREATE TABLE t_auto_inc_duckdb (
+id INT AUTO_INCREMENT PRIMARY KEY,
+name VARCHAR(255)
+) ENGINE=duckdb;
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_auto_inc_duckdb begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_auto_inc_duckdb ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 2]
+id	1	INTEGER	32
+name	2	VARCHAR	NULL
+
+
+# ② Print CONSTRAINTs of t_auto_inc_duckdb ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t_auto_inc_duckdb	NOT NULL	NOT NULL
+
+
+# ③ Print INDEXs of t_auto_inc_duckdb ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_auto_inc_duckdb ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_auto_inc_duckdb end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of test.t_auto_inc_duckdb
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_auto_inc_duckdb
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='test' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_auto_inc_duckdb' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+id	MYSQL_TYPE_LONG	0	0	0	NULL	
+name	MYSQL_TYPE_VARCHAR	1	0	0	NULL	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+DROP TABLE IF EXISTS t_auto_inc_innodb;
+Warnings:
+Note	1051	Unknown table 'test.t_auto_inc_innodb'
+DROP TABLE IF EXISTS t_auto_inc_duckdb;
+#
+# Test GIPK
+#
+# Test 1, Create a table with NO primary key, gipk will not be added for duckdb table
+SET SESSION sql_generate_invisible_primary_key = ON;
+SET SESSION show_gipk_in_create_table_and_information_schema = ON;
+CREATE TABLE t_auto_inc_duckdb (
+name VARCHAR(255)
+) ENGINE=duckdb;
+ERROR 42000: This table type requires a primary key
+# Test 2, When create table with gipk column, which happens when apply binlog
+CREATE TABLE `t_gipk` (
+`my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+`name` varchar(32) DEFAULT NULL,
+PRIMARY KEY (`my_row_id`)
+) ENGINE=duckdb;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: invisible column is not supported.
+SET SESSION sql_generate_invisible_primary_key = default;
+SET SESSION show_gipk_in_create_table_and_information_schema = default;

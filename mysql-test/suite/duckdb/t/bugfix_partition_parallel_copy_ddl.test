@@ -1,0 +1,28 @@
+--echo #
+--echo # Bugfix: Crash during parallel copy ddl for partition table.
+--echo #
+CREATE TABLE `t_p_bugfix` (
+  `id` bigint NOT NULL,
+  `product_date` date NOT NULL,
+  `product_order` tinyint NOT NULL,
+  PRIMARY KEY (`id`,`product_date`,`product_order`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3 COMMENT='服务专用维度表'
+/*!50500 PARTITION BY RANGE  COLUMNS(product_date)
+(PARTITION p20231001 VALUES LESS THAN ('2023-10-02') ENGINE = InnoDB,
+ PARTITION p20231002 VALUES LESS THAN ('2023-10-03') ENGINE = InnoDB,
+ PARTITION p_future VALUES LESS THAN (MAXVALUE) ENGINE = InnoDB) */;
+
+INSERT INTO t_p_bugfix VALUES
+(1, '2023-10-01', 1),
+(2, '2023-10-02', 2),
+(3, '2023-10-03', 3);
+--let $checksum_innodb = query_get_value(CHECKSUM TABLE t_p_bugfix, Checksum, 1)
+
+ALTER TABLE t_p_bugfix ENGINE = DuckDB;
+SHOW CREATE TABLE t_p_bugfix;
+--let $checksum_duckdb = query_get_value(CHECKSUM TABLE t_p_bugfix, Checksum, 1)
+
+--let assert_cond = "$checksum_innodb" = "$checksum_duckdb"
+--let assert_text= CHECKSUM is the same
+--source include/assert.inc
+DROP TABLE t_p_bugfix;

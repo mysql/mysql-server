@@ -1,0 +1,90 @@
+#
+# RENAME TABLE WITH DIFFERENT DATABASES
+#
+CREATE DATABASE db1;
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE = DuckDB;
+ALTER TABLE t RENAME TO db1.t, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t RENAME TO db1.t;
+SHOW CREATE TABLE db1.t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 2]
+db1	t	a	NULL	NO	INTEGER
+db1	t	b	NULL	YES	INTEGER
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+DROP DATABASE db1;
+#
+# ALTER COLUMN ORDER
+#
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE = DuckDB;
+ALTER TABLE t ADD COLUMN c INT FIRST, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t ADD COLUMN c INT FIRST;
+ALTER TABLE t ADD COLUMN d INT AFTER a, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t ADD COLUMN d INT AFTER a;
+ALTER TABLE t MODIFY COLUMN c INT AFTER a, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t MODIFY COLUMN c INT AFTER a;
+ALTER TABLE t MODIFY COLUMN d INT FIRST, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t MODIFY COLUMN d INT FIRST;
+DROP TABLE t;
+#
+# BUGFIX: Interrupt fetch query when copy ddl from DuckDB to DuckDB.
+#
+CREATE TABLE t1(id INT AUTO_INCREMENT KEY, a INT) ENGINE = InnoDB;
+SET SESSION duckdb_copy_data_between_tables_use_ins_sel = OFF;
+ALTER TABLE t1 ENGINE = DuckDB;
+SET GLOBAL duckdb_copy_ddl_in_batch = OFF;
+ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM = COPY;
+include/assert.inc [Insert data in batch]
+SET GLOBAL duckdb_copy_ddl_in_batch = default;
+DROP TABLE t1;
+#
+# OPTIMIZE: Execute copy ddl between DuckDB tables using 'INSERT ... SELECT ...'
+#
+SET GLOBAL duckdb_log_options = 'DUCKDB_MULTI_TRX_BATCH_COMMIT,DUCKDB_MULTI_TRX_BATCH_DETAIL,DUCKDB_QUERY,DUCKDB_QUERY_RESULT';
+CREATE TABLE t1(a INT KEY, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t1 VALUES(1, 11, 111), (2, 22, 222), (3, 33, 333);
+CREATE TABLE t2(a INT KEY, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t2 VALUES(1, 11, 111), (2, 22, 222), (3, 33, 333);
+CREATE TABLE t3(a INT KEY, b INT, c INT) ENGINE = InnoDB;
+INSERT INTO t3 VALUES(1, 11, 111), (2, 22, 222), (3, 33, 333);
+SET SESSION duckdb_copy_data_between_tables_use_ins_sel = OFF;
+ALTER TABLE t1 ADD COLUMN d INT AFTER a, ALGORITHM = COPY;
+ALTER TABLE t1 DROP COLUMN b, ALGORITHM = COPY;
+ALTER TABLE t1 CHANGE COLUMN c c1 BIGINT, ALGORITHM = COPY;
+ALTER TABLE t1 MODIFY COLUMN a INT AFTER c1, ALGORITHM = COPY;
+SET SESSION duckdb_copy_data_between_tables_use_ins_sel = ON;
+ALTER TABLE t2 ADD COLUMN d INT AFTER a, ALGORITHM = COPY;
+ALTER TABLE t2 DROP COLUMN b, ALGORITHM = COPY;
+ALTER TABLE t2 CHANGE COLUMN c c1 BIGINT, ALGORITHM = COPY;
+ALTER TABLE t2 MODIFY COLUMN a INT AFTER c1, ALGORITHM = COPY;
+ALTER TABLE t3 ADD COLUMN d INT AFTER a, ALGORITHM = COPY;
+ALTER TABLE t3 DROP COLUMN b, ALGORITHM = COPY;
+ALTER TABLE t3 CHANGE COLUMN c c1 BIGINT, ALGORITHM = COPY;
+ALTER TABLE t3 MODIFY COLUMN a INT AFTER c1, ALGORITHM = COPY;
+include/assert.inc [CHECKSUM is the same]
+include/assert_grep.inc [Find create temp table for copy ddl]
+include/assert_grep.inc [Find insert ... select ... for copy ddl]
+SET GLOBAL duckdb_log_options = default;
+DROP TABLE t1, t2, t3;

@@ -1,0 +1,69 @@
+--echo ###########################################################################
+--echo # Prepare
+--echo ###########################################################################
+CREATE TABLE t1 (
+    id BIGINT NOT NULL DEFAULT 1,
+    c0 SMALLINT NOT NULL DEFAULT 2,
+    c1 VARCHAR(20) NOT NULL DEFAULT 'abc',
+    PRIMARY KEY (id)
+) ENGINE=DuckDB;
+
+CREATE TABLE t2 (
+    id BIGINT NOT NULL DEFAULT 1,
+    c0 SMALLINT NOT NULL DEFAULT 2,
+    c1 VARCHAR(20) NOT NULL DEFAULT 'abc',
+    PRIMARY KEY (id)
+) ENGINE=DuckDB;
+
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
+INSERT INTO t1 VALUES (3, 4, 'zzz'), (5, 6, 'xxx');
+SELECT * FROM t1;
+
+--connect(con1,localhost,root)
+--connect(con2,localhost,root)
+
+--echo ###########################################################################
+--echo # Test executing DDL during a DuckDB transaction
+--echo ###########################################################################
+--echo # 1. Test for DuckDB Appender
+--connection con1
+BEGIN;
+INSERT INTO t2 (id) VALUES (7);
+
+--connection con2
+ALTER TABLE t1 DROP COLUMN c0;
+
+--connection con1
+CALL mtr.add_suppression("Call to EndRow before all columns have been appended to");
+--error ER_DUCKDB_APPENDER_ERROR
+INSERT INTO t1 (c1) VALUES ('xyz');
+# The failed statement has already rolled back the whole transaction.
+COMMIT;
+
+SELECT * FROM t1;
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text = Check DuckDB Warning
+--let $assert_select = Call to EndRow before all columns have been appended to
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # 2. Test for SELECT
+--connection con1
+BEGIN;
+SELECT * FROM t2;
+
+--connection con2
+ALTER TABLE t1 DROP COLUMN c1, ADD COLUMN c2 DATE;
+
+--connection con1
+--error ER_DUCKDB_SEND_RESULT_ERROR
+SELECT * FROM t1;
+COMMIT;
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+DROP TABLE t1, t2;

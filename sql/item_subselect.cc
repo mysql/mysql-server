@@ -387,7 +387,9 @@ bool Item_singlerow_subselect::fix_fields(THD *thd, Item **ref) {
 
   fixed = true;
 
-  if (thd->lex->is_view_context_analysis()) return false;
+  if (thd->lex->is_view_context_analysis() ||
+      !thd->lex->optimizer_rewrite_enabled)
+    return false;
 
   // A subquery containing a simple selected expression can be eliminated
   if (!query_expr()->is_set_operation() && guaranteed_one_row(inner) &&
@@ -2890,7 +2892,9 @@ bool Item_exists_subselect::fix_fields(THD *thd, Item **ref) {
 
   fixed = true;
 
-  if (thd->lex->is_view_context_analysis()) return false;
+  if (thd->lex->is_view_context_analysis() ||
+      !thd->lex->optimizer_rewrite_enabled)
+    return false;
 
   assert(strategy == Subquery_strategy::UNSPECIFIED);
 

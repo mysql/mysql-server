@@ -11103,6 +11103,76 @@ ER_MRS_BACKEND_INIT_ERROR
 #
 #  End of "9.7 cal-ver compatibility lineage (starts from 26.7)" error messages (server-to-client).
 #
+#
+# Start of RDS error message. 7500 - 7999
+# Error message intended to be sent to client should start here.
+#
+start-error-number 7500
+
+ER_NATIVE_PROC_PARAMETER_MISMATCH
+   eng "Native procedure %s the %dth parameter mismatch"
+
+ER_DUCKDB_CLIENT
+  eng "[DuckDB] %s."
+
+ER_DUCKDB_QUERY_ERROR
+  eng "[DuckDB] Execute sql failed. %s"
+
+ER_DUCKDB_TABLE_STRUCT_INVALID
+  eng "[DuckDB] DuckDB table structure is invalid. Reason: %s."
+
+ER_DUCKDB_TABLE_AUTO_INCREMENT_REMOVED
+  eng "[DuckDB] AUTO_INCREMENT of field '%s' is removed."
+
+ER_DUCKDB_TABLE_INDEX_REMOVED
+  eng "[DuckDB] Index '%s' is removed."
+
+ER_DUCKDB_TABLE_INDEX_UPGRADED
+  eng "[DuckDB] Index '%s' is upgraded to primary key."
+
+ER_DUCKDB_ALTER_OPERATION_NOT_SUPPORTED
+  eng "[DuckDB] %s is not supported for this operation."
+
+ER_DUCKDB_SETTING_SESSION_VARIABLE
+  eng "[DuckDB] Exception when setting duckdb session variables. %s"
+
+ER_DUCKDB_ALTER_FLAG_REMOVED
+  eng "[DuckDB] '%s' operation will not take effect."
+
+ER_DUCKDB_TABLE_ON_UPDATE_NOW_REMOVED
+  eng "[DuckDB] ON_UPDATE_NOW of field '%s' is removed."
+
+ER_DUCKDB_COMMIT_ERROR
+  eng "[DuckDB] DuckDB commit transaction error. %s"
+
+ER_DUCKDB_ROLLBACK_ERROR
+  eng "[DuckDB] DuckDB rollback transaction error. %s"
+
+ER_DUCKDB_SEND_RESULT_ERROR
+  eng "[DuckDB] DuckDB send result error. %s"
+
+ER_DUCKDB_APPENDER_ERROR
+  eng "[DuckDB] DuckDB appender error. %s"
+
+ER_DUCKDB_PREPARE_ERROR
+  eng "[DuckDB] DuckDB prepare transaction error. %s"
+
+ER_ACCESS_DENIED_DURING_DUCKDB_CONVERT
+  eng "Access denied for user '%-.48s'@'%-.64s'. DuckDB covnerting."
+
+ER_DUCKDB_DATA_IMPORT_MODE
+  eng "[DuckDB] Data import mode: %s."
+
+ER_DUCKDB_DONT_SUPPORT_BATCH_MULTI_TRX
+  eng "[DuckDB] Batch Multi Trx requires one configured replication worker"
+
+ER_DUCKDB_CONVERT_THREAD_EXIT_DUE_TO_SHUTDOWN
+  eng "[DuckDB] DuckDB convert thread exit due to shutdown."
+
+#
+#  End of RDS error message.
+#
+
 
 ################################################################################
 # DO NOT add messages for the error-log to this file;

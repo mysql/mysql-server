@@ -113,9 +113,10 @@
 #include "sql/binlog_reader.h"
 #include "sql/clone_handler.h"  // is_provisioning
 #include "sql/current_thd.h"
-#include "sql/debug_sync.h"   // DEBUG_SYNC
-#include "sql/derror.h"       // ER_THD
-#include "sql/dynamic_ids.h"  // Server_ids
+#include "sql/debug_sync.h"            // DEBUG_SYNC
+#include "sql/derror.h"                // ER_THD
+#include "sql/duckdb/duckdb_config.h"  // myduck::global_mode
+#include "sql/dynamic_ids.h"           // Server_ids
 #include "sql/handler.h"
 #include "sql/item.h"
 #include "sql/log.h"
@@ -3492,6 +3493,8 @@ static void show_slave_status_metadata(mem_root_deque<Item *> *field_list,
   field_list->push_back(
       new Item_return_int("Auto_Position", sizeof(ulong), MYSQL_TYPE_LONG));
   field_list->push_back(new Item_empty_string("Replicate_Rewrite_DB", 24));
+  // field_list->push_back(new Item_empty_string("Replicate_Rewrite_Wild_Table",
+  // 29));
   field_list->push_back(
       new Item_empty_string("Channel_Name", CHANNEL_NAME_LENGTH));
   field_list->push_back(new Item_empty_string("Source_TLS_Version", FN_REFLEN));
@@ -3769,6 +3772,9 @@ static bool show_slave_status_send_data(THD *thd, Master_info *mi,
   // Replicate_Rewrite_DB
   rpl_filter->get_rewrite_db(&tmp);
   protocol->store(&tmp);
+  // TODO: display Replicate_Rewrite_Wild_Table, too many failed cases.
+  // rpl_filter->get_rewrite_table(&tmp);
+  // protocol->store(&tmp);
   // channel_name
   protocol->store(mi->get_channel(), &my_charset_bin);
   // Source_TLS_Version
@@ -5060,6 +5066,24 @@ static int exec_relay_log_event(THD *thd, Relay_log_info *rli,
         */
         return 1;
     }
+
+    if (myduck::global_mode == myduck::enum_modes::DUCKDB_ON &&
+        (ev->get_type_code() == mysql::binlog::event::GTID_LOG_EVENT ||
+         ev->get_type_code() == mysql::binlog::event::GTID_TAGGED_LOG_EVENT) &&
+        rli->get_global_duckdb_idempotent_flag()) {
+      auto gtid_ev = (Gtid_log_event *)ev;
+      gtid_ev->set_gtid_duckdb_idempotent_flag(true);
+    }
+
+    DBUG_EXECUTE_IF("wait_on_exec_relay_log_event", {
+      if (ev->get_type_code() == mysql::binlog::event::WRITE_ROWS_EVENT) {
+        const char act[] =
+            "now SIGNAL signal.waiting_on_event_execution "
+            "WAIT_FOR signal.can_continue_execution";
+        assert(opt_debug_sync_timeout > 0);
+        assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+      }
+    };);
 
     /* ptr_ev can change to NULL indicating MTS coorinator passed to a Worker */
     exec_res = apply_event_and_update_pos(ptr_ev, thd, rli);
@@ -6824,6 +6848,9 @@ err:
            non-zero  as failure
 */
 static int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited) {
+  // Trunk configures at least one worker. DuckDB's multi-transaction batching
+  // keeps the transaction on the coordinator, using the existing serial path.
+  if (myduck::global_mode_on() && duckdb_multi_trx_in_batch && n == 1) n = 0;
   int error = 0;
   /**
     gtid_monitoring_info must be cleared when MTS is enabled or
@@ -7140,6 +7167,7 @@ extern "C" void *handle_slave_sql(void *arg) {
   Rpl_applier_reader applier_reader(rli);
   Relay_log_info::enum_priv_checks_status priv_check_status =
       Relay_log_info::enum_priv_checks_status::SUCCESS;
+  rli->set_global_duckdb_idempotent_flag(true);
 
   auto time_start = std::chrono::system_clock::now();
 
@@ -7467,6 +7495,15 @@ extern "C" void *handle_slave_sql(void *arg) {
               goto err;
             }
           }
+
+          DBUG_EXECUTE_IF("debug_sync_before_apply_update_rows_event", {
+            if (ev && ev->get_type_code() ==
+                          mysql::binlog::event::UPDATE_ROWS_EVENT) {
+              const char act[] =
+                  "now SIGNAL apply_signal WAIT_FOR resume_signal";
+              assert(!debug_sync_set_action(thd, STRING_WITH_LEN(act)));
+            }
+          };);
 
           // try to execute the event
           switch (exec_relay_log_event(thd, rli, &applier_reader, ev)) {
@@ -7902,6 +7939,7 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
   Gtid gtid = {0, 0};
   ulonglong immediate_commit_timestamp = 0;
   ulonglong original_commit_timestamp = 0;
+  Transaction_context_log_event *tcle = nullptr;
   bool info_error{false};
   mysql::binlog::event::Log_event_basic_info log_event_info;
   ulonglong compressed_transaction_bytes = 0;
@@ -7915,6 +7953,54 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
 
   DBUG_TRACE;
 
+  DBUG_EXECUTE_IF(
+      "stop_when_queue_query_event",
+      if (event_type == mysql::binlog::event::QUERY_EVENT) {
+        DBUG_SET("-d,stop_when_queue_query_event");
+        goto err;
+      });
+
+  DBUG_EXECUTE_IF(
+      "stop_when_queue_2nd_query_event",
+      if (event_type == mysql::binlog::event::QUERY_EVENT) {
+        DBUG_SET("-d,stop_when_queue_2nd_query_event");
+        DBUG_SET("+d,stop_when_queue_query_event");
+      });
+
+  DBUG_EXECUTE_IF(
+      "stop_when_queue_xid_event",
+      if (event_type == mysql::binlog::event::XID_EVENT) {
+        DBUG_SET("-d,stop_when_queue_xid_event");
+        goto err;
+      });
+
+  DBUG_EXECUTE_IF(
+      "stop_when_queue_2nd_xid_event",
+      if (event_type == mysql::binlog::event::XID_EVENT) {
+        DBUG_SET("-d,stop_when_queue_2nd_xid_event");
+        DBUG_SET("+d,stop_when_queue_xid_event");
+      });
+
+  DBUG_EXECUTE_IF(
+      "stop_when_queue_table_map_event",
+      if (event_type == mysql::binlog::event::TABLE_MAP_EVENT) {
+        DBUG_SET("-d,stop_when_queue_table_map_event");
+        goto err;
+      });
+
+  DBUG_EXECUTE_IF(
+      "stop_when_queue_2nd_table_map_event",
+      if (event_type == mysql::binlog::event::TABLE_MAP_EVENT) {
+        DBUG_SET("-d,stop_when_queue_2nd_table_map_event");
+        DBUG_SET("+d,stop_when_queue_table_map_event");
+      });
+
+  DBUG_EXECUTE_IF("debug_sync_when_queue_update_rows_event", {
+    if (event_type == mysql::binlog::event::UPDATE_ROWS_EVENT) {
+      const char act[] = "now SIGNAL queue_signal WAIT_FOR resume_io_signal";
+      assert(!debug_sync_set_action(current_thd, STRING_WITH_LEN(act)));
+    }
+  };);
   /*
     Pause the IO thread execution and wait for 'continue_queuing_event'
     signal to continue IO thread execution.
@@ -8329,6 +8415,14 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
       inc_pos = event_len;
       mi->m_queueing_transaction_size = gtid_ev.get_trx_length();
       mi->m_queueing_transaction_gtid_event_size = gtid_ev.get_event_length();
+
+      rli->clear_tcle_gtid_set();
+    } break;
+
+    case mysql::binlog::event::TRANSACTION_CONTEXT_EVENT: {
+      tcle = new Transaction_context_log_event(buf,
+                                               mi->get_mi_description_event());
+      tcle->decode_snapshot_version();
     } break;
 
     case mysql::binlog::event::ANONYMOUS_GTID_LOG_EVENT: {
@@ -8529,6 +8623,11 @@ QUEUE_EVENT_RESULT queue_event(Master_info *mi, const char *buf,
             mysql::binlog::event::compression::type::NONE,
             compressed_transaction_bytes, uncompressed_transaction_bytes);
       }
+
+      if (event_type == mysql::binlog::event::TRANSACTION_CONTEXT_EVENT) {
+        assert(tcle != nullptr);
+        rli->add_tcle_gtid_set(tcle->get_snapshot_version());
+      }
     } else {
       /*
         We failed to write the event and didn't updated slave positions.
@@ -8575,6 +8674,7 @@ end:
   }
   if (lock_count >= 2) mysql_mutex_unlock(&mi->data_lock);
   if (lock_count >= 1) mysql_mutex_unlock(log_lock);
+  if (tcle != nullptr) delete tcle;
   DBUG_PRINT("info", ("queue result: %d", res));
   return res;
 }
@@ -11580,6 +11680,13 @@ static int check_slave_sql_config_conflict(const Relay_log_info *rli) {
     channel_mts_submode = MTS_PARALLEL_TYPE_LOGICAL_CLOCK;
 #endif
     replica_parallel_workers = opt_mts_replica_parallel_workers;
+  }
+
+  // Check channel startup after the replication services have initialized.
+  if (rli && myduck::global_mode_on() && duckdb_multi_trx_in_batch &&
+      rli->get_applier_worker_count() > 1) {
+    my_error(ER_DUCKDB_DONT_SUPPORT_BATCH_MULTI_TRX, MYF(0));
+    return ER_DUCKDB_DONT_SUPPORT_BATCH_MULTI_TRX;
   }
 
   if (rli) {

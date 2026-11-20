@@ -1,0 +1,17 @@
+--disable_query_log
+DO 0;
+--enable_query_log
+
+--let $log_file= $MYSQLTEST_VARDIR/tmp/duckdb_grep_error.log
+--write_file $log_file
+int ha_duckdb::write_row: duckdb_print_dml: DELETE FROM `test`.`t1` WHERE `id` = 1
+2026-01-01 my_duckdb: DELETE FROM `t1` WHERE id < 100;
+2026-01-01 my_duckdb: DELETE FROM `t1` WHERE `#alibaba_rds_row_no` = 1;
+2026-01-01 my_duckdb: SELECT * FROM `t1`;
+EOF
+--let $grep_pattern= DELETE FROM
+--let $grep_exclude= alibaba_rds_row_no
+--let $truncate_log= 1
+--source suite/duckdb/include/grep_error_log.inc
+--cat_file $log_file
+--remove_file $log_file

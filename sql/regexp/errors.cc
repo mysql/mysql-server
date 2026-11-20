@@ -42,6 +42,9 @@
 #include "sql/current_thd.h"
 #include "sql/sql_error.h"
 
+#ifdef HAVE_DUCKDB
+#include "duckdb/common/exception.hpp"
+#endif
 namespace regexp {
 
 struct UErrorCodeHash {
@@ -84,7 +87,8 @@ std::unordered_map<UErrorCode, int, UErrorCodeHash> error_map = {
     {U_REGEX_INVALID_FLAG, ER_REGEXP_INVALID_FLAG},
     {U_REGEX_NUMBER_TOO_BIG, ER_REGEX_NUMBER_TOO_BIG}};
 
-bool check_icu_status(UErrorCode status, const UParseError *parse_error) {
+bool check_icu_status(UErrorCode status, const UParseError *parse_error,
+                      bool caller_is_duckdb [[maybe_unused]]) {
   if (status == U_ZERO_ERROR) return false;
 
   int const error_code = error_map[status];
@@ -107,15 +111,34 @@ bool check_icu_status(UErrorCode status, const UParseError *parse_error) {
       regexp".
     */
     assert(false);
+#ifdef HAVE_DUCKDB
+    if (caller_is_duckdb) {
+      throw duckdb::InvalidInputException("Got error '%s' from regexp",
+                                          u_errorName(status));
+    }
+#endif
     my_error(ER_REGEXP_ERROR, MYF(0), u_errorName(status));
     return true;
   }
 
   // The UParseError is only written to in case of U_REGEX_RULE_SYNTAX errors.
-  if (error_code == ER_REGEXP_RULE_SYNTAX && parse_error != nullptr)
+  if (error_code == ER_REGEXP_RULE_SYNTAX && parse_error != nullptr) {
+#ifdef HAVE_DUCKDB
+    if (caller_is_duckdb) {
+      throw duckdb::InvalidInputException(
+          "Syntax error in regular expression on line %u, character %u.",
+          parse_error->line, parse_error->offset);
+    }
+#endif
     my_error(error_code, MYF(0), parse_error->line, parse_error->offset);
-  else
+  } else {
+#ifdef HAVE_DUCKDB
+    if (caller_is_duckdb) {
+      throw duckdb::InvalidInputException("Regexp error: %u", error_code);
+    }
+#endif
     my_error(error_code, MYF(0));
+  }
 
   return true;
 }

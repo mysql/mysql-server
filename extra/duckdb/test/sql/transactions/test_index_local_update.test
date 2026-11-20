@@ -1,0 +1,77 @@
+# name: test/sql/transactions/test_index_local_update.test
+# description: Test index with transaction local updates
+# group: [transactions]
+
+statement ok
+CREATE TABLE integers(i INTEGER PRIMARY KEY)
+
+statement ok
+INSERT INTO integers VALUES (1), (2), (3)
+
+statement ok
+BEGIN TRANSACTION
+
+statement error
+INSERT INTO integers VALUES (3)
+----
+<REGEX>:Constraint Error.*violates primary key constraint.*
+
+statement ok
+ROLLBACK
+
+# Inserting a non-conflicting value succeeds, but we cannot update it to a conflicting value.
+
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+INSERT INTO integers VALUES (4)
+
+query I
+SELECT COUNT(*) FROM integers
+----
+4
+
+statement error
+UPDATE integers SET i = 3 WHERE i = 4
+----
+<REGEX>:Constraint Error.*violates primary key constraint.*
+
+statement ok
+ROLLBACK
+
+# Inserting a non-conflicting value succeeds, and updating it to another non-conflicting value is possible.
+
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+INSERT INTO integers VALUES (4)
+
+query I
+SELECT COUNT(*) FROM integers
+----
+4
+
+statement ok
+UPDATE integers SET i = 5 WHERE i = 4
+
+query I
+SELECT i FROM integers WHERE i = 5
+----
+5
+
+query I
+SELECT i FROM integers WHERE i = 4
+----
+
+statement ok
+COMMIT
+
+query I
+SELECT i FROM integers ORDER BY i
+----
+1
+2
+3
+5

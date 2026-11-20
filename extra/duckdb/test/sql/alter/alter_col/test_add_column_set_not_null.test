@@ -1,0 +1,207 @@
+# name: test/sql/alter/alter_col/test_add_column_set_not_null.test
+# description: Test ADD COLUMN with DEFAULT followed by SET NOT NULL in the same transaction
+# group: [alter_col]
+
+# Scenario #1: ADD COLUMN with DEFAULT then SET NOT NULL in same transaction
+statement ok
+CREATE TABLE t1(id INTEGER)
+
+statement ok
+INSERT INTO t1 SELECT * FROM range(2048)
+
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+ALTER TABLE t1 ADD COLUMN col1 INTEGER DEFAULT 42
+
+statement ok
+ALTER TABLE t1 ALTER COLUMN col1 SET NOT NULL
+
+statement ok
+COMMIT
+
+# Verify constraint is active
+statement error
+INSERT INTO t1 VALUES (9999, NULL)
+----
+
+# Verify data is correct
+query I
+SELECT COUNT(*) FROM t1 WHERE col1 = 42
+----
+2048
+
+query I
+SELECT COUNT(*) FROM t1 WHERE col1 IS NULL
+----
+0
+
+# Scenario #2: ADD COLUMN with TIMESTAMPTZ DEFAULT then SET NOT NULL
+statement ok
+CREATE TABLE t2(id INTEGER)
+
+statement ok
+INSERT INTO t2 SELECT * FROM range(100)
+
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+ALTER TABLE t2 ADD COLUMN ts TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+
+statement ok
+ALTER TABLE t2 ALTER COLUMN ts SET NOT NULL
+
+statement ok
+COMMIT
+
+query I
+SELECT COUNT(*) FROM t2 WHERE ts IS NULL
+----
+0
+
+# Scenario #3: ADD COLUMN without DEFAULT then SET NOT NULL should fail (NULLs exist)
+statement ok
+CREATE TABLE t3(id INTEGER)
+
+statement ok
+INSERT INTO t3 VALUES (1), (2), (3)
+
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+ALTER TABLE t3 ADD COLUMN col1 INTEGER
+
+statement error
+ALTER TABLE t3 ALTER COLUMN col1 SET NOT NULL
+----
+NOT NULL constraint failed
+
+statement ok
+ROLLBACK
+
+# Scenario #4: Multiple ADD COLUMN + SET NOT NULL in same transaction
+statement ok
+CREATE TABLE t4(id INTEGER)
+
+statement ok
+INSERT INTO t4 SELECT * FROM range(100)
+
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+ALTER TABLE t4 ADD COLUMN a INTEGER DEFAULT 1
+
+statement ok
+ALTER TABLE t4 ALTER COLUMN a SET NOT NULL
+
+statement ok
+ALTER TABLE t4 ADD COLUMN b VARCHAR DEFAULT 'hello'
+
+statement ok
+ALTER TABLE t4 ALTER COLUMN b SET NOT NULL
+
+statement ok
+COMMIT
+
+statement error
+INSERT INTO t4 VALUES (1, NULL, 'x')
+----
+
+statement error
+INSERT INTO t4 VALUES (1, 1, NULL)
+----
+
+# Scenario #5: ADD COLUMN with DEFAULT then SET NOT NULL without explicit transaction (autocommit)
+statement ok
+CREATE TABLE t5(id INTEGER)
+
+statement ok
+INSERT INTO t5 SELECT * FROM range(100)
+
+statement ok
+ALTER TABLE t5 ADD COLUMN col1 INTEGER DEFAULT 10
+
+statement ok
+ALTER TABLE t5 ALTER COLUMN col1 SET NOT NULL
+
+query I
+SELECT COUNT(*) FROM t5 WHERE col1 = 10
+----
+100
+
+# Scenario #6: Another transaction committed NULLs, SET NOT NULL should fail
+statement ok
+CREATE TABLE t6(id INTEGER, val INTEGER)
+
+statement ok
+INSERT INTO t6 VALUES (1, NULL), (2, 2)
+
+statement error
+ALTER TABLE t6 ALTER COLUMN val SET NOT NULL
+----
+NOT NULL constraint failed
+
+# Scenario #7: con1 has uncommitted NULL insert, con2 does SET NOT NULL
+# con2's SET NOT NULL should not see con1's uncommitted data (MVCC),
+# but con1's commit should fail due to transaction conflict
+statement ok
+CREATE TABLE t7(id INTEGER, val INTEGER)
+
+statement ok
+INSERT INTO t7 VALUES (1, 1), (2, 2)
+
+statement ok con1
+BEGIN TRANSACTION
+
+statement ok con1
+INSERT INTO t7 VALUES (3, NULL)
+
+# con2 alters — should succeed because committed data has no NULLs
+statement ok con2
+ALTER TABLE t7 ALTER COLUMN val SET NOT NULL
+
+# con1's commit should fail because the table was altered
+statement error con1
+COMMIT
+----
+
+# NOT NULL constraint is active
+statement error
+INSERT INTO t7 VALUES (4, NULL)
+----
+
+# Scenario #8: con1 updates a column to NULL (uncommitted), con2 does SET NOT NULL
+statement ok
+CREATE TABLE t8(id INTEGER, val INTEGER)
+
+statement ok
+INSERT INTO t8 VALUES (1, 1), (2, 2)
+
+statement ok con1
+BEGIN TRANSACTION
+
+statement ok con1
+UPDATE t8 SET val = NULL WHERE id = 1
+
+# con2 alters — committed data has no NULLs, should succeed
+statement ok con2
+ALTER TABLE t8 ALTER COLUMN val SET NOT NULL
+
+# con1's commit should fail due to conflict
+statement error con1
+COMMIT
+----
+
+# NOT NULL constraint is active
+statement error
+INSERT INTO t8 VALUES (3, NULL)
+----
+
+query I
+SELECT COUNT(*) FROM t8 WHERE val IS NULL
+----
+0

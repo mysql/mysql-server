@@ -1,0 +1,119 @@
+# Test for DDL which are supported by DuckDB using COPY algorithm
+--echo #
+--echo # RENAME TABLE WITH DIFFERENT DATABASES
+--echo #
+CREATE DATABASE db1;
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE = DuckDB;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t RENAME TO db1.t, ALGORITHM = INPLACE;
+ALTER TABLE t RENAME TO db1.t;
+
+SHOW CREATE TABLE db1.t;
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type FROM information_schema.columns WHERE table_name = 't'");
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+DROP DATABASE db1;
+
+
+--echo #
+--echo # ALTER COLUMN ORDER
+--echo #
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE = DuckDB;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t ADD COLUMN c INT FIRST, ALGORITHM = INPLACE;
+ALTER TABLE t ADD COLUMN c INT FIRST;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t ADD COLUMN d INT AFTER a, ALGORITHM = INPLACE;
+ALTER TABLE t ADD COLUMN d INT AFTER a;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t MODIFY COLUMN c INT AFTER a, ALGORITHM = INPLACE;
+ALTER TABLE t MODIFY COLUMN c INT AFTER a;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t MODIFY COLUMN d INT FIRST, ALGORITHM = INPLACE;
+ALTER TABLE t MODIFY COLUMN d INT FIRST;
+DROP TABLE t;
+
+
+--echo #
+--echo # BUGFIX: Interrupt fetch query when copy ddl from DuckDB to DuckDB.
+--echo #
+CREATE TABLE t1(id INT AUTO_INCREMENT KEY, a INT) ENGINE = InnoDB;
+SET SESSION duckdb_copy_data_between_tables_use_ins_sel = OFF;
+--disable_query_log
+INSERT INTO t1(a) VALUES(1);
+--let $i = 15
+while ($i)
+{
+  INSERT INTO t1(a) SELECT a FROM t1;
+  --dec $i
+}
+--enable_query_log
+ALTER TABLE t1 ENGINE = DuckDB;
+SET GLOBAL duckdb_copy_ddl_in_batch = OFF;
+--let $value1 = query_get_value(SHOW GLOBAL STATUS LIKE "duckdb_rows_insert_in_batch", Value, 1)
+ALTER TABLE t1 ADD COLUMN b INT, ALGORITHM = COPY;
+--let $value2 = query_get_value(SHOW GLOBAL STATUS LIKE "duckdb_rows_insert_in_batch", Value, 1)
+--let $assert_text = Insert data in batch
+--let $assert_cond = $value2 > $value1
+--source include/assert.inc
+SET GLOBAL duckdb_copy_ddl_in_batch = default;
+DROP TABLE t1;
+
+
+--echo #
+--echo # OPTIMIZE: Execute copy ddl between DuckDB tables using 'INSERT ... SELECT ...'
+--echo #
+--exec echo "" > $MYSQLTEST_VARDIR/log/mysqld.1.err
+SET GLOBAL duckdb_log_options = 'DUCKDB_MULTI_TRX_BATCH_COMMIT,DUCKDB_MULTI_TRX_BATCH_DETAIL,DUCKDB_QUERY,DUCKDB_QUERY_RESULT';
+
+CREATE TABLE t1(a INT KEY, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t1 VALUES(1, 11, 111), (2, 22, 222), (3, 33, 333);
+CREATE TABLE t2(a INT KEY, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t2 VALUES(1, 11, 111), (2, 22, 222), (3, 33, 333);
+CREATE TABLE t3(a INT KEY, b INT, c INT) ENGINE = InnoDB;
+INSERT INTO t3 VALUES(1, 11, 111), (2, 22, 222), (3, 33, 333);
+
+SET SESSION duckdb_copy_data_between_tables_use_ins_sel = OFF;
+# Add column with copy algorithm, use ha_rnd_next and ha_write_row
+ALTER TABLE t1 ADD COLUMN d INT AFTER a, ALGORITHM = COPY;
+# Drop column with copy algorithm, use ha_rnd_next and ha_delete_row
+ALTER TABLE t1 DROP COLUMN b, ALGORITHM = COPY;
+# Rename column with copy algorithm, use ha_rnd_next and ha_update_row
+ALTER TABLE t1 CHANGE COLUMN c c1 BIGINT, ALGORITHM = COPY;
+# Move column with copy algorithm, use ha_rnd_next and ha_update_row
+ALTER TABLE t1 MODIFY COLUMN a INT AFTER c1, ALGORITHM = COPY;
+
+SET SESSION duckdb_copy_data_between_tables_use_ins_sel = ON;
+# Add column with copy algorithm, use insert ... select ...
+ALTER TABLE t2 ADD COLUMN d INT AFTER a, ALGORITHM = COPY;
+# Drop column with copy algorithm, use insert ... select ...
+ALTER TABLE t2 DROP COLUMN b, ALGORITHM = COPY;
+# Rename column with copy algorithm, use insert ... select ...
+ALTER TABLE t2 CHANGE COLUMN c c1 BIGINT, ALGORITHM = COPY;
+# Move column with copy algorithm, use insert ... select ...
+ALTER TABLE t2 MODIFY COLUMN a INT AFTER c1, ALGORITHM = COPY;
+
+# InnoDB DDL
+ALTER TABLE t3 ADD COLUMN d INT AFTER a, ALGORITHM = COPY;
+ALTER TABLE t3 DROP COLUMN b, ALGORITHM = COPY;
+ALTER TABLE t3 CHANGE COLUMN c c1 BIGINT, ALGORITHM = COPY;
+ALTER TABLE t3 MODIFY COLUMN a INT AFTER c1, ALGORITHM = COPY;
+
+--let $checksum_t1 = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+--let $checksum_t2 = query_get_value(CHECKSUM TABLE t2, Checksum, 1)
+--let $checksum_t3 = query_get_value(CHECKSUM TABLE t3, Checksum, 1)
+--let $assert_cond= $checksum_t1 = $checksum_t2 AND $checksum_t1 = $checksum_t3
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text = Find create temp table for copy ddl
+--let $assert_select = CREATE TABLE `#sql-
+--let $assert_count = 8
+--source include/assert_grep.inc
+
+--let $assert_text = Find insert ... select ... for copy ddl
+--let $assert_select = INSERT INTO `test`.`#sql-.*SELECT .* FROM `test`.`t2`
+--let $assert_count = 4
+--source include/assert_grep.inc
+SET GLOBAL duckdb_log_options = default;
+DROP TABLE t1, t2, t3;

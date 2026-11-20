@@ -1,0 +1,84 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_mixed.inc
+
+--echo ###########################################################################
+--echo # 0. Prepare
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (
+    id BIGINT NOT NULL,
+    c0 VARCHAR(20) NOT NULL,
+    c1 CHAR(10) DEFAULT 'duckdb',
+    PRIMARY KEY(id)
+) ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE t1;
+
+--echo ###########################################################################
+--echo # 1. Test Insert-only Transaction
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 (id, c0, c1) VALUES (1, 'abc', NULL), (2, 'd', NULL);
+INSERT INTO t1 (id, c0, c1) VALUES (3, 'efg', 'RSA'), (4, 'hijk', NULL);
+INSERT INTO t1 (id, c0, c1) VALUES (5, 'lmn', 'RSA');
+COMMIT;
+
+--echo ###########################################################################
+--echo # 2. Test Update after Insert in a Transaction
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 (id, c0, c1) VALUES (6, 'zxx', 'bbbbb'), (7, 'zqq', 'pppp');
+--echo # Test modify non-PK field
+UPDATE t1 SET c1='bee' WHERE id=6;
+UPDATE t1 SET c0='opq' WHERE id=5;
+--echo # Test modify PK field
+UPDATE t1 SET id=8 WHERE id=7;
+UPDATE t1 SET id=7 WHERE id=1;
+COMMIT;
+
+--echo ###########################################################################
+--echo # 3. Test Delete after Insert in a Transaction
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 (id, c0, c1) VALUES (9, 'fff', 'ddd'), (10, 'ddd', 'fff');
+DELETE FROM t1 WHERE id=3;
+DELETE FROM t1 WHERE id=10;
+COMMIT;
+
+--echo ###########################################################################
+--echo # 4. Test Mix Transaction
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 (id, c0, c1) VALUES (11, 'dsha', 'hfdu'), (12, 'xbn', 'wety');
+DELETE FROM t1 WHERE id=11;
+UPDATE t1 SET id=1 WHERE id=2;
+INSERT INTO t1 (id, c0, c1) VALUES (11, 'dsha', 'hfdu'), (2, 'uery', NULL);
+UPDATE t1 SET c1='zzzzzz' WHERE id=1;
+INSERT INTO t1 (id, c0) VALUES (3, 'hhhhh');
+COMMIT;
+
+--echo ###########################################################################
+--echo # 5. Check result
+--echo ###########################################################################
+--source include/rpl/sync.inc
+--let $rpl_diff_statement = SELECT id, c0, c1 FROM test.t1 ORDER BY id;
+--source include/rpl/diff.inc
+
+SELECT id, c0, c1 FROM test.t1 ORDER BY id;
+
+SHOW STATUS LIKE '%duck%in_batch';
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

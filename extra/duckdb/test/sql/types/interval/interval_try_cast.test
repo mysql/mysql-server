@@ -1,0 +1,71 @@
+# name: test/sql/types/interval/interval_try_cast.test
+# description: Test interval try cast
+# group: [interval]
+
+statement ok
+PRAGMA enable_verification
+
+statement error
+SELECT cast('   ' as interval)
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+statement error
+SELECT cast('AAAA' as interval)
+----
+<REGEX>:Conversion Error.*Could not convert string.*
+
+query I
+SELECT cast('00:00:' as interval)
+----
+00:00:00
+
+statement error
+SELECT cast('3 doopiedoos' as interval)
+----
+<REGEX>:Conversion Error.*extract specifier.*not recognized.*
+
+statement error
+SELECT cast('3 years 2 doy' as interval)
+----
+<REGEX>:Conversion Error.*extract specifier.*not supported.*
+
+statement error
+SELECT cast('3 yearweek' as interval)
+----
+<REGEX>:Conversion Error.*extract specifier.*not supported.*
+
+query I
+SELECT cast(NULL as interval)
+----
+NULL
+
+query I
+SELECT try_cast('   ' as interval)
+----
+NULL
+
+query I
+SELECT try_cast('AAAA' as interval)
+----
+NULL
+
+query I
+SELECT try_cast('00:00:' as interval)
+----
+00:00:00
+
+query I
+SELECT try_cast('3 doopiedoos' as interval)
+----
+NULL
+
+query I
+SELECT try_cast('3 years 2 doy' as interval)
+----
+NULL
+
+query I
+SELECT try_cast(NULL as interval)
+----
+NULL

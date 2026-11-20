@@ -1,0 +1,321 @@
+# name: test/sql/aggregate/aggregates/test_approx_quantile.test
+# description: Test approx quantile operator
+# group: [aggregates]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+PRAGMA verify_external
+
+set seed 0.8675309
+
+statement ok
+create table quantile as select range r, random() from range(10000) union all values (NULL, 0.1), (NULL, 0.5), (NULL, 0.9) order by 2;
+
+# Verify that there are two versions of each return type (with and without the count)
+query II
+SELECT return_type, count(*) AS defined
+FROM duckdb_functions()
+WHERE function_name = 'reservoir_quantile'
+GROUP BY ALL
+HAVING defined <> 2
+ORDER BY ALL;
+----
+
+query I
+SELECT CASE
+	  WHEN ( approx_quantile between (true_quantile - 100) and (true_quantile + 100) )
+		  THEN TRUE
+		  ELSE FALSE
+	  END
+	  FROM (SELECT approx_quantile(r, 0.5) as approx_quantile ,quantile(r,0.5) as true_quantile FROM quantile) AS T
+----
+1
+
+
+query I
+SELECT CASE
+	  WHEN ( approx_quantile between (true_quantile - 100) and (true_quantile + 100) )
+		  THEN TRUE
+		  ELSE FALSE
+	  END
+	  FROM (SELECT approx_quantile(r, 1.0) as approx_quantile ,quantile(r, 1.0) as true_quantile FROM quantile) AS T
+----
+1
+
+query I
+SELECT CASE
+	  WHEN ( approx_quantile between (true_quantile - 100) and (true_quantile + 100) )
+		  THEN TRUE
+		  ELSE FALSE
+	  END
+	  FROM (SELECT approx_quantile(r, 0.0) as approx_quantile ,quantile(r, 0.0) as true_quantile from quantile) AS T
+----
+1
+
+query II
+SELECT approx_quantile(NULL, 0.5)  as approx_quantile ,quantile(NULL, 0.5) as true_quantile
+----
+NULL	NULL
+
+query I
+SELECT CASE
+	  WHEN ( approx_quantile between (true_quantile - 100) and (true_quantile + 100) )
+		  THEN TRUE
+		  ELSE FALSE
+	  END
+	  FROM (SELECT approx_quantile(42, 0.5)  as approx_quantile ,quantile(42, 0.5)  as true_quantile) AS T
+----
+1
+
+query II
+SELECT approx_quantile(NULL, 0.5)  as approx_quantile ,quantile(NULL, 0.5)  as true_quantile FROM quantile
+----
+NULL	NULL
+
+query II
+SELECT approx_quantile(1, 0.5)  as approx_quantile ,quantile(1, 0.5)  as true_quantile FROM quantile
+----
+1	1
+
+query I
+SELECT CASE
+	  WHEN ( approx_quantile between (true_quantile - 100) and (true_quantile + 100) )
+		  THEN TRUE
+		  ELSE FALSE
+	  END
+	  FROM (SELECT approx_quantile(42, 0.5)  as approx_quantile ,quantile(42, 0.5)  as true_quantile) AS T
+----
+1
+
+query I
+SELECT CASE
+	  WHEN ( approx_quantile between (true_quantile - 100) and (true_quantile + 100) )
+		  THEN TRUE
+		  ELSE FALSE
+	  END
+	  FROM (SELECT approx_quantile(r, 0.1)  as approx_quantile ,quantile(r, 0.1)  as true_quantile from quantile) AS T
+----
+1
+
+query I
+SELECT CASE
+	  WHEN ( approx_quantile between (true_quantile - 100) and (true_quantile + 100) )
+		  THEN TRUE
+		  ELSE FALSE
+	  END
+	  FROM (SELECT approx_quantile(r, 0.9)  as approx_quantile ,quantile(r, 0.9)  as true_quantile from quantile) AS T
+----
+1
+
+# TIMETZ Support. Note this is not exact because we use DOUBLEs internally.
+query I
+SELECT approx_quantile('1:02:03.000000+05:30'::TIMETZ, 0.5);
+----
+01:02:42+05:30:39
+
+# TIME test, fixes issue 19874
+query I
+SELECT
+  APPROX_QUANTILE(a, [0.43::float, 0.64::float, 0.7::float]) AS call_0_result
+FROM (
+  VALUES (
+  (CAST('12:13:14' AS TIME)),          
+  (CAST('12:13:14' AS TIME)),    
+  (CAST('12:13:14' AS TIME))
+  )) AS t(a);
+----
+['12:13:14', '12:13:14', '12:13:14']
+
+# List versions
+query I
+SELECT [
+	(a[1] BETWEEN (q[1] - 100) AND (q[1] + 100)),
+	(a[2] BETWEEN (q[2] - 100) AND (q[2] + 100)),
+	(a[3] BETWEEN (q[3] - 100) AND (q[3] + 100)),
+	]
+FROM (
+	SELECT approx_quantile(r, [0.25, 0.5, 0.75]) AS a,
+		   quantile(r, [0.25, 0.5, 0.75]) AS q,
+	FROM quantile
+) tbl;
+----
+[true, true, true]
+
+query I
+SELECT [
+	(a[1] BETWEEN (q[1] - 100) AND (q[1] + 100)),
+	(a[2] BETWEEN (q[2] - 100) AND (q[2] + 100)),
+	(a[3] BETWEEN (q[3] - 100) AND (q[3] + 100)),
+	]
+FROM (
+	SELECT reservoir_quantile(r, [0.25, 0.5, 0.75], 4096) AS a,
+		   quantile(r, [0.25, 0.5, 0.75]) AS q,
+	FROM quantile
+) tbl;
+----
+[true, true, true]
+
+# Array lists
+query I
+SELECT approx_quantile(col, [0.5, 0.4, 0.1]) AS percentile 
+FROM VALUES (0), (1), (2), (10) AS tab(col);
+----
+[2, 1, 0]
+
+query I
+SELECT approx_quantile(col, ARRAY_VALUE(0.5, 0.4, 0.1)) AS percentile 
+FROM VALUES (0), (1), (2), (10) AS tab(col);
+----
+[2, 1, 0]
+
+# Errors
+statement error
+SELECT approx_quantile(r, -0.1) FROM quantile
+----
+
+statement error
+SELECT approx_quantile(r, 1.1) FROM quantile
+----
+
+statement error
+SELECT approx_quantile(r, NULL) FROM quantile
+----
+
+statement error
+SELECT approx_quantile(r, r) FROM quantile
+----
+
+statement error
+SELECT approx_quantile(r::string, 0.5) FROM quantile
+----
+
+statement error
+SELECT approx_quantile(r) FROM quantile
+----
+
+statement error
+SELECT approx_quantile(r, 0.1, 0.2) FROM quantile
+----
+
+statement error
+SELECT approx_quantile(42, CAST(NULL AS INT[]));
+----
+APPROXIMATE QUANTILE parameter list cannot be NULL
+
+statement ok
+pragma threads=4
+
+statement ok
+PRAGMA verify_parallelism
+
+query I
+SELECT CASE
+	  WHEN (approx_quantile between (true_quantile - (sumr * 0.01)) and (true_quantile + (sumr * 0.01)))
+		  THEN TRUE
+		  ELSE FALSE
+	  END
+	  FROM (SELECT approx_quantile(r, 0.1) as approx_quantile, quantile(r, 0.1) as true_quantile, SUM(r) as sumr from quantile) AS T
+----
+1
+
+query I
+SELECT CASE
+	  WHEN (approx_quantile between (true_quantile - (sumr * 0.01)) and (true_quantile + (sumr * 0.01)))
+		  THEN TRUE
+		  ELSE FALSE
+	  END
+	  FROM (SELECT approx_quantile(r, 0.9) as approx_quantile, quantile(r, 0.9) as true_quantile, SUM(r) as sumr from quantile) AS T
+----
+1
+
+query I
+SELECT CASE
+	  WHEN (approx_quantile between (true_quantile - (sumr * 0.01)) and (true_quantile + (sumr * 0.01)))
+		  THEN TRUE
+		  ELSE FALSE
+	  END
+	  FROM (SELECT approx_quantile(r, 0.5) as approx_quantile, quantile(r, 0.5) as true_quantile, SUM(r) as sumr from quantile) AS T
+----
+1
+
+# test with a DECIMAL column
+statement ok
+CREATE TABLE repro (i DECIMAL(15,2));
+
+statement ok
+SELECT approx_quantile(i, 0.5) FROM repro;
+
+statement ok
+SELECT approx_quantile(i, [0.5]) FROM repro;
+
+# Test reservoir quantile
+statement ok
+PRAGMA disable_verification;
+
+statement ok
+PRAGMA disable_verify_external;
+
+statement ok
+PRAGMA disable_verify_fetch_row;
+
+statement ok
+SELECT reservoir_quantile(r, 0.9)  from quantile
+
+statement ok
+SELECT reservoir_quantile(r, 0.9,1000)  from quantile
+
+# reservoir = 1
+query I
+SELECT reservoir_quantile(1, 0.5, 1) FROM quantile
+----
+1
+
+statement ok
+SELECT RESERVOIR_QUANTILE(b, 0.5)
+FROM (SELECT 'a' AS a, 1.0 AS b) y
+GROUP BY a
+
+statement ok
+SELECT APPROX_QUANTILE(b, 0.5)
+FROM (
+    SELECT 'a' AS a, 1.0 AS b
+    UNION ALL SELECT 'a' AS a, 1.0 AS b
+    UNION ALL SELECT 'b' AS a, 1.0 AS b
+    ) y
+GROUP BY a
+
+statement error
+SELECT reservoir_quantile(r, r)  from quantile
+----
+
+statement error
+SELECT reservoir_quantile(r, NULL)  from quantile
+----
+
+statement error
+SELECT reservoir_quantile(r, r, r)  from quantile
+----
+
+statement error
+SELECT reservoir_quantile(r, 0.9, NULL)  from quantile
+----
+
+statement error
+SELECT reservoir_quantile(r, 0.9, r)  from quantile
+----
+
+statement error
+SELECT reservoir_quantile(r, random()::float)  from quantile
+----
+
+statement error
+SELECT reservoir_quantile(r, 0.9, random()::float)  from quantile
+----
+
+# DECIMAL binding
+query I
+SELECT RESERVOIR_QUANTILE(0., 0.9, 1000);
+----
+0

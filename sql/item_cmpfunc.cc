@@ -6250,7 +6250,8 @@ bool Item_cond::fix_fields(THD *thd, Item **ref) {
         !item->walk(&Item::is_non_const_over_literals, enum_walk::POSTFIX,
                     nullptr) &&
         !thd->lex->is_view_context_analysis() && ignore_unknown() &&
-        !select->has_ft_funcs() && can_remove_cond) {
+        !select->has_ft_funcs() && can_remove_cond &&
+        thd->lex->optimizer_rewrite_enabled) {
       if (remove_const_conds(thd, item, &new_item)) return true;
       /*
         If a new_item is returned, indicate that all the items can be removed

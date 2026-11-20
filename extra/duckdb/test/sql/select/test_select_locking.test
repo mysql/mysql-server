@@ -1,0 +1,30 @@
+# name: test/sql/select/test_select_locking.test
+# description: Select locking
+# group: [select]
+
+statement ok
+CREATE TABLE t (t TEXT);
+
+# unsupported
+statement error
+SELECT * FROM t FOR UPDATE;
+----
+<REGEX>:(.*SELECT locking clause is not supported.*|.*syntax error at or near "FOR".*)
+
+# unsupported
+statement error
+SELECT * FROM t FOR NO KEY UPDATE;
+----
+<REGEX>:(.*SELECT locking clause is not supported.*|.*syntax error at or near "FOR".*)
+
+# unsupported
+statement error
+SELECT * FROM t FOR SHARE;
+----
+<REGEX>:(.*SELECT locking clause is not supported.*|.*syntax error at or near "FOR".*)
+
+# unsupported
+statement error
+SELECT * FROM t KEY SHARE;
+----
+<REGEX>:.*Parser Error.*syntax error.*

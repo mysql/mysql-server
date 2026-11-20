@@ -1,0 +1,67 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1) CREATE INNODB TABLE IN MASTER, THE TABLE IN SLAVE WILL BE CONVERTED TO DUCKDB
+#
+[connection master]
+CREATE TABLE t1 (id INT, name VARCHAR(255), PRIMARY KEY (id)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+id	name
+1	one
+include/rpl/sync.inc
+[connection slave]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+id	name
+1	one
+#
+# 2) CREATE INNODB TABLE WITHOUT PK IN MASTER, SLAVE FAILS TO CONVERT TO DUCKDB
+#
+[connection master]
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+CREATE TABLE t2 (id INT, name VARCHAR(255)) ENGINE = InnoDB;
+SET GTID_NEXT = 'AUTOMATIC';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `name` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+id	name
+1	one
+[connection slave]
+include/rpl/wait_for_replica_status.inc [Last_SQL_Errno]
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+include/rpl/start_applier.inc
+include/rpl/sync.inc
+SHOW CREATE TABLE t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+#
+# 3) CLEANUP
+#
+[connection master]
+DROP TABLE IF EXISTS t1, t2;
+include/rpl/sync.inc
+include/rpl/deinit.inc

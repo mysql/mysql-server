@@ -1,0 +1,160 @@
+# === Case 1: schema name with '-' (COPY ALTER) ===
+CREATE DATABASE `mydb-x`;
+USE `mydb-x`;
+CREATE TABLE t1 (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b'), (3, 'c');
+FLUSH TABLES t1;
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+ALTER TABLE t1 FORCE, ALGORITHM=COPY;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+FLUSH TABLES t1;
+SELECT * FROM t1;
+id	val
+1	a
+2	b
+3	c
+include/assert.inc [case 1 positive: checksum stable]
+CREATE TABLE t1n (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB;
+INSERT INTO t1n VALUES (1, 'a');
+FLUSH TABLES t1n;
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+ALTER TABLE t1n FORCE, ALGORITHM=COPY;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+SET SESSION debug = '+d,dd_load_tablespace_skip_fix';
+FLUSH TABLES t1n;
+SELECT * FROM t1n;
+id	val
+1	a
+SET SESSION debug = '-d,dd_load_tablespace_skip_fix';
+include/assert_grep.inc [case 1: canonical FIL cache names preserved]
+DROP TABLE t1, t1n;
+DROP DATABASE `mydb-x`;
+# === Case 2: table name with '-' (COPY ALTER) ===
+CREATE DATABASE cleandb;
+USE cleandb;
+CREATE TABLE `t-name` (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB;
+INSERT INTO `t-name` VALUES (10, 'x'), (20, 'y'), (30, 'z');
+FLUSH TABLES `t-name`;
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+ALTER TABLE `t-name` FORCE, ALGORITHM=COPY;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+FLUSH TABLES `t-name`;
+SELECT * FROM `t-name`;
+id	val
+10	x
+20	y
+30	z
+include/assert.inc [case 2 positive: checksum stable]
+CREATE TABLE `t-namen` (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB;
+INSERT INTO `t-namen` VALUES (1, 'a');
+FLUSH TABLES `t-namen`;
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+ALTER TABLE `t-namen` FORCE, ALGORITHM=COPY;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+SET SESSION debug = '+d,dd_load_tablespace_skip_fix';
+FLUSH TABLES `t-namen`;
+SELECT * FROM `t-namen`;
+id	val
+1	a
+SET SESSION debug = '-d,dd_load_tablespace_skip_fix';
+include/assert_grep.inc [case 2: canonical FIL cache names preserved]
+DROP TABLE `t-name`, `t-namen`;
+# === Case 3: partition name with '-' (COPY ALTER) ===
+CREATE TABLE pt (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION `p-low` VALUES LESS THAN (50),
+PARTITION `p-high` VALUES LESS THAN (200)
+);
+INSERT INTO pt VALUES (1, 'a'), (49, 'b'), (100, 'c');
+FLUSH TABLES pt;
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+ALTER TABLE pt FORCE, ALGORITHM=COPY;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+FLUSH TABLES pt;
+SELECT * FROM pt;
+id	val
+1	a
+100	c
+49	b
+include/assert.inc [case 3 positive: checksum stable]
+CREATE TABLE ptn (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+PARTITION `pn-low` VALUES LESS THAN (50),
+PARTITION `pn-high` VALUES LESS THAN (200)
+);
+INSERT INTO ptn VALUES (1, 'a'), (49, 'b');
+FLUSH TABLES ptn;
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+ALTER TABLE ptn FORCE, ALGORITHM=COPY;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+SET SESSION debug = '+d,dd_load_tablespace_skip_fix';
+FLUSH TABLES ptn;
+SELECT * FROM ptn;
+id	val
+1	a
+49	b
+SET SESSION debug = '-d,dd_load_tablespace_skip_fix';
+include/assert_grep.inc [case 3: canonical FIL cache names preserved]
+DROP TABLE pt, ptn;
+# === Case 4: sub-partition name with '-' (COPY ALTER) ===
+CREATE TABLE st (id INT, val VARCHAR(32)) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id) (
+PARTITION p1 VALUES LESS THAN (50) (
+SUBPARTITION `sp-a`,
+SUBPARTITION `sp-b`
+  ),
+PARTITION p2 VALUES LESS THAN (200) (
+SUBPARTITION `sp-c`,
+SUBPARTITION `sp-d`
+  )
+);
+INSERT INTO st VALUES (1, 'a'), (49, 'b'), (100, 'c'), (150, 'd');
+FLUSH TABLES st;
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+ALTER TABLE st FORCE, ALGORITHM=COPY;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+FLUSH TABLES st;
+SELECT * FROM st;
+id	val
+1	a
+100	c
+150	d
+49	b
+include/assert.inc [case 4 positive: checksum stable]
+CREATE TABLE stn (id INT, val VARCHAR(32)) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id) (
+PARTITION p1 VALUES LESS THAN (50) (
+SUBPARTITION `sn-a`,
+SUBPARTITION `sn-b`
+  ),
+PARTITION p2 VALUES LESS THAN (200) (
+SUBPARTITION `sn-c`,
+SUBPARTITION `sn-d`
+  )
+);
+INSERT INTO stn VALUES (1, 'a'), (100, 'c');
+FLUSH TABLES stn;
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+ALTER TABLE stn FORCE, ALGORITHM=COPY;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+SET SESSION debug = '+d,dd_load_tablespace_skip_fix';
+FLUSH TABLES stn;
+SELECT * FROM stn;
+id	val
+1	a
+100	c
+SET SESSION debug = '-d,dd_load_tablespace_skip_fix';
+include/assert_grep.inc [case 4: canonical FIL cache names preserved]
+DROP TABLE st, stn;
+# === Cleanup ===
+DROP DATABASE cleandb;

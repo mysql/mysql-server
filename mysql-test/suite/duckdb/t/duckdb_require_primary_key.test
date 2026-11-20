@@ -1,0 +1,38 @@
+--echo #
+--echo # 1) duckdb_require_primary_key is ON, CREATE without PK is not allowed
+--echo #
+SET GLOBAL duckdb_require_primary_key = ON;
+--error ER_REQUIRES_PRIMARY_KEY
+CREATE TABLE t(id INT, a VARCHAR(10), b VARCHAR(10)) ENGINE = DuckDB;
+
+
+--echo #
+--echo # 2) duckdb_require_primary_key is OFF, CREATE without PK is allowed
+--echo #
+SET GLOBAL duckdb_require_primary_key = OFF;
+CREATE TABLE t(id INT, a VARCHAR(10), b VARCHAR(10)) ENGINE = DuckDB;
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 3) duckdb_require_primary_key is ON, ALTER without PK is not allowed
+--echo #
+SET GLOBAL duckdb_require_primary_key = ON;
+--error ER_REQUIRES_PRIMARY_KEY
+ALTER TABLE t ADD COLUMN c VARCHAR(10);
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 4) duckdb_require_primary_key is OFF, CREATE without PK is allowed
+--echo #
+SET GLOBAL duckdb_require_primary_key = OFF;
+ALTER TABLE t ADD COLUMN c VARCHAR(10);
+SHOW CREATE TABLE t;
+
+
+--echo #
+--echo # 5) Cleanup
+--echo #
+SET GLOBAL duckdb_require_primary_key = default;
+DROP TABLE t;

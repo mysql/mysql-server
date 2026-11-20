@@ -1,0 +1,147 @@
+#
+# 1. Execute parallel COPY DDL from InnoDB to DuckDB.
+#
+CREATE TABLE `t1` (
+`id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+col1 VARCHAR(20) NOT NULL,
+col2 CHAR(10) DEFAULT 'duckdb',
+col3 DECIMAL(5,2) DEFAULT NULL,
+col4 DATETIME DEFAULT NULL,
+col5 TIMESTAMP NULL DEFAULT NULL,
+col6 BLOB
+) ENGINE = InnoDB;
+INSERT INTO t1 (col1, col2, col3, col4, col5, col6) VALUES ('abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+SET SESSION duckdb_copy_ddl_threads = 4;
+ALTER TABLE t1 ENGINE = DuckDB;
+include/assert_grep.inc [Found multi-threads copy data.]
+#
+# 2. Simulate error happens when execute parallel COPY DDL, committed tmp table should be deleted explicitly.
+#
+DROP TABLE t1;
+CREATE TABLE `t1` (
+`id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+col1 VARCHAR(20) NOT NULL,
+col2 CHAR(10) DEFAULT 'duckdb',
+col3 DECIMAL(5,2) DEFAULT NULL,
+col4 DATETIME DEFAULT NULL,
+col5 TIMESTAMP NULL DEFAULT NULL,
+col6 BLOB
+) ENGINE = InnoDB;
+INSERT INTO t1 (col1, col2, col3, col4, col5, col6) VALUES ('abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+SET SESSION DEBUG = '+d, simulate_parallel_copy_ddl_failed';
+ALTER TABLE t1 ENGINE = DuckDB;
+ERROR HY000: Unknown error
+SET SESSION DEBUG = 'reset';
+SET SESSION DEBUG = '+d, simulate_parallel_copy_ddl_rename_failed';
+ALTER TABLE t1 ENGINE = DuckDB;
+ERROR HY000: Unknown error
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `col1` varchar(20) NOT NULL,
+  `col2` char(10) DEFAULT 'duckdb',
+  `col3` decimal(5,2) DEFAULT NULL,
+  `col4` datetime DEFAULT NULL,
+  `col5` timestamp NULL DEFAULT NULL,
+  `col6` blob,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema != 'mysql'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+0
+
+
+include/assert_grep.inc [Found drop committed tmp table.]
+include/assert_grep.inc [Found parallel copy ddl failed.]
+SET SESSION DEBUG = 'reset';
+SET SESSION DEBUG = '+d, simulate_parallel_copy_ddl_failed_after_rename';
+ALTER TABLE t1 ENGINE = DuckDB;
+ERROR HY000: Unknown error
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `col1` varchar(20) NOT NULL,
+  `col2` char(10) DEFAULT 'duckdb',
+  `col3` decimal(5,2) DEFAULT NULL,
+  `col4` datetime DEFAULT NULL,
+  `col5` timestamp NULL DEFAULT NULL,
+  `col6` blob,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema != 'mysql'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+0
+
+
+include/assert_grep.inc [Found drop committed tmp table.]
+include/assert_grep.inc [Found drop committed t1 table.]
+#
+# 3. Simulate crash when execute parallel COPY DDL, tmp table will be committed and left in DuckDB.
+#
+DROP TABLE t1;
+CREATE TABLE `t1` (
+`id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+col1 VARCHAR(20) NOT NULL,
+col2 CHAR(10) DEFAULT 'duckdb',
+col3 DECIMAL(5,2) DEFAULT NULL,
+col4 DATETIME DEFAULT NULL,
+col5 TIMESTAMP NULL DEFAULT NULL,
+col6 BLOB
+) ENGINE = InnoDB;
+INSERT INTO t1 (col1, col2, col3, col4, col5, col6) VALUES ('abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+SET SESSION DEBUG = 'reset';
+SET SESSION DEBUG = '+d, simulate_parallel_copy_ddl_crash';
+ALTER TABLE t1 ENGINE = DuckDB;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `col1` varchar(20) NOT NULL,
+  `col2` char(10) DEFAULT 'duckdb',
+  `col3` decimal(5,2) DEFAULT NULL,
+  `col4` datetime DEFAULT NULL,
+  `col5` timestamp NULL DEFAULT NULL,
+  `col6` blob,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_NAME = 't1'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+0
+
+
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE TABLE_NAME LIKE '#sql-%'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+1
+
+
+DROP TABLE t1;
+CALL dbms_duckdb.query("DROP SCHEMA `test` CASCADE");
+RESULT
+Success	
+BOOLEAN	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("CREATE SCHEMA `test`");
+RESULT
+Count	
+BIGINT	
+[ Rows: 0]
+
+

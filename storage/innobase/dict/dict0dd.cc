@@ -4864,7 +4864,32 @@ void dd_load_tablespace(const Table *dd_table, dict_table_t *table,
   if (filepath != nullptr) {
     /* If space id is already open with a different space name, then skip
     loading the space. It can happen because DDL log recovery might not
-    have happened yet. */
+    have happened yet.
+
+    Defensive repair for fs-charset vs system-charset divergence in
+    space->name: copy-style ALTER rolling back via err_with_mdl goes
+    through fil_op_replay_rename's "rollback target file does NOT exist"
+    branch, which leaves space->name in fs charset ("schema@002dx/t1")
+    while DD name is in system charset ("schema-x/t1"). Reconcile via
+    fil_space_update_name to avoid a spurious ibd_file_missing.
+    See to#82562427. dd_load_tablespace_skip_fix gates the repair off
+    for the MTR repro. */
+    fil_space_t *cached_space = fil_space_get(table->space);
+    if (cached_space != nullptr && cached_space->name != nullptr &&
+        strcmp(cached_space->name, space_name) != 0) {
+      ib::warn(ER_IB_MSG_173)
+          << "FIL cache name '" << cached_space->name
+          << "' differs from data dictionary name '" << space_name
+          << "' for space " << table->space << " (table " << table->name << ")";
+      if (DBUG_EVALUATE_IF("dd_load_tablespace_skip_fix", false, true)) {
+        fil_space_update_name(cached_space, space_name);
+        if (is_already_opened()) {
+          ut::free(filepath);
+          return;
+        }
+      }
+    }
+
     table->ibd_file_missing = true;
 
     ut::free(shared_space_name);

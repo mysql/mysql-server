@@ -1,0 +1,75 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+###########################################################################
+# 0. Prepare
+###########################################################################
+[connection master]
+SET autocommit = 1;
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+c0 VARCHAR(20) NOT NULL,
+c1 CHAR(10) DEFAULT 'duckdb',
+PRIMARY KEY(id, c0)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  PRIMARY KEY (`id`,`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  PRIMARY KEY (`id`,`c0`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# 1. Test IO Thread slower than SQL Thread
+###########################################################################
+[connection slave]
+STOP REPLICA;
+[connection master]
+# 1.1 Execute two Transactions on Master
+INSERT INTO t1 (id, c0, c1) VALUES (1, 'abc', NULL), (3, 'def', 'xxx');
+BEGIN;
+UPDATE t1 SET id=6, c1='AliSQL' WHERE id=1;
+DELETE FROM t1 WHERE id=3;
+COMMIT;
+# 1.2 Make IO Thread sync after the Trx2's Table map Event queued
+[connection slave]
+SET GLOBAL debug="+d,debug_sync_when_queue_update_rows_event";
+START REPLICA IO_THREAD;
+SET debug_sync="now WAIT_FOR queue_signal";
+# 1.3 Start SQL Thread, and make it execute the partial Trx2
+SET GLOBAL debug="+d,debug_sync_after_reader_commit";
+START REPLICA SQL_THREAD;
+SET debug_sync="now WAIT_FOR commit_signal";
+SET GLOBAL debug="-d,debug_sync_after_reader_commit";
+SET debug_sync="now SIGNAL resume_signal";
+# 1.4 Resume IO Thread
+SET GLOBAL debug="-d,debug_sync_when_queue_update_rows_event";
+SET debug_sync="now SIGNAL resume_io_signal";
+# 1.5 Check the result
+include/rpl/sync.inc
+include/rpl/diff.inc
+###########################################################################
+# 2. Test transactions are not replayed by executing SQL
+###########################################################################
+include/assert_grep.inc [Check DML SQL is not executed]
+###########################################################################
+# 3. Test Cleanup
+###########################################################################
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

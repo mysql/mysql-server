@@ -1,0 +1,26 @@
+--echo #
+--echo # Aone#78159089  Crash when execute pstmt with CURSOR_TYPE_READ_ONLY
+--echo #
+
+# 
+# DuckDB returns results without going through `Query_result`, therefore it
+# does not support server-side cursors. In `mysqld_stmt_execute`, server-side
+# cursors are disabled for DuckDB, meaning `SERVER_STATUS_CURSOR_EXIST` returns
+# false. JDBC has a Bug#112090, when handles this situation, jdbc client will be
+# blocked forever. This bug is fixed by jdbc version 9.5.0 in commit#1e484a2.
+# Therefore, for empty query results without rows, we send an additional EOF 
+# packet.
+# For the C client, this JDBC bug doesn't exist. Here test whether or not the extra 
+# EOF is sent works well.
+
+--echo # Execute statements from mysql_client_test.
+SET GLOBAL duckdb_psmt_cursor_send_extra_eof = ON;
+--exec echo "$MYSQL_CLIENT_TEST" > $MYSQLTEST_VARDIR/log/test_duckdb_pstmt_cursor.out.log 2>&1
+--exec $MYSQL_CLIENT_TEST -d -u root test_duckdb_pstmt_cursor >> $MYSQLTEST_VARDIR/log/test_duckdb_pstmt_cursor.out.log 2>&1
+
+SET GLOBAL duckdb_psmt_cursor_send_extra_eof = OFF;
+--exec echo "$MYSQL_CLIENT_TEST" > $MYSQLTEST_VARDIR/log/test_duckdb_pstmt_cursor.out.log 2>&1
+--exec $MYSQL_CLIENT_TEST -d -u root test_duckdb_pstmt_cursor >> $MYSQLTEST_VARDIR/log/test_duckdb_pstmt_cursor.out.log 2>&1
+
+SET GLOBAL duckdb_psmt_cursor_send_extra_eof = default;
+DROP DATABASE client_test_db;

@@ -1,0 +1,20 @@
+--source include/have_duckdb.inc
+
+SET @saved = @@global.duckdb_enable_background_checkpoint;
+SELECT @@global.duckdb_enable_background_checkpoint;
+SHOW GLOBAL VARIABLES LIKE 'duckdb_enable_background_checkpoint';
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.duckdb_enable_background_checkpoint;
+--error ER_GLOBAL_VARIABLE
+SET SESSION duckdb_enable_background_checkpoint = ON;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL duckdb_enable_background_checkpoint = 2;
+--error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL duckdb_enable_background_checkpoint = 'invalid';
+
+SET GLOBAL duckdb_enable_background_checkpoint = ON;
+CALL dbms_duckdb.query("SELECT current_setting('enable_background_checkpoint') AS enabled");
+SET GLOBAL duckdb_enable_background_checkpoint = DEFAULT;
+SELECT @@global.duckdb_enable_background_checkpoint;
+SET GLOBAL duckdb_enable_background_checkpoint = @saved;

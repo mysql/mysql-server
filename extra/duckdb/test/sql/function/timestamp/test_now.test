@@ -1,0 +1,29 @@
+# name: test/sql/function/timestamp/test_now.test
+# description: NOW function
+# group: [timestamp]
+
+statement ok
+PRAGMA enable_verification
+
+# the NOW function should return the start time of the transaction
+# hence during a transaction it should not change
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+CREATE TABLE t1(t TIMESTAMP)
+
+statement ok
+INSERT INTO t1 VALUES (NOW());
+
+statement ok
+INSERT INTO t1 SELECT NOW();
+
+query I
+SELECT COUNT(DISTINCT t) FROM t1
+----
+1
+
+statement ok
+ROLLBACK
+

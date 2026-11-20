@@ -1,0 +1,18 @@
+# name: test/parquet/invalid_parquet.test
+# description: Test Parquet Reader on $TEST_DATA_LOC/parquet-testing/invalid.parquet
+# group: [parquet]
+
+require parquet
+
+statement error
+SELECT * FROM parquet_scan('{DATA_DIR}/parquet-testing/invalid.parquet') limit 50;
+----
+Invalid string encoding found
+
+statement ok
+pragma disable_optimizer
+
+statement error
+SELECT * FROM parquet_scan('{DATA_DIR}/parquet-testing/invalid.parquet') limit 50;
+----
+Invalid string encoding found

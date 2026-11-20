@@ -1,0 +1,559 @@
+CREATE TABLE fake_innodb_table (id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO fake_innodb_table VALUES (0);
+CREATE TABLE fake_duckdb_table (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO fake_duckdb_table VALUES (0);
+
+# Modify the default value of the bit_xxx aggregate function 
+# when there is no data in the table
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+SELECT BIT_AND(id), BIT_OR(id), BIT_XOR(id) FROM t1;
+ALTER TABLE t1 ENGINE = DuckDB;
+SELECT BIT_AND(id), BIT_OR(id), BIT_XOR(id) FROM t1;
+DROP TABLE t1;
+
+# Fix microsecond function
+SELECT microsecond(TIME '12:12:12.123456') FROM fake_innodb_table;
+SELECT microsecond(TIME '12:12:12.123456') FROM fake_duckdb_table;
+
+# Fix the behavior of least function when there is a null value in it
+SELECT LEAST('a', NULL) FROM fake_innodb_table;
+SELECT LEAST('a', NULL) FROM fake_duckdb_table;
+
+# Fix the behavior of oct/bin/hex function when the argument is float/varchar
+SELECT oct(123.123) FROM fake_innodb_table;
+SELECT oct(123.123) FROM fake_duckdb_table;
+SELECT oct('123.123a') FROM fake_innodb_table;
+SELECT oct('123.123a') FROM fake_duckdb_table;
+SELECT bin(123.123) FROM fake_innodb_table;
+SELECT bin(123.123) FROM fake_duckdb_table;
+SELECT bin('123.123a') FROM fake_innodb_table;
+SELECT bin('123.123a') FROM fake_duckdb_table;
+SELECT hex(123.123) FROM fake_innodb_table;
+SELECT hex(123.123) FROM fake_duckdb_table;
+SELECT hex('123.123a') FROM fake_innodb_table;
+SELECT hex('123.123a') FROM fake_duckdb_table;
+
+# Fix the behavior of left/right function when the argument len is less than 0
+SELECT left('abc', -1) FROM fake_innodb_table;
+SELECT left('abc', -1) FROM fake_duckdb_table;
+SELECT right('abc', -1) FROM fake_innodb_table;
+SELECT right('abc', -1) FROM fake_duckdb_table;
+
+# Fix the behavior of trim function when the argument remstr is a string
+SELECT trim('ab' from 'aaab') FROM fake_innodb_table;
+SELECT trim('ab' from 'aaab') FROM fake_duckdb_table;
+
+# Add a type conversion function from timestamptz to time
+CREATE TABLE t1 (id TIMESTAMP PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES('2020-01-01 12:12:12.123');
+SELECT CONVERT(id, TIME) FROM t1;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT CONVERT(id, TIME) FROM t1;
+DROP TABLE t1;
+
+# Fix time_to_sec(TIMESTAMP) function
+SELECT time_to_sec('2020-01-01 12:12:12') FROM fake_innodb_table;
+SELECT time_to_sec('2020-01-01 12:12:12') FROM fake_duckdb_table;
+
+# Fix strcmp function
+SELECT strcmp('a', NULL) FROM fake_innodb_table;
+SELECT strcmp('a', NULL) FROM fake_duckdb_table;
+
+# Fix substring_index function
+SELECT substring_index(NULL, 'ab', 2) FROM fake_innodb_table;
+SELECT substring_index(NULL, 'ab', 2) FROM fake_duckdb_table;
+SELECT substring_index('ddabddabcc', NULL, 2) FROM fake_innodb_table;
+SELECT substring_index('ddabddabcc', NULL, 2) FROM fake_duckdb_table;
+SELECT substring_index('ddabddabcc', 'ab', NULL) FROM fake_innodb_table;
+SELECT substring_index('ddabddabcc', 'ab', NULL) FROM fake_duckdb_table;
+SELECT substring_index('ddabddabcc', 'ab', 2) FROM fake_innodb_table;
+SELECT substring_index('ddabddabcc', 'ab', 2) FROM fake_duckdb_table;
+
+# Fix weekday(TIMESTAMPTZ) function
+CREATE TABLE t1 (id TIMESTAMP PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('2020-01-01 12:12:12');
+SELECT weekday(id) FROM t1;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT weekday(id) FROM t1;
+DROP TABLE t1;
+
+# Modify type conversion function from varchar to time
+SELECT CONVERT('2020-01-01', TIME) FROM fake_innodb_table;
+SELECT CONVERT('2020-01-01', TIME) FROM fake_duckdb_table;
+
+# Modify type conversion function from varchar to date
+SELECT CONVERT('20-01-01', DATE) FROM fake_innodb_table;
+SELECT CONVERT('20-01-01', DATE) FROM fake_duckdb_table;
+SELECT CONVERT('90-01-01', DATE) FROM fake_innodb_table;
+SELECT CONVERT('90-01-01', DATE) FROM fake_duckdb_table;
+
+# Fix the behavior of rollup operator when there is no data in table
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT, col2 INT) ENGINE=InnoDB;
+SELECT id, col1, col2 FROM t1 GROUP BY id, col1, col2 WITH ROLLUP;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT id, col1, col2 FROM t1 GROUP BY id, col1, col2 WITH ROLLUP;
+DROP TABLE t1;
+
+# Fix the behavior of DIV operator when the argument is float
+SELECT 5.6 DIV 2.2 FROM fake_innodb_table;
+SELECT 5.6 DIV 2.2 FROM fake_duckdb_table;
+
+# Fix the behavior of concat function when there is null in argument
+SELECT concat('a', NULL) FROM fake_innodb_table;
+SELECT concat('a', NULL) FROM fake_duckdb_table;
+
+# Fix the behavior of like operator
+CREATE TABLE t1 (id VARCHAR(20) PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('abc\\b');
+SELECT id LIKE 'abc\\b', id LIKE 'abc\\\\b' FROM t1;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT id LIKE 'abc\\b', id LIKE 'abc\\\\b' FROM t1;
+DROP TABLE t1;
+
+# Fix the behavior of substring function when argument offset is zero
+SELECT substring('abcde', 0, 2) FROM fake_innodb_table;
+SELECT substring('abcde', 0, 2) FROM fake_duckdb_table;
+
+# Fix the behavior of position/instr function when the argument str is nocase
+CREATE TABLE t1 (id VARCHAR(20) collate utf8mb3_general_ci PRIMARY KEY);
+INSERT INTO t1 VALUES ('abc');
+SELECT position('C' IN id) FROM t1;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT position('C' IN id) FROM t1;
+DROP TABLE t1;
+
+CREATE TABLE t1 (id VARCHAR(20) collate utf8mb3_bin PRIMARY KEY);
+INSERT INTO t1 VALUES ('abc');
+SELECT position('C' IN id) FROM t1;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT position('C' IN id) FROM t1;
+DROP TABLE t1;
+
+# Modify type conversion function from varchar to double
+SELECT CONVERT('', DOUBLE), CONVERT('123.123a', DOUBLE), CONVERT('a123', DOUBLE), CONVERT('1_23', DOUBLE) FROM fake_innodb_table;
+SELECT CONVERT('', DOUBLE), CONVERT('123.123a', DOUBLE), CONVERT('a123', DOUBLE), CONVERT('1_23', DOUBLE) FROM fake_duckdb_table;
+
+# Disable DUPLICATE_GROUPS Optimization
+CREATE TABLE t1 (col1 INT PRIMARY KEY, col2 INT) ENGINE=InnoDB;
+CREATE TABLE t2 (col3 INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (1);
+SELECT col1, col2, col3 FROM t1 JOIN t2 ON t1.col1 = t2.col3 GROUP BY col1, col2, col3 WITH ROLLUP ORDER BY 1, 2, 3;
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+SELECT col1, col2, col3 FROM t1 JOIN t2 ON t1.col1 = t2.col3 GROUP BY col1, col2, col3 WITH ROLLUP ORDER BY 1, 2, 3;
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Modify type conversion function from ... to char(width)
+SELECT CONVERT('abcde', CHAR(3)) FROM fake_innodb_table;
+SELECT CONVERT('abcde', CHAR(3)) FROM fake_duckdb_table;
+
+# Modify type conversion function from ... to decimal
+SELECT CONVERT(12345.12345, DECIMAL) FROM fake_innodb_table;
+SELECT CONVERT(12345.12345, DECIMAL) FROM fake_duckdb_table;
+
+# Fix the behavior of union two column with different collation
+CREATE TABLE t1(id VARCHAR(20) COLLATE utf8mb3_general_ci PRIMARY KEY);
+CREATE TABLE t2(id VARCHAR(20) COLLATE utf8mb3_general_ci PRIMARY KEY);
+INSERT INTO t1 VALUES ('A');
+INSERT INTO t2 VALUES ('a');
+SELECT COUNT(*) FROM (SELECT * FROM t1 UNION SELECT * FROM t2) d;
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+SELECT COUNT(*) FROM (SELECT * FROM t1 UNION SELECT * FROM t2) d;
+DROP TABLE t1;
+DROP TABLE t2;
+
+CREATE TABLE t1(id VARCHAR(20) COLLATE utf8mb3_bin PRIMARY KEY);
+CREATE TABLE t2(id VARCHAR(20) COLLATE utf8mb3_general_ci PRIMARY KEY);
+INSERT INTO t1 VALUES ('A');
+INSERT INTO t2 VALUES ('a');
+SELECT COUNT(*) FROM (SELECT * FROM t1 UNION SELECT * FROM t2) d;
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+SELECT COUNT(*) FROM (SELECT * FROM t1 UNION SELECT * FROM t2) d;
+DROP TABLE t1;
+DROP TABLE t2;
+
+# NOCASE.NOACCENT
+CREATE TABLE t1(id INT PRIMARY KEY, col1 VARCHAR(20) COLLATE utf8mb4_0900_ai_ci) ENGINE=InnoDB;
+# NOACCENT
+CREATE TABLE t2(id INT PRIMARY KEY, col1 VARCHAR(20) COLLATE utf8mb4_0900_as_ci) ENGINE=InnoDB;
+# POSIX
+CREATE TABLE t3(id INT PRIMARY KEY, col1 VARCHAR(20) COLLATE utf8mb4_0900_as_cs) ENGINE=InnoDB;
+# POSIX
+CREATE TABLE t4(id INT PRIMARY KEY, col1 VARCHAR(20) COLLATE utf8mb4_bin) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'A'), (3, 'ä');
+INSERT INTO t2 VALUES (1, 'a'), (2, 'A'), (3, 'ä');
+INSERT INTO t3 VALUES (1, 'a'), (2, 'A'), (3, 'ä');
+INSERT INTO t4 VALUES (1, 'a'), (2, 'A'), (3, 'ä');
+SELECT * FROM t1 d1, t1 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t2 d1, t2 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t3 d1, t3 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t4 d1, t4 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t1 d1, (SELECT * FROM t1 UNION SELECT * FROM t1) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t2 d1, (SELECT * FROM t2 UNION SELECT * FROM t2) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t3 d1, (SELECT * FROM t3 UNION SELECT * FROM t3) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t4 d1, (SELECT * FROM t4 UNION SELECT * FROM t4) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+# Union or comparison of columns with different collations is not allowed unless one of the collation is bin.
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
+--error ER_CANT_AGGREGATE_NCOLLATIONS
+SELECT * FROM t1 UNION SELECT * FROM t2;
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT * FROM t1 d1, (SELECT * FROM t2 UNION SELECT * FROM t2) d2 WHERE d1.col1 = d2.col1;
+
+SELECT * FROM t1, t4 WHERE t1.col1 = t4.col1 ORDER BY t1.id, t4.id;
+SELECT * FROM t1 UNION SELECT * FROM t4 ORDER BY id, col1;
+SELECT * FROM t1 d1, (SELECT * FROM t2 UNION SELECT * FROM t4) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+ALTER TABLE t3 ENGINE=DuckDB;
+ALTER TABLE t4 ENGINE=DuckDB;
+SELECT * FROM t1 d1, t1 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t2 d1, t2 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t3 d1, t3 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t4 d1, t4 d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t1 d1, (SELECT * FROM t1 UNION SELECT * FROM t1) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t2 d1, (SELECT * FROM t2 UNION SELECT * FROM t2) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t3 d1, (SELECT * FROM t3 UNION SELECT * FROM t3) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+SELECT * FROM t4 d1, (SELECT * FROM t4 UNION SELECT * FROM t4) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT * FROM t1, t2 WHERE t1.col1 = t2.col1;
+--error ER_CANT_AGGREGATE_NCOLLATIONS
+SELECT * FROM t1 UNION SELECT * FROM t2;
+--error ER_CANT_AGGREGATE_2COLLATIONS
+SELECT * FROM t1 d1, (SELECT * FROM t2 UNION SELECT * FROM t2) d2 WHERE d1.col1 = d2.col1;
+
+SELECT * FROM t1, t4 WHERE t1.col1 = t4.col1 ORDER BY t1.id, t4.id;
+SELECT * FROM t1 UNION SELECT * FROM t4 ORDER BY id, col1;
+SELECT * FROM t1 d1, (SELECT * FROM t2 UNION SELECT * FROM t4) d2 WHERE d1.col1 = d2.col1 ORDER BY d1.id, d2.id;
+
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+DROP TABLE t4;
+
+# Fix the behavior of aggregate(column order by numeric)
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT);
+INSERT INTO t1 VALUES (1, 2), (2, 1);
+SELECT GROUP_CONCAT(col1 ORDER BY 1) FROM t1;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT GROUP_CONCAT(col1 ORDER BY 1) FROM t1;
+DROP TABLE t1;
+
+# Fix the behavior of case when ... then ... else ... end
+SELECT CASE WHEN 1 = 2 THEN 1 WHEN 1 = 1 THEN '1a' ELSE NULL END FROM fake_innodb_table;
+SELECT CASE WHEN 1 = 2 THEN 1 WHEN 1 = 1 THEN '1a' ELSE NULL END FROM fake_duckdb_table;
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+SELECT CASE WHEN 1 = 2 THEN id WHEN 1 = 1 THEN '1a' ELSE NULL END FROM t1;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT CASE WHEN 1 = 2 THEN id WHEN 1 = 1 THEN '1a' ELSE NULL END FROM t1;
+DROP TABLE t1;
+
+# Fix the behavior of COALESCE/IFNULL
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT);
+INSERT INTO t1 VALUES (1, 1), (2, NULL);
+SELECT IFNULL(col1, '1a') FROM t1;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT IFNULL(col1, '1a') FROM t1;
+DROP TABLE t1;
+
+# Fix the behavior of JOIN ... USING ...
+CREATE TABLE t1 (id1 INT PRIMARY KEY, col1 INT);
+CREATE TABLE t2 (id2 INT PRIMARY KEY, col1 INT);
+SELECT * FROM t1 JOIN t2 USING(col1);
+SELECT * FROM t1 LEFT JOIN t2 USING(col1);
+SELECT * FROM t1 RIGHT JOIN t2 USING(col1);
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t2 ENGINE=DuckDB;
+SELECT * FROM t1 JOIN t2 USING(col1);
+SELECT * FROM t1 LEFT JOIN t2 USING(col1);
+SELECT * FROM t1 RIGHT JOIN t2 USING(col1);
+DROP TABLE t1;
+DROP TABLE t2;
+
+# Modify type conversion function from double to varchar
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 DOUBLE);
+INSERT INTO t1 VALUES (1, 1e30);
+INSERT INTO t1 VALUES (2, 0);
+SELECT CONVERT(id, CHAR) FROM t1; 
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT CONVERT(id, CHAR) FROM t1; 
+DROP TABLE t1;
+
+
+DROP TABLE fake_innodb_table;
+DROP TABLE fake_duckdb_table;
+
+# Modify type conversion function from blob to varchar
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 BLOB);
+INSERT INTO t1 VALUES (1, 0xFF), (2, 0x61), (3, 0xE695B0E68DAEE5BA93);
+SELECT CAST(col1 AS CHAR) FROM t1;
+SELECT CAST(col1 AS CHAR) like '%据%' FROM t1;
+SELECT FROM_BASE64(TO_BASE64('数据库')), CAST(FROM_BASE64(TO_BASE64('数据库')) AS CHAR) LIKE '%据%' FROM t1 LIMIT 1;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT CAST(col1 AS CHAR) FROM t1;
+SELECT CAST(col1 AS CHAR) like '%据%' FROM t1;
+SELECT FROM_BASE64(TO_BASE64('数据库')), CAST(FROM_BASE64(TO_BASE64('数据库')) AS CHAR) LIKE '%据%' FROM t1 LIMIT 1;
+
+DROP TABLE t1;
+
+# Modify type conversion function from varchar to boolean
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(10));
+INSERT INTO t1 VALUES (1, '1'), (2, '0'), (3, 'yes'), (4, 'no'), (5, 'true'), (6, 'false'), (7, '0.1'), (8, '0.0'), (9, '2.0');
+SELECT 1 = true, col1 = true FROM t1;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT 1 = true, col1 = true FROM t1;
+DROP TABLE t1;
+
+# Allow order by non integer literal
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 int);
+INSERT INTO t1 VALUES (1, 2), (2, 1);
+SELECT * FROM t1 ORDER BY 'abc', '', 1.1, 2;
+ALTER TABLE t1 ENGINE=DuckDB;
+SELECT * FROM t1 ORDER BY 'abc', '', 1.1, 2;
+DROP TABLE t1;
+
+# Support comparison between numeric type and temporal type
+CREATE TABLE t1 (
+	id INT PRIMARY KEY,
+	col1 DATE,
+	col2 TIMESTAMP,
+	col3 DATETIME,
+	col4 TIME,
+	col5 TIMESTAMP(6),
+	col6 TIME(6)
+);
+
+CREATE TABLE t_int (
+	id INT PRIMARY KEY,
+	lower BIGINT,
+	higher BIGINT,
+	equal BIGINT
+);
+
+CREATE TABLE t_decimal (
+	id INT PRIMARY KEY,
+	lower DECIMAL(38, 10),
+	higher DECIMAL(38, 10),
+	equal DECIMAL(38, 10)
+);
+
+CREATE TABLE t_double (
+	id INT PRIMARY KEY,
+	lower DOUBLE,
+	higher DOUBLE,
+	equal DOUBLE
+);
+
+INSERT INTO t1 VALUES (1, '2020-01-01', '2020-01-01 12:00:00', '2020-01-01 12:00:00', '12:00:00', '2020-01-01 12:00:00.123456', '12:00:00.123456');
+
+INSERT INTO t_int
+VALUES (1, 20200100, 20200102, 20200101),
+	(2, 20200101119999, 20200101120001, 20200101120000),
+	(3, 20200101119999, 20200101120001, 20200101120000),
+	(4, 119999, 120001, 120000);
+
+INSERT INTO t_decimal
+VALUES (1, 20200100, 20200102, 20200101),
+	(2, 20200101119999, 20200101120001, 20200101120000),
+	(3, 20200101119999, 20200101120001, 20200101120000),
+	(4, 119999, 120001, 120000),
+	(5, 20200101120000.123455, 20200101120000.123457, 20200101120000.123456),
+	(6, 120000.123455, 120000.123457, 120000.123456);
+
+INSERT INTO t_double
+VALUES (1, 20200100, 20200102, 20200101),
+	(2, 20200101119999, 20200101120001, 20200101120000),
+	(3, 20200101119999, 20200101120001, 20200101120000),
+	(4, 119999, 120001, 120000),
+	(5, 20200101120000.123455, 20200101120000.123457, 20200101120000.123456),
+	(6, 120000.123455, 120000.123457, 120000.123456);
+
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+	, col1 = equal, col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col3 > lower
+	, col3 < higher, col3 BETWEEN lower AND higher
+	, col3 = equal, col4 > lower
+	, col4 < higher, col4 BETWEEN lower AND higher
+	, col4 = equal,  col5 > lower
+	, col5 < higher, col5 BETWEEN lower AND higher
+	, col5 = equal,  col6 > lower
+	, col6 < higher, col6 BETWEEN lower AND higher
+	, col6 = equal
+FROM t1, t_int;
+
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+	, col1 = equal, col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col3 > lower
+	, col3 < higher, col3 BETWEEN lower AND higher
+	, col3 = equal, col4 > lower
+	, col4 < higher, col4 BETWEEN lower AND higher
+	, col4 = equal,  col5 > lower
+	, col5 < higher, col5 BETWEEN lower AND higher
+	, col5 = equal,  col6 > lower
+	, col6 < higher, col6 BETWEEN lower AND higher
+	, col6 = equal
+FROM t1, t_decimal;
+
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+	, col1 = equal, col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col3 > lower
+	, col3 < higher, col3 BETWEEN lower AND higher
+	, col3 = equal, col4 > lower
+	, col4 < higher, col4 BETWEEN lower AND higher
+	, col4 = equal,  col5 > lower
+	, col5 < higher, col5 BETWEEN lower AND higher
+	, col5 = equal,  col6 > lower
+	, col6 < higher, col6 BETWEEN lower AND higher
+	, col6 = equal
+FROM t1, t_double;
+
+ALTER TABLE t1 ENGINE=DuckDB;
+ALTER TABLE t_int ENGINE=DuckDB;
+ALTER TABLE t_decimal ENGINE=DuckDB;
+ALTER TABLE t_double ENGINE=DuckDB;
+
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+	, col1 = equal, col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col3 > lower
+	, col3 < higher, col3 BETWEEN lower AND higher
+	, col3 = equal, col4 > lower
+	, col4 < higher, col4 BETWEEN lower AND higher
+	, col4 = equal,  col5 > lower
+	, col5 < higher, col5 BETWEEN lower AND higher
+	, col5 = equal,  col6 > lower
+	, col6 < higher, col6 BETWEEN lower AND higher
+	, col6 = equal
+FROM t1, t_int;
+
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+	, col1 = equal, col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col3 > lower
+	, col3 < higher, col3 BETWEEN lower AND higher
+	, col3 = equal, col4 > lower
+	, col4 < higher, col4 BETWEEN lower AND higher
+	, col4 = equal,  col5 > lower
+	, col5 < higher, col5 BETWEEN lower AND higher
+	, col5 = equal,  col6 > lower
+	, col6 < higher, col6 BETWEEN lower AND higher
+	, col6 = equal
+FROM t1, t_decimal;
+
+SELECT col1 > lower, col1 < higher, col1 BETWEEN lower AND higher
+	, col1 = equal, col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col2 > lower
+	, col2 < higher, col2 BETWEEN lower AND higher
+	, col2 = equal,  col3 > lower
+	, col3 < higher, col3 BETWEEN lower AND higher
+	, col3 = equal, col4 > lower
+	, col4 < higher, col4 BETWEEN lower AND higher
+	, col4 = equal,  col5 > lower
+	, col5 < higher, col5 BETWEEN lower AND higher
+	, col5 = equal,  col6 > lower
+	, col6 < higher, col6 BETWEEN lower AND higher
+	, col6 = equal
+FROM t1, t_double;
+
+DROP TABLE t1;
+DROP TABLE t_int;
+DROP TABLE t_decimal;
+DROP TABLE t_double;
+
+# Modify type conversion function from varchar to double
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(10)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, '-'), (2, '--'), (3, '-a'), (4, '-1');
+SELECT CAST(col1 AS DOUBLE) FROM t1;
+SELECT SUM(col1) FROM t1;
+DROP TABLE t1;
+
+# Test duckdb_prefer_high_precision
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 DECIMAL(18, 2), col2 INT) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 9999999999999999.99, 99999999);
+--error ER_DUCKDB_CLIENT
+SELECT col1 * col1 FROM t1;
+--error ER_DUCKDB_CLIENT
+SELECT col2 * 1.00000000001 FROM t1;
+--error ER_DUCKDB_CLIENT
+SELECT col1 + col2 FROM t1;
+SET duckdb_prefer_high_precision = true;
+SELECT col1 * col1, col2 * 1.00000000001, col1 + col2 FROM t1;
+DROP TABLE t1;
+
+# Supports comparison of bit and boolean types
+# Supports algebraic operations on bit type
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 BIT(64) DEFAULT b'111111110000000011111111') ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, x'00'), (2, x'01'), (3, b'1111111111'), (4, x'00FF00FF00FF00FF');
+INSERT INTO t1 (id) VALUES (5);
+--exec $MYSQL test --binary-as-hex -e "SELECT col1, LENGTH(col1) FROM t1;"
+--exec $MYSQL test --binary-as-hex -e "SELECT col1 FROM t1 WHERE col1 = true;"
+--exec $MYSQL test --binary-as-hex -e "SELECT col1 FROM t1 WHERE col1 = false;"
+--exec $MYSQL test --binary-as-hex -e "SELECT col1 FROM t1 WHERE col1;"
+--exec $MYSQL test --binary-as-hex -e "SELECT col1 FROM t1 WHERE not col1;"
+--exec $MYSQL test --binary-as-hex -e "SELECT col1 FROM t1 WHERE col1 = x'01';"
+SELECT col1 + 1, col1 * 2 FROM t1;
+SELECT id, col1 = 1, col1 > 1, col1 < 1 FROM t1;
+DROP TABLE t1;
+
+# concat blob
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(10), col2 BLOB) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 'abc', 0xFFFF);
+--exec $MYSQL test --binary-as-hex -e "SELECT CONCAT(col1, col2) FROM t1;"
+DROP TABLE t1;
+
+# Fix greatest/least function
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(20)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, NULL);
+SELECT GREATEST(col1, 0) FROM t1;
+DROP TABLE t1;
+
+# Fix an issue where JSON functions were incorrectly reordered.
+CREATE TABLE t1 (id INT PRIMARY KEY, text VARCHAR(100)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, '{"a":a1}');
+SELECT * FROM t1 WHERE json_valid(text) = 1 and (json_extract(text,'$.a') is not null);
+DROP TABLE t1;
+
+# Fix an issue where date_add results differed due to rounding rules.
+CREATE TABLE t1 (
+	id INT PRIMARY KEY,
+	col1 DECIMAL(5, 2),
+	col2 FLOAT,
+	col3 DOUBLE
+) ENGINE = DuckDB;
+
+INSERT INTO t1
+VALUES (1, 0.49, 0.49, 0.49),
+	(2, 0.5, 0.5, 0.5),
+	(3, 0.51, 0.51, 0.51);
+
+SET duckdb_sql_normalization = ON;
+SELECT TIMESTAMP '2020-01-01 12:00:00' + INTERVAL col1 DAY, TIMESTAMP '2020-01-01 12:00:00' + INTERVAL col1 SECOND
+	, TIMESTAMP '2020-01-01 12:00:00' + INTERVAL col1 MICROSECOND
+FROM t1;
+
+SELECT TIMESTAMP '2020-01-01 12:00:00' + INTERVAL -col1 DAY, TIMESTAMP '2020-01-01 12:00:00' + INTERVAL -col1 SECOND
+	, TIMESTAMP '2020-01-01 12:00:00' + INTERVAL -col1 MICROSECOND
+FROM t1;
+SET duckdb_sql_normalization = OFF;
+
+DROP TABLE t1;

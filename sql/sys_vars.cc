@@ -1344,7 +1344,7 @@ static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
     CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 100000 /* max connections */),
     DEFAULT(0), BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
-static bool check_outside_trx(sys_var *var, THD *thd, set_var *) {
+bool check_outside_trx(sys_var *var, THD *thd, set_var *) {
   if (thd->in_active_multi_stmt_transaction()) {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->name.str);
     return true;
@@ -4061,7 +4061,7 @@ static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var) {
   return false;
 }
 
-static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var) {
+bool check_slave_stopped(sys_var *self, THD *thd, set_var *var) {
   bool result = false;
   Master_info *mi = nullptr;
 

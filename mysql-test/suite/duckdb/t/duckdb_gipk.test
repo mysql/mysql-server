@@ -1,0 +1,30 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+
+
+--echo # master create gipk , replication fail
+--connection master
+SET sql_generate_invisible_primary_key = ON;
+
+CREATE TABLE t1 (id int, n varchar(32)) ENGINE=innodb;
+DROP TABLE t1;
+
+
+--connection slave
+--let $slave_sql_errno= convert_error(ER_DUCKDB_TABLE_STRUCT_INVALID)
+--source include/rpl/wait_for_applier_error.inc
+
+STOP REPLICA;
+RESET REPLICA;
+--let $rpl_only_running_threads= 1
+--source include/rpl/reset.inc
+
+
+--connection master
+--source include/rpl/deinit.inc
+
+--connection slave
+CALL mtr.add_suppression("Replica SQL for channel.*DuckDB table structure is invalid. Reason: invisible column is not supported.*");
+CALL mtr.add_suppression("Replica SQL for channel.*The replica coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression("Replica SQL for channel.*Unknown table.*");
+CALL mtr.add_suppression("Replica SQL for channel.*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");

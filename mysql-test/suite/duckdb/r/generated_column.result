@@ -1,0 +1,640 @@
+#
+# 0) PREPARE SCRIPT
+#
+#
+# 1) CREATE TABLE WITH GENERATED COLUMNS WITH DUCKDB
+#
+CREATE TABLE t1(id INT PRIMARY KEY, a INT, b INT,
+c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+content text CHARACTER SET utf8mb4,
+j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED
+) ENGINE = DUCKDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` varchar(1000) GENERATED ALWAYS AS (concat(`a`,`b`)) STORED,
+  `e` varchar(1000) GENERATED ALWAYS AS (_utf8mb4'str') VIRTUAL,
+  `j_val1` int GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val1')) STORED,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `j_val2` varchar(100) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val2')) VIRTUAL,
+  `j_val3` decimal(38,20) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val3')) STORED,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+RESULT
+table_name	column_name	column_default	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 10]
+t1	id	NULL
+t1	a	NULL
+t1	b	NULL
+t1	c	CAST((a + b) AS INTEGER)
+t1	d	CAST(concat(a, b) AS VARCHAR)
+t1	e	CAST('str' AS VARCHAR)
+t1	j_val1	CAST(json_extract("content", '$.val1') AS INTEGER)
+t1	content	NULL
+t1	j_val2	CAST(json_extract("content", '$.val2') AS VARCHAR)
+t1	j_val3	CAST(json_extract("content", '$.val3') AS DECIMAL(38, 20))
+
+
+#
+# 2) CONVERT TO INNODB
+#
+INSERT INTO t1(id, a, b, content) VALUES(1, 2, 3, '{"val1":1,"val2":"name_001","val3":1.01}');
+ALTER TABLE t1 ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` varchar(1000) GENERATED ALWAYS AS (concat(`a`,`b`)) STORED,
+  `e` varchar(1000) GENERATED ALWAYS AS (_utf8mb4'str') VIRTUAL,
+  `j_val1` int GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val1')) STORED,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `j_val2` varchar(100) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val2')) VIRTUAL,
+  `j_val3` decimal(38,20) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val3')) STORED,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+RESULT
+table_name	column_name	column_default	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+include/assert.inc [CHECKSUM is the same]
+#
+# 3) CONVERT TO INNODB
+#
+ALTER TABLE t1 ENGINE = DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` varchar(1000) GENERATED ALWAYS AS (concat(`a`,`b`)) STORED,
+  `e` varchar(1000) GENERATED ALWAYS AS (_utf8mb4'str') VIRTUAL,
+  `j_val1` int GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val1')) STORED,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `j_val2` varchar(100) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val2')) VIRTUAL,
+  `j_val3` decimal(38,20) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val3')) STORED,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+RESULT
+table_name	column_name	column_default	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 10]
+t1	id	NULL
+t1	a	NULL
+t1	b	NULL
+t1	c	CAST((a + b) AS INTEGER)
+t1	d	CAST(concat(a, b) AS VARCHAR)
+t1	e	CAST('str' AS VARCHAR)
+t1	j_val1	CAST(json_extract("content", '$.val1') AS INTEGER)
+t1	content	NULL
+t1	j_val2	CAST(json_extract("content", '$.val2') AS VARCHAR)
+t1	j_val3	CAST(json_extract("content", '$.val3') AS DECIMAL(38, 20))
+
+
+ALTER TABLE t1
+ADD COLUMN created_at DATETIME NOT NULL DEFAULT '2025-02-01 00:00:00',
+ADD COLUMN created_date DATE GENERATED ALWAYS AS (DATE(created_at)) STORED,
+ADD COLUMN created_month INT  GENERATED ALWAYS AS (MONTH(created_at)) STORED,
+ADD COLUMN f INT,
+ADD COLUMN created_year SMALLINT GENERATED ALWAYS AS (YEAR(created_at)) VIRTUAL,
+ADD COLUMN created_unix_ts BIGINT GENERATED ALWAYS AS (TIMESTAMPDIFF(SECOND, '1970-01-01 00:00:00', created_at)) STORED,
+ADD COLUMN days_from_today INT GENERATED ALWAYS AS (DATEDIFF(DATE(created_at), '2025-01-01 00:00:00')) VIRTUAL,
+ADD COLUMN created_plus_1h DATETIME GENERATED ALWAYS AS (ADDTIME(created_at, '01:00:00')) STORED,
+ADD COLUMN created_minus_30m DATETIME GENERATED ALWAYS AS (SUBTIME(created_at, '00:30:00')) STORED,
+ADD COLUMN extra JSON,
+ADD COLUMN extra_name VARCHAR(64) GENERATED ALWAYS AS (JSON_EXTRACT(extra, '$.name')) STORED;
+INSERT INTO t1(id, a, b, content, created_at, f, extra) VALUES(2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', 2, JSON_OBJECT('name','name_002'));
+ALTER TABLE t1 ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` varchar(1000) GENERATED ALWAYS AS (concat(`a`,`b`)) STORED,
+  `e` varchar(1000) GENERATED ALWAYS AS (_utf8mb4'str') VIRTUAL,
+  `j_val1` int GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val1')) STORED,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `j_val2` varchar(100) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val2')) VIRTUAL,
+  `j_val3` decimal(38,20) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val3')) STORED,
+  `created_at` datetime NOT NULL DEFAULT '2025-02-01 00:00:00',
+  `created_date` date GENERATED ALWAYS AS (cast(`created_at` as date)) STORED,
+  `created_month` int GENERATED ALWAYS AS (month(`created_at`)) STORED,
+  `f` int DEFAULT NULL,
+  `created_year` smallint GENERATED ALWAYS AS (year(`created_at`)) VIRTUAL,
+  `created_unix_ts` bigint GENERATED ALWAYS AS (timestampdiff(SECOND,_utf8mb4'1970-01-01 00:00:00',`created_at`)) STORED,
+  `days_from_today` int GENERATED ALWAYS AS ((to_days(cast(`created_at` as date)) - to_days(_utf8mb4'2025-01-01 00:00:00'))) VIRTUAL,
+  `created_plus_1h` datetime GENERATED ALWAYS AS (addtime(`created_at`,_utf8mb4'01:00:00')) STORED,
+  `created_minus_30m` datetime GENERATED ALWAYS AS (subtime(`created_at`,_utf8mb4'00:30:00')) STORED,
+  `extra` json DEFAULT NULL,
+  `extra_name` varchar(64) GENERATED ALWAYS AS (json_extract(`extra`,_utf8mb4'$.name')) STORED,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+RESULT
+table_name	column_name	column_default	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+include/assert.inc [CHECKSUM is the same]
+ALTER TABLE t1 ENGINE = DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` varchar(1000) GENERATED ALWAYS AS (concat(`a`,`b`)) STORED,
+  `e` varchar(1000) GENERATED ALWAYS AS (_utf8mb4'str') VIRTUAL,
+  `j_val1` int GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val1')) STORED,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `j_val2` varchar(100) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val2')) VIRTUAL,
+  `j_val3` decimal(38,20) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val3')) STORED,
+  `created_at` datetime NOT NULL DEFAULT '2025-02-01 00:00:00',
+  `created_date` date GENERATED ALWAYS AS (cast(`created_at` as date)) STORED,
+  `created_month` int GENERATED ALWAYS AS (month(`created_at`)) STORED,
+  `f` int DEFAULT NULL,
+  `created_year` smallint GENERATED ALWAYS AS (year(`created_at`)) VIRTUAL,
+  `created_unix_ts` bigint GENERATED ALWAYS AS (timestampdiff(SECOND,_utf8mb4'1970-01-01 00:00:00',`created_at`)) STORED,
+  `days_from_today` int GENERATED ALWAYS AS ((to_days(cast(`created_at` as date)) - to_days(_utf8mb4'2025-01-01 00:00:00'))) VIRTUAL,
+  `created_plus_1h` datetime GENERATED ALWAYS AS (addtime(`created_at`,_utf8mb4'01:00:00')) STORED,
+  `created_minus_30m` datetime GENERATED ALWAYS AS (subtime(`created_at`,_utf8mb4'00:30:00')) STORED,
+  `extra` json DEFAULT NULL,
+  `extra_name` varchar(64) GENERATED ALWAYS AS (json_extract(`extra`,_utf8mb4'$.name')) STORED,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+RESULT
+table_name	column_name	column_default	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 21]
+t1	id	NULL
+t1	a	NULL
+t1	b	NULL
+t1	c	CAST((a + b) AS INTEGER)
+t1	d	CAST(concat(a, b) AS VARCHAR)
+t1	e	CAST('str' AS VARCHAR)
+t1	j_val1	CAST(json_extract("content", '$.val1') AS INTEGER)
+t1	content	NULL
+t1	j_val2	CAST(json_extract("content", '$.val2') AS VARCHAR)
+t1	j_val3	CAST(json_extract("content", '$.val3') AS DECIMAL(38, 20))
+t1	created_at	'2025-02-01 00:00:00'
+t1	created_date	CAST(CAST(created_at AS DATE) AS DATE)
+t1	created_month	CAST("month"(created_at) AS INTEGER)
+t1	f	NULL
+t1	created_year	CAST("year"(created_at) AS SMALLINT)
+t1	created_unix_ts	CAST(main.datesub('second', CAST('1970-01-01 00:00:00' AS TIMESTAMP), created_at) AS BIGINT)
+t1	days_from_today	CAST((to_days(CAST(created_at AS DATE)) - to_days('2025-01-01 00:00:00')) AS INTEGER)
+t1	created_plus_1h	CAST(addtime(created_at, '01:00:00') AS TIMESTAMP)
+t1	created_minus_30m	CAST(subtime(created_at, '00:30:00') AS TIMESTAMP)
+t1	extra	NULL
+t1	extra_name	CAST(json_extract(extra, '$.name') AS VARCHAR)
+
+
+ALTER TABLE t1 DROP COLUMN f;
+INSERT INTO t1(id, a, b, content, created_at, extra) VALUES(3, 6, 9, '{"val1":3,"val2":"name_003","val3":3.03}', '2025-03-03 00:00:00', JSON_OBJECT('name','name_003'));
+ALTER TABLE t1 ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` varchar(1000) GENERATED ALWAYS AS (concat(`a`,`b`)) STORED,
+  `e` varchar(1000) GENERATED ALWAYS AS (_utf8mb4'str') VIRTUAL,
+  `j_val1` int GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val1')) STORED,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `j_val2` varchar(100) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val2')) VIRTUAL,
+  `j_val3` decimal(38,20) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val3')) STORED,
+  `created_at` datetime NOT NULL DEFAULT '2025-02-01 00:00:00',
+  `created_date` date GENERATED ALWAYS AS (cast(`created_at` as date)) STORED,
+  `created_month` int GENERATED ALWAYS AS (month(`created_at`)) STORED,
+  `created_year` smallint GENERATED ALWAYS AS (year(`created_at`)) VIRTUAL,
+  `created_unix_ts` bigint GENERATED ALWAYS AS (timestampdiff(SECOND,_utf8mb4'1970-01-01 00:00:00',`created_at`)) STORED,
+  `days_from_today` int GENERATED ALWAYS AS ((to_days(cast(`created_at` as date)) - to_days(_utf8mb4'2025-01-01 00:00:00'))) VIRTUAL,
+  `created_plus_1h` datetime GENERATED ALWAYS AS (addtime(`created_at`,_utf8mb4'01:00:00')) STORED,
+  `created_minus_30m` datetime GENERATED ALWAYS AS (subtime(`created_at`,_utf8mb4'00:30:00')) STORED,
+  `extra` json DEFAULT NULL,
+  `extra_name` varchar(64) GENERATED ALWAYS AS (json_extract(`extra`,_utf8mb4'$.name')) STORED,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+RESULT
+table_name	column_name	column_default	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+include/assert.inc [CHECKSUM is the same]
+ALTER TABLE t1 ENGINE = DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` varchar(1000) GENERATED ALWAYS AS (concat(`a`,`b`)) STORED,
+  `e` varchar(1000) GENERATED ALWAYS AS (_utf8mb4'str') VIRTUAL,
+  `j_val1` int GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val1')) STORED,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `j_val2` varchar(100) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val2')) VIRTUAL,
+  `j_val3` decimal(38,20) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val3')) STORED,
+  `created_at` datetime NOT NULL DEFAULT '2025-02-01 00:00:00',
+  `created_date` date GENERATED ALWAYS AS (cast(`created_at` as date)) STORED,
+  `created_month` int GENERATED ALWAYS AS (month(`created_at`)) STORED,
+  `created_year` smallint GENERATED ALWAYS AS (year(`created_at`)) VIRTUAL,
+  `created_unix_ts` bigint GENERATED ALWAYS AS (timestampdiff(SECOND,_utf8mb4'1970-01-01 00:00:00',`created_at`)) STORED,
+  `days_from_today` int GENERATED ALWAYS AS ((to_days(cast(`created_at` as date)) - to_days(_utf8mb4'2025-01-01 00:00:00'))) VIRTUAL,
+  `created_plus_1h` datetime GENERATED ALWAYS AS (addtime(`created_at`,_utf8mb4'01:00:00')) STORED,
+  `created_minus_30m` datetime GENERATED ALWAYS AS (subtime(`created_at`,_utf8mb4'00:30:00')) STORED,
+  `extra` json DEFAULT NULL,
+  `extra_name` varchar(64) GENERATED ALWAYS AS (json_extract(`extra`,_utf8mb4'$.name')) STORED,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+RESULT
+table_name	column_name	column_default	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 20]
+t1	id	NULL
+t1	a	NULL
+t1	b	NULL
+t1	c	CAST((a + b) AS INTEGER)
+t1	d	CAST(concat(a, b) AS VARCHAR)
+t1	e	CAST('str' AS VARCHAR)
+t1	j_val1	CAST(json_extract("content", '$.val1') AS INTEGER)
+t1	content	NULL
+t1	j_val2	CAST(json_extract("content", '$.val2') AS VARCHAR)
+t1	j_val3	CAST(json_extract("content", '$.val3') AS DECIMAL(38, 20))
+t1	created_at	'2025-02-01 00:00:00'
+t1	created_date	CAST(CAST(created_at AS DATE) AS DATE)
+t1	created_month	CAST("month"(created_at) AS INTEGER)
+t1	created_year	CAST("year"(created_at) AS SMALLINT)
+t1	created_unix_ts	CAST(main.datesub('second', CAST('1970-01-01 00:00:00' AS TIMESTAMP), created_at) AS BIGINT)
+t1	days_from_today	CAST((to_days(CAST(created_at AS DATE)) - to_days('2025-01-01 00:00:00')) AS INTEGER)
+t1	created_plus_1h	CAST(addtime(created_at, '01:00:00') AS TIMESTAMP)
+t1	created_minus_30m	CAST(subtime(created_at, '00:30:00') AS TIMESTAMP)
+t1	extra	NULL
+t1	extra_name	CAST(json_extract(extra, '$.name') AS VARCHAR)
+
+
+ALTER TABLE t1 DROP COLUMN created_date;
+INSERT INTO t1(id, a, b, content, created_at, extra) VALUES(4, 8, 12, '{"val1":4,"val2":"name_004","val3":4.04}', '2025-04-04 00:00:00', JSON_OBJECT('name','name_004'));
+ALTER TABLE t1 ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` varchar(1000) GENERATED ALWAYS AS (concat(`a`,`b`)) STORED,
+  `e` varchar(1000) GENERATED ALWAYS AS (_utf8mb4'str') VIRTUAL,
+  `j_val1` int GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val1')) STORED,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `j_val2` varchar(100) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val2')) VIRTUAL,
+  `j_val3` decimal(38,20) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val3')) STORED,
+  `created_at` datetime NOT NULL DEFAULT '2025-02-01 00:00:00',
+  `created_month` int GENERATED ALWAYS AS (month(`created_at`)) STORED,
+  `created_year` smallint GENERATED ALWAYS AS (year(`created_at`)) VIRTUAL,
+  `created_unix_ts` bigint GENERATED ALWAYS AS (timestampdiff(SECOND,_utf8mb4'1970-01-01 00:00:00',`created_at`)) STORED,
+  `days_from_today` int GENERATED ALWAYS AS ((to_days(cast(`created_at` as date)) - to_days(_utf8mb4'2025-01-01 00:00:00'))) VIRTUAL,
+  `created_plus_1h` datetime GENERATED ALWAYS AS (addtime(`created_at`,_utf8mb4'01:00:00')) STORED,
+  `created_minus_30m` datetime GENERATED ALWAYS AS (subtime(`created_at`,_utf8mb4'00:30:00')) STORED,
+  `extra` json DEFAULT NULL,
+  `extra_name` varchar(64) GENERATED ALWAYS AS (json_extract(`extra`,_utf8mb4'$.name')) STORED,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+RESULT
+table_name	column_name	column_default	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+include/assert.inc [CHECKSUM is the same]
+#
+# 3) RESTRICTED DDLs
+#
+ALTER TABLE t1 ENGINE = DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`a` + `b`)) VIRTUAL,
+  `d` varchar(1000) GENERATED ALWAYS AS (concat(`a`,`b`)) STORED,
+  `e` varchar(1000) GENERATED ALWAYS AS (_utf8mb4'str') VIRTUAL,
+  `j_val1` int GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val1')) STORED,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `j_val2` varchar(100) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val2')) VIRTUAL,
+  `j_val3` decimal(38,20) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val3')) STORED,
+  `created_at` datetime NOT NULL DEFAULT '2025-02-01 00:00:00',
+  `created_month` int GENERATED ALWAYS AS (month(`created_at`)) STORED,
+  `created_year` smallint GENERATED ALWAYS AS (year(`created_at`)) VIRTUAL,
+  `created_unix_ts` bigint GENERATED ALWAYS AS (timestampdiff(SECOND,_utf8mb4'1970-01-01 00:00:00',`created_at`)) STORED,
+  `days_from_today` int GENERATED ALWAYS AS ((to_days(cast(`created_at` as date)) - to_days(_utf8mb4'2025-01-01 00:00:00'))) VIRTUAL,
+  `created_plus_1h` datetime GENERATED ALWAYS AS (addtime(`created_at`,_utf8mb4'01:00:00')) STORED,
+  `created_minus_30m` datetime GENERATED ALWAYS AS (subtime(`created_at`,_utf8mb4'00:30:00')) STORED,
+  `extra` json DEFAULT NULL,
+  `extra_name` varchar(64) GENERATED ALWAYS AS (json_extract(`extra`,_utf8mb4'$.name')) STORED,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+RESULT
+table_name	column_name	column_default	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 19]
+t1	id	NULL
+t1	a	NULL
+t1	b	NULL
+t1	c	CAST((a + b) AS INTEGER)
+t1	d	CAST(concat(a, b) AS VARCHAR)
+t1	e	CAST('str' AS VARCHAR)
+t1	j_val1	CAST(json_extract("content", '$.val1') AS INTEGER)
+t1	content	NULL
+t1	j_val2	CAST(json_extract("content", '$.val2') AS VARCHAR)
+t1	j_val3	CAST(json_extract("content", '$.val3') AS DECIMAL(38, 20))
+t1	created_at	'2025-02-01 00:00:00'
+t1	created_month	CAST("month"(created_at) AS INTEGER)
+t1	created_year	CAST("year"(created_at) AS SMALLINT)
+t1	created_unix_ts	CAST(main.datesub('second', CAST('1970-01-01 00:00:00' AS TIMESTAMP), created_at) AS BIGINT)
+t1	days_from_today	CAST((to_days(CAST(created_at AS DATE)) - to_days('2025-01-01 00:00:00')) AS INTEGER)
+t1	created_plus_1h	CAST(addtime(created_at, '01:00:00') AS TIMESTAMP)
+t1	created_minus_30m	CAST(subtime(created_at, '00:30:00') AS TIMESTAMP)
+t1	extra	NULL
+t1	extra_name	CAST(json_extract(extra, '$.name') AS VARCHAR)
+
+
+ALTER TABLE t1 ADD COLUMN f INT GENERATED ALWAYS AS (b - a) STORED, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t1 ADD COLUMN f INT GENERATED ALWAYS AS (b - a) STORED, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ADD COLUMN f INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t1 ADD COLUMN f INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY COLUMN c INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t1 MODIFY COLUMN c INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ADD COLUMN f INT GENERATED ALWAYS AS (b - a) STORED, ALGORITHM = COPY;
+INSERT INTO t1(id, a, b, content, created_at, extra) VALUES(5, 10, 15, '{"val1":5,"val2":"name_005","val3":5.05}', '2025-05-05 00:00:00', JSON_OBJECT('name','name_005'));
+ALTER TABLE t1 ADD COLUMN g INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = COPY;
+INSERT INTO t1(id, a, b, content, created_at, extra) VALUES(6, 12, 18, '{"val1":6,"val2":"name_006","val3":6.06}', '2025-06-06 00:00:00', JSON_OBJECT('name','name_006'));
+ALTER TABLE t1 MODIFY COLUMN c INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = COPY;
+INSERT INTO t1(id, a, b, content, created_at, extra) VALUES (7, 14, 21, '{"val1":7,"val2":"name_007","val3":7.07}', '2025-07-07 00:00:00', JSON_OBJECT('name','name_007'));
+ALTER TABLE t1 ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`b` - `a`)) VIRTUAL,
+  `d` varchar(1000) GENERATED ALWAYS AS (concat(`a`,`b`)) STORED,
+  `e` varchar(1000) GENERATED ALWAYS AS (_utf8mb4'str') VIRTUAL,
+  `j_val1` int GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val1')) STORED,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `j_val2` varchar(100) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val2')) VIRTUAL,
+  `j_val3` decimal(38,20) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val3')) STORED,
+  `created_at` datetime NOT NULL DEFAULT '2025-02-01 00:00:00',
+  `created_month` int GENERATED ALWAYS AS (month(`created_at`)) STORED,
+  `created_year` smallint GENERATED ALWAYS AS (year(`created_at`)) VIRTUAL,
+  `created_unix_ts` bigint GENERATED ALWAYS AS (timestampdiff(SECOND,_utf8mb4'1970-01-01 00:00:00',`created_at`)) STORED,
+  `days_from_today` int GENERATED ALWAYS AS ((to_days(cast(`created_at` as date)) - to_days(_utf8mb4'2025-01-01 00:00:00'))) VIRTUAL,
+  `created_plus_1h` datetime GENERATED ALWAYS AS (addtime(`created_at`,_utf8mb4'01:00:00')) STORED,
+  `created_minus_30m` datetime GENERATED ALWAYS AS (subtime(`created_at`,_utf8mb4'00:30:00')) STORED,
+  `extra` json DEFAULT NULL,
+  `extra_name` varchar(64) GENERATED ALWAYS AS (json_extract(`extra`,_utf8mb4'$.name')) STORED,
+  `f` int GENERATED ALWAYS AS ((`b` - `a`)) STORED,
+  `g` int GENERATED ALWAYS AS ((`b` - `a`)) VIRTUAL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+RESULT
+table_name	column_name	column_default	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+include/assert.inc [CHECKSUM is the same]
+#
+# 3) ALTER COLUMN WITH GENERATED COLUMN DEPENDENCY
+#
+ALTER TABLE t1 ENGINE = DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int DEFAULT NULL,
+  `c` int GENERATED ALWAYS AS ((`b` - `a`)) VIRTUAL,
+  `d` varchar(1000) GENERATED ALWAYS AS (concat(`a`,`b`)) STORED,
+  `e` varchar(1000) GENERATED ALWAYS AS (_utf8mb4'str') VIRTUAL,
+  `j_val1` int GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val1')) STORED,
+  `content` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci,
+  `j_val2` varchar(100) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val2')) VIRTUAL,
+  `j_val3` decimal(38,20) GENERATED ALWAYS AS (json_extract(`content`,_utf8mb4'$.val3')) STORED,
+  `created_at` datetime NOT NULL DEFAULT '2025-02-01 00:00:00',
+  `created_month` int GENERATED ALWAYS AS (month(`created_at`)) STORED,
+  `created_year` smallint GENERATED ALWAYS AS (year(`created_at`)) VIRTUAL,
+  `created_unix_ts` bigint GENERATED ALWAYS AS (timestampdiff(SECOND,_utf8mb4'1970-01-01 00:00:00',`created_at`)) STORED,
+  `days_from_today` int GENERATED ALWAYS AS ((to_days(cast(`created_at` as date)) - to_days(_utf8mb4'2025-01-01 00:00:00'))) VIRTUAL,
+  `created_plus_1h` datetime GENERATED ALWAYS AS (addtime(`created_at`,_utf8mb4'01:00:00')) STORED,
+  `created_minus_30m` datetime GENERATED ALWAYS AS (subtime(`created_at`,_utf8mb4'00:30:00')) STORED,
+  `extra` json DEFAULT NULL,
+  `extra_name` varchar(64) GENERATED ALWAYS AS (json_extract(`extra`,_utf8mb4'$.name')) STORED,
+  `f` int GENERATED ALWAYS AS ((`b` - `a`)) STORED,
+  `g` int GENERATED ALWAYS AS ((`b` - `a`)) VIRTUAL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+RESULT
+table_name	column_name	column_default	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 21]
+t1	id	NULL
+t1	a	NULL
+t1	b	NULL
+t1	c	CAST((b - a) AS INTEGER)
+t1	d	CAST(concat(a, b) AS VARCHAR)
+t1	e	CAST('str' AS VARCHAR)
+t1	j_val1	CAST(json_extract("content", '$.val1') AS INTEGER)
+t1	content	NULL
+t1	j_val2	CAST(json_extract("content", '$.val2') AS VARCHAR)
+t1	j_val3	CAST(json_extract("content", '$.val3') AS DECIMAL(38, 20))
+t1	created_at	'2025-02-01 00:00:00'
+t1	created_month	CAST("month"(created_at) AS INTEGER)
+t1	created_year	CAST("year"(created_at) AS SMALLINT)
+t1	created_unix_ts	CAST(main.datesub('second', CAST('1970-01-01 00:00:00' AS TIMESTAMP), created_at) AS BIGINT)
+t1	days_from_today	CAST((to_days(CAST(created_at AS DATE)) - to_days('2025-01-01 00:00:00')) AS INTEGER)
+t1	created_plus_1h	CAST(addtime(created_at, '01:00:00') AS TIMESTAMP)
+t1	created_minus_30m	CAST(subtime(created_at, '00:30:00') AS TIMESTAMP)
+t1	extra	NULL
+t1	extra_name	CAST(json_extract(extra, '$.name') AS VARCHAR)
+t1	f	CAST((b - a) AS INTEGER)
+t1	g	CAST((b - a) AS INTEGER)
+
+
+ALTER TABLE t1 DROP COLUMN a;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t1 RENAME COLUMN a TO a1;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t1 CHANGE COLUMN a a1 BIGINT;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t1 MODIFY COLUMN a BIGINT, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t1 CHANGE COLUMN a a1 BIGINT, ALGORITHM = INPLACE;
+ERROR HY000: Column 'a' has a generated column dependency.
+ALTER TABLE t1 CHANGE COLUMN a a1 BIGINT, ALGORITHM = COPY;
+ERROR HY000: Column 'a' has a generated column dependency.
+#
+# 4) DML
+#
+CREATE TABLE t_innodb(id INT PRIMARY KEY, a INT, b INT,
+c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+content text CHARACTER SET utf8mb4,
+j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED,
+created_at DATETIME NOT NULL DEFAULT '2025-02-01 00:00:00',
+created_date DATE GENERATED ALWAYS AS (DATE(created_at)) STORED,
+created_month INT  GENERATED ALWAYS AS (MONTH(created_at)) STORED,
+created_year SMALLINT GENERATED ALWAYS AS (YEAR(created_at)) VIRTUAL,
+created_unix_ts BIGINT GENERATED ALWAYS AS (TIMESTAMPDIFF(SECOND, '1970-01-01 00:00:00', created_at)) STORED,
+days_from_today INT GENERATED ALWAYS AS (DATEDIFF(DATE(created_at), '2025-01-01 00:00:00')) VIRTUAL,
+created_plus_1h DATETIME GENERATED ALWAYS AS (ADDTIME(created_at, '01:00:00')) STORED,
+created_minus_30m DATETIME GENERATED ALWAYS AS (SUBTIME(created_at, '00:30:00')) STORED,
+extra JSON,
+extra_name VARCHAR(64) GENERATED ALWAYS AS (JSON_EXTRACT(extra, '$.name')) STORED
+) ENGINE = InnoDB;
+CREATE TABLE t_duckdb LIKE t_innodb;
+ALTER TABLE t_duckdb ENGINE = DuckDB;
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = OFF;
+TRUNCATE TABLE t_duckdb;
+INSERT INTO t_duckdb(id, a, b, content, created_at, extra) VALUES (1, 2, 4, '{"val1":1,"val2":"name_001","val3":1.01}', '2025-01-01 00:00:00', JSON_OBJECT('name','name_001'));
+INSERT INTO t_duckdb(id, a, b, content, created_at, extra) VALUES (2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', JSON_OBJECT('name','name_002'));
+UPDATE t_duckdb SET id = 3, a = 6, b = 9, content = '{"val1":3,"val2":"name_003","val3":3.03}', created_at = '2025-03-03 00:00:00', extra = JSON_OBJECT('name','name_003') WHERE id = 2;
+DELETE FROM t_duckdb WHERE id = 1;
+TRUNCATE TABLE t_innodb;
+INSERT INTO t_innodb(id, a, b, content, created_at, extra) VALUES (1, 2, 4, '{"val1":1,"val2":"name_001","val3":1.01}', '2025-01-01 00:00:00', JSON_OBJECT('name','name_001'));
+INSERT INTO t_innodb(id, a, b, content, created_at, extra) VALUES (2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', JSON_OBJECT('name','name_002'));
+UPDATE t_innodb SET id = 3, a = 6, b = 9, content = '{"val1":3,"val2":"name_003","val3":3.03}', created_at = '2025-03-03 00:00:00', extra = JSON_OBJECT('name','name_003') WHERE id = 2;
+DELETE FROM t_innodb WHERE id = 1;
+include/assert.inc [CHECKSUM is the same]
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = ON;
+TRUNCATE TABLE t_duckdb;
+INSERT INTO t_duckdb(id, a, b, content, created_at, extra) VALUES (1, 2, 4, '{"val1":1,"val2":"name_001","val3":1.01}', '2025-01-01 00:00:00', JSON_OBJECT('name','name_001'));
+INSERT INTO t_duckdb(id, a, b, content, created_at, extra) VALUES (2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', JSON_OBJECT('name','name_002'));
+DELETE FROM t_duckdb WHERE id = 1;
+TRUNCATE TABLE t_innodb;
+INSERT INTO t_innodb(id, a, b, content, created_at, extra) VALUES (1, 2, 4, '{"val1":1,"val2":"name_001","val3":1.01}', '2025-01-01 00:00:00', JSON_OBJECT('name','name_001'));
+INSERT INTO t_innodb(id, a, b, content, created_at, extra) VALUES (2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', JSON_OBJECT('name','name_002'));
+DELETE FROM t_innodb WHERE id = 1;
+include/assert.inc [CHECKSUM is the same]
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = OFF;
+TRUNCATE TABLE t_duckdb;
+INSERT INTO t_duckdb(id, a, b, content, created_at, extra) VALUES (1, 2, 4, '{"val1":1,"val2":"name_001","val3":1.01}', '2025-01-01 00:00:00', JSON_OBJECT('name','name_001'));
+INSERT INTO t_duckdb(id, a, b, content, created_at, extra) VALUES (2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', JSON_OBJECT('name','name_002'));
+UPDATE t_duckdb SET id = 3, a = 6, b = 9, content = '{"val1":3,"val2":"name_003","val3":3.03}', created_at = '2025-03-03 00:00:00', extra = JSON_OBJECT('name','name_003') WHERE id = 2;
+DELETE FROM t_duckdb WHERE id = 1;
+TRUNCATE TABLE t_innodb;
+INSERT INTO t_innodb(id, a, b, content, created_at, extra) VALUES (1, 2, 4, '{"val1":1,"val2":"name_001","val3":1.01}', '2025-01-01 00:00:00', JSON_OBJECT('name','name_001'));
+INSERT INTO t_innodb(id, a, b, content, created_at, extra) VALUES (2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', JSON_OBJECT('name','name_002'));
+UPDATE t_innodb SET id = 3, a = 6, b = 9, content = '{"val1":3,"val2":"name_003","val3":3.03}', created_at = '2025-03-03 00:00:00', extra = JSON_OBJECT('name','name_003') WHERE id = 2;
+DELETE FROM t_innodb WHERE id = 1;
+include/assert.inc [CHECKSUM is the same]
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = ON;
+TRUNCATE TABLE t_duckdb;
+INSERT INTO t_duckdb(id, a, b, content, created_at, extra) VALUES (1, 2, 4, '{"val1":1,"val2":"name_001","val3":1.01}', '2025-01-01 00:00:00', JSON_OBJECT('name','name_001'));
+INSERT INTO t_duckdb(id, a, b, content, created_at, extra) VALUES (2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', JSON_OBJECT('name','name_002'));
+DELETE FROM t_duckdb WHERE id = 1;
+TRUNCATE TABLE t_innodb;
+INSERT INTO t_innodb(id, a, b, content, created_at, extra) VALUES (1, 2, 4, '{"val1":1,"val2":"name_001","val3":1.01}', '2025-01-01 00:00:00', JSON_OBJECT('name','name_001'));
+INSERT INTO t_innodb(id, a, b, content, created_at, extra) VALUES (2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', JSON_OBJECT('name','name_002'));
+DELETE FROM t_innodb WHERE id = 1;
+include/assert.inc [CHECKSUM is the same]
+#
+# 5) Variable duckdb_convert_tables_with_generated_columns
+#
+SET GLOBAL duckdb_convert_tables_with_generated_columns = OFF;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT,
+c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+content text CHARACTER SET utf8mb4,
+j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED
+) ENGINE = DUCKDB;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: DuckDB is not supported for generated columns when duckdb_convert_tables_with_generated_columns is OFF.
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT,
+c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+content text CHARACTER SET utf8mb4,
+j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED
+) ENGINE = InnoDB;
+ALTER TABLE t ENGINE = DuckDB;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: DuckDB is not supported for generated columns when duckdb_convert_tables_with_generated_columns is OFF.
+DROP TABLE t;
+SET GLOBAL duckdb_convert_tables_with_generated_columns = ON;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT,
+c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+content text CHARACTER SET utf8mb4,
+j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED
+) ENGINE = DUCKDB;
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT,
+c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+content text CHARACTER SET utf8mb4,
+j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED
+) ENGINE = InnoDB;
+ALTER TABLE t ENGINE = DuckDB;
+DROP TABLE t;
+#
+# 6) CLEANUP
+#
+DROP TABLE t1, t_duckdb, t_innodb;
+SET GLOBAL duckdb_convert_tables_with_generated_columns = default;

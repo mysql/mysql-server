@@ -1,0 +1,22 @@
+# name: test/fuzzer/pedro/nested_subquery_table_function.test
+# description: Issue #4676: Subquery as Table UDF argument assertion error
+# group: [pedro]
+
+statement ok
+PRAGMA enable_verification
+
+query I
+SELECT 1 FROM range((SELECT 1) - 0);
+----
+1
+
+query I
+SELECT (SELECT 1 FROM range((SELECT 1) - 0));
+----
+1
+
+query I
+FROM range((SELECT 3) - 1)
+----
+0
+1

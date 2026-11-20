@@ -1,0 +1,46 @@
+# name: test/sql/catalog/dependencies/test_prepared_dependency.test
+# description: Prepared statement dependencies
+# group: [dependencies]
+
+require skip_reload
+
+
+# prepared statements and dependencies
+# dependency on a bound table
+statement ok con1
+CREATE TABLE integers(i INTEGER)
+
+statement ok con2
+PREPARE v AS SELECT * FROM integers
+
+statement ok con2
+EXECUTE v
+
+statement ok con1
+DROP TABLE integers CASCADE
+
+# after the drop the prepared statement is invalidated
+statement error con2
+EXECUTE v
+----
+<REGEX>:.*Catalog Error.*does not exist.*
+
+# dependency on a sequence for prepare
+statement ok con1
+CREATE SEQUENCE seq
+
+statement ok con2
+PREPARE v AS SELECT nextval('seq')
+
+statement ok con2
+EXECUTE v
+
+# drop the sequence
+statement ok con1
+DROP SEQUENCE seq CASCADE
+
+# after the drop the prepared statement is invalidated
+statement error con2
+EXECUTE v
+----
+<REGEX>:.*Catalog Error.*does not exist.*

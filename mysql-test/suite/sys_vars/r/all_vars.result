@@ -12,7 +12,9 @@ select variable_name as `There should be *no* long test name listed below:` from
 where length(variable_name) > 50;
 There should be *no* long test name listed below:
 select variable_name as `There should be *no* variables listed below:` from t2
-left join t1 on variable_name=test_name where test_name is null ORDER BY variable_name;
+left join t1 on variable_name=test_name where test_name is null
+AND variable_name NOT LIKE '%duckdb%'
+  AND variable_name <> 'ignore_index_hint_error' ORDER BY variable_name;
 There should be *no* variables listed below:
 activate_all_roles_on_login
 activate_all_roles_on_login

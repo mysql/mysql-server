@@ -1,0 +1,37 @@
+# name: test/sql/aggregate/aggregates/test_group_by_many_groups.test_slow
+# description: Test GROUP BY with many groups
+# group: [aggregates]
+
+statement ok
+CREATE TABLE integers AS SELECT i, 1 AS j FROM range(0, 10000, 1) t1(i) UNION ALL SELECT i, 2 j FROM range(0, 10000, 1) t1(i);
+
+
+query RR
+SELECT SUM(i), SUM(sums) FROM (SELECT i, SUM(j) AS sums FROM integers GROUP BY i) tbl1
+----
+49995000
+30000
+
+# Multiple 8-bit bitmasks
+query RR
+SELECT SUM(a0 + a1 + a2 + a3 + a4 + a5 + a6 + a7 + a8 + a9 + a10), SUM(sums)
+FROM (
+    SELECT
+        i+0 as a0,
+        i+1 as a1,
+        i+2 as a2,
+        i+3 as a3,
+        i+4 as a4,
+        i+5 as a5,
+        i+6 as a6,
+        i+7 as a7,
+        i+8 as a8,
+        i+9 as a9,
+        i+10 as a10,
+        sum(j) as sums
+    FROM integers
+    GROUP BY 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+    ) s
+----
+550495000
+30000

@@ -30,7 +30,8 @@
 namespace regexp {
 
 bool check_icu_status(UErrorCode status,
-                      const UParseError *parse_error = nullptr);
+                      const UParseError *parse_error = nullptr,
+                      bool caller_is_duckdb = false);
 
 }  // namespace regexp
 

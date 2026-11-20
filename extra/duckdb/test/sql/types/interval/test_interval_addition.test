@@ -1,0 +1,328 @@
+# name: test/sql/types/interval/test_interval_addition.test
+# description: Test interval addition/subtraction
+# group: [interval]
+
+statement ok
+PRAGMA enable_verification
+
+# we can add/subtract intervals to/from dates
+query T
+SELECT DATE '1992-03-01' + INTERVAL '1' YEAR
+----
+1993-03-01 00:00:00
+
+# check a bunch of different months to test proper month looping behavior
+query T
+SELECT DATE '1992-03-01' + INTERVAL '0' MONTH
+----
+1992-03-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '0' MONTH
+----
+1992-03-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '1' MONTH
+----
+1992-04-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '1' MONTH
+----
+1992-02-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '2' MONTH
+----
+1992-05-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '2' MONTH
+----
+1992-01-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '3' MONTH
+----
+1992-06-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '3' MONTH
+----
+1991-12-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '4' MONTH
+----
+1992-07-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '4' MONTH
+----
+1991-11-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '5' MONTH
+----
+1992-08-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '5' MONTH
+----
+1991-10-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '6' MONTH
+----
+1992-09-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '6' MONTH
+----
+1991-09-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '7' MONTH
+----
+1992-10-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '7' MONTH
+----
+1991-08-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '8' MONTH
+----
+1992-11-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '8' MONTH
+----
+1991-07-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '9' MONTH
+----
+1992-12-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '9' MONTH
+----
+1991-06-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '10' MONTH
+----
+1993-01-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '10' MONTH
+----
+1991-05-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '11' MONTH
+----
+1993-02-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '11' MONTH
+----
+1991-04-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '12' MONTH
+----
+1993-03-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '12' MONTH
+----
+1991-03-01 00:00:00
+
+query T
+SELECT DATE '1992-03-01' + INTERVAL '10' DAY
+----
+1992-03-11 00:00:00
+
+query T
+SELECT DATE '1992-03-01' - INTERVAL '10' DAY
+----
+1992-02-20 00:00:00
+
+query T
+SELECT DATE '1993-03-01' - INTERVAL '10' DAY
+----
+1993-02-19 00:00:00
+
+# small seconds DO have an impact on DATE
+query T
+SELECT DATE '1993-03-01' + INTERVAL '1' SECOND
+----
+1993-03-01 00:00:01
+
+query T
+SELECT DATE '1993-03-01' - INTERVAL '1' SECOND
+----
+1993-02-28 23:59:59
+
+# but a large amount of seconds does have an impact
+query T
+SELECT DATE '1993-03-01' + INTERVAL '1000000' SECOND
+----
+1993-03-12 13:46:40
+
+query T
+SELECT DATE '1993-03-01' - INTERVAL '1000000' SECOND
+----
+1993-02-17 10:13:20
+
+# we cannot subtract dates from intervals
+statement error
+SELECT INTERVAL '1000000' SECOND - DATE '1993-03-01'
+----
+
+# we can add/subtract them to/from times
+query T
+SELECT TIME '10:00:00' + INTERVAL '5' SECOND
+----
+10:00:05
+
+query T
+SELECT INTERVAL '5' SECOND + TIME '10:00:00'
+----
+10:00:05
+
+query T
+SELECT TIME '10:00:00' - INTERVAL '5' SECOND
+----
+09:59:55
+
+# adding large amounts does nothing
+query T
+SELECT TIME '10:00:00' + INTERVAL '1' DAY
+----
+10:00:00
+
+# test wrapping behavior
+query T
+SELECT TIME '23:00:00' + INTERVAL '1' HOUR
+----
+00:00:00
+
+query T
+SELECT TIME '00:00:00' - INTERVAL '1' HOUR
+----
+23:00:00
+
+query T
+SELECT TIME '00:00:00' + INTERVAL '-1' HOUR
+----
+23:00:00
+
+#
+# TIMETZ and INTERVAL arithmetic
+#
+
+# TIMETZ + INTERVAL
+query I
+select '12:15:37.123456-08'::TIMETZ + INTERVAL '2 HOUR';
+----
+14:15:37.123456-08
+
+query I
+select '12:15:37.123456-08'::TIMETZ + INTERVAL '22 HOUR';
+----
+10:15:37.123456-08
+
+query I
+select '12:15:37.123456-08'::TIMETZ + INTERVAL '2 DAY';
+----
+12:15:37.123456-08
+
+# INTERVAL + TIMETZ
+query I
+select INTERVAL '2 HOUR' + '12:15:37.123456-08'::TIMETZ;
+----
+14:15:37.123456-08
+
+query I
+select INTERVAL '22 HOUR' + '12:15:37.123456-08'::TIMETZ;
+----
+10:15:37.123456-08
+
+query I
+select INTERVAL '2 DAY' + '12:15:37.123456-08'::TIMETZ;
+----
+12:15:37.123456-08
+
+# TIMETZ - INTERVAL
+query I
+select '12:15:37.123456-08'::TIMETZ - INTERVAL '2 HOUR';
+----
+10:15:37.123456-08
+
+query I
+select '12:15:37.123456-08'::TIMETZ - INTERVAL '22 HOUR';
+----
+14:15:37.123456-08
+
+query I
+select '12:15:37.123456-08'::TIMETZ - INTERVAL '2 DAY';
+----
+12:15:37.123456-08
+
+#  INTERVAL - TIMETZ
+statement error
+select INTERVAL '2 HOUR' - '12:15:37.123456-08'::TIMETZ;
+----
+No function matches the given name and argument types
+
+# we can add/subtract them to/from timestamps
+query T
+SELECT TIMESTAMP '1992-01-01 10:00:00' + INTERVAL '1' DAY
+----
+1992-01-02 10:00:00
+
+query T
+SELECT INTERVAL '1' DAY + TIMESTAMP '1992-01-01 10:00:00'
+----
+1992-01-02 10:00:00
+
+query T
+SELECT TIMESTAMP '1992-01-01 10:00:05' + INTERVAL '17 years 3 months 1 day 2 hours 1 minute 57 seconds'
+----
+2009-04-02 12:02:02
+
+query T
+SELECT TIMESTAMP '1992-01-01 10:00:00' - INTERVAL '1' DAY
+----
+1991-12-31 10:00:00
+
+query T
+select timestamp '1993-01-01 00:00:00' - timestamp '1991-01-01 01:00:30';
+----
+730 days 22:59:30
+
+statement ok
+CREATE TABLE issue1998(id INTEGER, lhs TIMESTAMP, rhs TIMESTAMP);
+
+statement ok
+INSERT INTO issue1998 VALUES
+	(0, '2020-07-07 02:01:01', '2020-08-05 07:51:47'),
+	(1, '2020-02-08 19:26:38', '2020-09-21 10:02:28'),
+	(2, '2020-06-19 20:45:41', '2020-01-04 05:44:42'),
+	(3, '2020-11-18 18:22:26', '2020-06-14 02:46:55'),
+	(4, '2020-08-24 03:31:52', '2020-07-05 19:04:34')
+
+
+query II
+SELECT id, lhs - rhs FROM issue1998 ORDER BY 1
+----
+0	-29 days -05:50:46
+1	-225 days -14:35:50
+2	167 days 15:00:59
+3	157 days 15:35:31
+4	49 days 08:27:18

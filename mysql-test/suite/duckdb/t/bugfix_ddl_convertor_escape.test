@@ -1,0 +1,466 @@
+# Aone#82044318 BUGFIX: Escape special characters in DuckDB generated SQL
+
+--echo #
+--echo # 1) Column name contains backtick
+--echo #
+CREATE TABLE t_innodb (id INT NOT NULL PRIMARY KEY, `a``b` INT) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT NOT NULL PRIMARY KEY, `a``b` INT) ENGINE=DuckDB;
+
+INSERT INTO t_innodb VALUES (1, 100), (2, 200);
+INSERT INTO t_duckdb VALUES (1, 100), (2, 200);
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same with backtick column name
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+
+--echo #
+--echo # 2) Table name contains backtick
+--echo #
+CREATE TABLE `a``b_innodb` (id INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE `a``b_duckdb` (id INT NOT NULL PRIMARY KEY) ENGINE=DuckDB;
+
+INSERT INTO `a``b_innodb` VALUES (1), (2);
+INSERT INTO `a``b_duckdb` VALUES (1), (2);
+
+--let $cnt_innodb = query_get_value(SELECT COUNT(*) AS c FROM `a``b_innodb`, c, 1)
+--let $cnt_duckdb = query_get_value(SELECT COUNT(*) AS c FROM `a``b_duckdb`, c, 1)
+--let $assert_cond= $cnt_innodb = $cnt_duckdb
+--let $assert_text= Row count matches with backtick table name
+--source include/assert.inc
+
+SELECT * FROM `a``b_innodb` ORDER BY id;
+SELECT * FROM `a``b_duckdb` ORDER BY id;
+
+DROP TABLE `a``b_innodb`, `a``b_duckdb`;
+
+
+--echo #
+--echo # 3) RENAME COLUMN target name contains embedded backticks
+--echo #
+CREATE TABLE t_innodb (id INT NOT NULL PRIMARY KEY, a INT) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT NOT NULL PRIMARY KEY, a INT) ENGINE=DuckDB;
+
+ALTER TABLE t_innodb RENAME COLUMN a TO `b````c`;
+ALTER TABLE t_duckdb RENAME COLUMN a TO `b````c`;
+
+INSERT INTO t_innodb VALUES (1, 10);
+INSERT INTO t_duckdb VALUES (1, 10);
+
+--let $innodb_col = query_get_value(SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_innodb' AND COLUMN_NAME <> 'id', COLUMN_NAME, 1)
+--let $duckdb_col = query_get_value(SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 't_duckdb' AND COLUMN_NAME <> 'id', COLUMN_NAME, 1)
+--let $assert_cond= "$innodb_col" = "$duckdb_col"
+--let $assert_text= Renamed column name matches between InnoDB and DuckDB
+--source include/assert.inc
+
+CALL dbms_duckdb.query("PRAGMA table_info(test.t_duckdb)");
+
+SELECT table_name, column_name, ordinal_position, column_type,
+       column_default, is_nullable, column_key
+  FROM information_schema.columns
+ WHERE table_schema = DATABASE()
+   AND table_name IN ('t_innodb', 't_duckdb')
+ ORDER BY table_name, ordinal_position;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same after RENAME COLUMN with backtick
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+
+--echo #
+--echo # 4) Batch DML cycle on backtick-named table and column
+--echo #
+SET @saved_duckdb_dml_in_batch = @@global.duckdb_dml_in_batch;
+SET @saved_duckdb_batch_max_row_count = @@global.duckdb_batch_max_row_count;
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET GLOBAL duckdb_batch_max_row_count = 1;
+
+CREATE TABLE `t``dml_innodb` (id INT NOT NULL PRIMARY KEY, `c``v` VARCHAR(32)) ENGINE=InnoDB;
+CREATE TABLE `t``dml_duckdb` (id INT NOT NULL PRIMARY KEY, `c``v` VARCHAR(32)) ENGINE=DuckDB;
+
+INSERT INTO `t``dml_innodb` VALUES (1, 'a'), (2, 'b'), (3, 'c');
+INSERT INTO `t``dml_duckdb` VALUES (1, 'a'), (2, 'b'), (3, 'c');
+
+UPDATE `t``dml_innodb` SET `c``v` = 'X' WHERE id = 2;
+UPDATE `t``dml_duckdb` SET `c``v` = 'X' WHERE id = 2;
+
+DELETE FROM `t``dml_innodb` WHERE id = 3;
+DELETE FROM `t``dml_duckdb` WHERE id = 3;
+
+--let $cnt_innodb = query_get_value(SELECT COUNT(*) AS c FROM `t``dml_innodb`, c, 1)
+--let $cnt_duckdb = query_get_value(SELECT COUNT(*) AS c FROM `t``dml_duckdb`, c, 1)
+--let $assert_cond= $cnt_innodb = $cnt_duckdb
+--let $assert_text= Row count matches after INSERT/UPDATE/DELETE on backtick names
+--source include/assert.inc
+
+SELECT * FROM `t``dml_innodb` ORDER BY id;
+SELECT * FROM `t``dml_duckdb` ORDER BY id;
+
+DROP TABLE `t``dml_innodb`, `t``dml_duckdb`;
+SET GLOBAL duckdb_batch_max_row_count = @saved_duckdb_batch_max_row_count;
+SET GLOBAL duckdb_dml_in_batch = @saved_duckdb_dml_in_batch;
+
+
+--echo #
+--echo # 5) TRUNCATE TABLE on backtick-named table.
+--echo #
+CREATE TABLE `t``trunc_duckdb` (id INT NOT NULL PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO `t``trunc_duckdb` VALUES (1), (2), (3);
+TRUNCATE TABLE `t``trunc_duckdb`;
+
+--let $cnt_after = query_get_value(SELECT COUNT(*) AS c FROM `t``trunc_duckdb`, c, 1)
+--let $assert_cond= $cnt_after = 0
+--let $assert_text= TRUNCATE on backtick-named DuckDB table empties the table
+--source include/assert.inc
+
+DROP TABLE `t``trunc_duckdb`;
+
+
+--echo #
+--echo # 6) Text defaults containing backslash, NUL byte, and single quote.
+--echo #
+CREATE TABLE t_innodb (
+  id INT NOT NULL PRIMARY KEY,
+  c VARCHAR(16) DEFAULT 'a\\b',
+  d VARCHAR(16) DEFAULT 'a\0b',
+  e VARCHAR(16) DEFAULT 'it''s'
+) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (
+  id INT NOT NULL PRIMARY KEY,
+  c VARCHAR(16) DEFAULT 'a\\b',
+  d VARCHAR(16) DEFAULT 'a\0b',
+  e VARCHAR(16) DEFAULT 'it''s'
+) ENGINE=DuckDB;
+
+INSERT INTO t_innodb(id) VALUES (1);
+INSERT INTO t_duckdb(id) VALUES (1);
+
+--let $hex_c_innodb = query_get_value(SELECT HEX(c) AS h FROM t_innodb WHERE id = 1, h, 1)
+--let $hex_c_duckdb = query_get_value(SELECT HEX(c) AS h FROM t_duckdb WHERE id = 1, h, 1)
+--let $assert_cond= "$hex_c_innodb" = "$hex_c_duckdb"
+--let $assert_text= Backslash text default matches between InnoDB and DuckDB
+--source include/assert.inc
+
+--let $hex_d_innodb = query_get_value(SELECT HEX(d) AS h FROM t_innodb WHERE id = 1, h, 1)
+--let $hex_d_duckdb = query_get_value(SELECT HEX(d) AS h FROM t_duckdb WHERE id = 1, h, 1)
+--let $assert_cond= "$hex_d_innodb" = "$hex_d_duckdb"
+--let $assert_text= NUL byte text default matches between InnoDB and DuckDB
+--source include/assert.inc
+
+--let $hex_e_innodb = query_get_value(SELECT HEX(e) AS h FROM t_innodb WHERE id = 1, h, 1)
+--let $hex_e_duckdb = query_get_value(SELECT HEX(e) AS h FROM t_duckdb WHERE id = 1, h, 1)
+--let $assert_cond= "$hex_e_innodb" = "$hex_e_duckdb"
+--let $assert_text= Single quote text default matches between InnoDB and DuckDB
+--source include/assert.inc
+
+SELECT table_name, column_name, HEX(column_default), is_nullable
+  FROM information_schema.columns
+ WHERE table_schema = DATABASE()
+   AND table_name IN ('t_innodb', 't_duckdb')
+   AND column_name IN ('c', 'd', 'e')
+ ORDER BY table_name, ordinal_position;
+
+CALL dbms_duckdb.query("SELECT column_name, hex(column_default), length(column_default) FROM information_schema.columns WHERE table_name='t_duckdb' AND column_name IN ('c','d','e') ORDER BY ordinal_position");
+
+SELECT id, HEX(c), LENGTH(c), HEX(d), LENGTH(d), HEX(e), LENGTH(e)
+  FROM t_innodb ORDER BY id;
+SELECT id, HEX(c), LENGTH(c), HEX(d), LENGTH(d), HEX(e), LENGTH(e)
+  FROM t_duckdb ORDER BY id;
+
+DROP TABLE t_innodb, t_duckdb;
+
+
+--echo #
+--echo # 7) Direct DML on backtick-named table and columns.
+--echo #
+SET @saved_duckdb_dml_in_batch = @@global.duckdb_dml_in_batch;
+SET GLOBAL duckdb_dml_in_batch = OFF;
+
+CREATE TABLE `t``direct_innodb` (
+  id INT NOT NULL PRIMARY KEY,
+  `c``v` VARCHAR(32)
+) ENGINE=InnoDB;
+CREATE TABLE `t``direct_duckdb` (
+  id INT NOT NULL PRIMARY KEY,
+  `c``v` VARCHAR(32)
+) ENGINE=DuckDB;
+
+INSERT INTO `t``direct_innodb` VALUES (1, 'a'), (2, 'b'), (3, 'c');
+INSERT INTO `t``direct_duckdb` VALUES (1, 'a'), (2, 'b'), (3, 'c');
+
+UPDATE `t``direct_innodb` SET `c``v` = 'Y' WHERE id = 2;
+UPDATE `t``direct_duckdb` SET `c``v` = 'Y' WHERE id = 2;
+
+DELETE FROM `t``direct_innodb` WHERE id = 3;
+DELETE FROM `t``direct_duckdb` WHERE id = 3;
+
+--let $cnt_innodb = query_get_value(SELECT COUNT(*) AS c FROM `t``direct_innodb`, c, 1)
+--let $cnt_duckdb = query_get_value(SELECT COUNT(*) AS c FROM `t``direct_duckdb`, c, 1)
+--let $assert_cond= $cnt_innodb = $cnt_duckdb
+--let $assert_text= Direct DML row count matches on backtick names
+--source include/assert.inc
+
+SELECT * FROM `t``direct_innodb` ORDER BY id;
+SELECT * FROM `t``direct_duckdb` ORDER BY id;
+
+DROP TABLE `t``direct_innodb`, `t``direct_duckdb`;
+SET GLOBAL duckdb_dml_in_batch = @saved_duckdb_dml_in_batch;
+
+
+--echo #
+--echo # 8) TRUNCATE/DROP PARTITION on backtick-named table and column.
+--echo #
+CREATE TABLE `t``part_duckdb` (
+  `i``d` INT NOT NULL,
+  v INT,
+  PRIMARY KEY (`i``d`)
+) ENGINE=DuckDB
+PARTITION BY RANGE (`i``d`) (
+  PARTITION p0 VALUES LESS THAN (10),
+  PARTITION p1 VALUES LESS THAN (20),
+  PARTITION pmax VALUES LESS THAN MAXVALUE
+);
+
+INSERT INTO `t``part_duckdb` VALUES (1, 10), (11, 110), (21, 210);
+
+ALTER TABLE `t``part_duckdb` TRUNCATE PARTITION p0;
+SELECT `i``d`, v FROM `t``part_duckdb` ORDER BY `i``d`;
+
+ALTER TABLE `t``part_duckdb` DROP PARTITION p1;
+SELECT `i``d`, v FROM `t``part_duckdb` ORDER BY `i``d`;
+
+DROP TABLE `t``part_duckdb`;
+
+
+--echo #
+--echo # 9) ENUM values containing quotes, backslash, and NUL bytes
+--echo #
+CREATE TABLE t_innodb (id INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT NOT NULL PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1);
+INSERT INTO t_duckdb VALUES (1);
+
+ALTER TABLE t_innodb ADD COLUMN c ENUM('it''s','a\0\\b','ok') NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN c ENUM('it''s','a\0\\b','ok') NOT NULL;
+
+INSERT INTO t_innodb VALUES (2, 'a\0\\b');
+INSERT INTO t_duckdb VALUES (2, 'a\0\\b');
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum matches after ADD COLUMN ENUM with quote, backslash, and NUL byte
+--source include/assert.inc
+
+SELECT table_name, column_name, HEX(column_type), HEX(column_default),
+       is_nullable
+  FROM information_schema.columns
+ WHERE table_schema = DATABASE()
+   AND table_name IN ('t_innodb', 't_duckdb')
+   AND column_name = 'c'
+ ORDER BY table_name;
+CALL dbms_duckdb.query("SELECT column_name, column_default IS NULL AS no_default, data_type FROM information_schema.columns WHERE table_name='t_duckdb' AND column_name='c'");
+
+SELECT id, HEX(c), LENGTH(c) FROM t_innodb ORDER BY id;
+SELECT id, HEX(c), LENGTH(c) FROM t_duckdb ORDER BY id;
+
+DROP TABLE t_innodb, t_duckdb;
+
+CREATE TABLE t_innodb (id INT NOT NULL PRIMARY KEY, x INT) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT NOT NULL PRIMARY KEY, x INT) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1,1),(2,2),(3,3);
+INSERT INTO t_duckdb VALUES (1,1),(2,2),(3,3);
+
+ALTER TABLE t_innodb MODIFY COLUMN x ENUM('it''s','a\0b','a\\b');
+ALTER TABLE t_duckdb MODIFY COLUMN x ENUM('it''s','a\0b','a\\b');
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum matches after MODIFY numeric->ENUM with quote, backslash, and NUL byte
+--source include/assert.inc
+
+SELECT table_name, column_name, HEX(column_type), HEX(column_default),
+       is_nullable
+  FROM information_schema.columns
+ WHERE table_schema = DATABASE()
+   AND table_name IN ('t_innodb', 't_duckdb')
+   AND column_name = 'x'
+ ORDER BY table_name;
+CALL dbms_duckdb.query("SELECT column_name, hex(column_default), data_type FROM information_schema.columns WHERE table_name='t_duckdb' AND column_name='x'");
+
+SELECT id, HEX(x), LENGTH(x) FROM t_innodb ORDER BY id;
+SELECT id, HEX(x), LENGTH(x) FROM t_duckdb ORDER BY id;
+
+DROP TABLE t_innodb, t_duckdb;
+
+# NUL followed by digit must keep the digit literal.
+CREATE TABLE t_innodb (id INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT NOT NULL PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1);
+INSERT INTO t_duckdb VALUES (1);
+
+ALTER TABLE t_innodb ADD COLUMN c ENUM('a\01b','ok') NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN c ENUM('a\01b','ok') NOT NULL;
+
+INSERT INTO t_innodb VALUES (2, 'a\01b');
+INSERT INTO t_duckdb VALUES (2, 'a\01b');
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum matches after ADD COLUMN ENUM with NUL followed by digit
+--source include/assert.inc
+
+SELECT id, HEX(c), LENGTH(c) FROM t_innodb ORDER BY id;
+SELECT id, HEX(c), LENGTH(c) FROM t_duckdb ORDER BY id;
+
+DROP TABLE t_innodb, t_duckdb;
+
+
+--echo #
+--echo # 10) RENAME TABLE to a name containing embedded backticks
+--echo #
+CREATE TABLE `t``ren_innodb` (id INT NOT NULL PRIMARY KEY, v INT) ENGINE=InnoDB;
+CREATE TABLE `t``ren_duckdb` (id INT NOT NULL PRIMARY KEY, v INT) ENGINE=DuckDB;
+
+INSERT INTO `t``ren_innodb` VALUES (1, 10);
+INSERT INTO `t``ren_duckdb` VALUES (1, 10);
+
+ALTER TABLE `t``ren_innodb` RENAME TO `t``ren``new_innodb`;
+ALTER TABLE `t``ren_duckdb` RENAME TO `t``ren``new_duckdb`;
+
+--let $innodb_tbl = query_get_value(SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 't%new_innodb', TABLE_NAME, 1)
+--let $duckdb_tbl = query_get_value(SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME LIKE 't%new_duckdb', TABLE_NAME, 1)
+--let $assert_cond= "$innodb_tbl" = REPLACE("$duckdb_tbl", "duckdb", "innodb")
+--let $assert_text= Renamed table name shape matches between InnoDB and DuckDB
+--source include/assert.inc
+
+CALL dbms_duckdb.query("SELECT count(*) FROM information_schema.tables WHERE table_name = 't`ren`new_duckdb'");
+
+SELECT table_name, column_name, ordinal_position, column_type,
+       column_default, is_nullable, column_key
+  FROM information_schema.columns
+ WHERE table_schema = DATABASE()
+   AND (table_name LIKE 't%new_innodb' OR table_name LIKE 't%new_duckdb')
+ ORDER BY table_name, ordinal_position;
+
+INSERT INTO `t``ren``new_innodb` VALUES (2, 20);
+INSERT INTO `t``ren``new_duckdb` VALUES (2, 20);
+
+--let $cnt_innodb = query_get_value(SELECT COUNT(*) AS c FROM `t``ren``new_innodb`, c, 1)
+--let $cnt_duckdb = query_get_value(SELECT COUNT(*) AS c FROM `t``ren``new_duckdb`, c, 1)
+--let $assert_cond= $cnt_innodb = $cnt_duckdb
+--let $assert_text= Row count matches after RENAME TABLE to backtick name
+--source include/assert.inc
+
+DROP TABLE `t``ren``new_innodb`, `t``ren``new_duckdb`;
+
+
+--echo #
+--echo # 11) ENGINE switch on backtick-named table and column
+--echo #
+CREATE TABLE `t``sw` (
+  id INT NOT NULL PRIMARY KEY,
+  `c``v` VARCHAR(32)
+) ENGINE=InnoDB;
+
+INSERT INTO `t``sw` VALUES (1, 'a'), (2, 'b'), (3, 'c');
+
+SELECT column_name, ordinal_position, column_type, column_default,
+       is_nullable, column_key
+  FROM information_schema.columns
+ WHERE table_schema = DATABASE() AND table_name = 't`sw'
+ ORDER BY ordinal_position;
+
+ALTER TABLE `t``sw` ENGINE = DuckDB;
+
+CALL dbms_duckdb.query("PRAGMA table_info(`test`.`t``sw`)");
+
+SELECT column_name, ordinal_position, column_type, column_default,
+       is_nullable, column_key
+  FROM information_schema.columns
+ WHERE table_schema = DATABASE() AND table_name = 't`sw'
+ ORDER BY ordinal_position;
+
+INSERT INTO `t``sw` VALUES (4, 'd');
+UPDATE `t``sw` SET `c``v` = 'X' WHERE id = 2;
+DELETE FROM `t``sw` WHERE id = 3;
+
+SELECT * FROM `t``sw` ORDER BY id;
+
+ALTER TABLE `t``sw` ENGINE = InnoDB;
+
+SELECT column_name, ordinal_position, column_type, column_default,
+       is_nullable, column_key
+  FROM information_schema.columns
+ WHERE table_schema = DATABASE() AND table_name = 't`sw'
+ ORDER BY ordinal_position;
+
+SELECT * FROM `t``sw` ORDER BY id;
+
+DROP TABLE `t``sw`;
+
+
+--echo #
+--echo # 12) Other ALTER COLUMN operations on backtick-named column
+--echo #
+CREATE TABLE t_innodb (
+  id INT NOT NULL PRIMARY KEY,
+  `c``a` INT NOT NULL,
+  `c``b` INT
+) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (
+  id INT NOT NULL PRIMARY KEY,
+  `c``a` INT NOT NULL,
+  `c``b` INT
+) ENGINE=DuckDB;
+
+INSERT INTO t_innodb VALUES (1, 100, 200);
+INSERT INTO t_duckdb VALUES (1, 100, 200);
+
+ALTER TABLE t_innodb MODIFY COLUMN `c``a` BIGINT NOT NULL;
+ALTER TABLE t_duckdb MODIFY COLUMN `c``a` BIGINT NOT NULL;
+
+ALTER TABLE t_innodb ALTER COLUMN `c``a` SET DEFAULT 7;
+ALTER TABLE t_duckdb ALTER COLUMN `c``a` SET DEFAULT 7;
+
+ALTER TABLE t_innodb ALTER COLUMN `c``a` DROP DEFAULT;
+ALTER TABLE t_duckdb ALTER COLUMN `c``a` DROP DEFAULT;
+
+ALTER TABLE t_innodb MODIFY COLUMN `c``a` BIGINT NULL;
+ALTER TABLE t_duckdb MODIFY COLUMN `c``a` BIGINT NULL;
+
+ALTER TABLE t_innodb DROP COLUMN `c``b`;
+ALTER TABLE t_duckdb DROP COLUMN `c``b`;
+
+INSERT INTO t_innodb VALUES (2, 999);
+INSERT INTO t_duckdb VALUES (2, 999);
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum matches after MODIFY/SET DEFAULT/DROP DEFAULT/DROP NOT NULL/DROP COLUMN on backtick column
+--source include/assert.inc
+
+CALL dbms_duckdb.query("PRAGMA table_info(test.t_duckdb)");
+
+SELECT table_name, column_name, ordinal_position, column_type,
+       column_default, is_nullable, column_key
+  FROM information_schema.columns
+ WHERE table_schema = DATABASE()
+   AND table_name IN ('t_innodb', 't_duckdb')
+ ORDER BY table_name, ordinal_position;
+
+DROP TABLE t_innodb, t_duckdb;
+
+
+# Database names containing ` are rejected before DuckDB CREATE DATABASE.

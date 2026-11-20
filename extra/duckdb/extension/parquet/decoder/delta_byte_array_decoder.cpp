@@ -1,0 +1,107 @@
+#include "decoder/delta_byte_array_decoder.hpp"
+#include "column_reader.hpp"
+#include "parquet_reader.hpp"
+#include "reader/templated_column_reader.hpp"
+
+namespace duckdb {
+
+DeltaByteArrayDecoder::DeltaByteArrayDecoder(ColumnReader &reader) : reader(reader) {
+}
+
+void DeltaByteArrayDecoder::ReadDbpData(Allocator &allocator, ResizeableBuffer &buffer, ResizeableBuffer &result_buffer,
+                                        idx_t &value_count) {
+	auto decoder = make_uniq<DbpDecoder>(buffer.ptr, buffer.len);
+	value_count = decoder->TotalValues();
+	result_buffer.reset();
+	result_buffer.resize(allocator, sizeof(uint32_t) * value_count);
+	decoder->GetBatch<uint32_t>(result_buffer.ptr, value_count);
+	decoder->Finalize();
+	buffer.inc(buffer.len - decoder->BufferPtr().len);
+}
+
+void DeltaByteArrayDecoder::InitializePage() {
+	auto &block = *reader.block;
+	auto &allocator = reader.reader.allocator;
+	idx_t prefix_count, suffix_count;
+	auto &prefix_buffer = reader.encoding_buffers[0];
+	auto &suffix_buffer = reader.encoding_buffers[1];
+	ReadDbpData(allocator, block, prefix_buffer, prefix_count);
+	ReadDbpData(allocator, block, suffix_buffer, suffix_count);
+	if (prefix_count != suffix_count) {
+		throw std::runtime_error("DELTA_BYTE_ARRAY - prefix and suffix counts are different - corrupt file?");
+	}
+
+	auto prefix_data = reinterpret_cast<uint32_t *>(prefix_buffer.ptr);
+	auto suffix_data = reinterpret_cast<uint32_t *>(suffix_buffer.ptr);
+
+	// Allocate the plain data buffer per page
+	plain_data = make_shared_ptr<ResizeableBuffer>();
+
+	if (prefix_count == 0) {
+		plain_data->resize(allocator, 0);
+		return;
+	}
+
+	// Decode DELTA_BYTE_ARRAY into plain Parquet page format
+	// Plain format for BYTE_ARRAY: [4-byte length][data] repeated
+	// Plain format for FIXED_LEN_BYTE_ARRAY: [data] repeated (no length prefix)
+	auto &schema = reader.Schema();
+	bool is_fixed_len = (schema.parquet_type == duckdb_parquet::Type::FIXED_LEN_BYTE_ARRAY);
+	idx_t fixed_len = is_fixed_len ? schema.type_length : 0;
+
+	// Calculate total buffer size and max value length in one pass
+	idx_t total_size = 0;
+	idx_t max_len = 0;
+	for (idx_t i = 0; i < prefix_count; i++) {
+		idx_t len = prefix_data[i] + suffix_data[i];
+		if (is_fixed_len && len != fixed_len) {
+			throw std::runtime_error(
+			    "DELTA_BYTE_ARRAY on FIXED_LEN_BYTE_ARRAY: decoded length does not match type length");
+		}
+		total_size += len;
+		max_len = MaxValue(max_len, len);
+	}
+
+	if (!is_fixed_len) {
+		total_size += prefix_count * sizeof(uint32_t);
+	}
+
+	plain_data->resize(allocator, total_size);
+	unsafe_vector<uint8_t> prev_value(max_len);
+	idx_t prev_len = 0;
+
+	auto output = plain_data->ptr;
+	for (idx_t i = 0; i < prefix_count; i++) {
+		auto prefix_len = prefix_data[i];
+		auto suffix_len = suffix_data[i];
+		auto value_len = prefix_len + suffix_len;
+
+		if (prefix_len > prev_len) {
+			throw std::runtime_error("DELTA_BYTE_ARRAY - prefix is out of range - corrupt file?");
+		}
+
+		if (!is_fixed_len) {
+			Store<uint32_t>(static_cast<uint32_t>(value_len), output);
+			output += sizeof(uint32_t);
+		}
+
+		memcpy(output, prev_value.data(), prefix_len);
+		block.available(suffix_len);
+		memcpy(output + prefix_len, block.ptr, suffix_len);
+		block.inc(suffix_len);
+
+		memcpy(prev_value.data(), output, value_len);
+		prev_len = value_len;
+		output += value_len;
+	}
+}
+
+void DeltaByteArrayDecoder::Read(uint8_t *defines, idx_t read_count, Vector &result, idx_t result_offset) {
+	reader.Plain(plain_data, defines, read_count, result_offset, result);
+}
+
+void DeltaByteArrayDecoder::Skip(uint8_t *defines, idx_t skip_count) {
+	reader.PlainSkip(*plain_data, defines, skip_count);
+}
+
+} // namespace duckdb

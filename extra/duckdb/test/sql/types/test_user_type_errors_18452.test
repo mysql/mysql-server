@@ -1,0 +1,28 @@
+# name: test/sql/types/test_user_type_errors_18452.test
+# group: [types]
+
+statement ok
+PRAGMA enable_verification
+
+# We used to have issues parsing lots of type arguments, but thats no longer the case,
+# so these should all error out because type X/XX does not exist.
+
+statement error
+CREATE TYPE l AS X(0,0,0,0,0,0,0,0,0,0,0);
+----
+Catalog Error: Type with name X does not exist!
+
+statement error
+CREATE TYPE ll AS XX(1,2,3,4,5,6,7,8,9,10);
+----
+Catalog Error: Type with name XX does not exist!
+
+statement error
+CREATE TYPE ll AS XX(1,2,3,4,5,6,7,8,9);
+----
+Catalog Error: Type with name XX does not exist!
+
+statement error
+CREATE TYPE ll AS XX(a,2,3,4,5,6,7,8,9);
+----
+Parser Error: Expected a constant as type modifier

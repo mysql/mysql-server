@@ -1,0 +1,261 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+create table tt(id bigint not null primary key, name varchar(128));
+show create table tt;
+Table	Create Table
+tt	CREATE TABLE `tt` (
+  `id` bigint NOT NULL,
+  `name` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+insert into tt values(1, 'mysql maries duckdb');
+insert into tt values(2, 'mysql maries duckdb');
+insert into tt values(3, 'mysql maries duckdb');
+insert into tt values(4, 'mysql maries duckdb');
+insert into tt values(5, 'mysql maries duckdb');
+insert into tt values(6, 'mysql maries duckdb');
+insert into tt values(7, 'mysql maries duckdb');
+insert into tt values(8, 'mysql maries duckdb');
+insert into tt values(9, 'mysql maries duckdb');
+insert into tt values(10, 'mysql maries duckdb');
+insert into tt values(11, 'mysql maries duckdb');
+insert into tt values(12, 'mysql maries duckdb');
+explain select count(*) from tt;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	tt	NULL	index	NULL	PRIMARY	8	NULL	12	100.00	Using index
+Warnings:
+Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`tt`
+include/rpl/sync.inc
+show create table tt;
+Table	Create Table
+tt	CREATE TABLE `tt` (
+  `id` bigint NOT NULL,
+  `name` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+set duckdb_explain_output="PHYSICAL_ONLY";
+show variables like 'duckdb_explain_output';
+Variable_name	Value
+duckdb_explain_output	PHYSICAL_ONLY
+explain select * from tt;
+EXPLAIN FROM DUCKDB
+physical_plan
+┌───────────────────────────┐
+│          SEQ_SCAN         │
+│    ────────────────────   │
+│   Table: duckdb.test.tt   │
+│   Type: Sequential Scan   │
+│                           │
+│        Projections:       │
+│             id            │
+│            name           │
+│                           │
+│          ~12 rows         │
+└───────────────────────────┘
+
+explain analyze select * from tt;
+EXPLAIN FROM DUCKDB
+analyzed_plan
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+explain analyze select * from tt
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: x.xxxxs             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         TABLE_SCAN        │
+│    ────────────────────   │
+│   Table: duckdb.test.tt   │
+│   Type: Sequential Scan   │
+│                           │
+│        Projections:       │
+│             id            │
+│            name           │
+│                           │
+│                           │
+│                           │
+│          12 rows          │
+│           0.00s           │
+└───────────────────────────┘
+
+set duckdb_explain_output="OPTIMIZED_ONLY";
+show variables like 'duckdb_explain_output';
+Variable_name	Value
+duckdb_explain_output	OPTIMIZED_ONLY
+explain select * from tt;
+EXPLAIN FROM DUCKDB
+logical_opt
+┌───────────────────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│        Expressions:       │
+│             id            │
+│            name           │
+│                           │
+│          ~12 rows         │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│          SEQ_SCAN         │
+│    ────────────────────   │
+│   Table: duckdb.test.tt   │
+│   Type: Sequential Scan   │
+│                           │
+│          ~12 rows         │
+└───────────────────────────┘
+
+explain analyze select * from tt;
+EXPLAIN FROM DUCKDB
+analyzed_plan
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+explain analyze select * from tt
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: x.xxxxs             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         TABLE_SCAN        │
+│    ────────────────────   │
+│   Table: duckdb.test.tt   │
+│   Type: Sequential Scan   │
+│                           │
+│        Projections:       │
+│             id            │
+│            name           │
+│                           │
+│                           │
+│                           │
+│          12 rows          │
+│           0.00s           │
+└───────────────────────────┘
+
+set duckdb_explain_output="ALL";
+show variables like 'duckdb_explain_output';
+Variable_name	Value
+duckdb_explain_output	ALL
+explain select * from tt;
+EXPLAIN FROM DUCKDB
+logical_plan
+┌───────────────────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│        Expressions:       │
+│             id            │
+│            name           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│          SEQ_SCAN         │
+│    ────────────────────   │
+│   Table: duckdb.test.tt   │
+│   Type: Sequential Scan   │
+└───────────────────────────┘
+logical_opt
+┌───────────────────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│        Expressions:       │
+│             id            │
+│            name           │
+│                           │
+│          ~12 rows         │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│          SEQ_SCAN         │
+│    ────────────────────   │
+│   Table: duckdb.test.tt   │
+│   Type: Sequential Scan   │
+│                           │
+│          ~12 rows         │
+└───────────────────────────┘
+physical_plan
+┌───────────────────────────┐
+│          SEQ_SCAN         │
+│    ────────────────────   │
+│   Table: duckdb.test.tt   │
+│   Type: Sequential Scan   │
+│                           │
+│        Projections:       │
+│             id            │
+│            name           │
+│                           │
+│          ~12 rows         │
+└───────────────────────────┘
+
+explain analyze select * from tt;
+EXPLAIN FROM DUCKDB
+analyzed_plan
+┌─────────────────────────────────────┐
+│┌───────────────────────────────────┐│
+││    Query Profiling Information    ││
+│└───────────────────────────────────┘│
+└─────────────────────────────────────┘
+explain analyze select * from tt
+┌────────────────────────────────────────────────┐
+│┌──────────────────────────────────────────────┐│
+││              Total Time: x.xxxxs             ││
+│└──────────────────────────────────────────────┘│
+└────────────────────────────────────────────────┘
+┌───────────────────────────┐
+│           QUERY           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│      EXPLAIN_ANALYZE      │
+│    ────────────────────   │
+│                           │
+│           0 rows          │
+│           0.00s           │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         TABLE_SCAN        │
+│    ────────────────────   │
+│   Table: duckdb.test.tt   │
+│   Type: Sequential Scan   │
+│                           │
+│        Projections:       │
+│             id            │
+│            name           │
+│                           │
+│                           │
+│                           │
+│          12 rows          │
+│           0.00s           │
+└───────────────────────────┘
+
+set duckdb_explain_output="LOGICAL_ONLY";
+ERROR 42000: Variable 'duckdb_explain_output' can't be set to the value of 'LOGICAL_ONLY'
+set duckdb_explain_output="PHYSICAL_ONLY";
+drop table tt;
+include/rpl/sync.inc
+include/rpl/deinit.inc

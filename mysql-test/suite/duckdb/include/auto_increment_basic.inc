@@ -1,0 +1,138 @@
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = ON;
+--enable_query_log
+
+--echo #
+--echo # 1) INSERT AND UPDATE WILL CHANGE AUTO_INCREMENT
+--echo #
+--eval CREATE TABLE t1(id INT AUTO_INCREMENT key) $extra_def
+SET GLOBAL duckdb_dml_in_batch = ON;
+INSERT INTO t1 VALUES(), (), ();
+SELECT * FROM t1 ORDER BY id;
+SHOW CREATE TABLE t1;
+
+UPDATE t1 SET id = 10 WHERE id = 1;
+SELECT * FROM t1 ORDER BY id;
+SHOW CREATE TABLE t1;
+
+SET GLOBAL duckdb_dml_in_batch = OFF;
+INSERT INTO t1 VALUES(), (), ();
+SELECT * FROM t1 ORDER BY id;
+SHOW CREATE TABLE t1;
+
+SET GLOBAL duckdb_dml_in_batch = default;
+
+
+--echo #
+--echo # 2) DDL
+--echo #
+RENAME TABLE t1 TO t2;
+INSERT INTO t2 VALUES(), (), ();
+SELECT * FROM t2 ORDER BY id;
+SHOW CREATE TABLE t2;
+
+ALTER TABLE t2 RENAME TO t1;
+INSERT INTO t1 VALUES(), (), ();
+SELECT * FROM t1 ORDER BY id;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ADD COLUMN b INT;
+INSERT INTO t1 VALUES(), (), ();
+SELECT * FROM t1 ORDER BY id;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 ADD COLUMN c INT, ALGORITHM=COPY;
+INSERT INTO t1 VALUES(), (), ();
+SELECT * FROM t1 ORDER BY id;
+SHOW CREATE TABLE t1;
+
+ALTER TABLE t1 AUTO_INCREMENT = 9999;
+INSERT INTO t1 VALUES(), (), ();
+SELECT * FROM t1 ORDER BY id;
+SHOW CREATE TABLE t1;
+
+
+--echo #
+--echo # 3) CREATE TABLE WITH AUTO_INCREMENT
+--echo #
+DROP TABLE t1;
+--eval CREATE TABLE t1(id INT AUTO_INCREMENT KEY) AUTO_INCREMENT = 999 $extra_def
+INSERT INTO t1 VALUES(), (), ();
+SELECT * FROM t1 ORDER BY id;
+SHOW CREATE TABLE t1;
+
+
+--echo #
+--echo # 4) TRUNCATE TABLE, AUTO_INCREMENT WILL BE RESET
+--echo #
+TRUNCATE TABLE t1;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES(), (), ();
+SELECT * FROM t1 ORDER BY id;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+
+--echo #
+--echo # 5) RESTART AND CHECK AUTO_INCREMENT
+--echo #
+--eval CREATE TABLE t1(id INT AUTO_INCREMENT KEY) AUTO_INCREMENT = 999 $extra_def
+INSERT INTO t1 VALUES(1), (2), (3);
+INSERT INTO t1 VALUES(), (), ();
+SELECT * FROM t1 ORDER BY id;
+SHOW CREATE TABLE t1;
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+SELECT * FROM t1 ORDER BY id;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+--echo #
+--echo # 6) variable duckdb_support_auto_increment
+--echo #
+SET GLOBAL duckdb_support_auto_increment = OFF;
+--eval CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, b INT) $extra_def
+SHOW CREATE TABLE t1;
+--eval CREATE TABLE t2(id INT PRIMARY KEY, b INT AUTO_INCREMENT, INDEX idx_b(b)) $extra_def
+SHOW CREATE TABLE t2;
+DROP TABLE t1, t2;
+
+--eval CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, b INT) $extra_def
+SHOW CREATE TABLE t1;
+--error ER_DUCKDB_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 DROP PRIMARY KEY, ADD COLUMN c INT AUTO_INCREMENT, ADD PRIMARY KEY(c, id);
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+SET GLOBAL duckdb_support_auto_increment = ON;
+--eval CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, b INT) $extra_def
+SHOW CREATE TABLE t1;
+--error ER_WRONG_AUTO_KEY # idx_b will be removed, so auto_inc column will report error.
+--eval CREATE TABLE t2(id INT PRIMARY KEY, b INT AUTO_INCREMENT, INDEX idx_b(b)) $extra_def
+DROP TABLE t1;
+
+
+--echo #
+--echo # 7) ADD/CHANGE COLUMN FROM no-auto-increment TO auto-increment
+--echo #
+--eval CREATE TABLE t1(id INT PRIMARY KEY, b INT) $extra_def
+--error ER_DUCKDB_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 DROP PRIMARY KEY, ADD COLUMN c INT AUTO_INCREMENT, ADD PRIMARY KEY(c, id);
+
+INSERT INTO t1 VALUES(1, 1), (101, 2), (1001, 3), (10001, 4);
+SELECT * FROM t1 ORDER BY id;
+SET GLOBAL duckdb_support_auto_increment = ON;
+ALTER TABLE t1 MODIFY COLUMN id INT AUTO_INCREMENT;
+INSERT INTO t1(b) VALUES(5);
+INSERT INTO t1 VALUES (100001, 6);
+INSERT INTO t1(b) VALUES(7);
+SELECT * FROM t1 ORDER BY id;
+DROP TABLE t1;
+
+--echo #
+--echo # 8) CLEANUP
+--echo #
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = default;
+--enable_query_log

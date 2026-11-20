@@ -1,0 +1,25 @@
+SHOW VARIABLES LIKE '%time%zone%';
+Variable_name	Value
+system_time_zone	GMT
+time_zone	SYSTEM
+SET time_zone='+00:00';
+CREATE TABLE t_duckdb (id INT PRIMARY KEY, a timestamp, b datetime) ENGINE=duckdb;
+CREATE TABLE t_innodb (id INT PRIMARY KEY, a timestamp, b datetime) ENGINE=innodb;
+INSERT INTO t_duckdb VALUES (1, '2020-01-01 00:00:00', '1970-01-01 00:00:00');
+INSERT INTO t_innodb VALUES (1, '2020-01-01 00:00:00', '1970-01-01 00:00:00');
+SET time_zone=system;
+SELECT * FROM t_innodb WHERE a < '2020-01-01 11:00:01' and a > '2020-01-01 10:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+id	a	b
+1	2020-01-01 11:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 11:00:01' and a > '2020-01-01 10:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+id	a	b
+1	2020-01-01 11:00:00	1970-01-01 00:00:00
+SET time_zone=system;
+SELECT * FROM t_innodb WHERE a < '2020-01-01 00:00:01' and a > '2019-12-31 10:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+id	a	b
+1	2020-01-01 00:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 00:00:01' and a > '2019-12-31 10:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+id	a	b
+1	2020-01-01 00:00:00	1970-01-01 00:00:00
+DROP TABLE t_duckdb;
+DROP TABLE t_innodb;

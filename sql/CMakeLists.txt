@@ -666,7 +666,32 @@ SET(SQL_SHARED_SOURCES
   reference_caching_setup.cc
   sql_event_tracking_to_audit_event_mapping.cc
   command_mapping.cc
-)
+  sql_table_ext.cc
+  common/component.cc
+  package/package.cc
+  package/package_cache.cc
+  package/package_common.cc
+  package/proc.cc
+  package/package_parse.cc
+  package/proc_dummy.cc
+  package/show_native_procedure.cc
+  duckdb/duckdb_log.cc
+  duckdb/duckdb_table.cc
+  duckdb/duckdb_timezone.cc
+  duckdb/duckdb_config.cc
+  )
+
+IF(HAVE_DUCKDB)
+  LIST(APPEND SQL_SHARED_SOURCES
+    sys_vars_ext.cc
+    duckdb/duckdb_manager.cc
+    duckdb/duckdb_query.cc
+    duckdb/duckdb_proc.cc
+    duckdb/duckdb_context.cc
+    duckdb/duckdb_charset_collation.cc
+    duckdb/duckdb_mysql_udf.cc
+    )
+ENDIF()
 
 IF(BUILD_IS_SINGLE_CONFIG)
   GET_PROPERTY(CWD_DEFINITIONS DIRECTORY PROPERTY COMPILE_DEFINITIONS)
@@ -959,7 +984,7 @@ TARGET_LINK_LIBRARIES(sql_main INTERFACE ${MYSQLD_STATIC_PLUGIN_LIBS})
 TARGET_LINK_LIBRARIES(sql_main PRIVATE
   mysql_server_component_services mysys library_mysys strings vio
   mysql_binlog_event ${LIBWRAP} ${LIBDL} OpenSSL::SSL OpenSSL::Crypto
-  extra::rapidjson extra::boost)
+  extra::rapidjson extra::boost ${DUCKDB_LIBRARY})
 
 # sql/immutable_string.h uses
 # google::protobuf::io::CodedOutputStream::WriteVarint64ToArray
@@ -972,6 +997,9 @@ SET(SQL_SERVER_HEADER_LIBRARIES
   extra::unordered_dense
   ext::zlib
   )
+IF(HAVE_DUCKDB)
+  LIST(APPEND SQL_SERVER_HEADER_LIBRARIES ${DUCKDB_LIBRARY})
+ENDIF()
 
 ADD_LIBRARY(sql_gis STATIC ${SQL_GIS_SOURCES})
 IF(WIN32)

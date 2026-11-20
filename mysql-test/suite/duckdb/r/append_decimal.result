@@ -1,0 +1,136 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+###########################################################################
+# Prepare
+###########################################################################
+[connection master]
+CREATE TABLE t1 (
+id BIGINT AUTO_INCREMENT NOT NULL,
+c0 DECIMAL(38, 13) DEFAULT 1,
+c1 DECIMAL(18, 13) DEFAULT 1,
+PRIMARY KEY(id)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `c0` decimal(38,13) DEFAULT '1.0000000000000',
+  `c1` decimal(18,13) DEFAULT '1.0000000000000',
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL DEFAULT '0',
+  `c0` decimal(38,13) DEFAULT '1.0000000000000',
+  `c1` decimal(18,13) DEFAULT '1.0000000000000',
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# Insert
+###########################################################################
+[connection master]
+# Test zero
+INSERT INTO t1 (c0, c1) VALUES ('0', '0');
+INSERT INTO t1 (c0, c1) VALUES ('0000.000000', '0000.000000');
+INSERT INTO t1 (c0, c1) VALUES ('-0.0', '-0.0');
+INSERT INTO t1 (c0, c1) VALUES ('-0', '-0');
+INSERT INTO t1 (c0, c1) VALUES ('+0', '+0');
+# Test short decimal
+INSERT INTO t1 (c0, c1) VALUES ('12.55', '12.55');
+INSERT INTO t1 (c0, c1) VALUES ('4654563', '4563');
+INSERT INTO t1 (c0, c1) VALUES ('-0.5444556', '-0.5444556');
+INSERT INTO t1 (c0, c1) VALUES ('+23423.1111', '+23423.1111');
+INSERT INTO t1 (c0, c1) VALUES ('-1', '-1');
+INSERT INTO t1 (c0, c1) VALUES ('0002.7831', '0002.7831');
+# Test long decimal
+INSERT INTO t1 (c0, c1) VALUES ('1564615522.33333347', '15522.33333347');
+INSERT INTO t1 (c0, c1) VALUES ('-275923887532.3245523322', '-87532.3245523322');
+INSERT INTO t1 (c0, c1) VALUES ('9999999999999999999999999.9999999999999', '99999.9999999999999');
+INSERT INTO t1 (c0, c1) VALUES ('-9999999999999999999999999.9999999999999', '-99999.9999999999999');
+INSERT INTO t1 (c0, c1) VALUES ('+0.0000000000001', '+0.0000000000001');
+INSERT INTO t1 (c0, c1) VALUES ('1234567891011121314151617.1110987654321', '51617.1110987654321');
+INSERT INTO t1 (c0, c1) VALUES ('9853424411255114773698212.0005445127236', '98212.0005445127236');
+INSERT INTO t1 (c0, c1) VALUES ('-6541354789511459491453546.9881741477992', '-53546.9881741477992');
+INSERT INTO t1 (c0, c1) VALUES ('-0.4478451545477', '-0.4478451545477');
+INSERT INTO t1 (c0, c1) VALUES ('8771134545474121541247833', '47833');
+# Test truncated decimal
+INSERT INTO t1 (c0, c1) VALUES ('0.00000000000001', '0.00000000000001');
+Warnings:
+Note	1265	Data truncated for column 'c0' at row 1
+Note	1265	Data truncated for column 'c1' at row 1
+INSERT INTO t1 (c0, c1) VALUES ('-0.00000000000001', '-0.00000000000001');
+Warnings:
+Note	1265	Data truncated for column 'c0' at row 1
+Note	1265	Data truncated for column 'c1' at row 1
+INSERT INTO t1 (c0, c1) VALUES ('9999999999999999999999999.99999999999994', '99999.99999999999994');
+Warnings:
+Note	1265	Data truncated for column 'c0' at row 1
+Note	1265	Data truncated for column 'c1' at row 1
+INSERT INTO t1 (c0, c1) VALUES ('-9999999999999999999999999.99999999999994', '-99999.99999999999994');
+Warnings:
+Note	1265	Data truncated for column 'c0' at row 1
+Note	1265	Data truncated for column 'c1' at row 1
+# Test overflow decimal
+INSERT INTO t1 (c0) VALUES ('9999999999999999999999999.99999999999995');
+ERROR 22003: Out of range value for column 'c0' at row 1
+INSERT INTO t1 (c0) VALUES ('-9999999999999999999999999.99999999999995');
+ERROR 22003: Out of range value for column 'c0' at row 1
+INSERT INTO t1 (c0) VALUES ('10000000000000000000000000');
+ERROR 22003: Out of range value for column 'c0' at row 1
+INSERT INTO t1 (c0) VALUES ('-10000000000000000000000000');
+ERROR 22003: Out of range value for column 'c0' at row 1
+INSERT INTO t1 (c1) VALUES ('99999.99999999999995');
+ERROR 22003: Out of range value for column 'c1' at row 1
+INSERT INTO t1 (c1) VALUES ('-99999.99999999999995');
+ERROR 22003: Out of range value for column 'c1' at row 1
+INSERT INTO t1 (c1) VALUES ('100000');
+ERROR 22003: Out of range value for column 'c1' at row 1
+INSERT INTO t1 (c1) VALUES ('-100000');
+ERROR 22003: Out of range value for column 'c1' at row 1
+SELECT * FROM t1 ORDER BY id;
+id	c0	c1
+1	0.0000000000000	0.0000000000000
+2	0.0000000000000	0.0000000000000
+3	0.0000000000000	0.0000000000000
+4	0.0000000000000	0.0000000000000
+5	0.0000000000000	0.0000000000000
+6	12.5500000000000	12.5500000000000
+7	4654563.0000000000000	4563.0000000000000
+8	-0.5444556000000	-0.5444556000000
+9	23423.1111000000000	23423.1111000000000
+10	-1.0000000000000	-1.0000000000000
+11	2.7831000000000	2.7831000000000
+12	1564615522.3333334700000	15522.3333334700000
+13	-275923887532.3245523322000	-87532.3245523322000
+14	9999999999999999999999999.9999999999999	99999.9999999999999
+15	-9999999999999999999999999.9999999999999	-99999.9999999999999
+16	0.0000000000001	0.0000000000001
+17	1234567891011121314151617.1110987654321	51617.1110987654321
+18	9853424411255114773698212.0005445127236	98212.0005445127236
+19	-6541354789511459491453546.9881741477992	-53546.9881741477992
+20	-0.4478451545477	-0.4478451545477
+21	8771134545474121541247833.0000000000000	47833.0000000000000
+22	0.0000000000000	0.0000000000000
+23	0.0000000000000	0.0000000000000
+24	9999999999999999999999999.9999999999999	99999.9999999999999
+25	-9999999999999999999999999.9999999999999	-99999.9999999999999
+###########################################################################
+# Check
+###########################################################################
+include/rpl/sync.inc
+include/rpl/diff.inc
+include/assert_grep.inc [Check DML SQL is not executed]
+###########################################################################
+# Cleanup
+###########################################################################
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

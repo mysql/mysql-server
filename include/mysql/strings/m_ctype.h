@@ -484,6 +484,8 @@ extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_utf8mb3_unicode_ci;
 extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_utf8mb3_bin;
 extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_utf8mb4_bin;
 extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_utf8mb4_general_ci;
+extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_utf8mb4_0900_as_cs;
+extern MYSQL_STRINGS_EXPORT CHARSET_INFO my_charset_utf8mb4_0900_as_ci;
 
 /**
   @note Deprecated function, please call cs->coll->wildcmp(cs...) instead.

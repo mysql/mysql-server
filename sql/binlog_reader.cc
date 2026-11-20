@@ -293,6 +293,7 @@ Binlog_read_error::Error_type binlog_event_deserialize(
       break;
     case mysql::binlog::event::TRANSACTION_CONTEXT_EVENT:
       ev = new Transaction_context_log_event(buf, fde);
+      ((Transaction_context_log_event *)ev)->decode_snapshot_version();
       break;
     case mysql::binlog::event::VIEW_CHANGE_EVENT:
       ev = new View_change_log_event(buf, fde);

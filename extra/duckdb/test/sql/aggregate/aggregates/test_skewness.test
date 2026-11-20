@@ -1,0 +1,89 @@
+# name: test/sql/aggregate/aggregates/test_skewness.test
+# description: Test skewness aggregate
+# group: [aggregates]
+
+statement ok
+PRAGMA enable_verification
+
+#Corner cases
+statement error
+select skewness()
+----
+
+query I
+select skewness(NULL)
+----
+NULL
+
+query I
+select skewness(1)
+----
+NULL
+
+statement error
+select skewness(*)
+----
+
+# Constant Value
+query I
+select skewness (10) from range (5)
+----
+NAN
+
+#Empty Table
+query I
+select skewness (10) from range (5) where 1 == 0
+----
+NULL
+
+# out of range
+statement error
+select skewness(i) from (values (-2e307), (0), (2e307)) tbl(i)
+----
+
+statement ok
+create table aggr(k int, v decimal(10,2), v2 decimal(10, 2));
+
+statement ok
+insert into aggr values
+    (1, 10, null),
+    (2, 10, 11),
+    (2, 10, 15),
+    (2, 10, 18),
+    (2, 20, 22),
+    (2, 20, 25),
+    (2, 25, null),
+    (2, 30, 35),
+    (2, 30, 40),
+    (2, 30, 50),
+    (2, 30, 51);
+
+query III
+select skewness(k), skewness(v), skewness(v2) from aggr
+----
+-3.316625	-0.163444	0.365401
+
+query I
+select skewness(v2) from aggr group by v ORDER BY ALL
+----
+-0.423273
+-0.330141
+NULL
+NULL
+
+# Window Function
+query I
+select skewness(v2) over (partition by v)
+    from aggr order by v;
+----
+-0.423273
+-0.423273
+-0.423273
+-0.423273
+NULL
+NULL
+NULL
+-0.330141
+-0.330141
+-0.330141
+-0.330141

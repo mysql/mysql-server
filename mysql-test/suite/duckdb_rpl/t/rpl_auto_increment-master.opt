@@ -1,0 +1,2 @@
+--auto-increment-increment=10 --auto-increment-offset=2
+--duckdb_support_auto_increment=ON

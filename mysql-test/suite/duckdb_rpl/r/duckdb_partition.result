@@ -1,0 +1,1099 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1) Truncate partition
+#
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p0]
+[connection master]
+ALTER TABLE t1 TRUNCATE PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) < (100);
+
+[TABLE: t2, PARTITION: p0]
+[connection master]
+ALTER TABLE t2 TRUNCATE PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (0,1,2,3,4);
+
+[TABLE: t3, PARTITION: p0]
+[connection master]
+ALTER TABLE t3 TRUNCATE PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((1,1,'a1'),(1,1,'a2'),(1,1,'a3'));
+
+[TABLE: t4, PARTITION: p0]
+[connection master]
+ALTER TABLE t4 TRUNCATE PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) < (100);
+
+[TABLE: t5, PARTITION: p0]
+[connection master]
+ALTER TABLE t5 TRUNCATE PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (2,4,6,8);
+
+[TABLE: t6, PARTITION: p0]
+[connection master]
+ALTER TABLE t6 TRUNCATE PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1483218000);
+
+[TABLE: t7, PARTITION: p0]
+[connection master]
+ALTER TABLE t7 TRUNCATE PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1995,1996,1997);
+
+[TABLE: t8, PARTITION: p0]
+[connection master]
+ALTER TABLE t8 TRUNCATE PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) < (100);
+
+[TABLE: t9, PARTITION: p0]
+[connection master]
+ALTER TABLE t9 TRUNCATE PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (-1);
+
+[TABLE: t10, PARTITION: p0]
+[connection master]
+ALTER TABLE t10 TRUNCATE PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (0);
+
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p1]
+[connection master]
+ALTER TABLE t1 TRUNCATE PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) < (1000) AND (id) >= (100);
+
+[TABLE: t2, PARTITION: p1]
+[connection master]
+ALTER TABLE t2 TRUNCATE PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (5,6,7,8,9);
+
+[TABLE: t3, PARTITION: p1]
+[connection master]
+ALTER TABLE t3 TRUNCATE PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((1,2,'a1'),(1,2,'a2'),(1,2,'a3'));
+
+[TABLE: t4, PARTITION: p1]
+[connection master]
+ALTER TABLE t4 TRUNCATE PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) < (10000) AND ((`id` + `a`)) >= (100);
+
+[TABLE: t5, PARTITION: p1]
+[connection master]
+ALTER TABLE t5 TRUNCATE PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (10,12,14,16);
+
+[TABLE: t6, PARTITION: p1]
+[connection master]
+ALTER TABLE t6 TRUNCATE PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1514754000) AND (unix_timestamp(`c`)) >= (1483218000);
+
+[TABLE: t7, PARTITION: p1]
+[connection master]
+ALTER TABLE t7 TRUNCATE PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1998,1999,2000);
+
+[TABLE: t8, PARTITION: p1]
+[connection master]
+ALTER TABLE t8 TRUNCATE PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) < (200) AND (`i`) >= (100);
+
+[TABLE: t9, PARTITION: p1]
+[connection master]
+ALTER TABLE t9 TRUNCATE PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (0);
+
+[TABLE: t10, PARTITION: p1]
+[connection master]
+ALTER TABLE t10 TRUNCATE PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (1);
+
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p2]
+[connection master]
+ALTER TABLE t1 TRUNCATE PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) >= (1000);
+
+[TABLE: t2, PARTITION: p2]
+[connection master]
+ALTER TABLE t2 TRUNCATE PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (10,11,12,13,14);
+
+[TABLE: t3, PARTITION: p2]
+[connection master]
+ALTER TABLE t3 TRUNCATE PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((2,1,'a1'),(2,1,'a2'),(2,1,'a3'));
+
+[TABLE: t4, PARTITION: p2]
+[connection master]
+ALTER TABLE t4 TRUNCATE PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) >= (10000);
+
+[TABLE: t5, PARTITION: p2]
+[connection master]
+ALTER TABLE t5 TRUNCATE PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (20,24,28,32);
+
+[TABLE: t6, PARTITION: p2]
+[connection master]
+ALTER TABLE t6 TRUNCATE PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) >= (1514754000);
+
+[TABLE: t7, PARTITION: p2]
+[connection master]
+ALTER TABLE t7 TRUNCATE PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (2001,2002,2003);
+
+[TABLE: t8, PARTITION: p2]
+[connection master]
+ALTER TABLE t8 TRUNCATE PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) >= (200);
+
+[TABLE: t9, PARTITION: p2]
+[connection master]
+ALTER TABLE t9 TRUNCATE PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (1);
+
+[TABLE: t10, PARTITION: p2]
+[connection master]
+ALTER TABLE t10 TRUNCATE PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (NULL);
+
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: ALL]
+[connection master]
+ALTER TABLE t1 TRUNCATE PARTITION ALL;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+
+[TABLE: t2, PARTITION: ALL]
+[connection master]
+ALTER TABLE t2 TRUNCATE PARTITION ALL;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+
+[TABLE: t3, PARTITION: ALL]
+[connection master]
+ALTER TABLE t3 TRUNCATE PARTITION ALL;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+
+[TABLE: t4, PARTITION: ALL]
+[connection master]
+ALTER TABLE t4 TRUNCATE PARTITION ALL;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+
+[TABLE: t5, PARTITION: ALL]
+[connection master]
+ALTER TABLE t5 TRUNCATE PARTITION ALL;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+
+[TABLE: t6, PARTITION: ALL]
+[connection master]
+ALTER TABLE t6 TRUNCATE PARTITION ALL;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+
+[TABLE: t7, PARTITION: ALL]
+[connection master]
+ALTER TABLE t7 TRUNCATE PARTITION ALL;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+
+[TABLE: t8, PARTITION: ALL]
+[connection master]
+ALTER TABLE t8 TRUNCATE PARTITION ALL;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+
+[TABLE: t9, PARTITION: ALL]
+[connection master]
+ALTER TABLE t9 TRUNCATE PARTITION ALL;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+
+[TABLE: t10, PARTITION: ALL]
+[connection master]
+ALTER TABLE t10 TRUNCATE PARTITION ALL;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t1 TRUNCATE PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) < (100); DELETE FROM `t1` WHERE (id) < (1000) AND (id) >= (100);
+
+[TABLE: t2, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t2 TRUNCATE PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (0,1,2,3,4); DELETE FROM `t2` WHERE (`id`) IN (5,6,7,8,9);
+
+[TABLE: t3, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t3 TRUNCATE PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((1,1,'a1'),(1,1,'a2'),(1,1,'a3')); DELETE FROM `t3` WHERE (a,b,c) IN ((1,2,'a1'),(1,2,'a2'),(1,2,'a3'));
+
+[TABLE: t4, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t4 TRUNCATE PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) < (100); DELETE FROM `t4` WHERE ((`id` + `a`)) < (10000) AND ((`id` + `a`)) >= (100);
+
+[TABLE: t5, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t5 TRUNCATE PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (2,4,6,8); DELETE FROM `t5` WHERE ((`id` * `a`)) IN (10,12,14,16);
+
+[TABLE: t6, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t6 TRUNCATE PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1483218000); DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1514754000) AND (unix_timestamp(`c`)) >= (1483218000);
+
+[TABLE: t7, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t7 TRUNCATE PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1995,1996,1997); DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1998,1999,2000);
+
+[TABLE: t8, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t8 TRUNCATE PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) < (100); DELETE FROM `t8` WHERE (`i`) < (200) AND (`i`) >= (100);
+
+[TABLE: t9, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t9 TRUNCATE PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (-1); DELETE FROM `t9` WHERE ((`i` % 2)) IN (0);
+
+[TABLE: t10, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t10 TRUNCATE PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (0); DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (1);
+
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t1 TRUNCATE PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) < (100); DELETE FROM `t1` WHERE (id) >= (1000);
+
+[TABLE: t2, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t2 TRUNCATE PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (0,1,2,3,4); DELETE FROM `t2` WHERE (`id`) IN (10,11,12,13,14);
+
+[TABLE: t3, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t3 TRUNCATE PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((1,1,'a1'),(1,1,'a2'),(1,1,'a3')); DELETE FROM `t3` WHERE (a,b,c) IN ((2,1,'a1'),(2,1,'a2'),(2,1,'a3'));
+
+[TABLE: t4, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t4 TRUNCATE PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) < (100); DELETE FROM `t4` WHERE ((`id` + `a`)) >= (10000);
+
+[TABLE: t5, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t5 TRUNCATE PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (2,4,6,8); DELETE FROM `t5` WHERE ((`id` * `a`)) IN (20,24,28,32);
+
+[TABLE: t6, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t6 TRUNCATE PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1483218000); DELETE FROM `t6` WHERE (unix_timestamp(`c`)) >= (1514754000);
+
+[TABLE: t7, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t7 TRUNCATE PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1995,1996,1997); DELETE FROM `t7` WHERE (year(`sale_date`)) IN (2001,2002,2003);
+
+[TABLE: t8, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t8 TRUNCATE PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) < (100); DELETE FROM `t8` WHERE (`i`) >= (200);
+
+[TABLE: t9, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t9 TRUNCATE PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (-1); DELETE FROM `t9` WHERE ((`i` % 2)) IN (1);
+
+[TABLE: t10, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t10 TRUNCATE PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (0); DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (NULL);
+
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t1 TRUNCATE PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) < (1000) AND (id) >= (100); DELETE FROM `t1` WHERE (id) >= (1000);
+
+[TABLE: t2, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t2 TRUNCATE PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (5,6,7,8,9); DELETE FROM `t2` WHERE (`id`) IN (10,11,12,13,14);
+
+[TABLE: t3, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t3 TRUNCATE PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((1,2,'a1'),(1,2,'a2'),(1,2,'a3')); DELETE FROM `t3` WHERE (a,b,c) IN ((2,1,'a1'),(2,1,'a2'),(2,1,'a3'));
+
+[TABLE: t4, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t4 TRUNCATE PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) < (10000) AND ((`id` + `a`)) >= (100); DELETE FROM `t4` WHERE ((`id` + `a`)) >= (10000);
+
+[TABLE: t5, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t5 TRUNCATE PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (10,12,14,16); DELETE FROM `t5` WHERE ((`id` * `a`)) IN (20,24,28,32);
+
+[TABLE: t6, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t6 TRUNCATE PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1514754000) AND (unix_timestamp(`c`)) >= (1483218000); DELETE FROM `t6` WHERE (unix_timestamp(`c`)) >= (1514754000);
+
+[TABLE: t7, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t7 TRUNCATE PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1998,1999,2000); DELETE FROM `t7` WHERE (year(`sale_date`)) IN (2001,2002,2003);
+
+[TABLE: t8, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t8 TRUNCATE PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) < (200) AND (`i`) >= (100); DELETE FROM `t8` WHERE (`i`) >= (200);
+
+[TABLE: t9, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t9 TRUNCATE PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (0); DELETE FROM `t9` WHERE ((`i` % 2)) IN (1);
+
+[TABLE: t10, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t10 TRUNCATE PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (1); DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (NULL);
+
+#
+# 2) Drop partition
+#
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p0]
+[connection master]
+ALTER TABLE t1 DROP PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) < (100);
+
+[TABLE: t2, PARTITION: p0]
+[connection master]
+ALTER TABLE t2 DROP PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (0,1,2,3,4);
+
+[TABLE: t3, PARTITION: p0]
+[connection master]
+ALTER TABLE t3 DROP PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((1,1,'a1'),(1,1,'a2'),(1,1,'a3'));
+
+[TABLE: t4, PARTITION: p0]
+[connection master]
+ALTER TABLE t4 DROP PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) < (100);
+
+[TABLE: t5, PARTITION: p0]
+[connection master]
+ALTER TABLE t5 DROP PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (2,4,6,8);
+
+[TABLE: t6, PARTITION: p0]
+[connection master]
+ALTER TABLE t6 DROP PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1483218000);
+
+[TABLE: t7, PARTITION: p0]
+[connection master]
+ALTER TABLE t7 DROP PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1995,1996,1997);
+
+[TABLE: t8, PARTITION: p0]
+[connection master]
+ALTER TABLE t8 DROP PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) < (100);
+
+[TABLE: t9, PARTITION: p0]
+[connection master]
+ALTER TABLE t9 DROP PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (-1);
+
+[TABLE: t10, PARTITION: p0]
+[connection master]
+ALTER TABLE t10 DROP PARTITION p0;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (0);
+
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p1]
+[connection master]
+ALTER TABLE t1 DROP PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) < (1000) AND (id) >= (100);
+
+[TABLE: t2, PARTITION: p1]
+[connection master]
+ALTER TABLE t2 DROP PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (5,6,7,8,9);
+
+[TABLE: t3, PARTITION: p1]
+[connection master]
+ALTER TABLE t3 DROP PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((1,2,'a1'),(1,2,'a2'),(1,2,'a3'));
+
+[TABLE: t4, PARTITION: p1]
+[connection master]
+ALTER TABLE t4 DROP PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) < (10000) AND ((`id` + `a`)) >= (100);
+
+[TABLE: t5, PARTITION: p1]
+[connection master]
+ALTER TABLE t5 DROP PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (10,12,14,16);
+
+[TABLE: t6, PARTITION: p1]
+[connection master]
+ALTER TABLE t6 DROP PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1514754000) AND (unix_timestamp(`c`)) >= (1483218000);
+
+[TABLE: t7, PARTITION: p1]
+[connection master]
+ALTER TABLE t7 DROP PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1998,1999,2000);
+
+[TABLE: t8, PARTITION: p1]
+[connection master]
+ALTER TABLE t8 DROP PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) < (200) AND (`i`) >= (100);
+
+[TABLE: t9, PARTITION: p1]
+[connection master]
+ALTER TABLE t9 DROP PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (0);
+
+[TABLE: t10, PARTITION: p1]
+[connection master]
+ALTER TABLE t10 DROP PARTITION p1;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (1);
+
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p2]
+[connection master]
+ALTER TABLE t1 DROP PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) >= (1000);
+
+[TABLE: t2, PARTITION: p2]
+[connection master]
+ALTER TABLE t2 DROP PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (10,11,12,13,14);
+
+[TABLE: t3, PARTITION: p2]
+[connection master]
+ALTER TABLE t3 DROP PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((2,1,'a1'),(2,1,'a2'),(2,1,'a3'));
+
+[TABLE: t4, PARTITION: p2]
+[connection master]
+ALTER TABLE t4 DROP PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) >= (10000);
+
+[TABLE: t5, PARTITION: p2]
+[connection master]
+ALTER TABLE t5 DROP PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (20,24,28,32);
+
+[TABLE: t6, PARTITION: p2]
+[connection master]
+ALTER TABLE t6 DROP PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) >= (1514754000);
+
+[TABLE: t7, PARTITION: p2]
+[connection master]
+ALTER TABLE t7 DROP PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (2001,2002,2003);
+
+[TABLE: t8, PARTITION: p2]
+[connection master]
+ALTER TABLE t8 DROP PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) >= (200);
+
+[TABLE: t9, PARTITION: p2]
+[connection master]
+ALTER TABLE t9 DROP PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (1);
+
+[TABLE: t10, PARTITION: p2]
+[connection master]
+ALTER TABLE t10 DROP PARTITION p2;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (NULL);
+
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t1 DROP PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) < (100); DELETE FROM `t1` WHERE (id) < (1000) AND (id) >= (100);
+
+[TABLE: t2, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t2 DROP PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (0,1,2,3,4); DELETE FROM `t2` WHERE (`id`) IN (5,6,7,8,9);
+
+[TABLE: t3, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t3 DROP PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((1,1,'a1'),(1,1,'a2'),(1,1,'a3')); DELETE FROM `t3` WHERE (a,b,c) IN ((1,2,'a1'),(1,2,'a2'),(1,2,'a3'));
+
+[TABLE: t4, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t4 DROP PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) < (100); DELETE FROM `t4` WHERE ((`id` + `a`)) < (10000) AND ((`id` + `a`)) >= (100);
+
+[TABLE: t5, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t5 DROP PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (2,4,6,8); DELETE FROM `t5` WHERE ((`id` * `a`)) IN (10,12,14,16);
+
+[TABLE: t6, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t6 DROP PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1483218000); DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1514754000) AND (unix_timestamp(`c`)) >= (1483218000);
+
+[TABLE: t7, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t7 DROP PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1995,1996,1997); DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1998,1999,2000);
+
+[TABLE: t8, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t8 DROP PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) < (100); DELETE FROM `t8` WHERE (`i`) < (200) AND (`i`) >= (100);
+
+[TABLE: t9, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t9 DROP PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (-1); DELETE FROM `t9` WHERE ((`i` % 2)) IN (0);
+
+[TABLE: t10, PARTITION: p0, p1]
+[connection master]
+ALTER TABLE t10 DROP PARTITION p0, p1;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (0); DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (1);
+
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t1 DROP PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) < (100); DELETE FROM `t1` WHERE (id) >= (1000);
+
+[TABLE: t2, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t2 DROP PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (0,1,2,3,4); DELETE FROM `t2` WHERE (`id`) IN (10,11,12,13,14);
+
+[TABLE: t3, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t3 DROP PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((1,1,'a1'),(1,1,'a2'),(1,1,'a3')); DELETE FROM `t3` WHERE (a,b,c) IN ((2,1,'a1'),(2,1,'a2'),(2,1,'a3'));
+
+[TABLE: t4, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t4 DROP PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) < (100); DELETE FROM `t4` WHERE ((`id` + `a`)) >= (10000);
+
+[TABLE: t5, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t5 DROP PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (2,4,6,8); DELETE FROM `t5` WHERE ((`id` * `a`)) IN (20,24,28,32);
+
+[TABLE: t6, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t6 DROP PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1483218000); DELETE FROM `t6` WHERE (unix_timestamp(`c`)) >= (1514754000);
+
+[TABLE: t7, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t7 DROP PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1995,1996,1997); DELETE FROM `t7` WHERE (year(`sale_date`)) IN (2001,2002,2003);
+
+[TABLE: t8, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t8 DROP PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) < (100); DELETE FROM `t8` WHERE (`i`) >= (200);
+
+[TABLE: t9, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t9 DROP PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (-1); DELETE FROM `t9` WHERE ((`i` % 2)) IN (1);
+
+[TABLE: t10, PARTITION: p0, p2]
+[connection master]
+ALTER TABLE t10 DROP PARTITION p0, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (0); DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (NULL);
+
+[connection master]
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [num is the same]
+[TABLE: t1, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t1 DROP PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t1` WHERE (id) < (1000) AND (id) >= (100); DELETE FROM `t1` WHERE (id) >= (1000);
+
+[TABLE: t2, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t2 DROP PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t2` WHERE (`id`) IN (5,6,7,8,9); DELETE FROM `t2` WHERE (`id`) IN (10,11,12,13,14);
+
+[TABLE: t3, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t3 DROP PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t3` WHERE (a,b,c) IN ((1,2,'a1'),(1,2,'a2'),(1,2,'a3')); DELETE FROM `t3` WHERE (a,b,c) IN ((2,1,'a1'),(2,1,'a2'),(2,1,'a3'));
+
+[TABLE: t4, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t4 DROP PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t4` WHERE ((`id` + `a`)) < (10000) AND ((`id` + `a`)) >= (100); DELETE FROM `t4` WHERE ((`id` + `a`)) >= (10000);
+
+[TABLE: t5, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t5 DROP PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t5` WHERE ((`id` * `a`)) IN (10,12,14,16); DELETE FROM `t5` WHERE ((`id` * `a`)) IN (20,24,28,32);
+
+[TABLE: t6, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t6 DROP PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t6` WHERE (unix_timestamp(`c`)) < (1514754000) AND (unix_timestamp(`c`)) >= (1483218000); DELETE FROM `t6` WHERE (unix_timestamp(`c`)) >= (1514754000);
+
+[TABLE: t7, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t7 DROP PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t7` WHERE (year(`sale_date`)) IN (1998,1999,2000); DELETE FROM `t7` WHERE (year(`sale_date`)) IN (2001,2002,2003);
+
+[TABLE: t8, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t8 DROP PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t8` WHERE (`i`) < (200) AND (`i`) >= (100); DELETE FROM `t8` WHERE (`i`) >= (200);
+
+[TABLE: t9, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t9 DROP PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t9` WHERE ((`i` % 2)) IN (0); DELETE FROM `t9` WHERE ((`i` % 2)) IN (1);
+
+[TABLE: t10, PARTITION: p1, p2]
+[connection master]
+ALTER TABLE t10 DROP PARTITION p1, p2;;
+include/rpl/sync.inc
+[connection slave]
+include/assert.inc [CHECKSUM is the same]
+USE `test`; DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (1); DELETE FROM `t10` WHERE (abs((`f_int1` % 2))) IN (NULL);
+
+#
+# 3) Cleanup
+#
+[connection master]
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+include/rpl/deinit.inc

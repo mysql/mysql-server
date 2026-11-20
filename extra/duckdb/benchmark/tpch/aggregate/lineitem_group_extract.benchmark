@@ -1,0 +1,21 @@
+# name: benchmark/tpch/aggregate/lineitem_group_extract.benchmark
+# description: Grouped aggregate over lineitem (grouped by year extracted from date)
+# group: [aggregate]
+
+include benchmark/tpch/tpch_load.benchmark.in
+
+name Lineitem Group By Year
+group aggregate
+subgroup tpch
+
+run
+SELECT EXTRACT(year FROM l_shipdate) l_shipyear, SUM(l_quantity) FROM lineitem GROUP BY l_shipyear ORDER BY 1;
+
+result II sf=1
+1992	19305356
+1993	23184525
+1994	23189319
+1995	23343871
+1996	23307638
+1997	23247128
+1998	17500958

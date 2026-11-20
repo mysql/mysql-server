@@ -1,0 +1,30 @@
+# name: test/sql/attach/attach_copy.test
+# description: Test attach mixed with the COPY statement
+# group: [attach]
+
+statement ok
+ATTACH DATABASE ':memory:' AS db1;
+
+statement ok
+CREATE TABLE db1.test(a INTEGER, b INTEGER, c VARCHAR(10));
+
+query I
+COPY db1.test FROM '{DATA_DIR}/csv/test/test.csv';
+----
+5000
+
+query I
+COPY db1.main.test FROM '{DATA_DIR}/csv/test/test.csv';
+----
+5000
+
+statement ok
+COPY db1.main.test TO '{TEMP_DIR}/test.csv';
+
+statement ok
+USE db1
+
+query I
+COPY test FROM '{DATA_DIR}/csv/test/test.csv';
+----
+5000

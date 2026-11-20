@@ -1,0 +1,260 @@
+# This is an basic rpl test for partition table.
+# More tests can be found in duckdb.range_partition, duckdb.list_partition and
+# duckdb.hash_partition
+
+--source include/have_binlog_format_mixed.inc
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # 1) Truncate partition
+--echo #
+# Truncate the first, the last and the medium partitions in range partitions
+--let $p = 0
+while ($p < 3) {
+  --source suite/duckdb_rpl/include/create_partition_table.inc
+  --let $i = 1
+  while ($i <= $num1) {
+    --echo [TABLE: t$i, PARTITION: p$p]
+    --source include/rpl/connection_source.inc
+    --eval ALTER TABLE t$i TRUNCATE PARTITION p$p
+    --let $checksum_master = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+    --source include/rpl/sync.inc
+    --source include/rpl/connection_replica.inc
+    --let $checksum_slave = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+
+    --let $assert_cond = "$checksum_master" = "$checksum_slave"
+    --let $assert_text= CHECKSUM is the same
+    --source include/assert.inc
+
+    --inc $i
+
+    --let $log_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+    --let $grep_pattern = DELETE FROM \`t
+    --let $grep_exclude = alibaba_rds_row_no
+    --let $truncate_log = 1
+    --source suite/duckdb/include/grep_error_log.inc
+    --echo
+  }
+  --inc $p
+}
+
+# Truncate all partitions
+--source suite/duckdb_rpl/include/create_partition_table.inc
+--let $i = 1
+while ($i <= $num1) {
+  --echo [TABLE: t$i, PARTITION: ALL]
+  --source include/rpl/connection_source.inc
+  --eval ALTER TABLE t$i TRUNCATE PARTITION ALL;
+  --let $checksum_master = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+  --source include/rpl/sync.inc
+  --source include/rpl/connection_replica.inc
+  --let $checksum_slave = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+
+  --let $assert_cond = "$checksum_master" = "$checksum_slave"
+  --let $assert_text= CHECKSUM is the same
+  --source include/assert.inc
+
+  --inc $i
+
+  --let $log_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+  --let $grep_pattern = DELETE FROM \`t
+  --let $grep_exclude = alibaba_rds_row_no
+  --let $truncate_log = 1
+  --source suite/duckdb/include/grep_error_log.inc
+  --echo
+}
+
+# Truncate more than one partition
+--source suite/duckdb_rpl/include/create_partition_table.inc
+--let $i = 1
+while ($i <= $num1) {
+  --echo [TABLE: t$i, PARTITION: p0, p1]
+  --source include/rpl/connection_source.inc
+  --eval ALTER TABLE t$i TRUNCATE PARTITION p0, p1;
+  --let $checksum_master = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+  --source include/rpl/sync.inc
+  --source include/rpl/connection_replica.inc
+  --let $checksum_slave = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+
+  --let $assert_cond = "$checksum_master" = "$checksum_slave"
+  --let $assert_text= CHECKSUM is the same
+  --source include/assert.inc
+
+  --inc $i
+
+  --let $log_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+  --let $grep_pattern = DELETE FROM \`t
+  --let $grep_exclude = alibaba_rds_row_no
+  --let $truncate_log = 1
+  --source suite/duckdb/include/grep_error_log.inc
+  --echo
+}
+
+--source suite/duckdb_rpl/include/create_partition_table.inc
+--let $i = 1
+while ($i <= $num1) {
+  --echo [TABLE: t$i, PARTITION: p0, p2]
+  --source include/rpl/connection_source.inc
+  --eval ALTER TABLE t$i TRUNCATE PARTITION p0, p2;
+  --let $checksum_master = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+  --source include/rpl/sync.inc
+  --source include/rpl/connection_replica.inc
+  --let $checksum_slave = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+
+  --let $assert_cond = "$checksum_master" = "$checksum_slave"
+  --let $assert_text= CHECKSUM is the same
+  --source include/assert.inc
+
+  --inc $i
+
+  --let $log_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+  --let $grep_pattern = DELETE FROM \`t
+  --let $grep_exclude = alibaba_rds_row_no
+  --let $truncate_log = 1
+  --source suite/duckdb/include/grep_error_log.inc
+  --echo
+}
+
+--source suite/duckdb_rpl/include/create_partition_table.inc
+--let $i = 1
+while ($i <= $num1) {
+  --echo [TABLE: t$i, PARTITION: p1, p2]
+  --source include/rpl/connection_source.inc
+  --eval ALTER TABLE t$i TRUNCATE PARTITION p1, p2;
+  --let $checksum_master = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+  --source include/rpl/sync.inc
+  --source include/rpl/connection_replica.inc
+  --let $checksum_slave = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+
+  --let $assert_cond = "$checksum_master" = "$checksum_slave"
+  --let $assert_text= CHECKSUM is the same
+  --source include/assert.inc
+
+  --inc $i
+
+  --let $log_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+  --let $grep_pattern = DELETE FROM \`t
+  --let $grep_exclude = alibaba_rds_row_no
+  --let $truncate_log = 1
+  --source suite/duckdb/include/grep_error_log.inc
+  --echo
+}
+
+
+--echo #
+--echo # 2) Drop partition
+--echo #
+# Drop the first, the last and the medium partitions in range partitions
+--let $p = 0
+while ($p < 3) {
+  --source suite/duckdb_rpl/include/create_partition_table.inc
+  --let $i = 1
+  while ($i <= $num1) {
+    --echo [TABLE: t$i, PARTITION: p$p]
+    --source include/rpl/connection_source.inc
+    --eval ALTER TABLE t$i DROP PARTITION p$p
+    --let $checksum_master = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+    --source include/rpl/sync.inc
+    --source include/rpl/connection_replica.inc
+    --let $checksum_slave = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+
+    --let $assert_cond = "$checksum_master" = "$checksum_slave"
+    --let $assert_text= CHECKSUM is the same
+    --source include/assert.inc
+
+    --inc $i
+
+    --let $log_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+    --let $grep_pattern = DELETE FROM \`t
+    --let $grep_exclude = alibaba_rds_row_no
+    --let $truncate_log = 1
+    --source suite/duckdb/include/grep_error_log.inc
+    --echo
+  }
+  --inc $p
+}
+
+# Drop more than one partition
+--source suite/duckdb_rpl/include/create_partition_table.inc
+--let $i = 1
+while ($i <= $num1) {
+  --echo [TABLE: t$i, PARTITION: p0, p1]
+  --source include/rpl/connection_source.inc
+  --eval ALTER TABLE t$i DROP PARTITION p0, p1;
+  --let $checksum_master = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+  --source include/rpl/sync.inc
+  --source include/rpl/connection_replica.inc
+  --let $checksum_slave = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+
+  --let $assert_cond = "$checksum_master" = "$checksum_slave"
+  --let $assert_text= CHECKSUM is the same
+  --source include/assert.inc
+
+  --inc $i
+
+  --let $log_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+  --let $grep_pattern = DELETE FROM \`t
+  --let $grep_exclude = alibaba_rds_row_no
+  --let $truncate_log = 1
+  --source suite/duckdb/include/grep_error_log.inc
+  --echo
+}
+
+--source suite/duckdb_rpl/include/create_partition_table.inc
+--let $i = 1
+while ($i <= $num1) {
+  --echo [TABLE: t$i, PARTITION: p0, p2]
+  --source include/rpl/connection_source.inc
+  --eval ALTER TABLE t$i DROP PARTITION p0, p2;
+  --let $checksum_master = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+  --source include/rpl/sync.inc
+  --source include/rpl/connection_replica.inc
+  --let $checksum_slave = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+
+  --let $assert_cond = "$checksum_master" = "$checksum_slave"
+  --let $assert_text= CHECKSUM is the same
+  --source include/assert.inc
+
+  --inc $i
+
+  --let $log_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+  --let $grep_pattern = DELETE FROM \`t
+  --let $grep_exclude = alibaba_rds_row_no
+  --let $truncate_log = 1
+  --source suite/duckdb/include/grep_error_log.inc
+  --echo
+}
+
+--source suite/duckdb_rpl/include/create_partition_table.inc
+--let $i = 1
+while ($i <= $num1) {
+  --echo [TABLE: t$i, PARTITION: p1, p2]
+  --source include/rpl/connection_source.inc
+  --eval ALTER TABLE t$i DROP PARTITION p1, p2;
+  --let $checksum_master = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+  --source include/rpl/sync.inc
+  --source include/rpl/connection_replica.inc
+  --let $checksum_slave = query_get_value(CHECKSUM TABLE t$i, Checksum, 1)
+
+  --let $assert_cond = "$checksum_master" = "$checksum_slave"
+  --let $assert_text= CHECKSUM is the same
+  --source include/assert.inc
+
+  --inc $i
+
+  --let $log_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+  --let $grep_pattern = DELETE FROM \`t
+  --let $grep_exclude = alibaba_rds_row_no
+  --let $truncate_log = 1
+  --source suite/duckdb/include/grep_error_log.inc
+  --echo
+}
+
+
+--echo #
+--echo # 3) Cleanup
+--echo #
+--source include/rpl/connection_source.inc
+DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+--source include/rpl/deinit.inc
+

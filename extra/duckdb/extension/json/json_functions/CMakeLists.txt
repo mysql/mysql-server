@@ -1,0 +1,27 @@
+add_library_unity(
+  duckdb_json_functions
+  OBJECT
+  copy_json.cpp
+  json_array_length.cpp
+  json_contains.cpp
+  json_create.cpp
+  json_exists.cpp
+  json_extract.cpp
+  json_keys.cpp
+  json_member_of.cpp
+  json_merge_patch.cpp
+  json_objectagg.cpp
+  json_pretty.cpp
+  json_structure.cpp
+  json_table_in_out.cpp
+  json_transform.cpp
+  json_type.cpp
+  json_valid.cpp
+  json_value.cpp
+  json_serialize_plan.cpp
+  json_serialize_sql.cpp
+  read_json.cpp
+  read_json_objects.cpp)
+set(ALL_OBJECT_FILES
+    ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:duckdb_json_functions>
+    PARENT_SCOPE)

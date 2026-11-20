@@ -1,0 +1,109 @@
+--echo #
+--echo # 1) CREATE TABLES
+--echo #
+CREATE TABLE t1 (id INT, name VARCHAR(255), PRIMARY KEY (id)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+
+CREATE TABLE t2 (id INT, name VARCHAR(255), PRIMARY KEY (id)) ENGINE = DuckDB;
+INSERT INTO t2 VALUES (1, 'one');
+
+
+--echo #
+--echo # 2) RESTART WITH duckdb_convert_all_at_startup=ON
+--echo #
+--let restart_parameters="restart: --duckdb_convert_all_at_startup=ON"
+--source include/restart_mysqld.inc
+
+--let $wait_condition= SELECT VARIABLE_VALUE = "FINISHED" FROM performance_schema.global_status WHERE VARIABLE_NAME = 'DuckDB_convert_stage_at_startup'
+--source include/wait_condition.inc
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+SHOW CREATE TABLE t2;
+SELECT * FROM t2;
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text = Found converting InnoDB table 't1'
+--let $assert_select = Converting '`test`.`t1`' table.
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text = No found converting DuckDB table 't2'
+--let $assert_select = Converting '`test`.`t2`' table.
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--exec echo "" > $assert_file
+
+
+--echo #
+--echo # 3) CREATE INNODB TABLES, WHICH CAN NOT BE CONVERTED TO DUCKDB.
+--echo #
+DROP TABLE t1, t2;
+# NO PK
+CREATE TABLE t1 (id INT, name VARCHAR(255)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+# FUNCTIONAL INDEX
+CREATE TABLE t2(a INT, name VARCHAR(255), PRIMARY KEY (name), UNIQUE INDEX uk_a((ABS(a)))) ENGINE = InnoDB;
+INSERT INTO t2 VALUES (1, 'one');
+# INVISIBLE COLUMN
+CREATE TABLE t3 (id INT, name VARCHAR(255), age INT INVISIBLE, PRIMARY KEY (id)) ENGINE = InnoDB;
+INSERT INTO t3 VALUES (1, 'one');
+# GEOMETRY COLUMN
+CREATE TABLE t4 (fid INT PRIMARY KEY, g POINT) ENGINE = InnoDB;
+INSERT INTO t4 VALUES (101, ST_PointFromText('POINT(10 10)'));
+
+
+--echo #
+--echo # 4) RESTART WITH duckdb_convert_all_at_startup=ON, duckdb_convert_all_at_startup_ignore_error=OFF, FAILED.
+--echo #
+--let restart_parameters="restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_at_startup_ignore_error=OFF"
+--source include/restart_mysqld.inc
+
+--let $wait_condition= SELECT VARIABLE_VALUE = "CHECK_FAILED" FROM performance_schema.global_status WHERE VARIABLE_NAME = 'DuckDB_convert_stage_at_startup'
+--source include/wait_condition.inc
+SHOW GLOBAL STATUS LIKE 'DuckDB_convert_stage_at_startup';
+
+--let $assert_file= $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text = Found no primary key error.
+--let $assert_select = This table type requires a primary key
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text = Found functional index error.
+--let $assert_select = functional index is not supported
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text = Found invisible column error.
+--let $assert_select = invisible column is not supported
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text = Found geometry column error.
+--let $assert_select = geometry column is not supported
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+
+--echo #
+--echo # 5) RESTART WITH duckdb_convert_all_at_startup=ON, duckdb_convert_all_at_startup_ignore_error=ON, SUCCESSFUL.
+--echo #
+--let restart_parameters="restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_at_startup_ignore_error=ON"
+--source include/restart_mysqld.inc
+
+--let $wait_condition= SELECT VARIABLE_VALUE = "FINISHED" FROM performance_schema.global_status WHERE VARIABLE_NAME = 'DuckDB_convert_stage_at_startup'
+--source include/wait_condition.inc
+
+SELECT * FROM information_schema.tables WHERE ENGINE = 'DuckDB';
+SHOW GLOBAL STATUS LIKE 'DuckDB_convert_stage_at_startup';
+
+
+--echo #
+--echo # 6) CLEANUP
+--echo #
+DROP TABLE t1, t2, t3, t4;
+--disable_query_log
+# IGNORE ERROR ABOUT DUCKDB DDL.
+call mtr.add_suppression("\\[ERROR\\] \\[MY-013140\\] \\[Server\\] .*");
+--enable_query_log

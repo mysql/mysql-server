@@ -1,0 +1,121 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Test: latin1 charset conversion to utf8mb4 for duckdb replication
+--echo #
+CREATE TABLE t_latin1 (
+    id INT PRIMARY KEY,
+    col_bin VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_bin,
+    col_general_cs VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_general_cs,
+    col_swedish_ci VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_swedish_ci,
+    col_general_ci VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_general_ci
+) ENGINE=InnoDB;
+
+# Insert test data with mixed case and special characters
+INSERT INTO t_latin1 VALUES 
+(1, 'Test', 'Test', 'Test', 'Test'),
+(2, 'test', 'test', 'test', 'test'),
+(3, 'TEST', 'TEST', 'TEST', 'TEST'),
+(4, 'café', 'café', 'café', 'café');
+
+#Verify data on master
+SELECT * FROM t_latin1 ORDER BY id;
+
+# Sync slave
+--sync_slave_with_master
+
+--echo # Verify data on slave (should be identical initially)
+--connection slave
+SHOW CREATE TABLE t_latin1;
+SELECT * FROM t_latin1 ORDER BY id;
+
+--echo #
+--echo # 2. Test latin1 with varios collations
+--echo #
+
+--connection master
+
+--echo # Test binary collation (should be case sensitive)
+SELECT id, col_bin FROM t_latin1 WHERE col_bin = 'Test' ORDER BY id;
+SELECT id, col_bin FROM t_latin1 WHERE col_bin = 'test' ORDER BY id;
+
+--echo # Test general_cs collation (should be case sensitive)
+SELECT id, col_general_cs FROM t_latin1 WHERE col_general_cs = 'Test' ORDER BY id;
+SELECT id, col_general_cs FROM t_latin1 WHERE col_general_cs = 'test' ORDER BY id;
+
+--echo # Test swedish_ci collation (should be case insensitive)
+SELECT id, col_swedish_ci FROM t_latin1 WHERE col_swedish_ci = 'Test' ORDER BY id;
+SELECT id, col_swedish_ci FROM t_latin1 WHERE col_swedish_ci = 'test' ORDER BY id;
+
+--echo # Test general_ci collation (should be case insensitive)
+SELECT id, col_general_ci FROM t_latin1 WHERE col_general_ci = 'Test' ORDER BY id;
+SELECT id, col_general_ci FROM t_latin1 WHERE col_general_ci = 'test' ORDER BY id;
+
+# Sync slave
+--sync_slave_with_master
+
+--connection slave
+--echo # Repeat collation tests on slave
+--echo # Test binary collation (should be case sensitive)
+SELECT id, col_bin FROM t_latin1 WHERE col_bin = 'Test' ORDER BY id;
+SELECT id, col_bin FROM t_latin1 WHERE col_bin = 'test' ORDER BY id;
+
+--echo # Test general_cs collation (should be case sensitive)
+SELECT id, col_general_cs FROM t_latin1 WHERE col_general_cs = 'Test' ORDER BY id;
+SELECT id, col_general_cs FROM t_latin1 WHERE col_general_cs = 'test' ORDER BY id;
+
+--echo # Test swedish_ci collation (should be case insensitive)
+SELECT id, col_swedish_ci FROM t_latin1 WHERE col_swedish_ci = 'Test' ORDER BY id;
+SELECT id, col_swedish_ci FROM t_latin1 WHERE col_swedish_ci = 'test' ORDER BY id;
+
+--echo # Test general_ci collation (should be case insensitive)
+SELECT id, col_general_ci FROM t_latin1 WHERE col_general_ci = 'Test' ORDER BY id;
+SELECT id, col_general_ci FROM t_latin1 WHERE col_general_ci = 'test' ORDER BY id;
+
+--echo #
+--echo # 3. Create new latin1 InnoDB table on master during replication
+--echo #
+
+--connection master
+CREATE TABLE t_latin1_new (
+    id INT PRIMARY KEY,
+    name VARCHAR(100) CHARACTER SET latin1 COLLATE latin1_bin,
+    description VARCHAR(200) CHARACTER SET latin1 COLLATE latin1_general_ci
+) ENGINE=InnoDB;
+
+INSERT INTO t_latin1_new VALUES 
+(1, 'NewTable', 'This is a new latin1 table'),
+(2, 'NEWTABLE', 'This should match in case-insensitive collation');
+
+--echo # Verify on master
+SELECT * FROM t_latin1_new ORDER BY id;
+
+--echo # Sync slave
+--sync_slave_with_master
+
+--connection slave
+# Verify new table exists on slave with correct structure
+SHOW CREATE TABLE t_latin1_new;
+
+--echo # Verify data on slave
+SELECT * FROM t_latin1_new ORDER BY id;
+
+# Test collation behavior on new table
+--echo # Binary collation (case sensitive)
+SELECT id, name FROM t_latin1_new WHERE name = 'NewTable';
+SELECT id, name FROM t_latin1_new WHERE name = 'NEWTABLE';
+
+--echo # General_ci collation (case insensitive)
+SELECT id, description FROM t_latin1_new WHERE description = 'this is a new latin1 table';
+SELECT id, description FROM t_latin1_new WHERE description = 'THIS SHOULD MATCH IN CASE-INSENSITIVE COLLATION';
+
+--echo #
+--echo # Clean up
+--echo #
+
+--connection master
+DROP TABLE t_latin1, t_latin1_new;
+
+--sync_slave_with_master
+--source include/rpl/deinit.inc

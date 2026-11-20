@@ -1,0 +1,3 @@
+Equal tables match.
+Masked columns are ignored.
+include/assert_grep.inc [Different server data is detected]

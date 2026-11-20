@@ -1,0 +1,111 @@
+# name: test/sql/generated_columns/virtual/create_table.test
+# description: Add a generated column on creation of a table
+# group: [virtual]
+
+statement ok
+PRAGMA enable_verification
+
+# Creating tables with only generated columns is not supported
+statement error
+CREATE TEMP TABLE t0(c0 AS (1));
+----
+<REGEX>:.*Binder Error.*not supported.*
+
+# Function doesn't exist
+statement error
+CREATE TABLE unit (
+	price INTEGER,
+	total_profit BOOLEAN GENERATED ALWAYS AS(non_existant_function() * price) VIRTUAL,
+);
+----
+<REGEX>:.*Catalog Error.*does not exist.*
+
+# Column doesn't exist
+statement error
+CREATE TABLE unit (
+	total_profit BOOLEAN GENERATED ALWAYS AS(price * 2) VIRTUAL,
+);
+----
+<REGEX>:.*Binder Error.*price.*
+
+#Expression (word) is cast to BOOLEAN
+statement ok
+CREATE TABLE tbl (
+    total_profit BOOLEAN GENERATED ALWAYS AS(word) VIRTUAL,
+    word VARCHAR,
+    price INTEGER,
+    amount_sold INTEGER,
+);
+
+# word doesn't contain any data yet
+statement ok
+SELECT * FROM tbl
+
+# Cant convert 'string' to boolean
+statement error
+INSERT INTO tbl VALUES ('string', 5, 12);
+----
+<REGEX>:.*Constraint Error.*Incorrect value for generated column.*
+
+# Expression contains a subquery
+statement error
+CREATE TABLE unit (
+    total_profit BOOLEAN GENERATED ALWAYS AS((SELECT 1)) VIRTUAL,
+    word VARCHAR,
+    price INTEGER,
+    amount_sold INTEGER,
+);
+----
+<REGEX>:.*Parser Error.*isn't allowed.*
+
+statement ok
+CREATE MACRO my_macro() AS (
+    (select 42)
+);
+
+# Expression contains a subquery - through a macro
+statement error
+CREATE TABLE unit (
+    total_profit INTEGER GENERATED ALWAYS AS(my_macro()) VIRTUAL,
+    word VARCHAR,
+    price INTEGER,
+    amount_sold INTEGER,
+);
+----
+<REGEX>:.*Binder Error.*Failed to bind generated column.*
+
+# Duplicate column definition
+statement error
+CREATE TABLE unit (
+    total_profit INTEGER GENERATED ALWAYS AS(price * amount_sold) VIRTUAL,
+    total_profit INTEGER GENERATED ALWAYS AS(price * amount_sold) VIRTUAL,
+    price INTEGER,
+    amount_sold INTEGER,
+);
+----
+<REGEX>:.*Catalog Error.*already exists.*
+
+statement ok
+CREATE TABLE unit (
+    total_profit INTEGER GENERATED ALWAYS AS(price * amount_sold) VIRTUAL,
+    price INTEGER,
+    amount_sold INTEGER,
+);
+
+statement ok
+INSERT INTO unit VALUES (5,4)
+
+query III
+SELECT * FROM unit;
+----
+20	5	4
+
+# Delete the generated column
+statement ok
+ALTER TABLE unit DROP COLUMN total_profit;
+
+# We can now no longer select it
+statement error
+SELECT total_profit FROM unit;
+----
+<REGEX>:.*Binder Error.*not found.*

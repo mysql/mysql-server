@@ -1,0 +1,232 @@
+#
+# 1) Prepare
+#
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+CREATE TABLE db1.t1(a INT PRIMARY KEY) ENGINE = DUCKDB;
+CREATE TABLE db2.t2(a INT PRIMARY KEY) ENGINE = DUCKDB;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db1	t1
+db2	t2
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 2]
+db1	t1
+db2	t2
+
+
+#
+# 2) Simple Rename
+#
+Rename DuckDB tables
+RENAME TABLE db1.t1 TO db1.t1_rename, db2.t2 TO db2.t2_rename;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db1	t1_rename
+db2	t2_rename
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 2]
+db1	t1_rename
+db2	t2_rename
+
+
+ALTER TABLE db1.t1_rename RENAME TO db1.t1;
+ALTER TABLE db2.t2_rename RENAME TO db2.t2;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db1	t1
+db2	t2
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 2]
+db1	t1
+db2	t2
+
+
+Single-pair cross-schema RENAME TABLE on a DuckDB table is redirected
+to the copy-DDL path used by ALTER TABLE ... RENAME and now succeeds.
+INSERT INTO db1.t1 VALUES (1), (2), (3);
+RENAME TABLE db1.t1 TO db2.t1;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db2	t1
+db2	t2
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 2]
+db2	t1
+db2	t2
+
+
+SELECT * FROM db2.t1;
+a
+1
+2
+3
+RENAME TABLE db2.t1 TO db1.t1;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db1	t1
+db2	t2
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 2]
+db1	t1
+db2	t2
+
+
+SELECT * FROM db1.t1;
+a
+1
+2
+3
+DELETE FROM db1.t1;
+Failed to rename DuckDB tables for different schemas
+ALTER TABLE db1.t1 RENAME TO db2.t1, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db1	t1
+db2	t2
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 2]
+db1	t1
+db2	t2
+
+
+Single-pair cross-schema RENAME to a non-existent schema fails.
+RENAME TABLE db1.t1 TO no_such_db.t1;
+ERROR 42000: Unknown database 'no_such_db'
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db1	t1
+db2	t2
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 2]
+db1	t1
+db2	t2
+
+
+Single-pair cross-schema RENAME where the target table already exists
+fails with ER_TABLE_EXISTS_ERROR.
+CREATE TABLE db2.t1(a INT PRIMARY KEY) ENGINE = DUCKDB;
+RENAME TABLE db1.t1 TO db2.t1;
+ERROR 42S01: Table 't1' already exists
+DROP TABLE db2.t1;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db1	t1
+db2	t2
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 2]
+db1	t1
+db2	t2
+
+
+Multi-pair RENAME TABLE containing a cross-schema DuckDB pair fails
+before any rename is applied.
+RENAME TABLE db1.t1 TO db1.t1_rename, db2.t2 TO db1.t2_rename;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: DuckDB does not support rename between different schemas in a multi-pair RENAME TABLE.
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db1	t1
+db2	t2
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 2]
+db1	t1
+db2	t2
+
+
+#
+# 3) Inplace rename
+#
+CREATE TABLE db1.t3(a INT PRIMARY KEY) ENGINE = DUCKDB;
+ALTER TABLE db1.t3 RENAME TO db1.t3_rename, CHECKSUM = 1;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db1	t1
+db1	t3_rename
+db2	t2
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 3]
+db1	t1
+db1	t3_rename
+db2	t2
+
+
+#
+# 4) COPY rename
+#
+ALTER TABLE db1.t3_rename RENAME TO db1.t3, ALGORITHM = COPY;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db1	t1
+db1	t3
+db2	t2
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 3]
+db1	t1
+db1	t3
+db2	t2
+
+
+ALTER TABLE db1.t3 RENAME TO db2.t3, ALGORITHM = COPY;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+db1	t1
+db2	t2
+db2	t3
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 3]
+db1	t1
+db2	t2
+db2	t3
+
+
+#
+# 5) Cleanup
+#
+DROP DATABASE db1;
+DROP DATABASE db2;
+SELECT TABLE_SCHEMA, TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE ENGINE = "DuckDB";
+TABLE_SCHEMA	TABLE_NAME
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_catalog = 'duckdb' AND table_schema != 'mysql'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 0]
+
+

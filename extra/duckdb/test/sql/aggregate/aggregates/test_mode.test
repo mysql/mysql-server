@@ -1,0 +1,323 @@
+# name: test/sql/aggregate/aggregates/test_mode.test
+# description: Test mode function
+# group: [aggregates]
+
+statement ok
+SET default_null_order='nulls_first';
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+PRAGMA verify_external
+
+#Corner cases
+statement error
+select mode()
+----
+
+query I
+select mode(NULL)
+----
+NULL
+
+query I
+select mode(1)
+----
+1
+
+statement error
+select mode(*)
+----
+
+statement ok
+create table aggr(k int, v decimal(10,2));
+
+statement ok
+insert into aggr (k, v) values (1, 10), (1, 10), (1, 20), (1, 21);
+
+query I
+select mode(v) from aggr;
+----
+10
+
+query I
+SELECT mode(2) FROM range(100);
+----
+2
+
+statement ok
+insert into aggr (k, v) values (2, 20),(2, 20), (2, 25), (2, 30);
+
+query I
+SELECT CASE
+       WHEN ( value = 10 or value = 20)
+            THEN TRUE
+            ELSE FALSE
+       END
+       FROM (select mode(v) as value from aggr) AS T
+----
+1
+
+statement ok
+insert into aggr (k, v) values (3, null);
+
+query II
+select k, mode(v)
+    from aggr
+    group by k
+    order by k;
+----
+1	10.000000
+2	20.000000
+3	NULL
+
+statement ok
+create table names (name string)
+
+statement ok
+insert into names values ('pedro'), ('pedro'), ('pedro'),('hannes'),('hannes'),('mark'),(null);
+
+query I
+select mode(name) from names;
+----
+pedro
+
+query III
+select k, v, mode(v) over (partition by k)
+    from aggr
+    order by k, v;
+----
+1	10.00	10.000000
+1	10.00	10.000000
+1	20.00	10.000000
+1	21.00	10.000000
+2	20.00	20.000000
+2	20.00	20.000000
+2	25.00	20.000000
+2	30.00	20.000000
+3	NULL	NULL
+
+# Empty Table
+query I
+SELECT mode(i) FROM range(100) tbl(i) WHERE 1=0;
+----
+NULL
+
+# Temporal types
+statement ok
+create table dates (k int, v date)
+
+statement ok
+insert into dates values
+    (1, '2021-05-02'),
+    (1, '2021-05-02'),
+    (2, '2021-05-02'),
+    (2, '2020-02-29'),
+    (2, '2020-02-29'),
+    (3, '2004-09-01'),
+    (1, null);
+
+query I
+select mode(v) from dates;
+----
+2021-05-02
+
+query II
+select k, mode(v) from dates group by k ORDER BY ALL;
+----
+1	2021-05-02
+2	2020-02-29
+3	2004-09-01
+
+query III
+select k, v, mode(v) over (partition by k)
+    from dates
+    order by k, v;
+----
+1	NULL	2021-05-02
+1	2021-05-02	2021-05-02
+1	2021-05-02	2021-05-02
+2	2020-02-29	2020-02-29
+2	2020-02-29	2020-02-29
+2	2021-05-02	2020-02-29
+3	2004-09-01	2004-09-01
+
+statement ok
+create table times (k int, v time)
+
+statement ok
+insert into times values
+    (1, '12:11:49.5'),
+    (1, '12:11:49.5'),
+    (2, '12:11:49.5'),
+    (2, '06:30:00'),
+    (2, '06:30:00'),
+    (3, '21:15:22'),
+    (1, null);
+
+query I
+select mode(v) from times;
+----
+12:11:49.5
+
+query II
+select k, mode(v) from times group by k ORDER BY ALL;
+----
+1	12:11:49.5
+2	06:30:00
+3	21:15:22
+
+query III
+select k, v, mode(v) over (partition by k)
+    from times
+    order by k, v;
+----
+1	NULL	12:11:49.5
+1	12:11:49.5	12:11:49.5
+1	12:11:49.5	12:11:49.5
+2	06:30:00	06:30:00
+2	06:30:00	06:30:00
+2	12:11:49.5	06:30:00
+3	21:15:22	21:15:22
+
+statement ok
+create table timestamps (k int, v timestamp)
+
+statement ok
+insert into timestamps values
+    (1, '2021-05-02 12:11:49.5'),
+    (1, '2021-05-02 12:11:49.5'),
+    (2, '2021-05-02 12:11:49.5'),
+    (2,'2020-02-29 06:30:00'),
+    (2,'2020-02-29 06:30:00'),
+    (3,'2004-09-01 21:15:22'),
+    (1, null);
+
+query I
+select mode(v) from timestamps;
+----
+2021-05-02 12:11:49.5
+
+query II
+select k, mode(v) from timestamps group by k ORDER BY ALL;
+----
+1	2021-05-02 12:11:49.5
+2	2020-02-29 06:30:00
+3	2004-09-01 21:15:22
+
+query III
+select k, v, mode(v) over (partition by k)
+    from timestamps
+    order by k, v;
+----
+1	NULL	2021-05-02 12:11:49.5
+1	2021-05-02 12:11:49.5	2021-05-02 12:11:49.5
+1	2021-05-02 12:11:49.5	2021-05-02 12:11:49.5
+2	2020-02-29 06:30:00	2020-02-29 06:30:00
+2	2020-02-29 06:30:00	2020-02-29 06:30:00
+2	2021-05-02 12:11:49.5	2020-02-29 06:30:00
+3	2004-09-01 21:15:22	2004-09-01 21:15:22
+
+statement ok
+create table intervals (k int, v interval)
+
+statement ok
+insert into intervals values
+    (1, INTERVAL '5 months 2 days 12 hours 11 minutes 49 seconds'),
+    (1, INTERVAL '5 months 2 days 12 hours 11 minutes 49 seconds'),
+    (2, INTERVAL '5 months 2 days 12 hours 11 minutes 49 seconds'),
+    (2, INTERVAL '2 months 29 days 6 hours 30 minutes'),
+    (2, INTERVAL '2 months 29 days 6 hours 30 minutes'),
+    (3, INTERVAL '9 months 1 day 21 hours 15 minutes 22 seconds'),
+    (1, null);
+
+query I
+select mode(v) from intervals;
+----
+5 months 2 days 12:11:49
+
+query II
+select k, mode(v) from intervals group by k ORDER BY ALL;
+----
+1	5 months 2 days 12:11:49
+2	2 months 29 days 06:30:00
+3	9 months 1 day 21:15:22
+
+query III
+select k, v, mode(v) over (partition by k)
+    from intervals
+    order by k, v;
+----
+1	NULL	5 months 2 days 12:11:49
+1	5 months 2 days 12:11:49	5 months 2 days 12:11:49
+1	5 months 2 days 12:11:49	5 months 2 days 12:11:49
+2	2 months 29 days 06:30:00	2 months 29 days 06:30:00
+2	2 months 29 days 06:30:00	2 months 29 days 06:30:00
+2	5 months 2 days 12:11:49	2 months 29 days 06:30:00
+3	9 months 1 day 21:15:22	9 months 1 day 21:15:22
+
+# Huge integers
+
+statement ok
+create table hugeints (k int, v hugeint)
+
+statement ok
+insert into hugeints values (1, 5), (1, 5), (2, 5), (2, 2), (2, 2), (3, 1), (1, null);
+
+query I
+select mode(v) from hugeints;
+----
+5
+
+query II
+select k, mode(v) from hugeints group by k ORDER BY ALL;
+----
+1	5
+2	2
+3	1
+
+query III
+select k, v, mode(v) over (partition by k)
+    from hugeints
+    order by k, v;
+----
+1	NULL	5
+1	5	5
+1	5	5
+2	2	2
+2	2	2
+2	5	2
+3	1	1
+
+# MODE is order-sensitive, so this should bind and return the larger value
+query I
+SELECT MODE(order_occurrences ORDER BY order_occurrences DESC) FROM (
+VALUES
+	(500, 1),
+	(1000, 2),
+	(800, 3),
+	(1000, 4),
+	(500, 5),
+	(550, 6),
+	(400, 7),
+	(200, 8),
+	(10, 9)
+)items_per_order(order_occurrences, item_count);
+----
+1000
+
+# Parallel combine with UTF-8 strings (use-after-free bug in Combine)
+statement ok
+PRAGMA threads=4;
+
+statement ok
+CREATE TABLE mode_utf8 AS
+SELECT g, (['চৌদ্দগ্রাম', 'São Paulo', '東京都', 'Região Geográfica'])[1 + (g+s) % 4] AS v
+FROM generate_series(0,100000) _(g), generate_series(0,2) __(s);
+
+query I
+SELECT count(*) FROM (SELECT g, mode(v) AS m FROM mode_utf8 GROUP BY g)
+WHERE m IN ('চৌদ্দগ্রাম', 'São Paulo', '東京都', 'Região Geográfica');
+----
+100001

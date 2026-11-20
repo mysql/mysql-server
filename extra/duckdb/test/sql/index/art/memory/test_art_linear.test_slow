@@ -1,0 +1,103 @@
+# name: test/sql/index/art/memory/test_art_linear.test_slow
+# description: Test the memory usage of the ART for linear integer insertions
+# group: [memory]
+
+require noforcestorage
+
+require skip_reload
+
+statement ok
+PRAGMA enable_verification
+
+# Create a table with a primary key and store the memory usage.
+# Verify that the memory stays stable when deleting all entries from the table.
+# We keep a single empty buffer alive for each allocator, so we never drop to zero bytes.
+
+statement ok
+CREATE TABLE t (i integer PRIMARY KEY);
+
+statement ok
+INSERT INTO t SELECT * FROM range(1000000);
+
+statement ok
+DELETE FROM t;
+
+statement ok
+CREATE TABLE base AS SELECT memory_usage_bytes FROM duckdb_memory() WHERE tag = 'ART_INDEX';
+
+loop i 0 5
+
+statement ok
+INSERT INTO t SELECT * FROM range(1000000);
+
+statement ok
+DELETE FROM t
+
+query I
+SELECT
+	CASE WHEN current.memory_usage_bytes == base.memory_usage_bytes
+		THEN true
+		ELSE concat('Current memory usage ', current.memory_usage_bytes , ' is not equal to base usage ', base.memory_usage_bytes)::UNION(error VARCHAR, b BOOLEAN)
+	END
+FROM duckdb_memory() current, base
+WHERE current.tag = 'ART_INDEX';
+----
+true
+
+endloop
+
+# Index memory usage must return to zero after an explicit vacuum.
+
+statement ok
+VACUUM t;
+
+query I
+SELECT memory_usage_bytes == 0 FROM duckdb_memory() WHERE tag = 'ART_INDEX';
+----
+true
+
+statement ok
+DROP TABLE t;
+
+# create a table with a primary key and store the memory usage
+# now verify that the memory drops, but this time drop the whole table instead of deleting entries from it
+
+statement ok
+CREATE TABLE t (i integer PRIMARY KEY);
+
+statement ok
+INSERT INTO t SELECT * FROM range(1000000);
+
+statement ok
+DROP TABLE t;
+
+query I
+SELECT memory_usage_bytes == 0 FROM duckdb_memory() WHERE tag = 'ART_INDEX';
+----
+true
+
+# create a table with a primary key and store the memory usage
+# verify that the memory decreases by approximately half when deleting half the entries
+
+statement ok
+CREATE TABLE t (i integer PRIMARY KEY);
+
+statement ok
+INSERT INTO t SELECT * FROM range(1000000);
+
+statement ok
+CREATE TABLE full_idx AS SELECT memory_usage_bytes FROM duckdb_memory() WHERE tag = 'ART_INDEX';
+
+statement ok
+DELETE FROM t WHERE i > 500000;
+
+query I
+SELECT
+	CASE WHEN current.memory_usage_bytes <= full_idx.memory_usage_bytes * 0.6
+		THEN true
+		ELSE concat('Current memory usage ', current.memory_usage_bytes , ' is not equal to base usage ', full_idx.memory_usage_bytes)::UNION(error VARCHAR, b BOOLEAN)
+	END
+FROM duckdb_memory() current, full_idx
+WHERE current.tag = 'ART_INDEX';
+----
+true

@@ -1,0 +1,35 @@
+# name: test/sql/alter/alter_type/test_alter_type_local.test
+# description: ALTER TYPE with transaction local data
+# group: [alter_type]
+
+statement ok
+CREATE TABLE test(i INTEGER, j INTEGER)
+
+statement ok
+INSERT INTO test VALUES (1, 1), (2, 2)
+
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+INSERT INTO test VALUES (3, 3)
+
+statement ok
+ALTER TABLE test ALTER i SET DATA TYPE BIGINT
+
+query II
+SELECT * FROM test
+----
+1	1
+2	2
+3	3
+
+statement ok
+COMMIT
+
+query II
+SELECT * FROM test
+----
+1	1
+2	2
+3	3

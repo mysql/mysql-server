@@ -1,0 +1,37 @@
+#
+# NOT NULL, NOT PARTIAL UNIQUE KEY IS UPGRADED TO PRIMARY KEY.
+#
+CREATE TABLE t(a INT NOT NULL, b INT NOT NULL, UNIQUE INDEX idx_b(b)) ENGINE = DuckDB;
+Warnings:
+Warning	7506	[DuckDB] Index 'idx_b' is upgraded to primary key.
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`b`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, ordinal_position FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	ordinal_position	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	INTEGER	
+[ Rows: 2]
+test	t	a	NULL	NO	INTEGER	1
+test	t	b	NULL	NO	INTEGER	2
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 2]
+t	NOT NULL	NOT NULL
+t	NOT NULL	NOT NULL
+
+
+
+ALTER TABLE t ADD PRIMARY KEY(a), ALGORITHM = INPLACE;
+ERROR 42000: Multiple primary key defined
+ALTER TABLE t ADD PRIMARY KEY(a);
+ERROR 42000: Multiple primary key defined
+DROP TABLE t;

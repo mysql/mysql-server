@@ -1,0 +1,87 @@
+# name: test/sql/aggregate/aggregates/test_bit_xor.test
+# description: Test BIT_XOR operator
+# group: [aggregates]
+
+# test on scalar values
+query II
+SELECT BIT_XOR(3), BIT_XOR(NULL)
+----
+3
+NULL
+
+# test on a sequence
+statement ok
+CREATE SEQUENCE seq;
+
+query I
+SELECT BIT_XOR(nextval('seq'))
+----
+1
+
+query I
+SELECT BIT_XOR(nextval('seq'))
+----
+2
+
+# test on a set of integers
+statement ok
+CREATE TABLE integers(i INTEGER);
+
+statement ok
+INSERT INTO integers VALUES (3), (7), (15), (31), (3), (15)
+
+query IIII
+SELECT BIT_XOR(i), BIT_XOR(1), BIT_XOR(DISTINCT i), BIT_XOR(NULL) FROM integers
+----
+24
+0
+20
+NULL
+
+# test on an empty set
+query I
+SELECT BIT_XOR(i) FROM integers WHERE i > 100
+----
+NULL
+
+# test incorrect usage
+statement error
+SELECT BIT_XOR()
+----
+
+statement error
+SELECT BIT_XOR(1, 2, 3)
+----
+
+statement error
+SELECT BIT_XOR(BIT_XOR(1))
+----
+
+#test on bit types
+statement ok
+CREATE TABLE bits(b BIT);
+
+statement ok
+INSERT INTO bits VALUES ('1010101001'), ('0011010101'), ('0001011101'), ('1011111101'), ('0000010001'), ('1000110001')
+
+query I
+SELECT BIT_XOR(b) FROM bits
+----
+1011111100
+
+query I
+SELECT BIT_XOR(b) FROM bits WHERE get_bit(b, 3) = 1;
+----
+1001110101
+
+query I
+SELECT BIT_XOR('101011'::BIT)
+----
+101011
+
+query I
+SELECT BIT_XOR('0010101010101010101101011'::BIT) from bits
+----
+0000000000000000000000000
+
+

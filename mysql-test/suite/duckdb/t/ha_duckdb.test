@@ -1,0 +1,35 @@
+# install plugin duckdb soname 'ha_my_duckdb.so';
+# create table duck_1(id bigint, v varchar(128)) engine=duckdb;
+
+# show create table duck_1;
+
+# set sql_log_bin=0;
+# insert into duck_1 values(1, 'mysql maries duckdb');
+
+# show create table duck_1;
+
+# set session duckdb_force_execution=1;
+
+# select * from test.duck_1;
+
+# set session duckdb_force_execution=0;
+
+# drop table test.duck_1;
+
+create table duck_1(id bigint, v varchar(4) not null, index ind_v(v), unique index uk(v), primary key(id)) engine=duckdb;
+
+set global duckdb_dml_in_batch = off;
+# select sleep(3500);
+# set sql_log_bin=0;
+insert into duck_1 values(1,1);
+#--error ER_DUCKDB_QUERY_ERROR
+# INSERT is converted to REPLACE, so it will not be failed.
+# DuckDB has no primary key, so duplicate value can be inserted.
+insert into duck_1 values(1,1);
+
+select * from test.duck_1;
+
+drop table duck_1;
+set global duckdb_dml_in_batch = default;
+
+# uninstall plugin duckdb;

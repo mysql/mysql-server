@@ -1,0 +1,205 @@
+# name: test/sql/function/string/regex_search.test
+# description: regex search test
+# group: [string]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+CREATE TABLE t0 as FROM VALUES('asdf') t(c0);
+
+# null
+query I
+SELECT regexp_matches(c0, NULL) from t0
+----
+NULL
+
+# constant strings
+query T
+SELECT regexp_matches(c0, '.*sd.*') from t0;
+----
+1
+
+query T
+SELECT regexp_matches(c0, '.*yu.*') from t0;
+----
+0
+
+query T
+SELECT regexp_matches(c0, '') from t0;
+----
+1
+
+# partial matches okay
+query T
+SELECT regexp_matches(c0, 'sd') from t0;
+----
+1
+
+query T
+SELECT regexp_full_match(c0, 'sd') from t0;
+----
+0
+
+query T
+SELECT regexp_full_match(c0, '.sd.') from t0;
+----
+1
+
+query T
+SELECT regexp_matches(c0, '^sdf$') from t0;
+----
+0
+
+# empty strings
+query T
+SELECT regexp_matches('', '.*yu.*')
+----
+0
+
+query T
+SELECT regexp_matches('', '.*')
+----
+1
+
+# NULLs
+query T
+SELECT regexp_matches(c0, CAST(NULL AS STRING)) from t0;
+----
+NULL
+
+query T
+SELECT regexp_matches(CAST(NULL AS STRING), '.*sd.*')
+----
+NULL
+
+query T
+SELECT regexp_matches(CAST(NULL AS STRING), CAST(NULL AS STRING))
+----
+NULL
+
+query T
+SELECT regexp_matches('foobarbequebaz', '(bar)(beque)')
+----
+1
+
+# postgres says throw error on invalid regex
+statement error
+SELECT regexp_matches('', '\X')
+----
+<REGEX>:.*Invalid Input Error: invalid escape sequence.*
+
+statement ok
+CREATE TABLE regex(s STRING, p STRING)
+
+statement ok
+INSERT INTO regex VALUES ('asdf', 'sd'), ('asdf', '^sd'), (NULL, '^sd'), ('asdf', NULL)
+
+query T
+SELECT regexp_matches(s, '.*') FROM regex
+----
+1
+1
+NULL
+1
+
+query T
+SELECT regexp_matches(s, p) FROM regex
+----
+1
+0
+NULL
+NULL
+
+# test regex_matches with options
+# case sensitivity
+query T
+SELECT regexp_matches(c0, '.*SD.*', 'i') from t0;
+----
+1
+
+query T
+SELECT regexp_matches(c0, '.*SD.*', 'c') from t0;
+----
+0
+
+# literal match
+query T
+SELECT regexp_matches('as^/$df', '^/$', 'l')
+----
+1
+
+query T
+SELECT regexp_matches('as^/$df', '^/$')
+----
+0
+
+# dot matches newline
+query T
+SELECT regexp_matches('hello
+world', '.*', 's')
+----
+1
+
+query T
+SELECT regexp_full_match('hello
+world', '.*', 'n')
+----
+0
+
+# whitespace is ignored
+query T
+SELECT regexp_matches(c0, '.*SD.*', ' i 	') from t0;
+----
+1
+
+# NULL in options is an error
+statement error
+SELECT regexp_matches(c0, '.*SD.*', NULL) from t0;
+----
+<REGEX>:.*Invalid Input Error.*must not be NULL.*
+
+# this also works with tables
+statement ok
+CREATE TABLE test(v VARCHAR);
+
+statement ok
+INSERT INTO test VALUES ('hello'), ('HELLO');
+
+query T
+SELECT regexp_matches(v, 'h.*', 'i') FROM test ORDER BY v
+----
+1
+1
+
+query T
+SELECT regexp_matches(v, 'h.*', 'c') FROM test ORDER BY v
+----
+0
+1
+
+statement error
+SELECT regexp_matches(v, 'h.*', v) FROM test ORDER BY v
+----
+<REGEX>:.*Invalid Input Error.*must be a constant.*
+
+# throw on invalid options
+statement error
+SELECT regexp_matches(c0, '.*SD.*', 'q') from t0;
+----
+<REGEX>:.*Invalid Input Error.*Unrecognized.*
+
+# can only use "g" with regexp replace
+statement error
+SELECT regexp_matches(c0, '.*SD.*', 'g') from t0;
+----
+<REGEX>:.*Invalid Input Error.*only valid for regexp_replace.*
+
+# error in non-constant regex
+statement ok
+INSERT INTO regex VALUES ('asdf', '(')
+
+statement error
+SELECT regexp_matches(s, p) FROM regex
+----
+<REGEX>:.*Invalid Input Error.*missing.*

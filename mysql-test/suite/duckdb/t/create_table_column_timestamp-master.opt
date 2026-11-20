@@ -1,0 +1,6 @@
+# For system timezone, user can define timezone according many ways.
+# We only support define with name like GMT
+# The mtr's default value is GMT-3
+
+--timezone=GMT
+--duckdb_require_primary_key=off

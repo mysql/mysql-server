@@ -1,0 +1,49 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Test DuckDB engine behavior with auto_increment
+--echo #
+# Create a table with auto_increment in DuckDB
+# DuckDB does not support auto_increment
+# The creation will succeed with the auto_increment ignored
+# We expect an warning here.
+
+CREATE TABLE t_auto_inc_duckdb (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255)
+) ENGINE=duckdb;
+
+--let $db_name=test
+--let $table_name=t_auto_inc_duckdb
+--source suite/duckdb/include/show_duckdb_table_structure.inc
+--source suite/duckdb/include/check_mysql_dd_structure.inc
+
+DROP TABLE IF EXISTS t_auto_inc_innodb;
+DROP TABLE IF EXISTS t_auto_inc_duckdb;
+
+
+--echo #
+--echo # Test GIPK
+--echo #
+
+--echo # Test 1, Create a table with NO primary key, gipk will not be added for duckdb table
+SET SESSION sql_generate_invisible_primary_key = ON;
+SET SESSION show_gipk_in_create_table_and_information_schema = ON;
+
+--error ER_REQUIRES_PRIMARY_KEY
+CREATE TABLE t_auto_inc_duckdb (
+  name VARCHAR(255)
+) ENGINE=duckdb;
+
+
+--echo # Test 2, When create table with gipk column, which happens when apply binlog
+
+--error ER_DUCKDB_TABLE_STRUCT_INVALID
+CREATE TABLE `t_gipk` (
+  `my_row_id` bigint unsigned NOT NULL AUTO_INCREMENT /*!80023 INVISIBLE */,
+  `name` varchar(32) DEFAULT NULL,
+  PRIMARY KEY (`my_row_id`)
+) ENGINE=duckdb;
+
+SET SESSION sql_generate_invisible_primary_key = default;
+SET SESSION show_gipk_in_create_table_and_information_schema = default;

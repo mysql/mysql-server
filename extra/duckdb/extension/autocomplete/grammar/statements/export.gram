@@ -1,0 +1,5 @@
+ExportStatement <- 'EXPORT' 'DATABASE' ExportSource? StringLiteral GenericCopyOptionList?
+
+ExportSource <- CatalogName 'TO'
+
+ImportStatement <- 'IMPORT' 'DATABASE' StringLiteral

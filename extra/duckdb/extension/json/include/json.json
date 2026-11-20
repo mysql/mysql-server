@@ -1,0 +1,36 @@
+[
+  {
+    "class": "JSONTransformOptions",
+    "includes": [
+      "json_transform.hpp"
+    ],
+    "members": [
+      {
+        "id": 100,
+        "name": "strict_cast",
+        "type": "bool"
+      },
+      {
+        "id": 101,
+        "name": "error_duplicate_key",
+        "type": "bool"
+      },
+      {
+        "id": 102,
+        "name": "error_missing_key",
+        "type": "bool"
+      },
+      {
+        "id": 103,
+        "name": "error_unknown_key",
+        "type": "bool"
+      },
+      {
+        "id": 104,
+        "name": "delay_error",
+        "type": "bool"
+      }
+    ],
+    "pointer_type": "none"
+  }
+]

@@ -1,0 +1,19 @@
+!include ../rpl_1slave_base.cnf
+!include include/default_client.cnf
+
+[mysqld.1]
+log-bin
+binlog-format = row
+gtid-mode=on
+enforce-gtid-consistency
+duckdb_mode=ON
+
+[mysqld.2]
+log-bin
+binlog-format = mixed
+gtid-mode=on
+enforce-gtid-consistency
+duckdb_mode=ON
+force_innodb_to_duckdb = on
+log-replica-updates = off
+duckdb_log_options = 'DUCKDB_MULTI_TRX_BATCH_COMMIT,DUCKDB_MULTI_TRX_BATCH_DETAIL,DUCKDB_QUERY,DUCKDB_QUERY_RESULT'

@@ -1,0 +1,14 @@
+# name: test/sql/catalog/table/create_table_parameters.test
+# description: Issue #10008 - DuckDB SIGSEGV when creating table with DEFAULT ?
+# group: [table]
+
+statement error
+CREATE TABLE t0 ( c1 INT DEFAULT ? );
+----
+<REGEX>:.*Binder Error.*cannot contain parameters.*
+
+# error messages for `enable_verification`=(false|true)
+statement error
+CREATE TABLE t0 ( c1 INT CHECK (?) );
+----
+<REGEX>:(.*Invalid Input Error: Expected 1 parameters.*|.*Binder Error.*Unexpected prepared parameter.*)

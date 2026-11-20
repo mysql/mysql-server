@@ -1,0 +1,37 @@
+create user 'u0'@'%';
+grant all privileges on mysql.* to 'u0' @'%';
+call mysql.dummy();
+CREATE PROCEDURE mysql.dummy()
+BEGIN
+select sleep(1);
+END$$
+ERROR 42000: PROCEDURE dummy already exists
+drop procedure mysql.dummy;
+ERROR 42000: PROCEDURE mysql.dummy does not exist
+call mysql.dummy(1);
+ERROR 42000: Incorrect number of arguments for PROCEDURE mysql.dummy; expected 0, got 1
+call mysql.dummy_2(1, 'xpchild');
+NAME	ID
+xpchild	1
+call mysql.dummy_2(1, 1);
+ERROR HY000: Native procedure mysql.dummy_2 the 2th parameter mismatch
+call mysql.dummy_2("xpchild", 1);
+ERROR HY000: Native procedure mysql.dummy_2 the 1th parameter mismatch
+call mysql.dummy();
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+CREATE PROCEDURE mysql.dummy()
+BEGIN
+select sleep(1);
+END$$
+ERROR 42000: PROCEDURE dummy already exists
+drop procedure mysql.dummy;
+ERROR 42000: PROCEDURE mysql.dummy does not exist
+call mysql.dummy(1);
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+call mysql.dummy_2(1, 'xpchild');
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+call mysql.dummy_2(1, 1);
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+call mysql.dummy_2("xpchild", 1);
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+drop user 'u0'@'%';

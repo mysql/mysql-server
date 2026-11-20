@@ -1,0 +1,68 @@
+# name: test/sql/types/nested/map/test_map.test
+# description: Test basic functionality of maps
+# group: [map]
+
+# constant maps
+
+query I
+SELECT MAP(list_value(1, 2, 3), list_value(10, 9, 8))
+----
+{1=10, 2=9, 3=8}
+
+query I
+SELECT MAP(list_value({'i':1,'j':2}, {'i':3,'j':4}), list_value({'i':1,'j':2}, {'i':3,'j':4}))
+----
+{{'i': 1, 'j': 2}={'i': 1, 'j': 2}, {'i': 3, 'j': 4}={'i': 3, 'j': 4}}
+
+query I
+SELECT MAP(list_value(1, 2, 3), list_value(6, NULL, 4))
+----
+{1=6, 2=NULL, 3=4}
+
+query I
+SELECT MAP(list_value(1, 2, 3, 4), list_value(10, 9, 8, 7))
+----
+{1=10, 2=9, 3=8, 4=7}
+
+# empty maps
+
+query I
+SELECT MAP(list_value(), list_value())
+----
+{}
+
+query I
+SELECT MAP()
+----
+{}
+
+# maps from columns
+
+statement ok
+CREATE TABLE tbl (a INTEGER[], b TEXT[])
+
+statement ok
+INSERT INTO tbl VALUES (ARRAY[5, 7], ARRAY['test', 'string']), (ARRAY[6, 3], ARRAY['foo', 'bar'])
+
+query I
+SELECT MAP(a, b) FROM tbl;
+----
+{5=test, 7=string}
+{6=foo, 3=bar}
+
+# same map keys in different maps (rows)
+
+statement ok
+INSERT INTO tbl VALUES (ARRAY[5, 7], ARRAY['also_test', 'also_string'])
+
+query I
+SELECT MAP(a, b) FROM tbl;
+----
+{5=test, 7=string}
+{6=foo, 3=bar}
+{5=also_test, 7=also_string}
+
+query I
+SELECT MAP(list_value([1], [2], [3], [4]), list_value(10, 9, 8, 7))
+----
+{[1]=10, [2]=9, [3]=8, [4]=7}

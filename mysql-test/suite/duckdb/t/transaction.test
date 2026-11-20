@@ -1,0 +1,39 @@
+--echo # -----------------------------------------------------------------
+--echo #
+--echo # 1. binlog on, check basic transaction ability
+--echo #
+
+--source suite/duckdb/include/transaction_basic.inc
+
+
+--echo # -----------------------------------------------------------------
+--echo #
+--echo # 2. binlog off, check basic transaction ability
+--echo #
+--let $restart_parameters = "restart: --skip-log-bin"
+--source include/restart_mysqld.inc
+
+--source suite/duckdb/include/transaction_basic.inc
+
+
+--echo # -----------------------------------------------------------------
+--echo #
+--echo # 3. binlog off, check gtid_executed is persisted
+--echo #
+--let $restart_parameters = "restart: --skip-log-bin --gtid-mode=ON --enforce-gtid-consistency=ON"
+# --let $restart_parameters = "restart: "
+--source suite/duckdb/include/transaction_gtid.inc
+
+--echo # -----------------------------------------------------------------
+--echo #
+--echo # 4 binlog on, check gtid_executed is persisted
+--echo #
+--let $restart_parameters = "restart: --gtid-mode=ON --enforce-gtid-consistency=ON"
+--source suite/duckdb/include/transaction_gtid.inc
+
+--echo # -----------------------------------------------------------------
+--echo # Cleanup
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+

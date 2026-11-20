@@ -55,7 +55,8 @@
 #include "sql/changestreams/apply/metrics/applier_metrics.h"
 #include "sql/changestreams/apply/metrics/applier_metrics_stub.h"
 #include "sql/changestreams/apply/parallel_worker_context.h"  // Parallel_worker_context
-#include "sql/log_event.h"                                    //Gtid_log_event
+#include "sql/duckdb/duckdb_config.h"
+#include "sql/log_event.h"  //Gtid_log_event
 #include "sql/psi_memory_key.h"
 #include "sql/query_options.h"
 #include "sql/rpl_gtid.h"         // Gtid_set
@@ -79,7 +80,16 @@ class Slave_worker;
 class String;
 struct LEX_SOURCE_INFO;
 
+extern bool duckdb_multi_trx_in_batch;
+
+extern ulonglong duckdb_multi_trx_timeout;
+
+extern ulonglong duckdb_multi_trx_max_batch_length;
+
 extern uint sql_replica_skip_counter;
+
+extern bool duckdb_commit_multi_trx_due_to_rotate;
+extern uint duckdb_commit_multi_trx_due_to_rotate_frequency;
 
 typedef Prealloced_array<Slave_worker *, 4> Slave_worker_array;
 
@@ -674,6 +684,34 @@ class Relay_log_info : public Rpl_info {
   */
   bool is_applier_source_position_info_invalid() const;
 
+  void set_global_duckdb_idempotent_flag(bool duckdb_idempotent_flag) {
+    m_global_duckdb_idempotent_flag = duckdb_idempotent_flag;
+  }
+
+  bool get_global_duckdb_idempotent_flag() const {
+    return m_global_duckdb_idempotent_flag;
+  }
+
+  void set_local_duckdb_idempotent_flag(bool duckdb_idempotent_flag) {
+    m_local_duckdb_idempotent_flag = duckdb_idempotent_flag;
+  }
+
+  bool get_local_duckdb_idempotent_flag() const {
+    return m_local_duckdb_idempotent_flag;
+  }
+
+  void set_duckdb_insert_only_flag(bool duckdb_insert_only_flag) {
+    m_duckdb_insert_only_flag = duckdb_insert_only_flag;
+  }
+
+  bool get_duckdb_insert_only_flag() const { return m_duckdb_insert_only_flag; }
+
+  void set_transaction_length(ulonglong transaction_length) {
+    m_transaction_length = transaction_length;
+  }
+
+  ulonglong get_transaction_length() const { return m_transaction_length; }
+
   /*
     Let's call a group (of events) :
       - a transaction
@@ -761,6 +799,7 @@ class Relay_log_info : public Rpl_info {
 
  private:
   Gtid_set *gtid_set;
+  Gtid_set *tcle_gtid_set;
   /*
     Identifies when this object belongs to the SQL thread and was not
     created for a client thread or some other purpose including
@@ -844,7 +883,21 @@ class Relay_log_info : public Rpl_info {
   */
   bool m_is_applier_source_position_info_invalid;
 
+  /* Used by SQL Thread, set to true when Start SQL Thread. */
+  bool m_global_duckdb_idempotent_flag;
+
+  /* Set to True only when the worker need to replay idempotently */
+  bool m_local_duckdb_idempotent_flag;
+
+  /* Set to True when the transaction only has inserts */
+  bool m_duckdb_insert_only_flag;
+
+  /* Length in Bytes of current transaction */
+  ulonglong m_transaction_length;
+
  public:
+  uint m_duckdb_skip_commit_due_to_rotate_cnt;
+
   bool is_relay_log_truncated() { return m_relay_log_truncated; }
 
   Tsid_map *get_tsid_map() { return gtid_set->get_tsid_map(); }
@@ -868,6 +921,16 @@ class Relay_log_info : public Rpl_info {
   enum_return_status add_gtid_set(const Gtid_set *gtid_set);
 
   const Gtid_set *get_gtid_set() const { return gtid_set; }
+
+  enum_return_status add_tcle_gtid_set(const Gtid_set *gtid_set);
+
+  const Gtid_set *get_tcle_gtid_set() const { return tcle_gtid_set; }
+
+  void clear_tcle_gtid_set() {
+    get_tsid_lock()->wrlock();
+    tcle_gtid_set->clear();
+    get_tsid_lock()->unlock();
+  }
 
   bool reinit_sql_thread_io_cache(const char *log, bool need_data_lock);
 

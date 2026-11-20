@@ -1,0 +1,103 @@
+--source include/have_binlog_format_mixed.inc
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # Test for duckdb_max_threads_per_query_rpl parameter
+--echo # This parameter only affects SQL thread when replaying binlog events on slave
+--echo #
+
+--echo # 1) Check default value on master and slave
+--source include/rpl/connection_source.inc
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+
+--source include/rpl/connection_replica.inc
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+SET GLOBAL duckdb_dml_in_batch = OFF;
+
+--echo # 2) Set different RPL values on master and slave
+# The slaves RPL setting will be used when SQL thread replays binlog events
+--source include/rpl/connection_source.inc
+SET GLOBAL duckdb_max_threads_per_query_rpl = 100;
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL duckdb_max_threads_per_query_rpl = 50;
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+
+--echo # 3) Create test table on master with DuckDB engine
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(100)) ENGINE=duckdb;
+INSERT INTO t1 VALUES (1, 'master_data_1'), (2, 'master_data_2'), (3, 'master_data_3');
+
+--sync_slave_with_master
+--source include/rpl/sync.inc
+
+--echo # 4) Verify data is replicated to slave via SQL thread
+# When SQL thread replays these INSERT events, it should use slaves RPL setting (50)
+--source include/rpl/connection_replica.inc
+SELECT * FROM t1 ORDER BY id;
+
+--echo # 5) Execute more DML on master to trigger SQL thread replication
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (4, 'master_data_4'), (5, 'master_data_5');
+
+--sync_slave_with_master
+
+--echo # 6) Verify slave received the changes via SQL thread
+--source include/rpl/connection_replica.inc
+SELECT COUNT(*) FROM t1;
+
+--echo # 7) Check error log to verify SQL thread used correct RPL setting (50)
+# The log should show: SET max_threads_per_query = 50
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $grep_pattern=my_duckdb:.*SET max_threads_per_query = 50
+--let $grep_output=print_count
+--source include/grep_pattern.inc
+
+
+--echo # 8) Change slave's RPL setting and check log under DeltaAppender::Flush
+SET GLOBAL duckdb_max_threads_per_query_rpl = 25;
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+SET GLOBAL duckdb_dml_in_batch = ON;
+
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 VALUES (6, 'master_data_6');
+COMMIT;
+
+--sync_slave_with_master
+
+--source include/rpl/connection_replica.inc
+SELECT COUNT(*) FROM t1;
+
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $grep_pattern=my_duckdb:.*SET max_threads_per_query = 25
+--let $grep_output=print_count
+--source include/grep_pattern.inc
+
+--echo # 9) Check current setting on slave using DuckDB query, should not affected by duckdb_max_threads_per_query_rpl
+CALL dbms_duckdb.query("select name, value from duckdb_settings() where name='max_threads_per_query' ");
+SET GLOBAL duckdb_max_threads_per_query = 70;
+SELECT count(*) FROM t1;
+CALL dbms_duckdb.query("select name, value from duckdb_settings() where name='max_threads_per_query'");
+
+--echo # 10) Test invalid values on slave
+# Setting to 0 or negative produces a warning and gets truncated
+SET GLOBAL duckdb_max_threads_per_query_rpl = 0;
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+
+SET GLOBAL duckdb_max_threads_per_query_rpl = -1;
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+
+
+--echo # 11) Cleanup
+--source include/rpl/connection_source.inc
+SET GLOBAL duckdb_max_threads_per_query_rpl = default;
+DROP TABLE t1;
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL duckdb_max_threads_per_query_rpl = default;
+SET GLOBAL duckdb_max_threads_per_query = default;
+SET GLOBAL duckdb_dml_in_batch = default;
+
+--source include/rpl/deinit.inc

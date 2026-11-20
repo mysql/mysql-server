@@ -125,7 +125,18 @@ static const char *handler_error_messages[] = {
     "Invalid table name",
     "Path is too long for the OS",
     "Histogram sampling initialization failed",
-    "Too many nested sub-expressions in a full-text search"};
+    "Too many nested sub-expressions in a full-text search",
+    "DuckDB create table failed",
+    "DuckDB execute dml failed",
+    "DuckDB open table failed",
+    "DuckDB unsupported data type",
+    "DuckDB rename table failed",
+    "DuckDB drop table failed",
+    "DuckDB truncate table failed",
+    "DuckDB cannot participate XA transaction",
+    "DuckDB appender failed",
+    "DuckDB do not support specify partitions"
+};
 
 // clang-format on
 

@@ -1,0 +1,27 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+
+--write_file $MYSQL_TMP_DIR/check_upgraded_pk_rpl.inc
+  SHOW CREATE TABLE t;
+  --source include/rpl/sync.inc
+  --source include/rpl/connection_replica.inc
+  --source suite/duckdb/include/check_upgraded_pk.inc
+  --source include/rpl/connection_source.inc
+EOF
+
+--echo #
+--echo # NOT NULL, NOT PARTIAL UNIQUE KEY IS UPGRADED TO PRIMARY KEY.
+--echo #
+# If DDL statement is from user thread, ER_MULTIPLE_PRI_KEY will be reported. Because we do not know primary key is upgraded or not.
+CREATE TABLE t(a INT NOT NULL, b INT NOT NULL, UNIQUE INDEX idx_b(b)) ENGINE = InnoDB;
+--source $MYSQL_TMP_DIR/check_upgraded_pk_rpl.inc
+
+ALTER TABLE t ADD PRIMARY KEY(a);
+--source $MYSQL_TMP_DIR/check_upgraded_pk_rpl.inc
+DROP TABLE t;
+
+--echo #
+--echo # CLEANUP
+--echo #
+--source include/rpl/deinit.inc
+--remove_file $MYSQL_TMP_DIR/check_upgraded_pk_rpl.inc

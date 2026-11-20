@@ -1,0 +1,220 @@
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo #
+--echo # Prepare the test
+--echo #
+
+delimiter |;
+# Helper function used to repeatedly kill a session.
+CREATE FUNCTION MY_KILL_QUERY(tid INT) RETURNS INT
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+  KILL QUERY tid;
+  RETURN (SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = tid AND Info like '%SELECT%');
+END|
+
+CREATE FUNCTION MY_KILL_CONNECTION(tid INT) RETURNS INT
+BEGIN
+  DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+  KILL CONNECTION tid;
+  RETURN (SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = tid);
+END|
+delimiter ;|
+
+CREATE TABLE integers(i int primary key) ENGINE=duckdb;
+CALL dbms_duckdb.query("INSERT INTO test.integers FROM range(10000)");
+
+connect (con1, localhost, root,,);
+connect (con2, localhost, root,,);
+
+--echo #
+--echo # 1. Kill query during executing duckdb query
+--echo #
+
+connection con1;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+connection con2;
+let $ignore= `SELECT @id := $ID`;
+
+# Let con1 execute a long query
+connection con1;
+--send SELECT i1.i FROM integers i1, integers i2, integers i3, integers i4, integers i5, integers i6, integers i7, integers i8, integers i9, integers i10, integers i11, integers i12, integers i13
+
+# con2 wait con1 begin query
+connection con2;
+let $wait_condition = SELECT count(*) = 1 FROM information_schema.processlist WHERE id = @id and Time > 1 and command != 'Sleep' and Info like 'SELECT%integers%';
+--source include/wait_condition.inc
+
+# con2 kill con1's query
+let $wait_condition= SELECT MY_KILL_QUERY(@id);
+--source include/wait_condition.inc
+
+# con1 check itself's query was killed
+connection con1;
+--error ER_DUCKDB_CLIENT
+--reap
+
+# con1's connection is not killed
+SELECT 1;
+
+--echo #
+--echo # 2. Kill query before executing duckdb query
+--echo #
+
+connection con1;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+connection con2;
+let $ignore= `SELECT @id := $ID`;
+
+# Let con2 kill con1
+connection con2;
+let $wait_condition= SELECT MY_KILL_QUERY(@id);
+--source include/wait_condition.inc
+
+# con1 should not be influcenced
+connection con1;
+SELECT COUNT(*) FROM integers;
+
+--echo #
+--echo # 3. support MAX_EXECUTION_TIME for duckdb query
+--echo #
+
+connection con1;
+
+SET MAX_EXECUTION_TIME=100;
+--error ER_DUCKDB_CLIENT
+SELECT i1.i FROM integers i1, integers i2, integers i3, integers i4, integers i5, integers i6, integers i7, integers i8, integers i9, integers i10, integers i11, integers i12, integers i13;
+
+SET MAX_EXECUTION_TIME=0;
+--error ER_DUCKDB_CLIENT
+SELECT /*+ MAX_EXECUTION_TIME(100) */ i1.i FROM integers i1, integers i2, integers i3, integers i4, integers i5, integers i6, integers i7, integers i8, integers i9, integers i10, integers i11, integers i12, integers i13;
+
+SELECT COUNT(*) FROM integers;
+
+connection default;
+# bugfix return partial result event if interrupt
+--exec $MYSQL -e "SELECT * FROM test.integers" > $MYSQLTEST_VARDIR/log/1.log
+
+SET max_execution_time = 1000;
+SET DEBUG = '+d, simulate_interrupt_duckdb_row';
+--error ER_DUCKDB_SEND_RESULT_ERROR
+SELECT * FROM integers;
+SET DEBUG = 'reset';
+
+SET DEBUG = '+d, simulate_interrupt_duckdb_chunk';
+--error ER_DUCKDB_SEND_RESULT_ERROR
+SELECT * FROM integers;
+SET DEBUG = 'reset';
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text = Found interrupt when fetching rows.
+--let $assert_select = Interrupt when fetching rows
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_text = Found interrupt when fetching chunks.
+--let $assert_select = Interrupt when fetching chunks
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+connection con1;
+
+
+--echo #
+--echo # 4. Kill connection when executing duckdb query
+--echo #
+
+connection con1;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+connection con2;
+let $ignore= `SELECT @id := $ID`;
+
+# Let con1 execute a long query
+connection con1;
+--send SELECT i1.i FROM integers i1, integers i2, integers i3, integers i4, integers i5, integers i6, integers i7, integers i8, integers i9, integers i10, integers i11, integers i12, integers i13
+
+# con2 wait con1 begin query
+connection con2;
+let $wait_condition = SELECT count(*) = 1 FROM information_schema.processlist WHERE id = @id and Time > 1 and command != 'Sleep' and Info like 'SELECT%intergers%';
+--source include/wait_condition.inc
+
+# con2 kill con1's connection
+let $wait_condition= SELECT MY_KILL_CONNECTION(@id);
+--source include/wait_condition.inc
+
+# con1 check itself's query was killed
+connection con1;
+--error CR_SERVER_LOST
+--reap
+
+# con1's connection is killed, need reconnect
+connect;
+SELECT COUNT(*) FROM integers;
+
+
+--echo #
+--echo # 5. Kill connection before executing duckdb query
+--echo #
+
+connection con1;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+connection con2;
+let $ignore= `SELECT @id := $ID`;
+
+# Let con2 kill con1
+connection con2;
+let $wait_condition= SELECT MY_KILL_CONNECTION(@id);
+--source include/wait_condition.inc
+
+# con1 should failed, need to reconnect
+connection con1;
+--error CR_SERVER_LOST
+SELECT COUNT(*) FROM integers;
+
+connect;
+SELECT COUNT(*) FROM integers;
+
+
+--echo #
+--echo # 6. Kill query beween mysql prepare and duckdb_query
+--echo #
+
+connection con1;
+let $ID= `SELECT @id := CONNECTION_ID()`;
+connection con2;
+let $ignore= `SELECT @id := $ID`;
+
+connection con1;
+SET DEBUG_SYNC= 'before_duckdb_query SIGNAL con1_prepared WAIT_FOR con2_killed_con1';
+--send_eval SELECT COUNT(*) FROM integers
+
+connection con2;
+SET DEBUG_SYNC='now WAIT_FOR con1_prepared';
+
+connection con2;
+let $wait_condition= SELECT MY_KILL_QUERY(@id);
+--source include/wait_condition.inc
+
+set debug_sync='now SIGNAL con2_killed_con1';
+
+connection con1;
+--error ER_DUCKDB_CLIENT
+--reap
+
+connection con1;
+SET DEBUG_SYNC='RESET';
+connection con2;
+SET DEBUG_SYNC='RESET';
+
+--echo #
+--echo # Cleanup the test
+--echo #
+
+--remove_file $MYSQLTEST_VARDIR/log/1.log
+DROP TABLE IF EXISTS integers;
+DROP FUNCTION IF EXISTS MY_KILL_QUERY;
+DROP FUNCTION IF EXISTS MY_KILL_CONNECTION;
+
+--disconnect con1
+--disconnect con2

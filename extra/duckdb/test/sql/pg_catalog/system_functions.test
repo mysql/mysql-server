@@ -1,0 +1,98 @@
+# name: test/sql/pg_catalog/system_functions.test
+# description: Test various postgres' system functions (https://www.postgresql.org/docs/9.1/functions-info.html)
+# group: [pg_catalog]
+
+# avoid loading a storage database because it changes the initial database name
+query I
+SELECT CURRENT_USER
+----
+duckdb
+
+query I
+SELECT CURRENT_CATALOG
+----
+memory
+
+query I
+SELECT CURRENT_DATABASE()
+----
+memory
+
+query I
+SELECT pg_catalog.CURRENT_DATABASE()
+----
+memory
+
+query I
+SELECT USER
+----
+duckdb
+
+query I
+SELECT SESSION_USER
+----
+duckdb
+
+statement ok
+SELECT version();
+
+query I
+SELECT current_query();
+----
+SELECT current_query();
+
+query I
+SELECT pg_catalog.current_query();
+----
+SELECT pg_catalog.current_query();
+
+query IIII
+SELECT 1, 2, 3, current_query();
+----
+1	2	3	SELECT 1, 2, 3, current_query();
+
+query I
+SELECT current_schema();
+----
+main
+
+query I
+SELECT current_schemas(true);
+----
+[main, main, main, pg_catalog]
+
+query I
+SELECT current_schemas(false);
+----
+[]
+
+query IIII
+SELECT inet_client_addr(), inet_client_port(), inet_server_addr(), inet_server_port();
+----
+NULL	NULL	NULL	NULL
+
+statement ok
+select pg_postmaster_start_time();
+
+query I
+SELECT pg_is_other_temp_schema(33)
+----
+false
+
+query III
+SELECT col_description(0, 0), obj_description(0, 'duckdb'), shobj_description(0, 'duckdb');
+----
+NULL	NULL	NULL
+
+statement ok
+select txid_current();
+
+query I
+select pg_typeof(1);
+----
+integer
+
+statement error
+SELECT temp.current_user()
+----
+main.current_user

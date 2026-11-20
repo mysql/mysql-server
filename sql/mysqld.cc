@@ -700,6 +700,11 @@ MySQL clients support the protocol:
 
 #include "my_config.h"
 
+#include "sql/duckdb/duckdb_config.h"
+#ifdef HAVE_DUCKDB
+#include "sql/duckdb/duckdb_manager.h"
+#endif
+
 #include "errmsg.h"  // init_client_errs
 #include "ft_global.h"
 #ifdef _WIN32
@@ -927,6 +932,8 @@ MySQL clients support the protocol:
 #include "typelib.h"
 #include "violite.h"
 
+#include "sql/package/package_interface.h"
+
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #include "storage/perfschema/pfs_server.h"
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
@@ -1015,6 +1022,12 @@ MySQL clients support the protocol:
 #include "sql/server_component/mysql_thd_store_imp.h"
 #include "sql/server_component/persistent_dynamic_loader_imp.h"
 #include "sql/srv_session.h"
+
+#include "sql/binlog_ext.h"
+#include "sql/dd/impl/upgrade/server_ext.h"
+#ifdef HAVE_DUCKDB
+#include "sql/duckdb/duckdb_manager.h"
+#endif
 
 using mysql::binlog::event::enum_binlog_checksum_alg;
 using std::max;
@@ -1291,6 +1304,7 @@ handlerton *heap_hton;
 handlerton *temptable_hton;
 handlerton *myisam_hton;
 handlerton *innodb_hton;
+handlerton *myduck_hton;
 
 char *opt_disabled_storage_engines;
 uint opt_server_id_bits = 0;
@@ -1416,6 +1430,14 @@ bool thread_cache_size_specified = false;
 bool host_cache_size_specified = false;
 bool table_definition_cache_specified = false;
 ulong locked_account_connection_count = 0;
+
+bool duckdb_convert_all_at_startup = false;
+bool duckdb_convert_all_at_startup_ignore_error = false;
+uint duckdb_convert_all_at_startup_threads = 0;
+bool duckdb_convert_all_skip_mtr_db = false;
+std::atomic<bool> on_duckdb_convert_progress = false;
+bool duckdb_convert_tables_with_generated_columns = true;
+bool duckdb_support_auto_increment = false;
 
 ulonglong global_conn_mem_limit = 0;
 ulonglong global_conn_memory_status_limit = 0;
@@ -2788,6 +2810,9 @@ static void clean_up(bool print_message) {
 
   authentication_policy::deinit();
   denit_command_maps();
+  if (!opt_initialize && duckdb_convert_all_at_startup) {
+    dd::upgrade::myduck::stop_duckdb_convertor_thread();
+  }
 
   ha_pre_dd_shutdown();
   dd::shutdown();
@@ -2843,6 +2868,9 @@ static void clean_up(bool print_message) {
     tc_log = nullptr;
   }
 
+#ifdef HAVE_DUCKDB
+  myduck::DuckdbManager::Cleanup();
+#endif  // HAVE_DUCKDB
   Recovered_xa_transactions::destroy();
   delegates_destroy();
   xa::Transaction_cache::dispose();
@@ -4740,6 +4768,25 @@ SHOW_VAR com_status_vars[] = {
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {"xa_start",
      (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_XA_START]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"native_admin_proc",
+     (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_ADMIN_PROC]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"native_trans_proc",
+     (char *)offsetof(System_status_var, com_stat[(uint)SQLCOM_TRANS_PROC]),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"duckdb_select", (char *)offsetof(System_status_var, com_duckdb_select),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"duckdb_insert", (char *)offsetof(System_status_var, com_duckdb_insert),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"duckdb_update", (char *)offsetof(System_status_var, com_duckdb_update),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"duckdb_delete", (char *)offsetof(System_status_var, com_duckdb_delete),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"duckdb_insert_select",
+     (char *)offsetof(System_status_var, com_duckdb_insert_select),
+     SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
+    {"duckdb_explain", (char *)offsetof(System_status_var, com_duckdb_explain),
      SHOW_LONG_STATUS, SHOW_SCOPE_ALL},
     {NullS, NullS, SHOW_LONG, SHOW_SCOPE_ALL}};
 
@@ -6797,7 +6844,7 @@ int init_common_variables() {
     of SQLCOM_ constants.
   */
   static_assert(sizeof(com_status_vars) / sizeof(com_status_vars[0]) - 1 ==
-                    SQLCOM_END + 7,
+                    SQLCOM_END + 13,
                 "");
 #endif
 
@@ -9523,6 +9570,8 @@ int mysqld_main(int argc, char **argv)
   */
   init_server_psi_keys();
 
+  im::package_context_init();
+
   /*
     Now that some instrumentation is in place,
     recreate objects which were initialised early,
@@ -9839,6 +9888,16 @@ int mysqld_main(int argc, char **argv)
   /* Determine default TCP port and unix socket name */
   set_ports();
 
+#ifdef HAVE_DUCKDB
+  if (myduck::DuckdbManager::CreateInstance()) unireg_abort(MYSQLD_ABORT_EXIT);
+
+  // Initialize DuckDB early if needed for crash recovery
+  // This ensures WAL replay happens at startup rather than on first request
+  if (!is_help_or_validate_option() &&
+      myduck::DuckdbManager::InitializeIfNeeded())
+    unireg_abort(MYSQLD_ABORT_EXIT);
+#endif  // HAVE_DUCKDB
+
   if (init_server_components()) unireg_abort(MYSQLD_ABORT_EXIT);
 
   if (!server_id_supplied)
@@ -9967,6 +10026,16 @@ int mysqld_main(int argc, char **argv)
 
     if (mysql_bin_log.write_event_to_binlog_and_sync(&prev_gtids_ev))
       unireg_abort(MYSQLD_ABORT_EXIT);
+      /*
+        At startup, open_binlog() skips writting Previous_gtids_log_event,
+        because Gtid informations is not ready. So duckdb_binlog_rotate
+        is skipped too. It is called here just after Previous_gtids_log_event
+        is written.
+      */
+#ifdef HAVE_DUCKDB
+    if (mysql_bin_log_ext.duckdb_binlog_rotate())
+      unireg_abort(MYSQLD_ABORT_EXIT);
+#endif  // HAVE_DUCKDB
 
     // run auto purge member function. It will evaluate auto purge controls
     // and configuration, calculate which log files are to be purged, and
@@ -10123,6 +10192,12 @@ int mysqld_main(int argc, char **argv)
 
   initialize_information_schema_acl();
 
+#ifdef HAVE_DUCKDB
+  if (opt_bin_log) {
+    mysql_bin_log_ext.init();
+  }
+#endif  // HAVE_DUCKDB
+
   (void)RUN_HOOK(server_state, after_recovery, (nullptr));
 
   if (Events::init(opt_noacl || opt_initialize))
@@ -10227,6 +10302,10 @@ int mysqld_main(int argc, char **argv)
   register_pfs_metric_sources();
 
   register_server_telemetry_loggers();
+  /** Alter all tables to duckdb. */
+  if (!opt_initialize && myduck::global_mode_on()) {
+    dd::upgrade::myduck::create_duckdb_convertor_thread();
+  }
 
   DBUG_PRINT("info", ("Block, listening for incoming connections"));
 
@@ -11109,6 +11188,14 @@ struct my_option my_long_options[] = {
      "replicate-rewrite-db=source_db_name->replica_db_name.",
      nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
      nullptr},
+
+    {"replicate-wild-rewrite-table", OPT_REPLICATE_WILD_REWRITE_TABLE,
+     "Make replication applier threads rename a database, so changes in one "
+     "database on the source will be applied in another database on this "
+     "replica.",
+     nullptr, nullptr, nullptr, GET_STR, REQUIRED_ARG, 0, 0, 0, nullptr, 0,
+     nullptr},
+
     {"replicate-same-server-id", 0,
      "In replication, if set to 1, do not skip events having our server id. "
      "Default value is 0 (to break infinite loops in circular replication). "
@@ -12136,6 +12223,9 @@ SHOW_VAR status_vars[] = {
     {"option_tracker_usage:JSON Duality View",
      reinterpret_cast<char *>(&option_tracker_json_duality_view_usage_count),
      SHOW_LONGLONG, SHOW_SCOPE_GLOBAL},
+    {"DuckDB_convert_stage_at_startup",
+     (char *)&dd::upgrade::myduck::show_convert_stage, SHOW_FUNC,
+     SHOW_SCOPE_GLOBAL},
     {NullS, NullS, SHOW_FUNC, SHOW_SCOPE_ALL}};
 
 void add_terminator(vector<my_option> *options) {
@@ -12437,7 +12527,7 @@ void parse_filter_arg(char **channel_name, char **filter_val, char *argument) {
   @retval
     1    Error
 */
-static int parse_replicate_rewrite_db(char **key, char **val, char *argument) {
+static int parse_replicate_rewrite_kv(char **key, char **val, char *argument) {
   DBUG_TRACE;
   char *p;
   *key = argument;
@@ -12962,16 +13052,36 @@ bool mysqld_get_one_option(int optid,
     case (int)OPT_REPLICATE_REWRITE_DB: {
       char *key, *val;
       if (is_rpl_global_filter_setting(argument)) {
-        if (parse_replicate_rewrite_db(&key, &val, argument)) return true;
+        if (parse_replicate_rewrite_kv(&key, &val, argument)) return true;
         rpl_global_filter.add_db_rewrite(key, val);
         rpl_global_filter.rewrite_db_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS);
       } else {
         parse_filter_arg(&channel_name, &filter_val, argument);
         rpl_filter = rpl_channel_filters.get_channel_filter(channel_name);
-        if (parse_replicate_rewrite_db(&key, &val, filter_val)) return true;
+        if (parse_replicate_rewrite_kv(&key, &val, filter_val)) return true;
         rpl_filter->add_db_rewrite(key, val);
         rpl_filter->rewrite_db_statistics.set_all(
+            CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
+      }
+      break;
+    }
+
+    case (int)OPT_REPLICATE_WILD_REWRITE_TABLE: {
+      char *key, *val;
+      if (is_rpl_global_filter_setting(argument)) {
+        if (parse_replicate_rewrite_kv(&key, &val, argument)) return true;
+
+        rpl_global_filter.add_wild_table_rewrite(key, val);
+
+        rpl_global_filter.rewrite_wild_table_statistics.set_all(
+            CONFIGURED_BY_STARTUP_OPTIONS);
+      } else {
+        parse_filter_arg(&channel_name, &filter_val, argument);
+        rpl_filter = rpl_channel_filters.get_channel_filter(channel_name);
+        if (parse_replicate_rewrite_kv(&key, &val, filter_val)) return true;
+        rpl_filter->add_wild_table_rewrite(key, val);
+        rpl_filter->rewrite_wild_table_statistics.set_all(
             CONFIGURED_BY_STARTUP_OPTIONS_FOR_CHANNEL);
       }
       break;

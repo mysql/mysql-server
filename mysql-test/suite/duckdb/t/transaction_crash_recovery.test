@@ -1,0 +1,205 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--echo ###########################################################################
+--echo # 0. Prepare
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+CREATE TABLE t_duckdb (
+    id BIGINT NOT NULL,
+    c0 INT,
+    PRIMARY KEY(id)
+) ENGINE=InnoDB;
+
+CREATE TABLE t_innodb (
+    id BIGINT NOT NULL,
+    c0 INT,
+    PRIMARY KEY(id)
+) ENGINE=InnoDB;
+
+SHOW CREATE TABLE t_duckdb;
+SHOW CREATE TABLE t_innodb;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE t_duckdb ENGINE=DuckDB;
+SHOW CREATE TABLE t_duckdb;
+SHOW CREATE TABLE t_innodb;
+
+--source include/rpl/connection_source.inc
+DELIMITER |;
+CREATE PROCEDURE insert_duckdb_innodb(val INT)
+BEGIN
+    START TRANSACTION;
+    INSERT INTO t_duckdb VALUES (val, val);
+    INSERT INTO t_innodb VALUES (val, val);
+    COMMIT;
+END|
+
+CREATE PROCEDURE insert_innodb_duckdb(val INT)
+BEGIN
+    START TRANSACTION;
+    INSERT INTO t_innodb VALUES (val, val);
+    INSERT INTO t_duckdb VALUES (val, val);
+    COMMIT;
+END|
+
+CREATE PROCEDURE update_duckdb_pk(val INT)
+BEGIN
+    START TRANSACTION;
+    UPDATE t_duckdb SET id = val + 2 WHERE id = val + 1;
+    UPDATE t_duckdb SET id = val + 1 WHERE id = val;
+    COMMIT;
+END|
+
+CREATE PROCEDURE update_duckdb_nopk(val INT)
+BEGIN
+    UPDATE t_duckdb SET c0 = c0 + 1 WHERE id = val;
+END|
+
+DELIMITER ;|
+--source include/rpl/sync.inc
+
+--echo ###########################################################################
+--echo # 1. Test transaction first INSERT DuckDB table, then INSERT InnoDB table
+--echo ###########################################################################
+--echo # 1.1 Crash Before DuckDB Commit
+--let $crash_point = "+d,crash_before_duckdb_commit"
+--let $dml_query = CALL insert_duckdb_innodb(1)
+--source transaction_crash_recovery.inc
+
+--let $rpl_diff_statement = SELECT * FROM t_duckdb ORDER BY id
+--source include/rpl/diff.inc
+--let $rpl_diff_statement = SELECT * FROM t_innodb
+--source include/rpl/diff.inc
+
+--echo # 1.2 Crash After DuckDB Commit
+--let $crash_point = "+d,crash_after_duckdb_commit"
+--let $dml_query = CALL insert_duckdb_innodb(2)
+--source transaction_crash_recovery.inc
+
+--let $rpl_diff_statement = SELECT * FROM t_duckdb ORDER BY id
+--source include/rpl/diff.inc
+--let $rpl_diff_statement = SELECT * FROM t_innodb
+--source include/rpl/diff.inc
+
+--echo ###########################################################################
+--echo # 2. Test transaction first INSERT InnoDB table, then INSERT DuckDB table
+--echo ###########################################################################
+--echo # 2.1 Crash Before DuckDB Commit
+--let $crash_point = "+d,crash_before_duckdb_commit"
+--let $dml_query = CALL insert_duckdb_innodb(3)
+--source transaction_crash_recovery.inc
+
+--let $rpl_diff_statement = SELECT * FROM t_duckdb ORDER BY id
+--source include/rpl/diff.inc
+--let $rpl_diff_statement = SELECT * FROM t_innodb
+--source include/rpl/diff.inc
+
+--echo # 2.2 Crash After DuckDB Commit
+--let $crash_point = "+d,crash_after_duckdb_commit"
+--let $dml_query = CALL insert_duckdb_innodb(4)
+--source transaction_crash_recovery.inc
+
+--let $rpl_diff_statement = SELECT * FROM t_duckdb ORDER BY id
+--source include/rpl/diff.inc
+--let $rpl_diff_statement = SELECT * FROM t_innodb
+--source include/rpl/diff.inc
+
+--echo ###########################################################################
+--echo # 3. Test transaction UPDATE DuckDB table's non-PK field
+--echo ###########################################################################
+--echo # 3.1 Crash Before DuckDB Commit
+--let $crash_point = "+d,crash_before_duckdb_commit"
+--let $dml_query = CALL update_duckdb_nopk(1)
+--source transaction_crash_recovery.inc
+
+--let $rpl_diff_statement = SELECT * FROM t_duckdb ORDER BY id
+--source include/rpl/diff.inc
+
+--echo # 3.2 Crash After DuckDB Commit
+--let $crash_point = "+d,crash_after_duckdb_commit"
+--let $dml_query = CALL update_duckdb_nopk(2)
+--source transaction_crash_recovery.inc
+
+--let $rpl_diff_statement = SELECT * FROM t_duckdb ORDER BY id
+--source include/rpl/diff.inc
+
+--echo ###########################################################################
+--echo # 4. Test transaction UPDATE DuckDB table's PK field
+--echo ###########################################################################
+--echo # 4.1 Crash Before DuckDB Commit
+--let $crash_point = "+d,crash_before_duckdb_commit"
+--let $dml_query = CALL update_duckdb_pk(3)
+--source transaction_crash_recovery.inc
+
+--let $rpl_diff_statement = SELECT * FROM t_duckdb ORDER BY id
+--source include/rpl/diff.inc
+
+--echo # 4.2 Crash After DuckDB Commit
+--let $crash_point = "+d,crash_after_duckdb_commit"
+--let $dml_query = CALL update_duckdb_pk(4)
+--source transaction_crash_recovery.inc
+
+--let $rpl_diff_statement = SELECT * FROM t_duckdb ORDER BY id
+--source include/rpl/diff.inc
+
+--echo ###########################################################################
+--echo # 5. Test duckdb_dml_in_batch=on
+--echo ###########################################################################
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text = Check no batch up to now
+--let $assert_select = DELETE.*rds_buf
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--echo # 5.1 Crash Before DuckDB Commit
+--let $crash_point = "+d,crash_before_duckdb_commit"
+--let $dml_query = CALL insert_duckdb_innodb(7)
+--let $rpl_server_parameters= --duckdb_dml_in_batch=on
+--source transaction_crash_recovery.inc
+
+--let $rpl_diff_statement = SELECT * FROM t_duckdb ORDER BY id
+--source include/rpl/diff.inc
+--let $rpl_diff_statement = SELECT * FROM t_innodb
+--source include/rpl/diff.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text = Check 1 batch commit after Crash Recovery
+--let $assert_select = DELETE.*rds_buf
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--echo # 5.2 Crash After DuckDB Commit
+--let $crash_point = "+d,crash_after_duckdb_commit"
+--let $dml_query = CALL insert_duckdb_innodb(8)
+--let $rpl_server_parameters= --duckdb_dml_in_batch=on
+--source transaction_crash_recovery.inc
+
+--let $rpl_diff_statement = SELECT * FROM t_duckdb ORDER BY id
+--source include/rpl/diff.inc
+--let $rpl_diff_statement = SELECT * FROM t_innodb
+--source include/rpl/diff.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text = Check 1+2 batch commits after Crash Recovery
+--let $assert_select = DELETE.*rds_buf
+--let $assert_count = 3
+--source include/assert_grep.inc
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL duckdb_dml_in_batch=off;
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+DROP PROCEDURE insert_duckdb_innodb;
+DROP PROCEDURE insert_innodb_duckdb;
+DROP PROCEDURE update_duckdb_pk;
+DROP PROCEDURE update_duckdb_nopk;
+DROP TABLE t_duckdb;
+DROP TABLE t_innodb;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

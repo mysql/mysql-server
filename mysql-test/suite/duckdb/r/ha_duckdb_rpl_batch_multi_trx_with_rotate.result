@@ -1,0 +1,159 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+###########################################################################
+# 0. Prepare
+###########################################################################
+[connection master]
+SET autocommit = 1;
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+c0 VARCHAR(20) NOT NULL,
+c1 CHAR(10) DEFAULT 'duckdb',
+PRIMARY KEY(id, c0)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  PRIMARY KEY (`id`,`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  PRIMARY KEY (`id`,`c0`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# 1. Test IO Thread reconnect after the Trx2's GTID Event queued
+###########################################################################
+[connection slave]
+STOP REPLICA;
+[connection master]
+# 1.1 Execute two Transactions on Master
+INSERT INTO t1 (id, c0, c1) VALUES (1, 'abc', NULL), (3, 'efg', 'RSA');
+UPDATE t1 SET id=6, c1='AliSQL' WHERE id=1;
+# 1.2 Make IO Thread stop after the Trx2's GTID Event queued
+[connection slave]
+CALL mtr.add_suppression("MY-013122");
+SET GLOBAL debug="+d,stop_when_queue_2nd_query_event";
+START REPLICA IO_THREAD;
+include/rpl/wait_for_receiver_to_stop.inc
+SET GLOBAL debug="-d,stop_when_queue_2nd_query_event";
+START REPLICA;
+# 1.3 Check the result
+include/rpl/sync.inc
+include/rpl/diff.inc
+###########################################################################
+# 2. Test IO Thread reconnect before the Trx2's XID Event queued
+###########################################################################
+[connection slave]
+STOP REPLICA;
+[connection master]
+# 2.1 Execute two Transactions on Master
+UPDATE t1 SET c0='yyyyyy' WHERE id=3;
+INSERT INTO t1 (id, c0, c1) VALUES (2, 'xxx', 'Duck');
+# 2.2 Make IO Thread stop before the Trx2's XID Event queued
+[connection slave]
+CALL mtr.add_suppression("MY-013122");
+SET GLOBAL debug="+d,stop_when_queue_2nd_xid_event";
+START REPLICA IO_THREAD;
+include/rpl/wait_for_receiver_to_stop.inc
+SET GLOBAL debug="-d,stop_when_queue_2nd_xid_event";
+START REPLICA;
+# 2.3 Check the result
+include/rpl/sync.inc
+include/rpl/diff.inc
+###########################################################################
+# 3. Test IO Thread reconnect before the Trx2's Table Map Event queued,
+#    and SQL Thread restart after Rotate.
+###########################################################################
+[connection slave]
+STOP REPLICA;
+[connection master]
+# 3.1 Execute two Transactions on Master
+INSERT INTO t1 (id, c0, c1) VALUES (4, 'xxx', 'Duck');
+UPDATE t1 SET c0='yyyyyy' WHERE id=4;
+# 3.2 Make IO Thread stop before the Trx2's Table Map Event queued
+[connection slave]
+CALL mtr.add_suppression("MY-013122");
+SET GLOBAL debug="+d,stop_when_queue_2nd_table_map_event";
+START REPLICA IO_THREAD;
+include/rpl/wait_for_receiver_to_stop.inc
+SET GLOBAL debug="-d,stop_when_queue_2nd_table_map_event";
+# 3.3 Make SQL Thread execute the partial Trx2, and then restart SQL Thread
+SET GLOBAL debug="+d,debug_sync_before_reader_commit";
+START REPLICA SQL_THREAD;
+SET debug_sync="now WAIT_FOR commit_signal";
+SET debug_sync="now SIGNAL resume_signal";
+SET GLOBAL debug="-d,debug_sync_before_reader_commit";
+STOP REPLICA SQL_THREAD;
+include/rpl/wait_for_applier_to_stop.inc
+START REPLICA;
+# 3.4 Check the result
+include/rpl/sync.inc
+include/rpl/diff.inc
+###########################################################################
+# 4. Test Rotate Event will implicit commit the current batch
+###########################################################################
+[connection slave]
+SET @old_duckdb_multi_trx_timeout = @@GLOBAL.duckdb_multi_trx_timeout;
+SET GLOBAL duckdb_multi_trx_timeout = 1000000;
+Warnings:
+Warning	1292	Truncated incorrect duckdb_multi_trx_timeout value: '1000000'
+# 4.1 Execute one Transaction on Master, and then Rotate the Binlog
+[connection master]
+INSERT INTO t1 (id, c0, c1) VALUES (4, 'zzzzz', '123456');
+FLUSH LOGS;
+# 4.2 Check the result
+include/rpl/sync.inc
+include/rpl/diff.inc
+[connection slave]
+SET GLOBAL duckdb_multi_trx_timeout = @old_duckdb_multi_trx_timeout;
+###########################################################################
+# 5. Test IO Thread reconnect before the Trx2's XID Event queued, and then
+#    SQL Thread failed to rollback the partial Trx.
+###########################################################################
+[connection slave]
+STOP REPLICA;
+[connection master]
+# 5.1 Execute two Transactions on Master
+UPDATE t1 SET c0='sssssss' WHERE id=3;
+INSERT INTO t1 (id, c0, c1) VALUES (6, 'ggggg', 'DDDD');
+# 5.2 Make IO Thread stop before the Trx2's XID Event queued
+[connection slave]
+CALL mtr.add_suppression("MY-013122");
+SET GLOBAL debug="+d,stop_when_queue_2nd_xid_event";
+START REPLICA IO_THREAD;
+include/rpl/wait_for_receiver_to_stop.inc
+SET GLOBAL debug="-d,stop_when_queue_2nd_xid_event";
+# 5.3 Make SQL Thread failed to rollback the partial Trx
+SET GLOBAL debug="+d,simulate_duckdb_rollback_partial_trx_failed";
+START REPLICA;
+include/rpl/wait_for_applier_error.inc [errno=7511]
+# 5.4 Restart SQL Thread
+SET GLOBAL debug="-d,simulate_duckdb_rollback_partial_trx_failed";
+START REPLICA SQL_THREAD;
+# 5.5 Check the result
+include/rpl/sync.inc
+include/rpl/diff.inc
+###########################################################################
+# 6. Test transactions are not replayed by executing SQL
+###########################################################################
+include/assert_grep.inc [Check DML SQL is not executed]
+###########################################################################
+# Cleanup
+###########################################################################
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

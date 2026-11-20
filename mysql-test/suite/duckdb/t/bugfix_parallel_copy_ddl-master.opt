@@ -1,0 +1,1 @@
+--debug='+d,duckdb_parallel_copy_ddl_failed'

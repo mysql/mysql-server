@@ -1,0 +1,15 @@
+# name: benchmark/tpch/parquet/parquet_projection_view.benchmark
+# description: Execute aggregate + projection over lineitem with a view on top to test projection pushdown
+# group: [parquet]
+
+include benchmark/tpch/tpch_load_parquet.benchmark.in
+
+name Lineitem Projection Pushdown (View)
+group parquet
+subgroup tpch
+
+run
+SELECT SUM(l_extendedprice * (1 - l_discount) * (1 + l_tax)) FROM lineitem
+
+result I
+226829357828.867781

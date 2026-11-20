@@ -1,0 +1,99 @@
+# name: test/issues/fuzz/bitwise_shift_overflow.test
+# description: Issue #3365: Undefined behavior at bitwise.cpp:148:38
+# group: [fuzz]
+
+statement ok
+PRAGMA enable_verification
+
+# issue tests
+statement error
+SELECT 1000::bigint<<55;
+----
+<REGEX>:Out of Range Error.*Overflow in left shift.*
+
+statement error
+SELECT 256::bigint<<55;
+----
+<REGEX>:Out of Range Error.*Overflow in left shift.*
+
+query I
+SELECT 255::bigint<<55;
+----
+9187343239835811840
+
+query I
+SELECT 0::bigint<<999;
+----
+0
+
+# all integer types
+# tinyint
+statement error
+SELECT 10::tinyint<<4::tinyint;
+----
+<REGEX>:Out of Range Error.*Overflow in left shift.*
+
+query I
+SELECT 10::tinyint<<3::tinyint;
+----
+80
+
+# cannot left shift negative numbers
+statement error
+SELECT (-128)::tinyint<<0::tinyint;
+----
+<REGEX>:Out of Range Error.*Cannot left-shift.*
+
+statement error
+SELECT (-10)::tinyint<<4::tinyint;
+----
+<REGEX>:Out of Range Error.*Cannot left-shift.*
+
+statement error
+SELECT (-10)::tinyint<<3::tinyint;
+----
+<REGEX>:Out of Range Error.*Cannot left-shift.*
+
+# smallint
+statement error
+SELECT 1000::smallint<<6::smallint;
+----
+<REGEX>:Out of Range Error.*Overflow in left shift.*
+
+query I
+SELECT 1000::smallint<<5::smallint;
+----
+32000
+
+# integer
+statement error
+SELECT 1000::integer<<22::integer;
+----
+<REGEX>:Out of Range Error.*Overflow in left shift.*
+
+query I
+SELECT 1000::integer<<21::integer;
+----
+2097152000
+
+# bigint
+statement error
+SELECT 1000::bigint<<54::bigint;
+----
+<REGEX>:Out of Range Error.*Overflow in left shift.*
+
+query I
+SELECT 1000::bigint<<53::bigint;
+----
+9007199254740992000
+
+# hugeint
+statement error
+SELECT 1000::hugeint<<118::hugeint;
+----
+<REGEX>:Out of Range Error.*Overflow in left shift.*
+
+query I
+SELECT 1000::hugeint<<117::hugeint;
+----
+166153499473114484112975882535043072000

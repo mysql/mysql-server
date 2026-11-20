@@ -1,0 +1,78 @@
+SET @saved_sql_mode=@@SESSION.sql_mode;
+SET sql_mode='';
+CREATE TABLE temporal_duckdb(id INT PRIMARY KEY) ENGINE=DuckDB;
+CREATE TABLE temporal_innodb(id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO temporal_duckdb VALUES(1);
+INSERT INTO temporal_innodb VALUES(1);
+# Non-empty tables use COPY to fill implicit zero dates.
+ALTER TABLE temporal_duckdb ADD COLUMN d DATE NOT NULL;
+ALTER TABLE temporal_innodb ADD COLUMN d DATE NOT NULL;
+ALTER TABLE temporal_duckdb ADD COLUMN dt DATETIME(6) NOT NULL;
+ALTER TABLE temporal_innodb ADD COLUMN dt DATETIME(6) NOT NULL;
+SELECT * FROM temporal_duckdb ORDER BY id;
+id	d	dt
+1	0000-00-00	0000-00-00 00:00:00.000000
+SELECT * FROM temporal_innodb ORDER BY id;
+id	d	dt
+1	0000-00-00	0000-00-00 00:00:00.000000
+# Strict mode rejects zero-date backfill without changing either table.
+UPDATE temporal_duckdb SET d='2026-01-02',dt='2026-01-02 03:04:05.123456';
+UPDATE temporal_innodb SET d='2026-01-02',dt='2026-01-02 03:04:05.123456';
+SET sql_mode='STRICT_ALL_TABLES,NO_ZERO_DATE,NO_ZERO_IN_DATE,ERROR_FOR_DIVISION_BY_ZERO';
+ALTER TABLE temporal_duckdb ADD COLUMN rejected_date DATE NOT NULL;
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'rejected_date' at row 1
+ALTER TABLE temporal_innodb ADD COLUMN rejected_date DATE NOT NULL;
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'rejected_date' at row 1
+ALTER TABLE temporal_duckdb ADD COLUMN rejected_datetime DATETIME NOT NULL;
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'rejected_datetime' at row 1
+ALTER TABLE temporal_innodb ADD COLUMN rejected_datetime DATETIME NOT NULL;
+ERROR 22007: Incorrect datetime value: '0000-00-00 00:00:00' for column 'rejected_datetime' at row 1
+SHOW COLUMNS FROM temporal_duckdb;
+Field	Type	Null	Key	Default	Extra
+id	int	NO	PRI	NULL	
+d	date	NO		NULL	
+dt	datetime(6)	NO		NULL	
+SELECT * FROM temporal_duckdb ORDER BY id;
+id	d	dt
+1	2026-01-02	2026-01-02 03:04:05.123456
+# Empty tables are valid even in strict mode.
+CREATE TABLE temporal_empty(id INT PRIMARY KEY) ENGINE=DuckDB;
+ALTER TABLE temporal_empty ADD COLUMN d DATE NOT NULL,
+ADD COLUMN dt DATETIME(6) NOT NULL;
+INSERT INTO temporal_empty VALUES(1,'2026-01-02','2026-01-02 03:04:05.123456');
+SELECT * FROM temporal_empty;
+id	d	dt
+1	2026-01-02	2026-01-02 03:04:05.123456
+DROP TABLE temporal_empty;
+# Explicit INSTANT and INPLACE must fail before reaching the assertion.
+SET sql_mode='';
+ALTER TABLE temporal_duckdb ADD COLUMN rejected_date DATE NOT NULL,
+ALGORITHM=INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE temporal_duckdb ADD COLUMN rejected_date DATE NOT NULL,
+ALGORITHM=INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+# An explicit COPY request retains normal implicit-default semantics.
+ALTER TABLE temporal_duckdb ADD COLUMN d_copy DATE NOT NULL, ALGORITHM=COPY;
+ALTER TABLE temporal_innodb ADD COLUMN d_copy DATE NOT NULL, ALGORITHM=COPY;
+# Other column operations can still use INSTANT.
+ALTER TABLE temporal_duckdb ADD COLUMN n INT NOT NULL, ALGORITHM=INSTANT;
+ALTER TABLE temporal_innodb ADD COLUMN n INT NOT NULL, ALGORITHM=INSTANT;
+SELECT * FROM temporal_duckdb ORDER BY id;
+id	d	dt	d_copy	n
+1	2026-01-02	2026-01-02 03:04:05.123456	0000-00-00	0
+SELECT * FROM temporal_innodb ORDER BY id;
+id	d	dt	d_copy	n
+1	2026-01-02	2026-01-02 03:04:05.123456	0000-00-00	0
+SHOW CREATE TABLE temporal_duckdb;
+Table	Create Table
+temporal_duckdb	CREATE TABLE `temporal_duckdb` (
+  `id` int NOT NULL,
+  `d` date NOT NULL,
+  `dt` datetime(6) NOT NULL,
+  `d_copy` date NOT NULL,
+  `n` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE temporal_duckdb, temporal_innodb;
+SET sql_mode=@saved_sql_mode;

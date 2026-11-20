@@ -1,0 +1,277 @@
+--echo #
+--echo # Test DDL: alter table engine = innodb from duckdb tables
+--echo # check whether changing storage engine from duckdb to innodb is supported
+--echo #
+
+--disable_warnings
+DROP DATABASE IF EXISTS alter_engine_test;
+--enable_warnings
+CREATE DATABASE alter_engine_test;
+USE alter_engine_test;
+
+--echo #
+--echo # 1. test blob types
+--echo #
+CREATE TABLE blob_table (
+  id INT PRIMARY KEY,
+  tiny_blob_field TINYBLOB,
+  medium_blob_field MEDIUMBLOB,
+  long_blob_field LONGBLOB,
+  blob_field BLOB,
+  bit_field BIT(64)
+) ENGINE=DUCKDB;
+INSERT INTO blob_table VALUES (1, 'tinyblob_data', 'mediumblob_data', 'longblob_data', 'blob_data', b'00000001');
+INSERT INTO blob_table VALUES (2, 'tinyblob_data2', 'mediumblob_data2', 'longblob_data2', 'blob_data2', b'00000010');
+INSERT INTO blob_table VALUES (3, NULL, NULL, 'longblob_data3', NULL, b'00000010');
+INSERT INTO blob_table VALUES (4, 'tinyblob_data4', 'mediumblob_data4', NULL, 'blob_data2', NULL);
+INSERT INTO blob_table VALUES (5, 'tinyblob_data5', 'mediumblob_data5', 'longblob_data5', 'blob_data5', b'00000011');
+
+SHOW CREATE TABLE blob_table;
+SELECT id, tiny_blob_field, medium_blob_field, long_blob_field, blob_field, hex(bit_field) FROM blob_table;
+CHECKSUM TABLE blob_table;
+ALTER TABLE blob_table ENGINE = InnoDB;
+SHOW CREATE TABLE blob_table;
+CHECKSUM TABLE blob_table;
+ALTER TABLE blob_table ENGINE = DUCKDB;
+SHOW CREATE TABLE blob_table;
+CHECKSUM TABLE blob_table;
+ALTER TABLE blob_table ENGINE = DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE blob_table;
+CHECKSUM TABLE blob_table;
+
+
+--echo #
+--echo # 2. test string types
+--echo #
+CREATE TABLE string_table (
+  id INT PRIMARY KEY,
+  null_field VARCHAR(255),
+  bool_field BOOLEAN,
+  decimal_field DECIMAL(10,2),
+  enum_field ENUM('small', 'medium', 'large'),
+  set_field SET('red', 'green', 'blue'),
+  string_field VARCHAR(255),
+  var_string_field VARCHAR(255),
+  varchar_field VARCHAR(255),
+  json_field JSON ,
+  text_field TEXT,
+  new_decimal_field DECIMAL(20,6)
+) ENGINE=DUCKDB;
+INSERT INTO string_table VALUES (1, NULL, TRUE, 123.45, 'small', 'red,green', 'sample_string', 'var_string_sample', 'varchar_sample','{"name": "Alice", "age": 30}', 'This is a sample text.', 123456.789012);
+INSERT INTO string_table VALUES (2, 'another_value', FALSE, 678.90, 'medium', 'blue', 'another_string', 'another_var_string', NULL, NULL, NULL, 345678.901234);
+INSERT INTO string_table VALUES (3, 'test_value', TRUE, 50.25, 'large', NULL, 'test_string', 'var_string_test', 'varchar_test', '{"city": "Beijing", "population": 2154}', 'Some additional text content.', 987654.321098);
+INSERT INTO string_table VALUES (4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,NULL);
+INSERT INTO string_table VALUES (5, NULL, FALSE, 999.99, 'small', 'red', 'another test', 'var_string_another', 'varchar_another', '{"country": "USA", "states": 50}', 'More sample text data.', NULL);
+INSERT INTO string_table VALUES (6, 'final_value', TRUE, 100.00, 'medium', 'red,blue', 'final_string', 'var_string_final', 'varchar_final', '{"animal": "dog", "legs": 4}', 'End of this test text.', 778899.001122);
+
+SHOW CREATE TABLE string_table;
+SELECT * FROM string_table;
+CHECKSUM TABLE string_table;
+ALTER TABLE string_table ENGINE = InnoDB;
+SHOW CREATE TABLE string_table;
+CHECKSUM TABLE string_table;
+ALTER TABLE string_table ENGINE = DUCKDB;
+SHOW CREATE TABLE string_table;
+CHECKSUM TABLE string_table;
+ALTER TABLE string_table ENGINE = DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE string_table;
+CHECKSUM TABLE string_table;
+
+
+--echo #
+--echo # 3. test numeric types
+--echo #
+CREATE TABLE numeric_table (
+  id INT PRIMARY KEY,
+  tinyint_field TINYINT,
+  smallint_field SMALLINT,
+  mediumint_field MEDIUMINT,
+  int_field INT,
+  bigint_field BIGINT,
+  float_field FLOAT,
+  double_field DOUBLE,
+  decimal_field DECIMAL(20,10)
+)ENGINE=DUCKDB;
+INSERT INTO numeric_table VALUES 
+(1, 127, 32767, 8388607, 2147483647, 9223372036854775807, 3.402823466E+38, 1.7976931348623157E+308, 123456789.1234567890),
+(2, -128, -32768, -8388608, -2147483648, -9223372036854775808, -3.402823466E+38, -1.7976931348623157E+308, -1234501234.1234567890),
+(3, NULL, 0, 0, 0, 0, 0.0, 0.0,NULL),
+(4, 1, 2, NULL, 4, 1844674407370955161, NULL, 2.2, 1234567890.1234567890),
+(5, -1, -2, -3, -4, -1844674407370955161, NULL, -2.2, -1234567890.1234567890);
+
+SHOW CREATE TABLE numeric_table;
+SELECT * FROM numeric_table;
+CHECKSUM TABLE numeric_table;
+ALTER TABLE numeric_table ENGINE = InnoDB;
+SHOW CREATE TABLE numeric_table;
+CHECKSUM TABLE numeric_table;
+ALTER TABLE numeric_table ENGINE = DUCKDB;
+SHOW CREATE TABLE numeric_table;
+CHECKSUM TABLE numeric_table;
+ALTER TABLE numeric_table ENGINE = DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE numeric_table;
+CHECKSUM TABLE numeric_table;
+
+
+
+--echo #
+--echo # 4. test unsigned numeric types
+--echo #
+CREATE TABLE unsigned_numeric_table (
+  id INT PRIMARY KEY,
+  tinyint_field TINYINT UNSIGNED,
+  smallint_field SMALLINT UNSIGNED,
+  mediumint_field MEDIUMINT UNSIGNED,
+  int_field INT UNSIGNED,
+  bigint_field BIGINT UNSIGNED,
+  float_field FLOAT,
+  double_field DOUBLE,
+  decimal_field DECIMAL(20,10) 
+)ENGINE=DUCKDB;
+--echo # Inserting test data into unsigned_numeric_table
+INSERT INTO unsigned_numeric_table VALUES (1, 255, 65535, 16777215, 4294967295, 18446744073709551615, 3.402823466E+38, 1.7976931348623157E+308, '9999999999.9999999999');
+INSERT INTO unsigned_numeric_table VALUES (2, 254, 65534, 16777214, 4294967294, 18446744073709551614, 3.402823465E+38, NULL, '9999999998.9999999998');
+INSERT INTO unsigned_numeric_table VALUES (3, 128, 32768, 8388607, 2147483647, 9223372036854775807, 123456789.123456789, 9876543210.0123456789, '1234567890.0123456789');
+INSERT INTO unsigned_numeric_table VALUES (4, NULL, 32767, NULL, 2147483647, NULL, 123456789.123456789, 9876543210.0123456789, '1234567890.0123456789');
+INSERT INTO unsigned_numeric_table VALUES (5, 127, 32767, NULL, NULL, NULL, 123456789.123456789, 9876543210.0123456789, '1234567890.0123456789');
+
+SHOW CREATE TABLE unsigned_numeric_table;
+SELECT * FROM unsigned_numeric_table;
+CHECKSUM TABLE unsigned_numeric_table;
+ALTER TABLE unsigned_numeric_table ENGINE = InnoDB;
+SHOW CREATE TABLE unsigned_numeric_table;
+CHECKSUM TABLE unsigned_numeric_table;
+ALTER TABLE unsigned_numeric_table ENGINE = DUCKDB;
+SHOW CREATE TABLE unsigned_numeric_table;
+CHECKSUM TABLE unsigned_numeric_table;
+ALTER TABLE unsigned_numeric_table ENGINE = DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE unsigned_numeric_table;
+CHECKSUM TABLE unsigned_numeric_table;
+
+
+--echo #
+--echo # 5. test date types
+--echo #
+CREATE TABLE date_table (
+  id INT PRIMARY KEY,
+  date_field DATE,
+  datetime_field DATETIME,
+  timestamp_field TIMESTAMP,
+  time_field TIME
+)ENGINE=DUCKDB;
+INSERT INTO date_table VALUES 
+(1, '2023-01-01', '2023-01-01 12:00:00', '2023-01-01 12:00:00', '12:00:00'),
+(2, '1999-12-31', '1999-12-31 23:59:59', '1999-12-31 23:59:59', '23:59:59'),
+(3, NULL, NULL, NULL, '00:00:00'),
+(4, '2024-02-29', '2024-02-29 00:00:00', '2024-02-29 00:00:00', '00:00:00'),
+(5, '2023-04-05', NULL, '2023-04-05 14:30:45', NULL),
+(6, '2023-04-05', '2023-04-05 14:30:45', '2023-04-05 14:30:45', '14:30:45');
+
+SHOW CREATE TABLE date_table;
+SELECT * FROM date_table;
+CHECKSUM TABLE date_table;
+ALTER TABLE date_table ENGINE = InnoDB;
+SHOW CREATE TABLE date_table;
+CHECKSUM TABLE date_table;
+ALTER TABLE date_table ENGINE = DUCKDB;
+SHOW CREATE TABLE date_table;
+CHECKSUM TABLE date_table;
+ALTER TABLE date_table ENGINE = DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE date_table;
+CHECKSUM TABLE date_table;
+
+
+
+--echo #
+--echo # 6. test large field
+--echo #
+CREATE TABLE large_field_table1 ( 
+  id INT PRIMARY KEY, 
+  tiny_blob_field TINYBLOB,
+  blob_field BLOB,
+  medium_blob_field MEDIUMBLOB,
+  long_blob_field LONGBLOB
+) ENGINE=DUCKDB;
+INSERT INTO large_field_table1 values(1, 'a', 'b', 'ccc', repeat('d', 1024 * 1024));
+INSERT INTO large_field_table1 values(2, repeat('a', 255), repeat('b', 65535), repeat('c',16777215), repeat('d', 67108864));
+INSERT INTO large_field_table1 values(3, 'aa', 'bb', 'ccc', repeat('d', 1024 * 1024));
+INSERT INTO large_field_table1 values(4, repeat('a', 254), repeat('b', 65533), repeat('c',8000000), repeat('d', 67108864));
+INSERT INTO large_field_table1 values(5, 'aa', 'bb', 'ccc', repeat('d', 1024 * 1024));
+
+SHOW CREATE TABLE large_field_table1;
+CHECKSUM  TABLE large_field_table1;
+ALTER TABLE large_field_table1 ENGINE=INNODB;
+SHOW CREATE TABLE large_field_table1;
+CHECKSUM  TABLE large_field_table1;
+ALTER TABLE large_field_table1 ENGINE=DUCKDB;
+SHOW CREATE TABLE large_field_table1;
+CHECKSUM  TABLE large_field_table1;
+ALTER TABLE large_field_table1 ENGINE=DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE large_field_table1;
+CHECKSUM  TABLE large_field_table1;
+
+
+CREATE TABLE large_field_table2 ( 
+  id INT PRIMARY KEY,
+  bit_field BIT(64),
+  char_field CHAR(255), 
+  string_field VARCHAR(8192),
+  json_field JSON,
+  text_field TEXT
+) ENGINE=DUCKDB;
+SET @long_str = repeat('a',67107864);
+SET @json_val = JSON_OBJECT('key1', 'static_value', 'key2', @long_str);
+INSERT INTO large_field_table2 values(1, X'ff', 'aaa', 'bbbbb', '{"country": "USA", "states": 50}', 'eeeee');
+INSERT INTO large_field_table2 values(2, X'FFFFFFFFFFFFFFFF', repeat('C', 255), repeat('D',8192),  @json_val, repeat('E', 65535));
+INSERT INTO large_field_table2 values(3, X'ff', 'aaa', 'bbbbb', '{"country": "USA", "states": 50}', 'eeeee');
+INSERT INTO large_field_table2 values(4, X'FFFFFFFFFFFFFFFF', repeat('w', 255), repeat('v',4096),  @json_val, repeat('o', 65535));
+INSERT INTO large_field_table2 values(5, X'ff', 'aaa', 'bbbbb', '{"country": "USA", "states": 50}', 'eeeee');
+
+SHOW CREATE TABLE large_field_table2;
+CHECKSUM  TABLE large_field_table2;
+ALTER TABLE large_field_table2 ENGINE=INNODB;
+SHOW CREATE TABLE large_field_table2;
+CHECKSUM  TABLE large_field_table2;
+ALTER TABLE large_field_table2 ENGINE=DUCKDB;
+SHOW CREATE TABLE large_field_table2;
+CHECKSUM  TABLE large_field_table2;
+ALTER TABLE large_field_table2 ENGINE=DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE large_field_table2;
+CHECKSUM  TABLE large_field_table2;
+
+
+--echo #
+--echo # 7. test CHECKSUM
+--echo # special case: when NULL in fields with default value
+--echo #
+CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  `c2` decimal(5,2) DEFAULT NULL,
+  `c3` datetime DEFAULT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
+  `c5` blob,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+
+CREATE TABLE `t2` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  `c2` decimal(5,2) DEFAULT NULL,
+  `c3` datetime DEFAULT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
+  `c5` blob,
+  PRIMARY KEY (`id`)
+) ENGINE=DuckDB;
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES (1, 'abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+INSERT INTO t2 (id, c0, c1, c2, c3, c4, c5) VALUES (1, 'abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+
+CHECKSUM TABLE t1;
+CHECKSUM TABLE t2;
+
+
+SET @long_str = NULL;
+SET @json_val = NULL;
+DROP DATABASE IF EXISTS alter_engine_test;

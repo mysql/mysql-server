@@ -1,0 +1,20 @@
+# name: test/sql/subquery/scalar/test_correlated_subquery_where.test
+# description: Test correlated subqueries in WHERE clause
+# group: [scalar]
+
+statement ok
+CREATE TABLE test AS FROM VALUES (1, 22), (1, 21), (2, 22) v(id, b);
+
+# correlated subquery with one correlated expression
+query II rowsort
+SELECT * FROM test WHERE b=(SELECT MIN(b) FROM test AS a WHERE a.id=test.id)
+----
+1	21
+2	22
+
+# correlated subquery with two correlated expressions
+query II rowsort
+SELECT * FROM test WHERE b=(SELECT MIN(b) FROM test AS a WHERE a.id=test.id AND a.id < test.b)
+----
+1	21
+2	22

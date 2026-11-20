@@ -1,0 +1,17 @@
+SET GLOBAL duckdb_copy_ddl_in_batch=ON;
+--source suite/duckdb/include/alter_engine_duckdb.inc
+
+SET GLOBAL duckdb_copy_ddl_in_batch=OFF;
+--source suite/duckdb/include/alter_engine_duckdb.inc
+
+# Test for temporary table
+CREATE TEMPORARY TABLE t1(id INT PRIMARY KEY) ENGINE = InnoDB;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t1 ENGINE = DuckDB;
+
+SET SESSION sql_mode = '';
+CREATE TEMPORARY TABLE t2(id INT PRIMARY KEY) ENGINE = DuckDB;
+--error ER_ILLEGAL_HA_CREATE_OPTION
+ALTER TABLE t2 ENGINE = DuckDB;
+
+SET GLOBAL duckdb_copy_ddl_in_batch=default;

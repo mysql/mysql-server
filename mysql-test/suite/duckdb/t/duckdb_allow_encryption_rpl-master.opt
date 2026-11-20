@@ -1,0 +1,2 @@
+--default-table-encryption=OFF
+--table-encryption-privilege-check=OFF

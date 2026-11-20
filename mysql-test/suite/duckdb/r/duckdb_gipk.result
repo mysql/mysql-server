@@ -1,0 +1,18 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# master create gipk , replication fail
+SET sql_generate_invisible_primary_key = ON;
+CREATE TABLE t1 (id int, n varchar(32)) ENGINE=innodb;
+DROP TABLE t1;
+include/rpl/wait_for_applier_error.inc [errno=7503]
+STOP REPLICA;
+RESET REPLICA;
+include/rpl/reset.inc
+include/rpl/deinit.inc
+CALL mtr.add_suppression("Replica SQL for channel.*DuckDB table structure is invalid. Reason: invisible column is not supported.*");
+CALL mtr.add_suppression("Replica SQL for channel.*The replica coordinator and worker threads are stopped.*");
+CALL mtr.add_suppression("Replica SQL for channel.*Unknown table.*");
+CALL mtr.add_suppression("Replica SQL for channel.*The replica coordinator and worker threads are stopped, possibly leaving data in inconsistent state.*");

@@ -99,6 +99,8 @@
 #include "thr_lock.h"  // thr_lock_type
 #include "violite.h"   // SSL_type
 
+#include "sql/duckdb/duckdb_table.h"
+
 class Alter_info;
 class Event_parse_data;
 class Field;
@@ -4935,6 +4937,48 @@ struct LEX : public Query_tables_list {
   void set_rewrite_required() { rewrite_required = true; }
   void reset_rewrite_required() { rewrite_required = false; }
   bool is_rewrite_required() { return rewrite_required; }
+
+  /** Check table engine type in entire statement. */
+  void check_table_engine_type(bool &exist_duckdb_table,
+                               bool &exist_other_table,
+                               Table_ref **non_duckdb_table,
+                               Table_ref **duckdb_table) {
+    for (Table_ref *table_ref = query_tables; table_ref != nullptr;
+         table_ref = table_ref->next_global) {
+      // TODO : view process
+      if (myduck::is_duckdb_table(table_ref->table)) {
+        exist_duckdb_table = true;
+        *duckdb_table = table_ref;
+      } else if (!table_ref->is_derived() &&
+                 !table_ref->is_recursive_reference() &&
+                 !table_ref->is_view()) {
+        exist_other_table = true;
+        *non_duckdb_table = table_ref;
+      }
+    }
+  }
+
+  /** Check table engine type in SELECT clause only. */
+  inline void check_table_engine_type_in_select(bool &exist_duckdb_table,
+                                                bool &exist_other_table) {
+    for (Query_block *qb = all_query_blocks_list; qb != nullptr;
+         qb = qb->next_select_in_list()) {
+      for (Table_ref *table_ref = qb->leaf_tables; table_ref != nullptr;
+           table_ref = table_ref->next_leaf) {
+        if (myduck::is_duckdb_table(table_ref->table)) {
+          exist_duckdb_table = true;
+        } else if (!table_ref->is_derived() &&
+                   !table_ref->is_recursive_reference()) {
+          exist_other_table = true;
+        }
+      }
+    }
+  }
+
+ public:
+  bool use_duckdb_computation_engine{false};
+  /** When this parameter is true, we will not perform any SQL rewrite. */
+  bool optimizer_rewrite_enabled{false};
 };
 
 /**

@@ -1,0 +1,24 @@
+--source include/have_binlog_format_mixed.inc
+--let $rpl_topology = 1->2
+--source include/rpl/init.inc
+
+CREATE DATABASE db1;
+# temp is special for duckdb, select from temp.t1 is not allowed
+CREATE DATABASE temp;
+CREATE TABLE db1.t1(c1 INT PRIMARY KEY, c2 VARCHAR(100)) ENGINE = DuckDB;
+CREATE TABLE temp.t2(c1 INT PRIMARY KEY, c2 VARCHAR(100)) ENGINE = DuckDB;
+INSERT INTO db1.t1 VALUES(1, "1"), (2, "2"), (3, "3"), (4, "4");
+
+USE db1;
+
+DELETE FROM t1 WHERE c1=1;
+
+INSERT INTO temp.t2 VALUES(1, "1"), (2, "2"), (3, "3"), (4, "4");
+
+DELETE FROM t1 WHERE c1=2;
+
+DROP DATABASE db1;
+DROP DATABASE temp;
+
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

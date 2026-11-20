@@ -1,0 +1,105 @@
+# name: test/sql/function/list/lambdas/list_comprehension.test
+# description: Test different examples that can be found when searching for python list comprehension examples
+# group: [lambdas]
+
+statement ok
+SET lambda_syntax='DISABLE_SINGLE_ARROW'
+
+query I
+SELECT list_transform(list_filter([0, 1, 2, 3, 4, 5], lambda x: x % 2 = 0), lambda y: y * y)
+----
+[0, 4, 16]
+
+query I
+SELECT [x * x for x in [0, 1, 2, 3, 4, 5] if x%2=0]
+----
+[0, 4, 16]
+
+query I
+SELECT list_filter(list_filter([2, 4, 3, 1, 20, 10, 3, 30], lambda x: x % 2 == 0), lambda y: y % 5 == 0)
+----
+[20, 10, 30]
+
+query I
+SELECT [x for x in [x for x in [2, 4, 3, 1, 20, 10, 3, 30] if x % 2 == 0] if x % 5 == 0]
+----
+[20, 10, 30]
+
+query I
+SELECT list_filter(['apple', 'banana', 'cherry', 'kiwi', 'mango'], lambda fruit: contains(fruit, 'a'))
+----
+[apple, banana, mango]
+
+query I
+SELECT [fruit for fruit in ['apple', 'banana', 'cherry', 'kiwi', 'mango'] if contains(fruit, 'a')]
+----
+[apple, banana, mango]
+
+statement ok
+CREATE TABLE fruit_tbl AS SELECT ['apple', 'banana', 'cherry', 'kiwi', 'mango'] fruits
+
+query I
+SELECT [fruit for fruit in fruits if contains(fruit, 'a')] FROM fruit_tbl
+----
+[apple, banana, mango]
+
+query I
+SELECT list_transform([[1, NULL, 2], [3, NULL]], lambda a: list_filter(a, lambda x: x IS NOT NULL))
+----
+[[1, 2], [3]]
+
+query I
+SELECT [len(x) for x in ['goodbye', 'cruel', 'world']]
+----
+[7, 5, 5]
+
+statement ok
+CREATE TABLE word_tbl AS SELECT ['goodbye', 'cruel', 'world'] words
+
+query I
+SELECT [len(x) for x in words] FROM word_tbl
+----
+[7, 5, 5]
+
+query I
+WITH BASE AS (SELECT [4, 5, 6] AS l)
+SELECT [x for x, i in l if i != 2] AS filtered FROM base;
+----
+[4, 6]
+
+query I
+SELECT [x + i for x, i in [10, 9, 8, 7, 6]]
+----
+[11, 11, 11, 11, 11]
+
+query I
+WITH BASE AS (SELECT [4, 5, 6] AS l)
+SELECT [x + 5 for x in l] AS filtered FROM base;
+----
+[9, 10, 11]
+
+statement error
+SELECT [a for a, b, c in [1, 2, 3]];
+----
+This lambda function only supports up to two lambda parameters!
+
+statement error
+SELECT [a for a[1], b[2] in [1, 2, 3, 4]];
+----
+Parser Error: syntax error at or near "["
+
+query I
+SELECT [i FOR x, i IN [4, 5, 6] IF x > 5];
+----
+[3]
+
+query I
+SELECT [x FOR x IN [4, 5, 6] IF x > 5];
+----
+[6]
+
+query I
+SELECT [i FOR x, i IN [4, 5, 6] IF i % 2 = 0];
+----
+[2]
+

@@ -1,0 +1,90 @@
+-- source include/have_debug.inc
+
+--disable_ps_protocol
+
+connection default;
+
+create user 'u0'@'%';
+grant all privileges on mysql.* to 'u0' @'%';
+
+connect(con_u0, localhost, u0,,);
+connect(con_root,localhost, root,,);
+
+
+
+#
+# Super acl account
+#
+connection con_root;
+
+call mysql.dummy();
+
+delimiter $$;
+
+--error ER_SP_ALREADY_EXISTS
+ CREATE PROCEDURE mysql.dummy()
+ BEGIN
+    select sleep(1);
+ END$$
+delimiter ;$$
+
+--error ER_SP_DOES_NOT_EXIST
+drop procedure mysql.dummy;
+
+--error ER_SP_WRONG_NO_OF_ARGS
+call mysql.dummy(1);
+
+
+call mysql.dummy_2(1, 'xpchild');
+
+--error ER_NATIVE_PROC_PARAMETER_MISMATCH
+call mysql.dummy_2(1, 1);
+
+--error ER_NATIVE_PROC_PARAMETER_MISMATCH
+call mysql.dummy_2("xpchild", 1);
+
+
+
+#
+# normal account
+#
+
+connection con_u0;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+call mysql.dummy();
+
+delimiter $$;
+
+--error ER_SP_ALREADY_EXISTS
+ CREATE PROCEDURE mysql.dummy()
+ BEGIN
+    select sleep(1);
+ END$$
+delimiter ;$$
+
+--error ER_SP_DOES_NOT_EXIST
+drop procedure mysql.dummy;
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+call mysql.dummy(1);
+
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+call mysql.dummy_2(1, 'xpchild');
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+call mysql.dummy_2(1, 1);
+
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+call mysql.dummy_2("xpchild", 1);
+
+
+
+connection default;
+drop user 'u0'@'%';
+
+disconnect con_u0;
+disconnect con_root;
+
+--enable_ps_protocol

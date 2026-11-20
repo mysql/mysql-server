@@ -1,0 +1,52 @@
+# name: test/sql/index/art/types/test_art_varchar.test
+# description: Test ART VARCHAR keys.
+# group: [types]
+
+statement ok
+CREATE TABLE strings(i varchar);
+
+statement ok
+CREATE INDEX i_index ON strings(i);
+
+statement ok
+INSERT INTO strings VALUES ('test'), ('test1'), ('vest1'), ('somesuperbigstring'), ('somesuperbigstring1'),
+	('somesuperbigstring2'), ('somesuperbigstring'), ('maybesomesuperbigstring'),
+	('maybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstring'),
+	('maybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstring2');
+
+query I
+SELECT COUNT(i) FROM strings WHERE i = 'test';
+----
+1
+
+query I
+SELECT COUNT(i) FROM strings WHERE i = 'somesuperbigstring';
+----
+2
+
+query I
+SELECT COUNT(i) FROM strings WHERE i = 'maybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstring';
+----
+1
+
+query I
+SELECT COUNT(i) FROM strings WHERE i = 'maybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstringmaybesomesuperbigstring2';
+----
+1
+
+query I
+SELECT COUNT(i) FROM strings WHERE i >= 'somesuperbigstring' and i <='somesuperbigstringz';
+----
+4
+
+query I
+SELECT COUNT(i) FROM strings WHERE i = 'somesuperthisdoesnotexist';
+----
+0
+
+statement ok
+DROP INDEX i_index;
+
+statement ok
+DROP TABLE strings;
+

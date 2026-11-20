@@ -1,0 +1,240 @@
+{
+  "target": {
+    "branch": "trunk",
+    "base": "3b99be40f8a31d9396cad10accfd3ba51647d613",
+    "mysql_version": "26.10.0"
+  },
+  "ordered_sources": [
+    {
+      "branch": "mysql_duckdb_new",
+      "source_tip": "99b28ae9f45ee08bca7187443a755e639dd86ee6",
+      "feature_snapshot": "395d6fb2ac730329e5d80ea3b6a6c4885828f15d",
+      "diff_base": "153abc27b7dda30b455c0d99e657dac4e39e3505",
+      "port_commit": "d4aea0abc26e74d8db82289096490ec9793f7db5"
+    },
+    {
+      "branch": "port-duckdb-from-rds-mysql80-20260326-clean",
+      "source_tip": "9184e1504fa0ffed56146fb89d2b7f20cdb585fb",
+      "diff_base": "99b28ae9f45ee08bca7187443a755e639dd86ee6",
+      "port_commit": "5c44102d95a48fd0395d48878bddcfec72fb3f68"
+    },
+    {
+      "branch": "port-duckdb-from-rds-mysql80-20261011-clean",
+      "source_tip": "32c769d0b39fe44d4e90310c5c45de71b7dff738",
+      "diff_base": "9e121f27d404cad6cdb1cc695eab4276469adace"
+    }
+  ],
+  "master_audit": {
+    "reference": "9e121f27d404cad6cdb1cc695eab4276469adace",
+    "duckdb_binlog_functions_unchanged_since_second_source": {
+      "duckdb_commit": true,
+      "duckdb_binlog_rotate": true,
+      "duckdb_binlog_init": true,
+      "duckdb_recover": true
+    },
+    "additional_support_fixes": [
+      "Prepare native DuckDB procedures through SQLCOM_ADMIN_PROC.",
+      "Check native-procedure access before parameters."
+    ],
+    "scope": "Port DuckDB functionality and dependencies; retain target trunk implementations for unrelated features.",
+    "missing_source_module_files": [],
+    "source_module_file_count": 35
+  },
+  "embedded_duckdb": {
+    "source_revision": "8a66223119b16000f3814fa7150cfa7370b63209",
+    "git_describe": "v1.5.1-736-g8a66223119",
+    "source_tree": "1e844fdd6729e3039bde927aa74cb8cdaf5c0a30",
+    "byte_identical_to_source_branch": true,
+    "build": "Out-of-source ExternalProject using the selected MySQL compiler; bundle all static extensions with the generated loader, excluding the dummy loader."
+  },
+  "independent_changes_excluded": [
+    "AliSQL vector indexes and vector dictionary upgrades",
+    "Native Flashback",
+    "Generic Binlog Cache Free Flush and Persist Binlog Into Redo",
+    "AliSQL release packaging, CI and branding",
+    "Independent sql-safe-updates command-line extension"
+  ],
+  "trunk_adaptations": [
+    {
+      "area": "Binlog and GTID",
+      "changes": [
+        "Move integration to mysql::binlog::event.",
+        "Preserve tagged TSIDs, insert-only flags and GTID ownership.",
+        "Retain required map locking.",
+        "Preserve cascade-trigger status and extend maximum event-status length."
+      ],
+      "regressions": [
+        "duckdb_rpl.trunk_tagged_gtid_batch",
+        "LogEventStatusSizeTest.LogEventBoundaryConditions"
+      ]
+    },
+    {
+      "area": "Batch replication",
+      "changes": [
+        "One configured worker selects the existing serial coordinator path for DuckDB multi-transaction batching.",
+        "Reject larger effective worker counts at channel startup after replication services initialize.",
+        "Preserve native worker-count rules outside DuckDB batching."
+      ]
+    },
+    {
+      "area": "DDL and resources",
+      "changes": [
+        "Use schema names in storage-engine drop-database callbacks.",
+        "Release dictionary objects before their metadata locks.",
+        "Release histogram references held by parallel COPY DDL worker tables.",
+        "Preserve trunk canonical FIL cache naming during rollback."
+      ]
+    },
+    {
+      "area": "Expressions and protocol",
+      "changes": [
+        "Retain trunk optimizer and prepared-statement execution loops.",
+        "Gate native query transformations for DuckDB normalization.",
+        "Use Date_val, Datetime_val and Time_val APIs.",
+        "Convert timestamp-valued TIME results before encoding.",
+        "Rewrite zero DATE literals in Boolean normalization.",
+        "Report native-procedure parameter errors with correct format arguments."
+      ]
+    },
+    {
+      "area": "Tests",
+      "changes": [
+        "Use native replication helper paths with matching save/sync semantics and Source/Replica status columns.",
+        "Use explicit reconnection and component_keyring_file local manifests.",
+        "Reflect native warnings, foreign-key event flags, event lengths and floating AUTO_INCREMENT rejection.",
+        "Replace removed MD5 test expressions with length checks while retaining full CHECKSUM TABLE assertions; preserve binary input bytes."
+      ]
+    }
+  ],
+  "verification": {
+    "status": "passed",
+    "build": "GCC12.3.0 / CMake3.26.5 / Ninja Debug; final all-target build passed after clang-format15 formatting.",
+    "ctest": "All 10 selected targets passed, including the merged small and 2134-case large suites.",
+    "duckdb_test_collection": 142,
+    "unchanged_source_todo_skips": {
+      "duckdb.create": "Pre-existing experimental copy of generic MySQL8.0 create tests (2370 lines), marked PRIMARY KEY TO FIX.",
+      "duckdb.bugfix_crash_after_commit_error": "Pre-existing duplicate-key TODO; active duckdb_commit_failed covers commit-failure recovery."
+    },
+    "log_directory": "../mysql-duckdb-port-20261022",
+    "pending": [],
+    "formatting": {
+      "tool": "clang-format 15.0.7",
+      "checked_project_files": 164,
+      "failures": 0,
+      "vendor": "Excluded from MySQL formatting; source tree hash verified by CI."
+    },
+    "persistable_variable_count": 492,
+    "ci_integrity": "Formatting workflow excludes only the pinned embedded DuckDB archive and checks its Git tree hash; local YAML, shell and snapshot checks passed.",
+    "final_mtr_runs": {
+      "native": {
+        "log": "mtr-final-native.log",
+        "executed_checks_including_shutdown": 29,
+        "record_mode": false,
+        "result": "passed"
+      },
+      "duckdb": {
+        "log": "mtr-final-duckdb.log",
+        "executed_checks_including_shutdown": 139,
+        "record_mode": false,
+        "result": "passed"
+      },
+      "mixed": {
+        "log": "mtr-final-mixed-verified.log",
+        "executed_checks_including_shutdown": 3,
+        "record_mode": false,
+        "result": "passed"
+      }
+    },
+    "duckdb_enabled_cases_passed": 140,
+    "duckdb_source_todo_cases_skipped": 2,
+    "native_executed_checks_including_shutdown": 29,
+    "ctest_log": "ctest-final.log",
+    "all_target_build_log": "build-final.log"
+  },
+  "post_port_cleanup": {
+    "date": "2026-10-26",
+    "base_commit": "5b2cf3ace73dbb771a288b41a92a81194214f814",
+    "changes": [
+      "Share replication table setup and typed DML across seven batch cases, preserving synchronization, binlog rotation and all assertions.",
+      "Check ROW format and Debug prerequisites before initializing the replication topology.",
+      "Remove the header-level using-directive, use explicit im qualifiers, override/default and nullptr, and correct copied procedure comments.",
+      "Run the embedded DuckDB CI snapshot check in the source checkout and trigger it for snapshot, audit and workflow changes."
+    ],
+    "test_refactor": {
+      "cases_updated": 7,
+      "shared_includes_added": 3,
+      "source_lines_before": 882,
+      "source_lines_after_including_shared_includes": 801,
+      "suite_case_count_unchanged": 142,
+      "expected_result_files_changed": false,
+      "procedure_interface_preserved": "CALL dbms_duckdb.query(sql)"
+    },
+    "verification": {
+      "status": "passed",
+      "artifact_directory": "/data/huaxiong.shx/code/tmp/mysql-duckdb-cleanup-20261026",
+      "all_target_debug_build_log": "build-debug.log",
+      "mtr_logs": [
+        "mtr-duckdb.log",
+        "mtr-mixed.log",
+        "mtr-native.log"
+      ],
+      "duckdb_unique_enabled_cases_passed": 140,
+      "native_cases_passed": 3,
+      "source_todo_skips_unchanged": 2,
+      "format_files_checked": 164,
+      "vendor_snapshot_unchanged": true,
+      "workflow_snapshot_step": "locally verified"
+    }
+  },
+  "initialization_and_build_isolation": {
+    "date": "2026-10-26",
+    "status": "passed",
+    "initialization": {
+      "synchronization": "All initialization-state checks use the manager mutex.",
+      "publication": "Publish the owned database only after timezone and UDF initialization succeeds.",
+      "ownership": "unique_ptr cleans up an unsuccessful initialization before another connection can retry.",
+      "regression": "duckdb.concurrent_initialization"
+    },
+    "build_isolation": {
+      "option": "WITH_DUCKDB_STORAGE_ENGINE",
+      "linux_server_default": "ON",
+      "other_platform_default": "OFF; explicit ON rejected for unsupported server platforms",
+      "clients_only": "No embedded DuckDB dependency, even when the option is ON",
+      "disabled": "No vendor project, backend archive/plugin, backend include directory, native query procedure or DuckDB variables",
+      "includes": "Backend headers propagate through server target dependencies, not global include directories",
+      "regression": "main.duckdb_build_disabled",
+      "documentation": "Docs/README.duckdb"
+    },
+    "metadata_tests": {
+      "duckdb_catalogue_names": 46,
+      "generic_help_and_variable_checks": "Independent of optional DuckDB entries; names checked by duckdb.variables_catalog",
+      "strict_persisted_variable_counts": {
+        "ON": 492,
+        "OFF": 452
+      },
+      "engine_dependent_cases": "Capability guards and loose startup options allow an OFF build to skip them"
+    },
+    "verification": {
+      "artifact_directory": "/data/huaxiong.shx/code/tmp/mysql-duckdb-init-build-20261026",
+      "report": "verification.json",
+      "linux_debug_all_target_builds": [
+        "ON",
+        "OFF"
+      ],
+      "on_off_on_configuration_toggle": "passed",
+      "clients_only_configuration": "passed; server unit tests disabled",
+      "manager_ndebug_compile": "passed; translation unit only",
+      "duckdb_unique_enabled_cases_passed": 142,
+      "unchanged_source_todo_skips": 2,
+      "native_checks_including_shutdown": {
+        "ON": 29,
+        "OFF": 19,
+        "OFF_metadata": 7
+      },
+      "ctest_targets_per_configuration": 10,
+      "project_cpp_format_files_checked": 164,
+      "disabled_binary_defined_duckdb_namespace_symbols": 0,
+      "vendor_snapshot_unchanged": true
+    }
+  }
+}

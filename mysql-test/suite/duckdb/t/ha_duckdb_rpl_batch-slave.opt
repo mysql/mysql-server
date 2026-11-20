@@ -1,0 +1,2 @@
+--skip-log-bin
+--debug=+d,duckdb_print_dml

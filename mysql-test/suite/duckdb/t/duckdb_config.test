@@ -1,0 +1,290 @@
+--echo #
+--echo # 1) duckdb_mode
+--echo #
+SELECT @@global.duckdb_mode;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.duckdb_mode;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL duckdb_mode = 'NONE';
+
+--let restart_parameters="restart: --duckdb_mode=NONE"
+--source include/restart_mysqld.inc
+--echo # create table is not allowed when duckdb_mode is 'NONE'
+--error ER_DISABLED_STORAGE_ENGINE
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=duckdb;
+
+--echo # alter to duckdb is not allowed when duckdb_mode is 'NONE'
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=innodb;
+--error ER_DISABLED_STORAGE_ENGINE
+ALTER TABLE t1 ENGINE=duckdb;
+DROP TABLE t1;
+
+--let restart_parameters="restart: --duckdb_mode=ON"
+--source include/restart_mysqld.inc
+
+--echo # create table is allowed when duckdb_mode is 'ON'
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=duckdb;
+DROP TABLE t1;
+
+--echo # alter to duckdb is allowed when duckdb_mode is 'ON'
+CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=innodb;
+ALTER TABLE t1 ENGINE=duckdb;
+DROP TABLE t1;
+
+
+--echo #
+--echo # 2) duckdb_memory_limit
+--echo #
+SELECT @@global.duckdb_memory_limit;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.duckdb_memory_limit;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL duckdb_memory_limit = '1GB';
+
+SET GLOBAL duckdb_memory_limit = 1048576; # 1MB
+call dbms_duckdb.query("SELECT current_setting('memory_limit') AS memlimit");
+
+SET GLOBAL duckdb_memory_limit = 0;
+
+SET GLOBAL duckdb_memory_limit = 1048576*1024*1024; # 1TB
+call dbms_duckdb.query("SELECT current_setting('memory_limit') AS memlimit");
+
+SET GLOBAL duckdb_memory_limit = DEFAULT;
+
+
+--echo #
+--echo # 3) duckdb_temp_directory
+--echo #
+SELECT @@global.duckdb_temp_directory;
+--LET DATADIR = `select @@datadir`
+--let DIR_MASK = /$DATADIR\//MYSQLD_DATADIR\//
+
+--replace_regex /.*mysqld.1/DATADIR/
+call dbms_duckdb.query("SELECT current_setting('temp_directory') AS temp_directory");
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.duckdb_temp_directory;
+
+# read-only
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL duckdb_temp_directory = '/tmp';
+
+
+--echo #
+--echo # 4) duckdb_max_temp_directory_size
+--echo #
+SELECT @@global.duckdb_max_temp_directory_size;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.duckdb_max_temp_directory_size;
+
+call dbms_duckdb.query("SELECT current_setting('max_temp_directory_size') AS max_temp_directory_size");
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL duckdb_max_temp_directory_size = '1GB';
+SET GLOBAL duckdb_max_temp_directory_size = 1048576;
+call dbms_duckdb.query("SELECT current_setting('max_temp_directory_size') AS max_temp_directory_size");
+SET GLOBAL duckdb_max_temp_directory_size = 0;
+--replace_column 1 MAX_TEMP_DIRECTORY_SIZE
+call dbms_duckdb.query("SELECT current_setting('max_temp_directory_size') AS max_temp_directory_size");
+SET GLOBAL duckdb_max_temp_directory_size = 1048576*1024*1024; # 1TB
+call dbms_duckdb.query("SELECT current_setting('max_temp_directory_size') AS max_temp_directory_size");
+SET GLOBAL duckdb_max_temp_directory_size = DEFAULT;
+
+--echo #
+--echo # 5) duckdb_threads
+--echo #
+SELECT @@global.duckdb_threads;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.duckdb_threads;
+
+--error ER_WRONG_TYPE_FOR_VAR
+SET GLOBAL duckdb_threads = 'a';
+
+SET GLOBAL duckdb_threads = 16;
+call dbms_duckdb.query("SELECT current_setting('threads') AS threads");
+
+SET GLOBAL duckdb_threads = 0;
+
+SET GLOBAL duckdb_threads = 1024;
+call dbms_duckdb.query("SELECT current_setting('threads') AS threads");
+
+--let $restart_parameters = "restart: --duckdb_threads=8"
+--source include/restart_mysqld.inc
+SELECT @@global.duckdb_threads;
+call dbms_duckdb.query("SELECT current_setting('threads') AS threads");
+
+SET GLOBAL duckdb_threads = DEFAULT;
+
+
+--echo #
+--echo # 6) duckdb_use_direct_io
+--echo #
+SELECT @@global.duckdb_use_direct_io;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.duckdb_use_direct_io;
+
+# read-only
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET GLOBAL duckdb_use_direct_io = ON;
+
+CREATE TABLE t1 (id int primary key) engine = duckdb;
+
+--let $restart_parameters = restart: --duckdb_use_direct_io=OFF
+--source include/restart_mysqld.inc
+
+--let $restart_parameters = restart:
+--source include/restart_mysqld.inc
+
+DROP TABLE t1;
+
+--echo #
+--echo # 7) duckdb_disabled_optimizers
+--echo #
+
+CREATE TABLE t1 (id int primary key) engine = duckdb;
+CALL dbms_duckdb.query('SELECT current_setting(\'disabled_optimizers\');');
+SET duckdb_disabled_optimizers = 'JOIN_ORDER,BUILD_SIDE_PROBE_SIDE';
+SELECT * FROM t1;
+CALL dbms_duckdb.query('SELECT current_setting(\'disabled_optimizers\');');
+SET duckdb_disabled_optimizers = 'CTE_INLINING,ROW_GROUP_PRUNER,TOP_N_WINDOW_ELIMINATION,COMMON_SUBPLAN,JOIN_ELIMINATION,WINDOW_SELF_JOIN';
+SELECT * FROM t1;
+CALL dbms_duckdb.query('SELECT current_setting(\'disabled_optimizers\');');
+SET duckdb_disabled_optimizers = '';
+SELECT * FROM t1;
+CALL dbms_duckdb.query('SELECT current_setting(\'disabled_optimizers\');');
+DROP TABLE t1;
+
+
+--echo #
+--echo # 8) duckdb_scheduler_process_partial
+--echo #
+SELECT @@global.duckdb_scheduler_process_partial;
+
+let $restart_parameters= restart: --duckdb_scheduler_process_partial=OFF;
+--source include/restart_mysqld.inc
+call dbms_duckdb.query("SELECT current_setting('scheduler_process_partial') AS scheduler_process_partial");
+SELECT @@global.duckdb_scheduler_process_partial;
+
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.duckdb_scheduler_process_partial;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION duckdb_scheduler_process_partial = ON;
+
+SET GLOBAL duckdb_scheduler_process_partial = ON;
+call dbms_duckdb.query("SELECT current_setting('scheduler_process_partial') AS scheduler_process_partial");
+
+SET GLOBAL duckdb_scheduler_process_partial = OFF;
+call dbms_duckdb.query("SELECT current_setting('scheduler_process_partial') AS scheduler_process_partial");
+
+SET GLOBAL duckdb_scheduler_process_partial = DEFAULT;
+
+
+--echo #
+--echo # 9) use db should not fail sql execution
+--echo #
+
+CREATE DATABASE test2;
+CREATE TABLE test.t1 (a int primary key) engine=duckdb;
+
+--connect(con1,localhost,root)
+--connection con1
+USE test2;
+
+--connection default
+DROP DATABASE test2;
+
+# here duckdb execute USE test2 and fail, but the query should not fail
+--connection con1
+SELECT * FROM test.t1;
+
+--connection default
+--disconnect con1
+
+DROP TABLE test.t1;
+
+--echo #
+--echo # 10) duckdb_merge_join_threshold
+--echo #
+
+CREATE TABLE t1 (id int primary key) engine=duckdb;
+CALL dbms_duckdb.query("SELECT current_setting('merge_join_threshold')");
+SET duckdb_merge_join_threshold = 1000;
+
+SELECT * FROM t1;
+CALL dbms_duckdb.query("SELECT current_setting('merge_join_threshold')");
+
+SET duckdb_merge_join_threshold = 4611686018427387904;
+SELECT * FROM t1;
+CALL dbms_duckdb.query("SELECT current_setting('merge_join_threshold')");
+DROP TABLE t1;
+
+--echo #
+--echo # 11) duckdb_checkpoint_threshold
+--echo #
+
+SELECT @@global.duckdb_checkpoint_threshold;
+call dbms_duckdb.query("SELECT current_setting('checkpoint_threshold') AS checkpoint_threshold");
+
+--let restart_parameters="restart: --duckdb_checkpoint_threshold=4096"
+--source include/restart_mysqld.inc
+call dbms_duckdb.query("SELECT current_setting('checkpoint_threshold') AS checkpoint_threshold");
+SELECT @@global.duckdb_checkpoint_threshold;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@session.duckdb_checkpoint_threshold;
+
+--error ER_GLOBAL_VARIABLE
+SET SESSION duckdb_checkpoint_threshold = 2048;
+
+SET GLOBAL duckdb_checkpoint_threshold = 8192;
+call dbms_duckdb.query("SELECT current_setting('checkpoint_threshold') AS checkpoint_threshold");
+
+SET GLOBAL duckdb_checkpoint_threshold = 0;
+call dbms_duckdb.query("SELECT current_setting('checkpoint_threshold') AS checkpoint_threshold");
+
+SET GLOBAL duckdb_checkpoint_threshold = DEFAULT;
+
+--echo #
+--echo # 12) duckdb_max_threads_per_query
+--echo #
+
+CREATE TABLE t1 (id int primary key) engine=duckdb;
+
+CALL dbms_duckdb.query("SELECT current_setting('max_threads_per_query')");
+
+SET duckdb_max_threads_per_query = 1000;
+SELECT * FROM t1;
+CALL dbms_duckdb.query("SELECT current_setting('max_threads_per_query')");
+# cannot be set to 0
+SET duckdb_max_threads_per_query = 0;
+SELECT * FROM t1;
+CALL dbms_duckdb.query("SELECT current_setting('max_threads_per_query')");
+
+SET GLOBAL duckdb_max_threads_per_query = 8192;
+
+--let restart_parameters="restart: --duckdb_max_threads_per_query=1024"
+--source include/restart_mysqld.inc
+SELECT @@session.duckdb_max_threads_per_query;
+SELECT * FROM t1;
+CALL dbms_duckdb.query("SELECT current_setting('max_threads_per_query')");
+
+SET duckdb_max_threads_per_query = default;
+
+DROP TABLE t1;
+
+--echo #
+--echo # print all duckdb queries
+--echo #
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $grep_pattern=my_duckdb:.*SET GLOBAL.*
+# --replace_regex /.* my_duckdb: ' //
+--replace_regex /[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{6}[-+Z][0-9:]* *[0-9]*/--TIME--/
+--source include/grep_pattern.inc

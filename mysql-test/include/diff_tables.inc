@@ -205,7 +205,27 @@ while ($_dt_tables)
   }
   set @save_sbs = @@sort_buffer_size;
   set @@sort_buffer_size = 1048576;
-  --eval $statement
+  if (!$test_duckdb) {
+    --eval $statement
+  }
+  if ($test_duckdb) {
+    --let $_dt_socket= `SELECT @@socket`
+    --let _DT_QUERY_FILE= $_dt_outfile.sql
+    if ($mask_column_list) {
+      --let _DT_QUERY= SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ `$_dt_column_list` FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list`;
+    }
+    if (!$mask_column_list) {
+      --let _DT_QUERY= SELECT /*+SET_VAR(use_secondary_engine=OFF)*/ * FROM $_dt_database.$_dt_table ORDER BY `$_dt_column_list`;
+    }
+    # Pass SQL through a file so shell quoting cannot change identifiers.
+    --perl
+      open(my $query, '>', $ENV{'_DT_QUERY_FILE'}) or die $!;
+      print {$query} $ENV{'_DT_QUERY'}, "\n";
+      close($query) or die $!;
+EOF
+    --exec $MYSQL --protocol=socket --socket="$_dt_socket" --batch --skip-column-names < "$_DT_QUERY_FILE" > "$_dt_outfile"
+    --remove_file $_DT_QUERY_FILE
+  }
   set @@sort_buffer_size = @save_sbs;
 
   # Compare files.

@@ -1,0 +1,680 @@
+####################
+# TEST FOR INSTANT #
+####################
+#
+# 1) ADD non primary key will be ignore.
+#
+CREATE TABLE t(a INT, b INT, c INT, d INT, e INT, PRIMARY KEY(a) COMMENT 'primary key') ENGINE = DuckDB;
+ALTER TABLE t ADD UNIQUE KEY uk_b(b) COMMENT 'unique key b', ADD UNIQUE KEY uk_cd(c, d) COMMENT 'unique key cd', ADD INDEX ke(e) COMMENT 'index e', ALGORITHM = INSTANT;
+Warnings:
+Warning	7505	[DuckDB] Index 'uk_b' is removed.
+Warning	7505	[DuckDB] Index 'uk_cd' is removed.
+Warning	7505	[DuckDB] Index 'ke' is removed.
+CREATE UNIQUE INDEX uk_b ON t(b) COMMENT 'unique key b';
+Warnings:
+Warning	7505	[DuckDB] Index 'uk_b' is removed.
+CREATE UNIQUE INDEX uk_cd ON t(c, d) COMMENT 'unique key cd';
+Warnings:
+Warning	7505	[DuckDB] Index 'uk_cd' is removed.
+CREATE INDEX ke ON t(e) COMMENT 'index e';
+Warnings:
+Warning	7505	[DuckDB] Index 'ke' is removed.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY	primary key	0	a
+
+#
+# 2) Special indexes
+#
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b VARCHAR(10), c INT, d JSON, UNIQUE INDEX uk_a((ABS(a))), INDEX uk_d((CAST(CAST(d AS JSON) AS UNSIGNED ARRAY)))) ENGINE = DuckDB;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+
+# functional index is not supported.
+CREATE TABLE t(a INT, b INT, c INT, d INT, e INT, PRIMARY KEY(a) COMMENT 'primary key') ENGINE = DuckDB;
+ALTER TABLE t ADD INDEX uk_a((ABS(a))), ALGORITHM = INSTANT;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+CREATE UNIQUE INDEX uk_a ON t ((ABS(a)));
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+ALTER TABLE t ADD UNIQUE INDEX uk_d((CAST(CAST(d AS JSON) AS UNSIGNED ARRAY))), ALGORITHM = INSTANT;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+CREATE UNIQUE INDEX uk_d ON t ((CAST(CAST(d AS JSON) AS UNSIGNED ARRAY)));
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY	primary key	0	a
+
+
+# Spatial index is not supported for spatial types are not supported. 
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, c VARCHAR(10), d VARCHAR(10), e POINT, f POINT) ENGINE = DuckDB;
+ERROR 42000: The storage engine for the table doesn't support GEOMETRY
+
+# Fulltext index is ignored too.
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, c VARCHAR(10), d VARCHAR(10)) ENGINE = DuckDB;
+ALTER TABLE t ADD FULLTEXT INDEX idx_c(c) COMMENT 'index c', ALGORITHM = INSTANT;
+Warnings:
+Warning	7505	[DuckDB] Index 'idx_c' is removed.
+CREATE FULLTEXT INDEX idx_d ON t(d) COMMENT 'index d';
+Warnings:
+Warning	7505	[DuckDB] Index 'idx_d' is removed.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY		0	id
+
+
+# Foreign key is treated as normal index, which is ignored too.
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT) ENGINE = DuckDB;
+CREATE TABLE t2 LIKE t;
+ALTER TABLE t ADD FOREIGN KEY fk(b) REFERENCES t2(b), ALGORITHM = INSTANT;
+Warnings:
+Warning	7505	[DuckDB] Index '(null)' is removed.
+Warning	7505	[DuckDB] Index 'fk' is removed.
+Warning	7509	[DuckDB] 'ADD FOREIGN KEY' operation will not take effect.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY		0	id
+
+#
+# 3) Unsupported
+#
+
+# create table without primary key is not supported.
+DROP TABLE t;
+CREATE TABLE t (id INT, a INT, b INT) ENGINE = DuckDB;
+ERROR 42000: This table type requires a primary key
+
+# drop PK is not supported.
+CREATE TABLE t (a INT, b VARCHAR(10), c INT, PRIMARY KEY(a)) ENGINE = DuckDB;
+ALTER TABLE t DROP PRIMARY KEY, ALGORITHM = INSTANT;
+ERROR 42000: This table type requires a primary key
+DROP INDEX `PRIMARY` ON t;
+ERROR 42000: This table type requires a primary key
+ALTER TABLE t ENABLE KEYS, ALGORITHM = INSTANT;
+Warnings:
+Note	1031	Table storage engine for 't' doesn't have this option
+ALTER TABLE t DISABLE KEYS, ALGORITHM = INSTANT;
+Warnings:
+Note	1031	Table storage engine for 't' doesn't have this option
+#
+# 4) DESC, desc will be ignored by DuckDB
+#
+DROP TABLE t;
+CREATE TABLE t(id INT, name VARCHAR(255), PRIMARY KEY(id DESC)) ENGINE = DuckDB;
+ALTER TABLE t ADD INDEX idx(name DESC), ALGORITHM = INSTANT;
+Warnings:
+Warning	7505	[DuckDB] Index 'idx' is removed.
+INSERT INTO t VALUES(1, "1");
+INSERT INTO t VALUES(2, "2");
+SELECT * FROM t;
+id	name
+1	1
+2	2
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY		0	id
+
+#
+# 5) DROP PRIMARY KEY
+#
+DROP TABLE t;
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE = DuckDB;
+SET GLOBAL duckdb_require_primary_key = OFF;
+ALTER TABLE t DROP PRIMARY KEY, ALGORITHM = INSTANT;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+
+SET GLOBAL duckdb_require_primary_key = default;
+#
+# 6) Cleanup
+#
+DROP TABLE t, t2;
+####################
+# TEST FOR INPLACE #
+####################
+#
+# 1) ADD non primary key will be ignore.
+#
+CREATE TABLE t(a INT, b INT, c INT, d INT, e INT, PRIMARY KEY(a) COMMENT 'primary key') ENGINE = DuckDB;
+ALTER TABLE t ADD UNIQUE KEY uk_b(b) COMMENT 'unique key b', ADD UNIQUE KEY uk_cd(c, d) COMMENT 'unique key cd', ADD INDEX ke(e) COMMENT 'index e', ALGORITHM = INPLACE;
+Warnings:
+Warning	7505	[DuckDB] Index 'uk_b' is removed.
+Warning	7505	[DuckDB] Index 'uk_cd' is removed.
+Warning	7505	[DuckDB] Index 'ke' is removed.
+CREATE UNIQUE INDEX uk_b ON t(b) COMMENT 'unique key b';
+Warnings:
+Warning	7505	[DuckDB] Index 'uk_b' is removed.
+CREATE UNIQUE INDEX uk_cd ON t(c, d) COMMENT 'unique key cd';
+Warnings:
+Warning	7505	[DuckDB] Index 'uk_cd' is removed.
+CREATE INDEX ke ON t(e) COMMENT 'index e';
+Warnings:
+Warning	7505	[DuckDB] Index 'ke' is removed.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY	primary key	0	a
+
+#
+# 2) Special indexes
+#
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b VARCHAR(10), c INT, d JSON, UNIQUE INDEX uk_a((ABS(a))), INDEX uk_d((CAST(CAST(d AS JSON) AS UNSIGNED ARRAY)))) ENGINE = DuckDB;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+
+# functional index is not supported.
+CREATE TABLE t(a INT, b INT, c INT, d INT, e INT, PRIMARY KEY(a) COMMENT 'primary key') ENGINE = DuckDB;
+ALTER TABLE t ADD INDEX uk_a((ABS(a))), ALGORITHM = INPLACE;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+CREATE UNIQUE INDEX uk_a ON t ((ABS(a)));
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+ALTER TABLE t ADD UNIQUE INDEX uk_d((CAST(CAST(d AS JSON) AS UNSIGNED ARRAY))), ALGORITHM = INPLACE;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+CREATE UNIQUE INDEX uk_d ON t ((CAST(CAST(d AS JSON) AS UNSIGNED ARRAY)));
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY	primary key	0	a
+
+
+# Spatial index is not supported for spatial types are not supported. 
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, c VARCHAR(10), d VARCHAR(10), e POINT, f POINT) ENGINE = DuckDB;
+ERROR 42000: The storage engine for the table doesn't support GEOMETRY
+
+# Fulltext index is ignored too.
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, c VARCHAR(10), d VARCHAR(10)) ENGINE = DuckDB;
+ALTER TABLE t ADD FULLTEXT INDEX idx_c(c) COMMENT 'index c', ALGORITHM = INPLACE;
+Warnings:
+Warning	7505	[DuckDB] Index 'idx_c' is removed.
+CREATE FULLTEXT INDEX idx_d ON t(d) COMMENT 'index d';
+Warnings:
+Warning	7505	[DuckDB] Index 'idx_d' is removed.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY		0	id
+
+
+# Foreign key is treated as normal index, which is ignored too.
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT) ENGINE = DuckDB;
+CREATE TABLE t2 LIKE t;
+ALTER TABLE t ADD FOREIGN KEY fk(b) REFERENCES t2(b), ALGORITHM = INPLACE;
+Warnings:
+Warning	7505	[DuckDB] Index '(null)' is removed.
+Warning	7505	[DuckDB] Index 'fk' is removed.
+Warning	7509	[DuckDB] 'ADD FOREIGN KEY' operation will not take effect.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY		0	id
+
+#
+# 3) Unsupported
+#
+
+# create table without primary key is not supported.
+DROP TABLE t;
+CREATE TABLE t (id INT, a INT, b INT) ENGINE = DuckDB;
+ERROR 42000: This table type requires a primary key
+
+# drop PK is not supported.
+CREATE TABLE t (a INT, b VARCHAR(10), c INT, PRIMARY KEY(a)) ENGINE = DuckDB;
+ALTER TABLE t DROP PRIMARY KEY, ALGORITHM = INPLACE;
+ERROR 42000: This table type requires a primary key
+DROP INDEX `PRIMARY` ON t;
+ERROR 42000: This table type requires a primary key
+ALTER TABLE t ENABLE KEYS, ALGORITHM = INPLACE;
+Warnings:
+Note	1031	Table storage engine for 't' doesn't have this option
+ALTER TABLE t DISABLE KEYS, ALGORITHM = INPLACE;
+Warnings:
+Note	1031	Table storage engine for 't' doesn't have this option
+#
+# 4) DESC, desc will be ignored by DuckDB
+#
+DROP TABLE t;
+CREATE TABLE t(id INT, name VARCHAR(255), PRIMARY KEY(id DESC)) ENGINE = DuckDB;
+ALTER TABLE t ADD INDEX idx(name DESC), ALGORITHM = INPLACE;
+Warnings:
+Warning	7505	[DuckDB] Index 'idx' is removed.
+INSERT INTO t VALUES(1, "1");
+INSERT INTO t VALUES(2, "2");
+SELECT * FROM t;
+id	name
+1	1
+2	2
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY		0	id
+
+#
+# 5) DROP PRIMARY KEY
+#
+DROP TABLE t;
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE = DuckDB;
+SET GLOBAL duckdb_require_primary_key = OFF;
+ALTER TABLE t DROP PRIMARY KEY, ALGORITHM = INPLACE;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+
+SET GLOBAL duckdb_require_primary_key = default;
+#
+# 6) Cleanup
+#
+DROP TABLE t, t2;
+#################
+# TEST FOR COPY #
+#################
+#
+# 1) ADD non primary key will be ignore.
+#
+CREATE TABLE t(a INT, b INT, c INT, d INT, e INT, PRIMARY KEY(a) COMMENT 'primary key') ENGINE = DuckDB;
+ALTER TABLE t ADD UNIQUE KEY uk_b(b) COMMENT 'unique key b', ADD UNIQUE KEY uk_cd(c, d) COMMENT 'unique key cd', ADD INDEX ke(e) COMMENT 'index e', ALGORITHM = COPY;
+Warnings:
+Warning	7505	[DuckDB] Index 'uk_b' is removed.
+Warning	7505	[DuckDB] Index 'uk_cd' is removed.
+Warning	7505	[DuckDB] Index 'ke' is removed.
+CREATE UNIQUE INDEX uk_b ON t(b) COMMENT 'unique key b';
+Warnings:
+Warning	7505	[DuckDB] Index 'uk_b' is removed.
+CREATE UNIQUE INDEX uk_cd ON t(c, d) COMMENT 'unique key cd';
+Warnings:
+Warning	7505	[DuckDB] Index 'uk_cd' is removed.
+CREATE INDEX ke ON t(e) COMMENT 'index e';
+Warnings:
+Warning	7505	[DuckDB] Index 'ke' is removed.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY	primary key	0	a
+
+#
+# 2) Special indexes
+#
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b VARCHAR(10), c INT, d JSON, UNIQUE INDEX uk_a((ABS(a))), INDEX uk_d((CAST(CAST(d AS JSON) AS UNSIGNED ARRAY)))) ENGINE = DuckDB;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+
+# functional index is not supported.
+CREATE TABLE t(a INT, b INT, c INT, d INT, e INT, PRIMARY KEY(a) COMMENT 'primary key') ENGINE = DuckDB;
+ALTER TABLE t ADD INDEX uk_a((ABS(a))), ALGORITHM = COPY;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+CREATE UNIQUE INDEX uk_a ON t ((ABS(a)));
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+ALTER TABLE t ADD UNIQUE INDEX uk_d((CAST(CAST(d AS JSON) AS UNSIGNED ARRAY))), ALGORITHM = COPY;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+CREATE UNIQUE INDEX uk_d ON t ((CAST(CAST(d AS JSON) AS UNSIGNED ARRAY)));
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: functional index is not supported.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY	primary key	0	a
+
+
+# Spatial index is not supported for spatial types are not supported. 
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, c VARCHAR(10), d VARCHAR(10), e POINT, f POINT) ENGINE = DuckDB;
+ERROR 42000: The storage engine for the table doesn't support GEOMETRY
+
+# Fulltext index is ignored too.
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT, c VARCHAR(10), d VARCHAR(10)) ENGINE = DuckDB;
+ALTER TABLE t ADD FULLTEXT INDEX idx_c(c) COMMENT 'index c', ALGORITHM = COPY;
+Warnings:
+Warning	7505	[DuckDB] Index 'idx_c' is removed.
+CREATE FULLTEXT INDEX idx_d ON t(d) COMMENT 'index d';
+Warnings:
+Warning	7505	[DuckDB] Index 'idx_d' is removed.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY		0	id
+
+
+# Foreign key is treated as normal index, which is ignored too.
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, a INT, b INT) ENGINE = DuckDB;
+CREATE TABLE t2 LIKE t;
+ALTER TABLE t ADD FOREIGN KEY fk(b) REFERENCES t2(b), ALGORITHM = COPY;
+Warnings:
+Warning	7505	[DuckDB] Index '(null)' is removed.
+Warning	7505	[DuckDB] Index 'fk' is removed.
+Warning	7509	[DuckDB] 'ADD FOREIGN KEY' operation will not take effect.
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY		0	id
+
+#
+# 3) Unsupported
+#
+
+# create table without primary key is not supported.
+DROP TABLE t;
+CREATE TABLE t (id INT, a INT, b INT) ENGINE = DuckDB;
+ERROR 42000: This table type requires a primary key
+
+# drop PK is not supported.
+CREATE TABLE t (a INT, b VARCHAR(10), c INT, PRIMARY KEY(a)) ENGINE = DuckDB;
+ALTER TABLE t DROP PRIMARY KEY, ALGORITHM = COPY;
+ERROR 42000: This table type requires a primary key
+DROP INDEX `PRIMARY` ON t;
+ERROR 42000: This table type requires a primary key
+ALTER TABLE t ENABLE KEYS, ALGORITHM = COPY;
+ALTER TABLE t DISABLE KEYS, ALGORITHM = COPY;
+#
+# 4) DESC, desc will be ignored by DuckDB
+#
+DROP TABLE t;
+CREATE TABLE t(id INT, name VARCHAR(255), PRIMARY KEY(id DESC)) ENGINE = DuckDB;
+ALTER TABLE t ADD INDEX idx(name DESC), ALGORITHM = COPY;
+Warnings:
+Warning	7505	[DuckDB] Index 'idx' is removed.
+INSERT INTO t VALUES(1, "1");
+INSERT INTO t VALUES(2, "2");
+SELECT * FROM t;
+id	name
+1	1
+2	2
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+test	t	PRIMARY		0	id
+
+#
+# 5) DROP PRIMARY KEY
+#
+DROP TABLE t;
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE = DuckDB;
+SET GLOBAL duckdb_require_primary_key = OFF;
+ALTER TABLE t DROP PRIMARY KEY, ALGORITHM = COPY;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT schema_name, table_name, index_name, comment, is_unique, is_primary, expressions FROM duckdb_indexes WHERE table_name = 't'");
+RESULT
+schema_name	table_name	index_name	comment	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+CALL dbms_duckdb.query("SELECT table_name, constraint_type, constraint_text FROM duckdb_constraints WHERE table_name = 't'");
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+t	NOT NULL	NOT NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, INDEX_NAME, INDEX_COMMENT, NON_UNIQUE, COLUMN_NAME FROM information_schema.statistics WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	INDEX_NAME	INDEX_COMMENT	NON_UNIQUE	COLUMN_NAME
+
+SET GLOBAL duckdb_require_primary_key = default;
+#
+# 6) Cleanup
+#
+DROP TABLE t, t2;

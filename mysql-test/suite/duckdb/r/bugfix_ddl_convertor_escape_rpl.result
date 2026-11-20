@@ -1,0 +1,42 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# 1) Prepare a DuckDB replica table whose name and columns contain `
+#
+[connection master]
+CREATE TABLE `t``rb` (
+`i``d` BIGINT NOT NULL,
+`c``v` VARCHAR(32) NOT NULL,
+PRIMARY KEY (`i``d`)
+) ENGINE=InnoDB;
+include/rpl/sync.inc
+[connection slave]
+ALTER TABLE `t``rb` ENGINE=DuckDB;
+STOP REPLICA;
+#
+# 2) Stop IO before the second transaction's XID
+#
+[connection master]
+INSERT INTO `t``rb` VALUES (1, 'one');
+INSERT INTO `t``rb` VALUES (2, 'two');
+[connection slave]
+CALL mtr.add_suppression("MY-013122");
+SET GLOBAL debug="+d,stop_when_queue_2nd_xid_event";
+START REPLICA IO_THREAD;
+include/rpl/wait_for_receiver_to_stop.inc
+SET GLOBAL debug="-d,stop_when_queue_2nd_xid_event";
+START REPLICA;
+include/rpl/sync.inc
+include/rpl/diff.inc
+include/rpl/diff.inc
+include/assert_grep.inc [Check partial rollback quoted the backtick temp table]
+#
+# 3) Cleanup
+#
+[connection master]
+DROP TABLE `t``rb`;
+include/rpl/sync.inc
+include/rpl/deinit.inc

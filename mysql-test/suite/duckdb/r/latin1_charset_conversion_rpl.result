@@ -1,0 +1,168 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Test: latin1 charset conversion to utf8mb4 for duckdb replication
+#
+CREATE TABLE t_latin1 (
+id INT PRIMARY KEY,
+col_bin VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_bin,
+col_general_cs VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_general_cs,
+col_swedish_ci VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_swedish_ci,
+col_general_ci VARCHAR(50) CHARACTER SET latin1 COLLATE latin1_general_ci
+) ENGINE=InnoDB;
+INSERT INTO t_latin1 VALUES 
+(1, 'Test', 'Test', 'Test', 'Test'),
+(2, 'test', 'test', 'test', 'test'),
+(3, 'TEST', 'TEST', 'TEST', 'TEST'),
+(4, 'café', 'café', 'café', 'café');
+SELECT * FROM t_latin1 ORDER BY id;
+id	col_bin	col_general_cs	col_swedish_ci	col_general_ci
+1	Test	Test	Test	Test
+2	test	test	test	test
+3	TEST	TEST	TEST	TEST
+4	café	café	café	café
+# Verify data on slave (should be identical initially)
+SHOW CREATE TABLE t_latin1;
+Table	Create Table
+t_latin1	CREATE TABLE `t_latin1` (
+  `id` int NOT NULL,
+  `col_bin` varchar(50) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+  `col_general_cs` varchar(50) CHARACTER SET latin1 COLLATE latin1_general_cs DEFAULT NULL,
+  `col_swedish_ci` varchar(50) CHARACTER SET latin1 COLLATE latin1_swedish_ci DEFAULT NULL,
+  `col_general_ci` varchar(50) CHARACTER SET latin1 COLLATE latin1_general_ci DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t_latin1 ORDER BY id;
+id	col_bin	col_general_cs	col_swedish_ci	col_general_ci
+1	Test	Test	Test	Test
+2	test	test	test	test
+3	TEST	TEST	TEST	TEST
+4	café	café	café	café
+#
+# 2. Test latin1 with varios collations
+#
+# Test binary collation (should be case sensitive)
+SELECT id, col_bin FROM t_latin1 WHERE col_bin = 'Test' ORDER BY id;
+id	col_bin
+1	Test
+SELECT id, col_bin FROM t_latin1 WHERE col_bin = 'test' ORDER BY id;
+id	col_bin
+2	test
+# Test general_cs collation (should be case sensitive)
+SELECT id, col_general_cs FROM t_latin1 WHERE col_general_cs = 'Test' ORDER BY id;
+id	col_general_cs
+1	Test
+SELECT id, col_general_cs FROM t_latin1 WHERE col_general_cs = 'test' ORDER BY id;
+id	col_general_cs
+2	test
+# Test swedish_ci collation (should be case insensitive)
+SELECT id, col_swedish_ci FROM t_latin1 WHERE col_swedish_ci = 'Test' ORDER BY id;
+id	col_swedish_ci
+1	Test
+2	test
+3	TEST
+SELECT id, col_swedish_ci FROM t_latin1 WHERE col_swedish_ci = 'test' ORDER BY id;
+id	col_swedish_ci
+1	Test
+2	test
+3	TEST
+# Test general_ci collation (should be case insensitive)
+SELECT id, col_general_ci FROM t_latin1 WHERE col_general_ci = 'Test' ORDER BY id;
+id	col_general_ci
+1	Test
+2	test
+3	TEST
+SELECT id, col_general_ci FROM t_latin1 WHERE col_general_ci = 'test' ORDER BY id;
+id	col_general_ci
+1	Test
+2	test
+3	TEST
+# Repeat collation tests on slave
+# Test binary collation (should be case sensitive)
+SELECT id, col_bin FROM t_latin1 WHERE col_bin = 'Test' ORDER BY id;
+id	col_bin
+1	Test
+SELECT id, col_bin FROM t_latin1 WHERE col_bin = 'test' ORDER BY id;
+id	col_bin
+2	test
+# Test general_cs collation (should be case sensitive)
+SELECT id, col_general_cs FROM t_latin1 WHERE col_general_cs = 'Test' ORDER BY id;
+id	col_general_cs
+1	Test
+SELECT id, col_general_cs FROM t_latin1 WHERE col_general_cs = 'test' ORDER BY id;
+id	col_general_cs
+2	test
+# Test swedish_ci collation (should be case insensitive)
+SELECT id, col_swedish_ci FROM t_latin1 WHERE col_swedish_ci = 'Test' ORDER BY id;
+id	col_swedish_ci
+1	Test
+2	test
+3	TEST
+SELECT id, col_swedish_ci FROM t_latin1 WHERE col_swedish_ci = 'test' ORDER BY id;
+id	col_swedish_ci
+1	Test
+2	test
+3	TEST
+# Test general_ci collation (should be case insensitive)
+SELECT id, col_general_ci FROM t_latin1 WHERE col_general_ci = 'Test' ORDER BY id;
+id	col_general_ci
+1	Test
+2	test
+3	TEST
+SELECT id, col_general_ci FROM t_latin1 WHERE col_general_ci = 'test' ORDER BY id;
+id	col_general_ci
+1	Test
+2	test
+3	TEST
+#
+# 3. Create new latin1 InnoDB table on master during replication
+#
+CREATE TABLE t_latin1_new (
+id INT PRIMARY KEY,
+name VARCHAR(100) CHARACTER SET latin1 COLLATE latin1_bin,
+description VARCHAR(200) CHARACTER SET latin1 COLLATE latin1_general_ci
+) ENGINE=InnoDB;
+INSERT INTO t_latin1_new VALUES 
+(1, 'NewTable', 'This is a new latin1 table'),
+(2, 'NEWTABLE', 'This should match in case-insensitive collation');
+# Verify on master
+SELECT * FROM t_latin1_new ORDER BY id;
+id	name	description
+1	NewTable	This is a new latin1 table
+2	NEWTABLE	This should match in case-insensitive collation
+# Sync slave
+SHOW CREATE TABLE t_latin1_new;
+Table	Create Table
+t_latin1_new	CREATE TABLE `t_latin1_new` (
+  `id` int NOT NULL,
+  `name` varchar(100) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL,
+  `description` varchar(200) CHARACTER SET latin1 COLLATE latin1_general_ci DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+# Verify data on slave
+SELECT * FROM t_latin1_new ORDER BY id;
+id	name	description
+1	NewTable	This is a new latin1 table
+2	NEWTABLE	This should match in case-insensitive collation
+# Binary collation (case sensitive)
+SELECT id, name FROM t_latin1_new WHERE name = 'NewTable';
+id	name
+1	NewTable
+SELECT id, name FROM t_latin1_new WHERE name = 'NEWTABLE';
+id	name
+2	NEWTABLE
+# General_ci collation (case insensitive)
+SELECT id, description FROM t_latin1_new WHERE description = 'this is a new latin1 table';
+id	description
+1	This is a new latin1 table
+SELECT id, description FROM t_latin1_new WHERE description = 'THIS SHOULD MATCH IN CASE-INSENSITIVE COLLATION';
+id	description
+2	This should match in case-insensitive collation
+#
+# Clean up
+#
+DROP TABLE t_latin1, t_latin1_new;
+include/rpl/deinit.inc

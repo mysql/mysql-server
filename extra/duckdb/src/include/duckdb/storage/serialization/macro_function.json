@@ -1,0 +1,68 @@
+[
+  {
+    "class": "MacroFunction",
+    "class_type": "type",
+    "includes": [
+      "duckdb/function/macro_function.hpp"
+    ],
+    "members": [
+      {
+        "id": 100,
+        "name": "type",
+        "type": "MacroType"
+      },
+      {
+        "id": 101,
+        "name": "parameters",
+        "type": "vector<ParsedExpression*>",
+        "serialize_property": "GetPositionalParametersForSerialization(serializer)"
+      },
+      {
+        "id": 102,
+        "name": "default_parameters",
+        "type": "InsertionOrderPreservingMap<ParsedExpression*>"
+      },
+      {
+        "id": 103,
+        "name": "types",
+        "type": "vector<LogicalType>",
+        "default": "vector<LogicalType>()",
+        "version": "v1.4.0"
+      }
+    ],
+    "finalize_deserialization": [
+      "result->FinalizeDeserialization();"
+    ],
+    "constructor": ["parameters", "default_parameters"]
+  },
+  {
+    "class": "ScalarMacroFunction",
+    "base": "MacroFunction",
+    "enum": "SCALAR_MACRO",
+    "includes": [
+      "duckdb/function/scalar_macro_function.hpp"
+    ],
+    "members": [
+      {
+        "id": 200,
+        "name": "expression",
+        "type": "ParsedExpression*"
+      }
+    ]
+  },
+  {
+    "class": "TableMacroFunction",
+    "base": "MacroFunction",
+    "enum": "TABLE_MACRO",
+    "includes": [
+      "duckdb/function/table_macro_function.hpp"
+    ],
+    "members": [
+      {
+        "id": 200,
+        "name": "query_node",
+        "type": "QueryNode*"
+      }
+    ]
+  }
+]

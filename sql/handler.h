@@ -686,6 +686,7 @@ enum legacy_db_type {
   DB_TYPE_PERFORMANCE_SCHEMA,
   DB_TYPE_TEMPTABLE,
   DB_TYPE_FIRST_DYNAMIC = 42,
+  DB_TYPE_DUCKDB,
   DB_TYPE_DEFAULT = 127  // Must be last
 };
 
@@ -1519,6 +1520,8 @@ typedef bool (*log_ddl_drop_schema_t)(handlerton *hton,
 
 typedef bool (*log_ddl_create_schema_t)(handlerton *hton,
                                         const char *schema_name);
+
+typedef void (*create_database_t)(handlerton *hton, char *db);
 
 typedef int (*panic_t)(handlerton *hton, enum ha_panic_function flag);
 
@@ -2904,6 +2907,7 @@ struct handlerton {
   drop_database_t drop_database;
   log_ddl_drop_schema_t log_ddl_drop_schema;
   log_ddl_create_schema_t log_ddl_create_schema;
+  create_database_t create_database;
   panic_t panic;
   start_consistent_snapshot_t start_consistent_snapshot;
   flush_logs_t flush_logs;
@@ -5205,7 +5209,7 @@ class handler {
     @returns true if there is an error, false otherwise.
   */
   using Load_cbk = std::function<bool(void *cookie, uint nrows, void *rowdata,
-                                      uint64_t partition_id)>;
+                                      uint64_t partition_id, void *other)>;
 
   /**
     This callback is called by each parallel load thread when processing
@@ -7772,6 +7776,7 @@ bool ha_log_ddl_drop_schema(const char *schema_name);
 */
 bool ha_log_ddl_create_schema(const char *schema_name);
 
+void ha_create_database(char *db);
 int ha_create_table(THD *thd, const char *path, const char *db,
                     const char *table_name, HA_CREATE_INFO *create_info,
                     bool update_create_info, bool is_temp_table,

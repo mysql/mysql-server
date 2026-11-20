@@ -1,0 +1,45 @@
+#
+# Test duckdb_enable_background_checkpoint
+#
+SHOW GLOBAL VARIABLES LIKE "duckdb_enable_background_checkpoint";
+Variable_name	Value
+duckdb_enable_background_checkpoint	OFF
+SET GLOBAL duckdb_enable_background_checkpoint = ON;
+SHOW GLOBAL VARIABLES LIKE "duckdb_enable_background_checkpoint";
+Variable_name	Value
+duckdb_enable_background_checkpoint	ON
+SET GLOBAL duckdb_enable_background_checkpoint = OFF;
+SHOW GLOBAL VARIABLES LIKE "duckdb_enable_background_checkpoint";
+Variable_name	Value
+duckdb_enable_background_checkpoint	OFF
+SET GLOBAL duckdb_enable_background_checkpoint = default;
+SHOW GLOBAL VARIABLES LIKE "duckdb_enable_background_checkpoint";
+Variable_name	Value
+duckdb_enable_background_checkpoint	OFF
+#
+# Test duckdb_background_checkpoint_full_interval
+#
+SHOW GLOBAL VARIABLES LIKE "duckdb_background_checkpoint_full_interval";
+Variable_name	Value
+duckdb_background_checkpoint_full_interval	0
+SET GLOBAL duckdb_background_checkpoint_full_interval = 5;
+SHOW GLOBAL VARIABLES LIKE "duckdb_background_checkpoint_full_interval";
+Variable_name	Value
+duckdb_background_checkpoint_full_interval	5
+SET GLOBAL duckdb_background_checkpoint_full_interval = 100;
+SHOW GLOBAL VARIABLES LIKE "duckdb_background_checkpoint_full_interval";
+Variable_name	Value
+duckdb_background_checkpoint_full_interval	100
+SET GLOBAL duckdb_background_checkpoint_full_interval = 0;
+SHOW GLOBAL VARIABLES LIKE "duckdb_background_checkpoint_full_interval";
+Variable_name	Value
+duckdb_background_checkpoint_full_interval	0
+SET GLOBAL duckdb_background_checkpoint_full_interval = default;
+SHOW GLOBAL VARIABLES LIKE "duckdb_background_checkpoint_full_interval";
+Variable_name	Value
+duckdb_background_checkpoint_full_interval	0
+#
+# Cleanup
+#
+SET GLOBAL duckdb_enable_background_checkpoint = default;
+SET GLOBAL duckdb_background_checkpoint_full_interval = default;

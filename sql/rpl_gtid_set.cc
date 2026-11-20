@@ -298,6 +298,12 @@ void Gtid_set::clear() {
   }
 }
 
+void Gtid_set::clear_set() {
+  DBUG_TRACE;
+  clear();
+  m_intervals.clear();
+}
+
 void Gtid_set::clear_set_and_tsid_map() {
   DBUG_TRACE;
   clear();

@@ -1,0 +1,17 @@
+# name: ${FILE_PATH}
+# description: ${DESCRIPTION}
+# group: [sf1]
+
+include benchmark/tpch/tpch_load_parquet.benchmark.in
+
+name Q${QUERY_NUMBER_PADDED}
+group tpch
+subgroup sf${sf}
+
+require tpch
+
+run extension/tpch/dbgen/queries/q${QUERY_NUMBER_PADDED}.sql
+
+result extension/tpch/dbgen/answers/sf1/q${QUERY_NUMBER_PADDED}.csv sf=1
+
+result extension/tpch/dbgen/answers/sf100/q${QUERY_NUMBER_PADDED}.csv sf=100

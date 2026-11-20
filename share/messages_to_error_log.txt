@@ -13564,6 +13564,40 @@ ER_MRS_COMPONENT_ERROR
 # End of "9.7 cal-ver compatibility lineage (starts from 26.7)" messages intended to be written to the server error log.
 #
 ################################################################################
+#
+# Start of RDS error messages intended to be logged to the server error log.
+# 25000 - 29999
+################################################################################
+
+start-error-number 25000
+
+ER_DUCKDB
+  eng "my_duckdb: %s"
+
+ER_SERVER_CONVERT_DUCKDB_TABLE
+  eng "[DuckDB] Converting '%s' table."
+
+ER_SERVER_CONVERT_DUCKDB_FAILED
+  eng "[DuckDB] Failed to convert all tables to DuckDB."
+
+ER_CHECKING_DB_BEFORE_CONVERT_DUCKDB
+  eng "[DuckDB] Checking '%s' schema."
+
+ER_CHECKING_TABLE_BEFORE_CONVERT_DUCKDB
+  eng "[DuckDB] Checking table:   '%s'"
+
+ER_DUCKDB_PARALLEL_COPY
+  eng "[DuckDB] Parallel copy DDL %s, table: %s."
+
+ER_ACCESS_DENIED_FOR_DUCKDB_CONVERT
+  eng "Access denied for user '%-.48s'@'%-.64s'. DuckDB covnerting."
+
+#
+# End of RDS error messages intended to be logged to the server error log.
+#
+
+
+################################################################################
 # Error numbers 50000 to 51999 are reserved. Please do not use them for
 # other error messages.
 ################################################################################

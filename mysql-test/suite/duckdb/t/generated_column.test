@@ -1,0 +1,262 @@
+--echo #
+--echo # 0) PREPARE SCRIPT
+--echo #
+--write_file $MYSQL_TMP_DIR/alter_to_innodb_and_check.inc
+  --let $checksum_duckdb = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+  ALTER TABLE t1 ENGINE = InnoDB;
+  SHOW CREATE TABLE t1;
+  CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+  --let $checksum_innodb = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+  --let $assert_cond = "$checksum_innodb" = "$checksum_duckdb"
+  --let $assert_text= CHECKSUM is the same
+  --source include/assert.inc
+EOF
+
+--write_file $MYSQL_TMP_DIR/alter_to_duckdb.inc
+  ALTER TABLE t1 ENGINE = DuckDB;
+  SHOW CREATE TABLE t1;
+  CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+EOF
+
+
+--echo #
+--echo # 1) CREATE TABLE WITH GENERATED COLUMNS WITH DUCKDB
+--echo #
+CREATE TABLE t1(id INT PRIMARY KEY, a INT, b INT,
+                c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+                d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+                e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+                j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+                content text CHARACTER SET utf8mb4,
+                j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+                j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED
+                ) ENGINE = DUCKDB;
+
+SHOW CREATE TABLE t1;
+CALL dbms_duckdb.query("SELECT table_name, column_name, column_default FROM information_schema.columns WHERE table_name = 't1'");
+
+
+--echo #
+--echo # 2) CONVERT TO INNODB
+--echo #
+INSERT INTO t1(id, a, b, content) VALUES(1, 2, 3, '{"val1":1,"val2":"name_001","val3":1.01}');
+--source $MYSQL_TMP_DIR/alter_to_innodb_and_check.inc
+
+--echo #
+--echo # 3) CONVERT TO INNODB
+--echo #
+--source $MYSQL_TMP_DIR/alter_to_duckdb.inc
+
+# ADD COLUMNS
+ALTER TABLE t1
+  ADD COLUMN created_at DATETIME NOT NULL DEFAULT '2025-02-01 00:00:00',
+  ADD COLUMN created_date DATE GENERATED ALWAYS AS (DATE(created_at)) STORED,
+  ADD COLUMN created_month INT  GENERATED ALWAYS AS (MONTH(created_at)) STORED,
+  ADD COLUMN f INT,
+  ADD COLUMN created_year SMALLINT GENERATED ALWAYS AS (YEAR(created_at)) VIRTUAL,
+  ADD COLUMN created_unix_ts BIGINT GENERATED ALWAYS AS (TIMESTAMPDIFF(SECOND, '1970-01-01 00:00:00', created_at)) STORED,
+  ADD COLUMN days_from_today INT GENERATED ALWAYS AS (DATEDIFF(DATE(created_at), '2025-01-01 00:00:00')) VIRTUAL,
+  ADD COLUMN created_plus_1h DATETIME GENERATED ALWAYS AS (ADDTIME(created_at, '01:00:00')) STORED,
+  ADD COLUMN created_minus_30m DATETIME GENERATED ALWAYS AS (SUBTIME(created_at, '00:30:00')) STORED,
+  ADD COLUMN extra JSON,
+  ADD COLUMN extra_name VARCHAR(64) GENERATED ALWAYS AS (JSON_EXTRACT(extra, '$.name')) STORED;
+
+INSERT INTO t1(id, a, b, content, created_at, f, extra) VALUES(2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', 2, JSON_OBJECT('name','name_002'));
+--source $MYSQL_TMP_DIR/alter_to_innodb_and_check.inc
+
+
+# DROP NO-GENERATED COLUMN
+--source $MYSQL_TMP_DIR/alter_to_duckdb.inc
+ALTER TABLE t1 DROP COLUMN f;
+INSERT INTO t1(id, a, b, content, created_at, extra) VALUES(3, 6, 9, '{"val1":3,"val2":"name_003","val3":3.03}', '2025-03-03 00:00:00', JSON_OBJECT('name','name_003'));
+--source $MYSQL_TMP_DIR/alter_to_innodb_and_check.inc
+
+
+# DROP GENERATED COLUMN
+--source $MYSQL_TMP_DIR/alter_to_duckdb.inc
+ALTER TABLE t1 DROP COLUMN created_date;
+INSERT INTO t1(id, a, b, content, created_at, extra) VALUES(4, 8, 12, '{"val1":4,"val2":"name_004","val3":4.04}', '2025-04-04 00:00:00', JSON_OBJECT('name','name_004'));
+--source $MYSQL_TMP_DIR/alter_to_innodb_and_check.inc
+
+
+--echo #
+--echo # 3) RESTRICTED DDLs
+--echo #
+--source $MYSQL_TMP_DIR/alter_to_duckdb.inc
+
+# GENERATED COLUMN IS NOT SUPPORTED FOR ADDING OR MODIFYING AFTER TABLE CREATION, SO INPLACE/INSTANT DDL WILL BE REJECTED.
+--error ER_ALTER_OPERATION_NOT_SUPPORTED # not support add stored generated column
+ALTER TABLE t1 ADD COLUMN f INT GENERATED ALWAYS AS (b - a) STORED, ALGORITHM = INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED # not support add stored generated column
+ALTER TABLE t1 ADD COLUMN f INT GENERATED ALWAYS AS (b - a) STORED, ALGORITHM = INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED # not support add virtual generated column after table creation
+ALTER TABLE t1 ADD COLUMN f INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED # not support add virtual generated column after table creation
+ALTER TABLE t1 ADD COLUMN f INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = INPLACE;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED # not support modify generated column after table creation
+ALTER TABLE t1 MODIFY COLUMN c INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = INSTANT;
+--error ER_ALTER_OPERATION_NOT_SUPPORTED # not support modify generated column after table creation
+ALTER TABLE t1 MODIFY COLUMN c INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = INPLACE;
+
+# COPY DDL is supported
+ALTER TABLE t1 ADD COLUMN f INT GENERATED ALWAYS AS (b - a) STORED, ALGORITHM = COPY;
+INSERT INTO t1(id, a, b, content, created_at, extra) VALUES(5, 10, 15, '{"val1":5,"val2":"name_005","val3":5.05}', '2025-05-05 00:00:00', JSON_OBJECT('name','name_005'));
+ALTER TABLE t1 ADD COLUMN g INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = COPY;
+INSERT INTO t1(id, a, b, content, created_at, extra) VALUES(6, 12, 18, '{"val1":6,"val2":"name_006","val3":6.06}', '2025-06-06 00:00:00', JSON_OBJECT('name','name_006'));
+ALTER TABLE t1 MODIFY COLUMN c INT GENERATED ALWAYS AS (b - a) VIRTUAL, ALGORITHM = COPY;
+INSERT INTO t1(id, a, b, content, created_at, extra) VALUES (7, 14, 21, '{"val1":7,"val2":"name_007","val3":7.07}', '2025-07-07 00:00:00', JSON_OBJECT('name','name_007'));
+
+--source $MYSQL_TMP_DIR/alter_to_innodb_and_check.inc
+
+
+--echo #
+--echo # 3) ALTER COLUMN WITH GENERATED COLUMN DEPENDENCY
+--echo #
+--source $MYSQL_TMP_DIR/alter_to_duckdb.inc
+
+# DROP GENERATED COLUMN DEPENDENCY
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 DROP COLUMN a;
+
+# RENAME COLUMN COLUMN DEPENDENCY
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 RENAME COLUMN a TO a1;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 CHANGE COLUMN a a1 BIGINT;
+
+# MODIFY COLUMN COLUMN DEPENDENCY
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
+ALTER TABLE t1 MODIFY COLUMN a BIGINT, ALGORITHM = INSTANT;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 CHANGE COLUMN a a1 BIGINT, ALGORITHM = INPLACE;
+--error ER_DEPENDENT_BY_GENERATED_COLUMN
+ALTER TABLE t1 CHANGE COLUMN a a1 BIGINT, ALGORITHM = COPY;
+
+
+--echo #
+--echo # 4) DML
+--echo #
+CREATE TABLE t_innodb(id INT PRIMARY KEY, a INT, b INT,
+                      c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+                      d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+                      e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+                      j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+                      content text CHARACTER SET utf8mb4,
+                      j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+                      j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED,
+                      created_at DATETIME NOT NULL DEFAULT '2025-02-01 00:00:00',
+                      created_date DATE GENERATED ALWAYS AS (DATE(created_at)) STORED,
+                      created_month INT  GENERATED ALWAYS AS (MONTH(created_at)) STORED,
+                      created_year SMALLINT GENERATED ALWAYS AS (YEAR(created_at)) VIRTUAL,
+                      created_unix_ts BIGINT GENERATED ALWAYS AS (TIMESTAMPDIFF(SECOND, '1970-01-01 00:00:00', created_at)) STORED,
+                      days_from_today INT GENERATED ALWAYS AS (DATEDIFF(DATE(created_at), '2025-01-01 00:00:00')) VIRTUAL,
+                      created_plus_1h DATETIME GENERATED ALWAYS AS (ADDTIME(created_at, '01:00:00')) STORED,
+                      created_minus_30m DATETIME GENERATED ALWAYS AS (SUBTIME(created_at, '00:30:00')) STORED,
+                      extra JSON,
+                      extra_name VARCHAR(64) GENERATED ALWAYS AS (JSON_EXTRACT(extra, '$.name')) STORED
+                      ) ENGINE = InnoDB;
+CREATE TABLE t_duckdb LIKE t_innodb;
+ALTER TABLE t_duckdb ENGINE = DuckDB;
+
+--write_file $MYSQL_TMP_DIR/checksum_for_dml.inc
+  --let $data_import_mode = query_get_value(SHOW VARIABLES LIKE 'duckdb_data_import_mode', Value, 1)
+
+  TRUNCATE TABLE t_duckdb;
+  INSERT INTO t_duckdb(id, a, b, content, created_at, extra) VALUES (1, 2, 4, '{"val1":1,"val2":"name_001","val3":1.01}', '2025-01-01 00:00:00', JSON_OBJECT('name','name_001'));
+  INSERT INTO t_duckdb(id, a, b, content, created_at, extra) VALUES (2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', JSON_OBJECT('name','name_002'));
+  if ($data_import_mode == 'OFF') {
+    UPDATE t_duckdb SET id = 3, a = 6, b = 9, content = '{"val1":3,"val2":"name_003","val3":3.03}', created_at = '2025-03-03 00:00:00', extra = JSON_OBJECT('name','name_003') WHERE id = 2;
+  }
+  DELETE FROM t_duckdb WHERE id = 1;
+
+  TRUNCATE TABLE t_innodb;
+  INSERT INTO t_innodb(id, a, b, content, created_at, extra) VALUES (1, 2, 4, '{"val1":1,"val2":"name_001","val3":1.01}', '2025-01-01 00:00:00', JSON_OBJECT('name','name_001'));
+  INSERT INTO t_innodb(id, a, b, content, created_at, extra) VALUES (2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}', '2025-02-02 00:00:00', JSON_OBJECT('name','name_002'));
+  if ($data_import_mode == 'OFF') {
+    UPDATE t_innodb SET id = 3, a = 6, b = 9, content = '{"val1":3,"val2":"name_003","val3":3.03}', created_at = '2025-03-03 00:00:00', extra = JSON_OBJECT('name','name_003') WHERE id = 2;
+  }
+  DELETE FROM t_innodb WHERE id = 1;
+
+  --let $checksum_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+  --let $checksum_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+  --let $assert_cond = "$checksum_innodb" = "$checksum_duckdb"
+  --let $assert_text= CHECKSUM is the same
+  --source include/assert.inc
+EOF
+
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = OFF;
+--source $MYSQL_TMP_DIR/checksum_for_dml.inc
+
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = ON;
+--source $MYSQL_TMP_DIR/checksum_for_dml.inc
+
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = OFF;
+--source $MYSQL_TMP_DIR/checksum_for_dml.inc
+
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = ON;
+--source $MYSQL_TMP_DIR/checksum_for_dml.inc
+
+
+--echo #
+--echo # 5) Variable duckdb_convert_tables_with_generated_columns
+--echo #
+SET GLOBAL duckdb_convert_tables_with_generated_columns = OFF;
+--error ER_DUCKDB_TABLE_STRUCT_INVALID
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT,
+                c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+                d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+                e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+                j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+                content text CHARACTER SET utf8mb4,
+                j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+                j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED
+                ) ENGINE = DUCKDB;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT,
+                c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+                d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+                e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+                j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+                content text CHARACTER SET utf8mb4,
+                j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+                j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED
+                ) ENGINE = InnoDB;
+--error ER_DUCKDB_TABLE_STRUCT_INVALID
+ALTER TABLE t ENGINE = DuckDB;
+DROP TABLE t;
+
+SET GLOBAL duckdb_convert_tables_with_generated_columns = ON;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT,
+                c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+                d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+                e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+                j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+                content text CHARACTER SET utf8mb4,
+                j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+                j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED
+                ) ENGINE = DUCKDB;
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT,
+                c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+                d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+                e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+                j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+                content text CHARACTER SET utf8mb4,
+                j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+                j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED
+                ) ENGINE = InnoDB;
+ALTER TABLE t ENGINE = DuckDB;
+DROP TABLE t;
+
+
+--echo #
+--echo # 6) CLEANUP
+--echo #
+DROP TABLE t1, t_duckdb, t_innodb;
+--remove_file $MYSQL_TMP_DIR/alter_to_innodb_and_check.inc
+--remove_file $MYSQL_TMP_DIR/alter_to_duckdb.inc
+--remove_file $MYSQL_TMP_DIR/checksum_for_dml.inc
+SET GLOBAL duckdb_convert_tables_with_generated_columns = default;

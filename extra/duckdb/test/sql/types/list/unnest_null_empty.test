@@ -1,0 +1,129 @@
+# name: test/sql/types/list/unnest_null_empty.test
+# description: Test unnest semantics with NULL and empty lists
+# group: [list]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+CREATE TABLE people(id INTEGER, name VARCHAR, address VARCHAR[]);
+
+statement ok
+insert into people values (1, 'Zuckerberg', ARRAY['New York']);
+
+statement ok
+insert into people values (2, 'Bezos', ARRAY['Washington', 'Space']);
+
+statement ok
+insert into people values (3, 'Tim', NULL);
+
+statement ok
+insert into people values (4, 'Elvis', ARRAY[NULL, NULL, NULL]);
+
+statement ok
+insert into people values (5, 'Mark', ARRAY[]::VARCHAR[]);
+
+query I
+SELECT UNNEST(NULL);
+----
+
+query I
+SELECT UNNEST(NULL::BOOLEAN[]);
+----
+
+query II
+SELECT name, UNNEST(address) FROM people;
+----
+Zuckerberg	New York
+Bezos	Washington
+Bezos	Space
+Elvis	NULL
+Elvis	NULL
+Elvis	NULL
+
+# and with multiple unnests
+query III
+SELECT name, UNNEST(address), UNNEST([1]) FROM people;
+----
+Zuckerberg	New York	1
+Bezos	Washington	1
+Bezos	Space	NULL
+Tim	NULL	1
+Elvis	NULL	1
+Elvis	NULL	NULL
+Elvis	NULL	NULL
+Mark	NULL	1
+
+# related to issue 7391
+
+query III
+WITH t AS (
+	SELECT 1 AS r, ARRAY[1, 2, 3] AS a
+	UNION SELECT 2 AS r, ARRAY[4] AS a
+	UNION SELECT 3 AS r, NULL AS a)
+SELECT r, a, UNNEST(a) AS n
+FROM t
+ORDER BY r, n;
+----
+1	[1, 2, 3]	1
+1	[1, 2, 3]	2
+1	[1, 2, 3]	3
+2	[4]	4
+
+query II
+WITH t AS (
+	SELECT 1 AS r, ARRAY[1, 2, 3] AS a
+	UNION SELECT 2 AS r, ARRAY[4] AS a
+	UNION SELECT 3 AS r, NULL AS a)
+SELECT r, a.value
+FROM t, (SELECT UNNEST(a)) AS a(value)
+ORDER BY r, a.value
+----
+1	1
+1	2
+1	3
+2	4
+
+query II
+WITH t AS (
+	SELECT 1 AS r, ARRAY[1, 2, 3] AS a
+	UNION SELECT 2 AS r, ARRAY[4] AS a
+	UNION SELECT 3 AS r, NULL AS a)
+SELECT r, a.value
+FROM t, UNNEST(a) AS a(value)
+ORDER BY r, a.value
+----
+1	1
+1	2
+1	3
+2	4
+
+statement ok
+CREATE TABLE t AS SELECT 5 AS r, ARRAY[1, 2, 3] AS a;
+
+statement ok
+INSERT INTO t VALUES (6, [4]), (7, NULL);
+
+query II
+SELECT r, a.value
+FROM t, UNNEST(a) AS a(value)
+ORDER BY r, a.value
+----
+5	1
+5	2
+5	3
+6	4
+
+query II
+WITH t AS (
+	SELECT 5 AS r, ARRAY[1, 2, 3] AS a
+	UNION SELECT 6 AS r, ARRAY[4] AS a
+	UNION SELECT 7 AS r, NULL AS a)
+SELECT r, a.value
+FROM t, UNNEST(a) AS a(value)
+ORDER BY r, a.value
+----
+5	1
+5	2
+5	3
+6	4

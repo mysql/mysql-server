@@ -1,0 +1,42 @@
+# name: test/sql/alter/drop_col/test_drop_col_failure.test
+# description: Test ALTER TABLE DROP COLUMN: Incorrect DROP COLUMN usage
+# group: [drop_col]
+
+statement ok
+CREATE TABLE test(i INTEGER, j INTEGER)
+
+statement ok
+INSERT INTO test VALUES (1, 1), (2, 2)
+
+# cannot drop column which does not exist
+statement error
+ALTER TABLE test DROP COLUMN blabla
+----
+Binder Error: Table "test" does not have a column with name "blabla"
+
+# unless IF EXISTS is specified
+statement ok
+ALTER TABLE test DROP COLUMN IF EXISTS blabla
+
+#  cannot drop ALL columns of a table
+statement ok
+ALTER TABLE test DROP COLUMN i
+
+statement error
+ALTER TABLE test DROP COLUMN j
+----
+Catalog Error: Cannot drop column: table only has one column remaining
+
+# cannot drop column that is part of a multi-column unique constraint
+statement ok
+CREATE TABLE test2 (id INT PRIMARY KEY, name TEXT, surname TEXT, age INT, UNIQUE(surname, age))
+
+statement error
+ALTER TABLE test2 DROP COLUMN surname
+----
+Catalog Error: Cannot drop column "surname" because it is referenced in unique constraint UNIQUE(surname, age)
+
+statement error
+ALTER TABLE test2 DROP COLUMN age
+----
+Catalog Error: Cannot drop column "age" because it is referenced in unique constraint UNIQUE(surname, age)

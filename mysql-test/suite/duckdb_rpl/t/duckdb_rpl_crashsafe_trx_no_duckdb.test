@@ -1,0 +1,14 @@
+--source include/have_binlog_format_mixed.inc
+--source include/have_debug.inc
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # Test Crashsafe of transactions without duckdb data change.
+--echo #
+CREATE TABLE t1(c1 INT NOT NULL PRIMARY KEY, c2 VARCHAR(200)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(1, "1"), (2, "2"), (3, "3");
+
+--source suite/duckdb_rpl/include/duckdb_binlog_crashsafe.test
+
+DROP TABLE t1;
+--source include/rpl/deinit.inc

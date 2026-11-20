@@ -1,0 +1,18 @@
+# name: benchmark/tpch/aggregate/lineitem_count.benchmark
+# description: Simple COUNT aggregate over lineitem
+# group: [aggregate]
+
+include benchmark/tpch/tpch_load.benchmark.in
+
+name Lineitem Simple Count
+group aggregate
+subgroup tpch
+
+run
+SELECT COUNT(*) FROM lineitem
+
+result I sf=1
+6001215
+
+result I sf=100
+600037902

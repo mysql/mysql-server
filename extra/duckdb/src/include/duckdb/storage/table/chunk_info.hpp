@@ -1,0 +1,155 @@
+//===----------------------------------------------------------------------===//
+//                         DuckDB
+//
+// duckdb/storage/table/chunk_info.hpp
+//
+//
+//===----------------------------------------------------------------------===//
+
+#pragma once
+
+#include "duckdb/execution/index/index_pointer.hpp"
+#include "duckdb/common/enums/scan_options.hpp"
+
+namespace duckdb {
+class RowGroup;
+struct SelectionVector;
+class Transaction;
+struct TransactionData;
+struct DeleteInfo;
+class Serializer;
+class Deserializer;
+class FixedSizeAllocator;
+
+enum class ChunkInfoType : uint8_t { CONSTANT_INFO, VECTOR_INFO, EMPTY_INFO };
+
+class ChunkInfo {
+public:
+	ChunkInfo(idx_t start, ChunkInfoType type) : start(start), type(type) {
+	}
+	virtual ~ChunkInfo() {
+	}
+
+	//! The row index of the first row
+	idx_t start;
+	//! The ChunkInfo type
+	ChunkInfoType type;
+
+public:
+	//! Gets up to max_count entries from the chunk info. If the ret is 0>ret>max_count, the selection vector is filled
+	//! with the tuples
+	virtual idx_t GetSelVector(ScanOptions options, optional_ptr<SelectionVector> sel_vector,
+	                           idx_t max_count) const = 0;
+	idx_t GetCheckpointRowCount(TransactionData transaction, idx_t max_count);
+	//! Returns whether or not a single row in the ChunkInfo should be used or not for the given transaction
+	virtual bool Fetch(TransactionData transaction, row_t row) = 0;
+	virtual void CommitAppend(transaction_t commit_id, idx_t start, idx_t end) = 0;
+	idx_t GetCommittedDeletedCount(idx_t max_count) const;
+	virtual bool Cleanup(transaction_t lowest_transaction) const;
+	virtual string ToString(idx_t max_count) const = 0;
+
+	virtual bool HasDeletes(transaction_t transaction_id = MAX_TRANSACTION_ID) const = 0;
+
+	virtual void Write(WriteStream &writer, transaction_t transaction_id) const;
+	static unique_ptr<ChunkInfo> Read(FixedSizeAllocator &allocator, ReadStream &reader);
+
+public:
+	template <class TARGET>
+	TARGET &Cast() {
+		if (type != TARGET::TYPE) {
+			throw InternalException("Failed to cast chunk info to type - query result type mismatch");
+		}
+		return reinterpret_cast<TARGET &>(*this);
+	}
+
+	template <class TARGET>
+	const TARGET &Cast() const {
+		if (type != TARGET::TYPE) {
+			throw InternalException("Failed to cast chunk info to type - query result type mismatch");
+		}
+		return reinterpret_cast<const TARGET &>(*this);
+	}
+};
+
+class ChunkConstantInfo : public ChunkInfo {
+public:
+	static constexpr const ChunkInfoType TYPE = ChunkInfoType::CONSTANT_INFO;
+
+public:
+	explicit ChunkConstantInfo(idx_t start);
+
+	transaction_t insert_id;
+	transaction_t delete_id;
+
+public:
+	idx_t GetSelVector(ScanOptions options, optional_ptr<SelectionVector> sel_vector, idx_t max_count) const override;
+	bool Fetch(TransactionData transaction, row_t row) override;
+	void CommitAppend(transaction_t commit_id, idx_t start, idx_t end) override;
+	bool Cleanup(transaction_t lowest_transaction) const override;
+	string ToString(idx_t max_count) const override;
+
+	bool HasDeletes(transaction_t transaction_id = MAX_TRANSACTION_ID) const override;
+
+	void Write(WriteStream &writer, transaction_t transaction_id) const override;
+	static unique_ptr<ChunkInfo> Read(ReadStream &reader);
+
+private:
+	template <class INSERT_OP, class DELETE_OP>
+	idx_t TemplatedGetSelVector(transaction_t start_time, transaction_t transaction_id, idx_t max_count) const;
+};
+
+class ChunkVectorInfo : public ChunkInfo {
+public:
+	static constexpr const ChunkInfoType TYPE = ChunkInfoType::VECTOR_INFO;
+
+public:
+	explicit ChunkVectorInfo(FixedSizeAllocator &allocator, idx_t start, transaction_t insert_id = 0);
+	~ChunkVectorInfo() override;
+
+public:
+	idx_t GetSelVector(ScanOptions options, optional_ptr<SelectionVector> sel_vector, idx_t max_count) const override;
+	bool Fetch(TransactionData transaction, row_t row) override;
+	void CommitAppend(transaction_t commit_id, idx_t start, idx_t end) override;
+	bool Cleanup(transaction_t lowest_transaction) const override;
+	string ToString(idx_t max_count) const override;
+
+	void Append(idx_t start, idx_t end, transaction_t commit_id);
+
+	//! Performs a delete in the ChunkVectorInfo - returns how many tuples were actually deleted
+	//! The number of rows that were actually deleted might be lower than the input count
+	//! In case we delete rows that were already deleted
+	//! Note that "rows" is written to to reflect the row ids that were actually deleted
+	//! i.e. after calling this function, rows will hold [0..actual_delete_count] row ids of the actually deleted tuples
+	idx_t Delete(transaction_t transaction_id, row_t rows[], idx_t count);
+	void CommitDelete(transaction_t commit_id, const DeleteInfo &info);
+
+	bool HasDeletes(transaction_t transaction_id = MAX_TRANSACTION_ID) const override;
+	bool AnyDeleted() const;
+	bool HasConstantInsertionId() const;
+	transaction_t ConstantInsertId() const;
+
+	void Write(WriteStream &writer, transaction_t transaction_id) const override;
+	static unique_ptr<ChunkInfo> Read(FixedSizeAllocator &allocator, ReadStream &reader);
+
+private:
+	template <class INSERT_OP, class DELETE_OP>
+	idx_t TemplatedGetSelVector(transaction_t start_time, transaction_t transaction_id,
+	                            optional_ptr<SelectionVector> sel_vector, idx_t max_count) const;
+
+	IndexPointer GetInsertedPointer() const;
+	IndexPointer GetDeletedPointer() const;
+	IndexPointer GetInitializedInsertedPointer();
+	IndexPointer GetInitializedDeletedPointer();
+
+private:
+	FixedSizeAllocator &allocator;
+	//! The transaction ids of the transactions that inserted the tuples (if any)
+	IndexPointer inserted_data;
+	//! The constant insert id (if there is only one)
+	transaction_t constant_insert_id;
+
+	//! The transaction ids of the transactions that deleted the tuples (if any)
+	IndexPointer deleted_data;
+};
+
+} // namespace duckdb

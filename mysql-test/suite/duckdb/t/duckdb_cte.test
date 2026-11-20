@@ -1,0 +1,42 @@
+CREATE TABLE duckdb_table (id INT PRIMARY KEY, col1 INT) ENGINE=DuckDB;
+CREATE TABLE innodb_table (id INT PRIMARY KEY, col1 INT) ENGINE=InnoDB;
+INSERT INTO duckdb_table VALUES (1, 1);
+INSERT INTO innodb_table VALUES (1, 1);
+
+--echo
+--echo (1) CTE
+--echo
+
+WITH tmp AS (SELECT MAX(col1) FROM duckdb_table) SELECT * FROM tmp;
+WITH tmp AS (SELECT MAX(col1) FROM duckdb_table) SELECT * FROM tmp, duckdb_table;
+--error ER_DUCKDB_CLIENT
+WITH tmp AS (SELECT MAX(col1) FROM duckdb_table) SELECT * FROM tmp, innodb_table;
+
+--echo
+--echo (2) Recursive CTE
+--echo
+
+WITH RECURSIVE tmp AS (
+  SELECT 1 AS n
+  UNION ALL
+  SELECT n + 1 FROM tmp WHERE n < 3
+)
+SELECT * FROM duckdb_table, tmp;
+
+WITH RECURSIVE tmp AS (
+  SELECT 1 AS n
+  UNION ALL
+  SELECT n + 1 FROM tmp, duckdb_table WHERE n = duckdb_table.col1
+)
+SELECT * FROM duckdb_table, tmp;
+
+--error ER_DUCKDB_CLIENT
+WITH RECURSIVE tmp AS (
+  SELECT 1 AS n
+  UNION ALL
+  SELECT n + 1 FROM tmp, innodb_table WHERE n = innodb_table.col1
+)
+SELECT * FROM duckdb_table, tmp;
+
+DROP TABLE duckdb_table;
+DROP TABLE innodb_table;

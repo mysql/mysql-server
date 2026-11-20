@@ -121,6 +121,14 @@
 #include "template_utils.h"
 #include "thr_lock.h"
 
+#ifdef HAVE_DUCKDB
+#include "sql/duckdb/duckdb_context.h"
+#endif
+#ifdef HAVE_DUCKDB
+#include "sql/duckdb/duckdb_query.h"  // duckdb_query
+#endif
+#include "sql/duckdb/duckdb_table.h"  // is_duckdb_table
+
 struct COND_EQUAL;
 
 static bool prepare_partial_update(Opt_trace_context *trace,
@@ -402,6 +410,126 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   const bool has_after_triggers =
       has_update_triggers &&
       table->triggers->has_triggers(TRG_EVENT_UPDATE, TRG_ACTION_AFTER);
+
+  /** There may be subqueries in the update statement. */
+  bool exist_duckdb_table = false;
+  bool exist_other_table = false;
+  Table_ref *non_duckdb_table;
+  Table_ref *duckdb_table;
+  lex->check_table_engine_type(exist_duckdb_table, exist_other_table,
+                               &non_duckdb_table, &duckdb_table);
+  if (exist_other_table && exist_duckdb_table) {
+    char ebuff[MYSQL_ERRMSG_SIZE];
+    snprintf(ebuff, sizeof(ebuff),
+             "Does not support mixed queries of duckdb engine and other "
+             "engines in UPDATE Statement. The table `%s` is a duckdb table. "
+             "The table `%s` is not a duckdb table",
+             duckdb_table->table_name, non_duckdb_table->table_name);
+    my_error(ER_DUCKDB_CLIENT, MYF(0), ebuff);
+    return true;
+  }
+
+#ifdef HAVE_DUCKDB
+  if (myduck::is_duckdb_table(table)) {
+    ha_rows duckdb_update_rows = 0;
+    std::string query(thd->query().str);
+
+    if (lex->is_explain() && !lex->is_explain_analyze) {
+      myduck::duckdb_query_and_send(thd, query, true, true);
+      if (thd->is_error()) {
+        return true;
+      }
+      return false;
+    } else if (lex->is_explain() && lex->is_explain_analyze) {
+      /**
+       In MySQL, explain analyze UPDATE/DELETE statements do not modify data or
+       record binlogs. So, we disable EXPLAIN ANALYZE UPDATE/DELETE here.
+       */
+      my_error(ER_DUCKDB_CLIENT, MYF(0),
+               "Does not support EXPLAIN ANALYZE UPDATE/DELETE statement");
+      return true;
+    }
+
+    if (thd->variables.duckdb_data_import_mode) {
+      my_error(ER_DUCKDB_DATA_IMPORT_MODE, MYF(0), "update is not allowed");
+      return true;
+    }
+
+    std::string error_msg;
+    if (thd->get_duckdb_context()->flush_appenders(error_msg)) {
+      error = 1;
+      my_error(ER_DUCKDB_CLIENT, MYF(0), error_msg.c_str());
+      return true;
+    }
+
+    thd->status_var.com_duckdb_update++;
+    auto res = myduck::duckdb_query(thd, query);
+    if (res->HasError()) {
+      error = 1;
+      my_error(ER_DUCKDB_CLIENT, MYF(0), res->GetError().c_str());
+    } else {
+      auto chunk = res->Fetch();
+      duckdb_update_rows = chunk->GetValue(0, 0).GetValue<int64_t>();
+      error = -1;
+    }
+
+    /*
+      Update auto_increment value only when the auto-increment column is
+      explicitly modified by the UPDATE statement. In most cases, UPDATE
+      does not touch the auto-increment column, so we can skip the
+      expensive SELECT MAX() query to DuckDB. For the rare case where
+      the auto-increment column is explicitly updated (e.g.,
+      UPDATE t SET id = 1000 ...), we fall back to querying DuckDB
+      to refresh the in-memory auto-increment counter.
+    */
+    if (error < 0 && table->found_next_number_field &&
+        bitmap_is_set(table->write_set,
+                      table->found_next_number_field->field_index())) {
+      table->file->info(HA_STATUS_AUTO);
+    }
+
+    /**
+     TODO: In the current implementation, we cannot record binlog in row
+     format. In the future, we hope to delete data through the handler
+     interface for delete statements with primary keys and record binlog in
+     row format.
+    */
+    THD::killed_state killed_status = thd->killed;
+    if ((error < 0) ||
+        thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)) {
+      if (mysql_bin_log.is_open()) {
+        int errcode = 0;
+        if (error < 0)
+          thd->clear_error();
+        else
+          errcode = query_error_code(thd, killed_status == THD::NOT_KILLED);
+        /**
+         For update statements of duckdb tables, we always record binlog in
+         STATEMENT format
+         */
+        if (thd->binlog_query(THD::ROW_QUERY_TYPE, thd->query().str,
+                              thd->query().length, transactional_table, false,
+                              false, errcode)) {
+          error = 1;  // Rollback update
+        }
+      }
+    }
+
+    if (error < 0) {
+      char buff[MYSQL_ERRMSG_SIZE];
+      snprintf(buff, sizeof(buff), ER_THD(thd, ER_UPDATE_INFO),
+               (long)duckdb_update_rows, (long)duckdb_update_rows,
+               (long)thd->get_stmt_da()->current_statement_cond_count());
+      my_ok(thd,
+            thd->get_protocol()->has_client_capability(CLIENT_FOUND_ROWS)
+                ? duckdb_update_rows
+                : duckdb_update_rows,
+            0, buff);
+      DBUG_PRINT("info", ("%ld records updated", (long)duckdb_update_rows));
+    }
+    return error > 0 || thd->is_error();
+  }
+#endif  // HAVE_DUCKDB
 
   Opt_trace_context *const trace = &thd->opt_trace;
 

@@ -1,0 +1,135 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--echo ###########################################################################
+--echo # 0. Prepare
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (
+    id BIGINT NOT NULL,
+    c0 INT,
+    PRIMARY KEY(id)
+) ENGINE=InnoDB;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE t1 ENGINE=DuckDB;
+--source include/rpl/stop_applier.inc
+
+--echo ###########################################################################
+--echo # 1. Test for duckdb_dml_in_batch = off
+--echo ###########################################################################
+--echo # 1.1 The Master executes 4 transactions, make sure the Slave receives all.
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t1 VALUES (5, 5);
+INSERT INTO t1 VALUES (6, 6);
+COMMIT;
+
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+BEGIN;
+INSERT INTO t1 VALUES (7, 7);
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+
+BEGIN;
+INSERT INTO t1 VALUES (8, 8);
+UPDATE t1 SET id = 9 WHERE id = 5;
+COMMIT;
+
+FLUSH LOGS;
+
+BEGIN;
+UPDATE t1 SET id = 10 WHERE id = 6;
+UPDATE t1 SET id = 11 WHERE id = 8;
+INSERT INTO t1 VALUES (12, 12);
+COMMIT;
+
+--let $rpl_only_running_threads=1
+--source include/rpl/sync.inc
+
+--echo # 1.2 Let the Slave skip executes the 2nd transaction, and Crash when replay
+--source include/rpl/connection_replica.inc
+SET GTID_NEXT= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:2';
+BEGIN;
+INSERT INTO t1 VALUES (7, 7);
+COMMIT;
+SET GTID_NEXT = 'AUTOMATIC';
+
+SET GLOBAL debug="+d,crash_after_duckdb_commit";
+--source include/expect_crash.inc
+--source include/rpl/start_applier.inc
+--source include/wait_until_disconnected.inc
+
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --debug=+d,duckdb_print_dml
+--source include/rpl/start_server.inc
+--source include/rpl/start_applier.inc
+
+--echo # 1.3 After Crash Recovery, check Data and SQLs send to DuckDB, the 1st and
+--echo #     3rd transactions should be replayed idempotently, the 4th transaction
+--echo #     should not be replayed idempotently.
+--source include/rpl/sync.inc
+--let $rpl_diff_statement=SELECT * FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--let $grep_file=$MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $grep_pattern=duckdb_print_dml: .*
+--source include/grep_pattern.inc
+
+--echo ###########################################################################
+--echo # 2. Test for duckdb_dml_in_batch = on
+--echo ###########################################################################
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+--echo # 2.1 The Master executes 2 Insert-only transactions, make sure the Slave receives all.
+--source include/rpl/connection_source.inc
+# the 5th transaction
+INSERT INTO t1 VALUES (14, 14);
+
+FLUSH LOGS;
+
+# the 6th transaction
+INSERT INTO t1 VALUES (16, 16);
+
+--let $rpl_only_running_threads=1
+--source include/rpl/sync.inc
+
+--echo # 2.2 After restart, the Slaved should replay the 5th transaction idempotently,
+--echo #     but should not replay the 6th transaction idempotently.
+--let $rpl_server_number= 2
+--let $rpl_server_parameters= --duckdb_dml_in_batch=on
+--source include/rpl/stop_server.inc
+--exec rm $MYSQLTEST_VARDIR/log/mysqld.2.err
+--source include/rpl/start_server.inc
+--source include/rpl/connection_replica.inc
+--source include/rpl/start_replica.inc
+
+--source include/rpl/sync.inc
+--let $rpl_diff_statement=SELECT * FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text = Check 1 Delete Batch SQL after Restart
+--let $assert_select = DELETE.*rds_buf
+--let $assert_count = 1
+--source include/assert_grep.inc
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text = Check 2 INSERT Batch SQL after Restart
+--let $assert_select = INSERT.*rds_buf
+--let $assert_count = 2
+--source include/assert_grep.inc
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL duckdb_dml_in_batch=off;
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

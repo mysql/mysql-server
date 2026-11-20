@@ -1198,6 +1198,9 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_RENAME_USER] |= CF_REQUIRE_ACL_CACHE;
   sql_command_flags[SQLCOM_SHOW_GRANTS] |= CF_REQUIRE_ACL_CACHE;
   sql_command_flags[SQLCOM_SET_PASSWORD] |= CF_REQUIRE_ACL_CACHE;
+
+  /* Native package proc flags */
+  sql_command_flags[SQLCOM_ADMIN_PROC] = CF_AUTO_COMMIT_TRANS;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command) {
@@ -4763,7 +4766,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_DROP_SRS:
     case SQLCOM_CREATE_LIBRARY:
     case SQLCOM_DROP_LIBRARY:
-    case SQLCOM_ALTER_LIBRARY: {
+    case SQLCOM_ALTER_LIBRARY:
+    case SQLCOM_ADMIN_PROC:
+    case SQLCOM_TRANS_PROC: {
       assert(lex->m_sql_cmd != nullptr);
 
       res = lex->m_sql_cmd->execute(thd);
@@ -5492,6 +5497,12 @@ void dispatch_sql_command(THD *thd, Parser_state *parser_state, bool is_retry) {
   thd->lex->destroy();
   thd->end_statement();
   thd->cleanup_after_query();
+
+  /** rpl sql_thread directly calls dispatch_sql_command, this flag needs to be
+  reset for it. */
+  thd->get_rds_context().set_copy_ddl_from_innodb_to_duckdb(false);
+  thd->get_rds_context().set_copy_ddl_from_duckdb_to_duckdb(false);
+
   assert(thd->change_list.is_empty());
 
   DEBUG_SYNC(thd, "query_rewritten");
