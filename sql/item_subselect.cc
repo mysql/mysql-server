@@ -31,6 +31,8 @@
 
 #include "sql/item_subselect.h"
 
+#include <algorithm>
+#include <array>
 #include <climits>
 #include <cstdio>
 #include <cstring>
@@ -38,6 +40,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "decimal.h"
 #include "lex_string.h"
@@ -3018,6 +3021,163 @@ std::optional<ContainedSubquery> Item_in_subselect::get_contained_subquery(
        materializable ? ContainedSubquery::Strategy::kMaterializable
                       : ContainedSubquery::Strategy::kNonMaterializable,
        row_width, path_no_in2exists});
+}
+
+/**
+  If every item is a plain field of one table, collect the fields and return
+  that table. Otherwise return nullptr, for example for t.a + 0, for fields of
+  two tables, or for more fields than a key can have.
+*/
+template <class Items>
+static TABLE *fields_of_one_table(Items &&items,
+                                  std::array<Field *, MAX_REF_PARTS> *fields,
+                                  uint *count) {
+  TABLE *table = nullptr;
+  *count = 0;
+  for (Item *item : items) {
+    item = item->real_item();
+    if (item->type() != Item::FIELD_ITEM || *count == MAX_REF_PARTS)
+      return nullptr;
+    Field *field = down_cast<Item_field *>(item)->field;
+    if (table != nullptr && field->table != table) return nullptr;
+    table = field->table;
+    (*fields)[(*count)++] = field;
+  }
+  return table;
+}
+
+/**
+  Count the distinct tuples of the fields from the statistics of a key that
+  starts with exactly these fields, in any order. Returns 0 if no such key
+  has statistics.
+
+  For example, in a table of 10000 rows with KEY(g, v) and
+  records_per_key(g) = 100, g has 10000 / 100 = 100 distinct values.
+*/
+static double distinct_tuples(const TABLE *table, const Field *const *fields,
+                              uint count) {
+  for (uint index = 0; index < table->s->keys; ++index) {
+    const KEY &key = table->key_info[index];
+    if (key.user_defined_key_parts < count) continue;
+    // Use the key only if each of its first count parts is one of the fields
+    // and not a prefix like name(3), which counts fewer distinct prefixes than
+    // values. A key never repeats a field, so these parts are then the fields.
+    if (!std::all_of(key.key_part, key.key_part + count,
+                     [&](const KEY_PART_INFO &part) {
+                       return !(part.key_part_flag & HA_PART_KEY_SEG) &&
+                              std::find(fields, fields + count, part.field) !=
+                                  fields + count;
+                     }))
+      continue;
+    if (!key.has_records_per_key(count - 1)) continue;
+    const double rows = table->file->stats.records;
+    return std::max(1.0, rows / key.records_per_key(count - 1));
+  }
+  return 0.0;
+}
+
+/**
+  Estimate at most how many distinct tuples the query block returns, from
+  table statistics. WHERE, joins and LIMIT can only remove values, so the
+  real count is not higher. Returns 0 if unknown.
+
+  - Aggregates without GROUP BY: one row.
+  - GROUP BY: at most one row per group.
+  - Otherwise: the distinct tuples of the selected fields.
+*/
+static double subquery_distinct_tuples(Query_block *inner) {
+  if (inner->is_implicitly_grouped()) return 1.0;
+  // ROLLUP adds total rows on top of the groups, so no bound is known.
+  if (inner->is_non_primitive_grouped()) return 0.0;
+
+  std::array<Field *, MAX_REF_PARTS> fields;
+  uint count;
+  TABLE *table;
+  if (inner->is_explicitly_grouped()) {
+    std::vector<Item *> groups;
+    for (ORDER *group = inner->group_list.first; group != nullptr;
+         group = group->next)
+      groups.push_back(*group->item);
+    table = fields_of_one_table(groups, &fields, &count);
+  } else {
+    table = fields_of_one_table(inner->visible_fields(), &fields, &count);
+  }
+  if (table == nullptr) return 0.0;
+  return distinct_tuples(table, fields.data(), count);
+}
+
+/**
+  Estimate the filtering effect of an uncorrelated IN subquery that was not
+  turned into a semijoin, such as a single column or a tuple of columns:
+
+    - t.a IN (SELECT u.b FROM u GROUP BY u.b)
+    - (t.a, t.b) IN (SELECT u.c, u.d FROM u)
+
+  If the subquery returns S distinct tuples and the left tuple has O distinct
+  values in this table, at most S of the O values can match. Assuming each
+  returned tuple exists in this table, like the estimate of an equality with
+  an unknown value, the filter is S / O.
+
+  For example, if the subquery returns 10 distinct values and the column has
+  1000 distinct values, about 1% of the rows match.
+
+  The same holds for any subquery whose number of distinct returned tuples
+  is known. subquery_distinct_tuples() takes it from the grouping or the
+  selected columns.
+
+  Only the predicate is inspected; the caller accounts for the rest of the
+  query through filter_for_table, read_tables and fields_to_ignore.
+*/
+float Item_in_subselect::get_filtering_effect(THD *thd,
+                                              table_map filter_for_table,
+                                              table_map,
+                                              const MY_BITMAP *fields_to_ignore,
+                                              double) {
+  // Hypergraph only. Hypergraph optimizes the subquery before the outer query,
+  // so the row counts of the subquery tables are up to date here. The original
+  // optimizer plans the outer query first and could see stale row counts.
+  if (!thd->lex->using_hypergraph_optimizer()) return COND_FILTER_ALLPASS;
+
+  // S / O counts the rows equal to one of the returned tuples, so only a
+  // plain IN fits.
+  // A correlated subquery returns different tuples for each outer row,
+  // so S cannot be computed once in advance.
+  if (subquery_type() != IN_SUBQUERY || value_transform != BOOL_IS_TRUE ||
+      dependent_before_in2exists())
+    return COND_FILTER_ALLPASS;
+
+  // 1. Each element of the left tuple must use only this table, so that O
+  //    can be read from one key of this table. For example,
+  //    (t.a, q.b) IN (SELECT ...) needs q as well and is not estimated for t.
+  std::vector<Item *> elements;
+  for (uint i = 0; i < left_expr->cols(); ++i) {
+    Item *element = left_expr->element_index(i);
+    if (element->used_tables() != filter_for_table) return COND_FILTER_ALLPASS;
+    elements.push_back(element);
+  }
+  // Key statistics exist only for plain columns, not for expressions such
+  // as t.a + 0.
+  std::array<Field *, MAX_REF_PARTS> fields;
+  uint count;
+  TABLE *outer_table = fields_of_one_table(elements, &fields, &count);
+  if (outer_table == nullptr) return COND_FILTER_ALLPASS;
+  // An access method on one of these fields has already counted this filter,
+  // so applying the estimate again would count it twice.
+  for (uint i = 0; i < count; ++i)
+    if (bitmap_is_set(fields_to_ignore, fields[i]->field_index()))
+      return COND_FILTER_ALLPASS;
+  // No key has statistics for exactly these columns.
+  const double outer_tuples =
+      distinct_tuples(outer_table, fields.data(), count);
+  if (outer_tuples == 0.0) return COND_FILTER_ALLPASS;
+
+  // 2. One query block. A UNION would need the bounds of each block added up.
+  if (!query_expr()->is_simple()) return COND_FILTER_ALLPASS;
+  const double inner_tuples =
+      subquery_distinct_tuples(query_expr()->first_query_block());
+  if (inner_tuples == 0.0) return COND_FILTER_ALLPASS;
+
+  return static_cast<float>(std::min(1.0, inner_tuples / outer_tuples));
 }
 
 bool is_quantified_comp_predicate(Item *item) {
