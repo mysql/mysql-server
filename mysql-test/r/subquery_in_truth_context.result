@@ -1,0 +1,38 @@
+# Bug #121823: a comparison with zero must retain NULL-complemented rows.
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1), (2);
+SET @saved_optimizer_switch = @@optimizer_switch;
+SET optimizer_switch = 'semijoin=off,subquery_to_derived=off';
+SET optimizer_trace_offset = -2, optimizer_trace_limit = 2;
+SET optimizer_trace = 'enabled=on';
+SELECT /* compare_zero */ l.id FROM t1 AS l
+LEFT JOIN t1 AS r ON r.id = l.id AND r.id = 1
+WHERE ((r.id IN (SELECT s.id + 1 FROM t1 AS s WHERE s.id = l.id)) IS TRUE) = 0
+ORDER BY l.id;
+id
+1
+2
+SELECT MAX(JSON_SEARCH(TRACE, 'one', 'outer_join_to_inner_join') IS NOT NULL)
+AS converted_to_inner_join
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE QUERY LIKE 'SELECT /* compare_zero */%';
+converted_to_inner_join
+0
+# A direct truth test rejects NULL-complemented rows.
+SELECT /* direct_truth_test */ l.id FROM t1 AS l
+LEFT JOIN t1 AS r ON r.id = l.id AND r.id = 1
+WHERE l.id > 0
+AND (r.id IN (SELECT s.id FROM t1 AS s WHERE s.id = l.id)) IS TRUE
+ORDER BY l.id;
+id
+1
+SELECT MAX(JSON_SEARCH(TRACE, 'one', 'outer_join_to_inner_join') IS NOT NULL)
+AS converted_to_inner_join
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE
+WHERE QUERY LIKE 'SELECT /* direct_truth_test */%';
+converted_to_inner_join
+1
+SET optimizer_trace = DEFAULT;
+SET optimizer_trace_offset = DEFAULT, optimizer_trace_limit = DEFAULT;
+SET optimizer_switch = @saved_optimizer_switch;
+DROP TABLE t1;

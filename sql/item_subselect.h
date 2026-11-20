@@ -621,6 +621,11 @@ class Item_in_subselect : public Item_exists_subselect {
   void cleanup() override;
   Subquery_type subquery_type() const override { return IN_SUBQUERY; }
 
+  void apply_is_true() override {
+    m_is_truth_condition = true;
+    super::apply_is_true();
+  }
+
   void reset() override {
     m_value = false;
     null_value = false;
@@ -749,6 +754,9 @@ class Item_in_subselect : public Item_exists_subselect {
   Item_ref *m_injected_left_expr{nullptr};
 
   bool m_was_null{false};
+
+  /// Whether the caller tests this IN predicate for truth.
+  bool m_is_truth_condition{false};
 
   /**
      This bundles several pieces of information useful when doing the
