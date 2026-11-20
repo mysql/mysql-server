@@ -1,11 +1,12 @@
 
 # CREATE TYPE statement
 
-## Syntax for basic types
+## Syntax for distinct types
 
 ```bison
 <create_type_stmt>:
   CREATE TYPE <type_ident> AS <builtin_type>
+  <opt_method_specification_list>
   ;
 ```
 
@@ -22,43 +23,144 @@
   ;
 ```
 
-For example:
-
-```sql
-  // complex, using a basic type
-  CREATE TYPE `complex` AS BINARY(16);
+```bison
+<opt_method_specification_list>:
+    %empty
+  | <method_specification_list>
+  ;
 ```
 
-This syntax defines a type as `basic type`,
-encapsulated in an underlying storage type.
-
-This is one of the possible options defined in the SQL spec.
-
-## Syntax for composite types
-
-The SQL specification also defines structured types:
+```bison
+<method_specification_list>:
+    <method_specification>
+  | <method_specification_list> <method_specification>
+  ;
+```
 
 ```bison
-<create_type_stmt>:
-  CREATE TYPE <type_ident> AS ( <member_list> )
+<opt_method_kind>:
+    %empty
+  | <method_kind>
+  ;
+```
+
+```bison
+<method_kind>:
+    INSTANCE
+  | STATIC
+  | CONSTRUCTOR
+  ;
+```
+
+```bison
+<method_specification>:
+    <partial_method_specification> <opt_method_characteristics>
+  ;
+```
+
+```bison
+<partial_method_specification>:
+    <opt_method_kind> METHOD <ident> '(' <opt_sql_parameter_declaration_list> ')'
+    <returns_clause> <opt_specific_method_name>
+  ;
+```
+
+```bison
+<opt_specific_method_name>:
+    %empty
+  | <specific_method_name>
+  ;
+```
+
+```bison
+<specific_method_name>:
+    SPECIFIC <ident>
+  ;
+```
+
+```bison
+<opt_sql_parameter_declaration_list>:
+    %empty
+  | <sql_parameter_declaration_list>
+  ;
+```
+
+```bison
+<sql_parameter_declaration_list>:
+    <sql_parameter_declaration>
+  | <sql_parameter_declaration_list> ',' <sql_parameter_declaration>
+  ;
+```
+
+```bison
+<sql_parameter_declaration>:
+    <type>
+  ;
+```
+
+```bison
+<returns_clause>:
+    RETURNS <type>
+  ;
+```
+
+```bison
+<opt_method_characteristics>:
+    %empty
+  | <method_characteristics>
+  ;
+```
+
+```bison
+<method_characteristics>:
+    <method_characteristic>
+  | <method_characteristics> <method_characteristic>
+  ;
+```
+
+```bison
+<method_characteristic>:
+    <null_call_clause>
+  ;
+```
+
+```bison
+<null_call_clause>:
+    RETURN NULL ON NULL INPUT
+  | CALLED ON NULL INPUT
   ;
 ```
 
 For example:
 
 ```sql
-  // complex, using a structured type
-  CREATE TYPE `complex` AS (
-    `real` DOUBLE,
-    `imaginary` DOUBLE
-  );
+  CREATE TYPE `complex` AS BINARY(16);
 ```
 
-This is a valid use case, to save duplication for the type definition
-itself, when used in multiple places.
+This syntax defines a distinct type
+encapsulated in an underlying storage type.
 
-This form is out of scope for the first release.
-Decision to support this, or not, is postponed.
+This simple form is used as a forward declaration,
+to add methods later with ALTER TYPE.
+
+```sql
+  CREATE TYPE math.complex_number AS BINARY(16)
+    STATIC METHOD `from_string` ( TEXT )
+      RETURNS math.complex_number
+    STATIC METHOD `add` ( math.complex_number, math.complex_number )
+      RETURNS math.complex_number
+    STATIC METHOD `mul` ( math.complex_number, math.complex_number )
+      RETURNS math.complex_number
+      RETURN NULL ON NULL INPUT
+    INSTANCE METHOD `real` ()
+      RETURNS DOUBLE
+    INSTANCE METHOD `imaginary` ()
+      RETURNS DOUBLE
+  ;
+```
+
+This form, including method definitions, creates a type and associated
+methods in a single DDL statement.
 
 # ALTER TYPE statement
 
@@ -66,21 +168,50 @@ In the SQL specification, ALTER TYPE is used to:
 - ADD/DROP attributes
 - ADD/DROP methods
 
-We do not have attributes, since composite types are not supported.
+We do not have attributes, since structured types are not supported.
 
 FR:
 
 ALTER TYPE supports a ADD METHOD clause, to add a method to an existing
 type.
 
-TODO: syntax.
-
 FR:
 
-ALTER TYPE supports a DROP METHOD clause, to add a method to an existing
+ALTER TYPE supports a DROP METHOD clause, to drop a method from an existing
 type.
 
-TODO: syntax.
+```bison
+<alter_type_stmt>:
+  ALTER TYPE <type_ident> <alter_type_action>
+  ;
+```
+
+```bison
+<alter_type_action>:
+    ADD <method_specification>
+  | DROP <specific_method_specification_designator>
+  ;
+```
+
+```bison
+<specific_method_specification_designator>:
+    <opt_method_kind> METHOD <ident> '(' <opt_data_type_list> ')'
+  ;
+```
+
+```bison
+<opt_data_type_list>:
+    %empty
+  | <data_type_list>
+  ;
+```
+
+```bison
+<data_type_list>:
+    <type>
+  | <data_type_list> ',' <type>
+  ;
+```
 
 # DROP TYPE statement
 
