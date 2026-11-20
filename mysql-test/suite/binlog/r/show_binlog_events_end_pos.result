@@ -1,0 +1,16 @@
+RESET BINARY LOGS AND GTIDS;
+CREATE TABLE t1 (i INT);
+INSERT INTO t1 VALUES (1);
+SET DEBUG_SYNC = "after_show_binlog_event_found_file SIGNAL reached WAIT_FOR go";
+SET DEBUG_SYNC = "now WAIT_FOR reached";
+INSERT INTO t1 VALUES (2);
+INSERT INTO t1 VALUES (3);
+SET DEBUG_SYNC = "now SIGNAL go";
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Gtid	1	#	#
+#	#	Query	1	#	#
+#	#	Table_map	1	#	#
+#	#	Write_rows	1	#	#
+#	#	Xid	1	#	#
+SET DEBUG_SYNC = "RESET";
+DROP TABLE t1;

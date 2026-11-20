@@ -3153,8 +3153,13 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
 
     binlog::Decompressing_event_object_istream istream(
         binlog_file_reader, psi_memory_resource(key_memory_show_binlog_events));
+    /*
+      Do not read events starting at or after end_pos (0 = read the whole
+      file). A payload event starting before end_pos is still returned
+      with all its embedded events.
+    */
+    istream.set_binlog_reader_end_position(end_pos);
 
-    my_off_t last_log_pos = 0;
     event_count = 0;
     std::shared_ptr<Log_event> ev;
     while (istream >> ev) {
@@ -3164,14 +3169,9 @@ bool show_binlog_events(THD *thd, MYSQL_BIN_LOG *binary_log) {
         errmsg = "Net error";
         goto err;
       }
-      last_log_pos = ev->common_header->log_pos;
       pos = binlog_file_reader.position();
 
       if (++event_count == limit_end) break;
-      if (end_pos > 0 && pos >= end_pos &&
-          (ev->common_header->log_pos != last_log_pos)) {
-        break;
-      }
     }
     if (istream.has_error()) errmsg = istream.get_error_str();
   }

@@ -147,6 +147,19 @@ class Decompressing_event_object_istream {
   /// don't.
   void set_verify_checksum(bool verify_checksum = true);
 
+  /// Specify a position in the binlog file at which to stop reading.
+  ///
+  /// The stream reports end-of-stream, without error, instead of
+  /// reading an event that starts at or after this position. All
+  /// embedded events of a Transaction_payload_log_event that was
+  /// read before reaching the position are still returned.
+  ///
+  /// Has no effect when the stream reads from a single
+  /// Transaction_payload_log_event instead of a binlog reader.
+  ///
+  /// @param end_position File offset to stop at, or 0 for no limit.
+  void set_binlog_reader_end_position(my_off_t end_position);
+
   /// Read an event from the stream.
   ///
   /// @param out Shared pointer to the produced event.  If this is a
@@ -205,6 +218,8 @@ class Decompressing_event_object_istream {
   Status_t m_status{Status_t::success};
   /// Position of last event
   my_off_t m_event_position{0};
+  /// Do not read events at or after this file offset; 0 for no limit.
+  my_off_t m_binlog_reader_end_position{0};
 #ifndef NDEBUG
   /// True if a read has failed but neither `get_error_str` nor
   /// `has_error` has been called.

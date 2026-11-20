@@ -75,6 +75,11 @@ void Decompressing_event_object_istream::set_verify_checksum(
   m_verify_checksum = verify_checksum;
 }
 
+void Decompressing_event_object_istream::set_binlog_reader_end_position(
+    my_off_t end_position) {
+  m_binlog_reader_end_position = end_position;
+}
+
 Decompressing_event_object_istream::operator bool() const { return !m_end; }
 
 bool Decompressing_event_object_istream::operator!() const { return m_end; }
@@ -230,6 +235,12 @@ bool Decompressing_event_object_istream::read_from_binlog_stream(
   DBUG_TRACE;
   assert(m_embedded_event_number == 0);
   m_event_position = m_binlog_reader->position();
+  if (m_binlog_reader_end_position != 0 &&
+      m_event_position >= m_binlog_reader_end_position) {
+    DBUG_LOG("info", "Reached end position " << m_binlog_reader_end_position);
+    m_status = Status_t::end;
+    return true;
+  }
   Log_event *ev = m_binlog_reader->read_event_object();
   if (ev == nullptr) {
     auto error = m_binlog_reader->get_error_type();
