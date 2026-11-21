@@ -1,0 +1,58 @@
+# ==== Purpose ====
+#
+# Test that statements calling DISTANCE() or VECTOR_DISTANCE() are logged in
+# row format with BINLOG_FORMAT=MIXED.
+#
+# ==== Requirements ====
+#
+# R1. With BINLOG_FORMAT=MIXED, INSERT, UPDATE and DELETE statements that
+#     call DISTANCE() or VECTOR_DISTANCE() are logged as row events.
+#
+# R2. The same statements without the function are logged as statements.
+#
+# ==== Implementation ====
+#
+# Run DML with and without the function and check the logged events.
+#
+# ==== References ====
+#
+# Bug#121547: Add DISTANCE() for VECTOR data type
+#
+
+--source include/have_binlog_format_mixed.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY, v VECTOR(2));
+CREATE TABLE t2 (id INT PRIMARY KEY, d DOUBLE);
+INSERT INTO t1 VALUES (1, TO_VECTOR('[1, 0]')), (2, TO_VECTOR('[0, 1]'));
+
+--echo # R1
+--source include/rpl/save_binlog_file_position.inc
+INSERT INTO t2 SELECT id, DISTANCE(v, TO_VECTOR('[1, 1]'), 'EUCLIDEAN') FROM t1;
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Write_rows # Xid
+--source include/rpl/assert_binlog_events.inc
+
+--source include/rpl/save_binlog_file_position.inc
+INSERT INTO t2 VALUES
+  (3, VECTOR_DISTANCE(TO_VECTOR('[1, 1]'), TO_VECTOR('[2, 2]'), 'COSINE'));
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Write_rows # Xid
+--source include/rpl/assert_binlog_events.inc
+
+--source include/rpl/save_binlog_file_position.inc
+UPDATE t2 JOIN t1 USING (id)
+   SET t2.d = DISTANCE(t1.v, TO_VECTOR('[1, 1]'), 'DOT');
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Update_rows # Xid
+--source include/rpl/assert_binlog_events.inc
+
+--source include/rpl/save_binlog_file_position.inc
+DELETE FROM t2
+ WHERE d < DISTANCE(TO_VECTOR('[1, 1]'), TO_VECTOR('[1, 2]'), 'MANHATTAN');
+--let $event_sequence = !Gtid_or_anon # !Begin # Table_map # Delete_rows # Xid
+--source include/rpl/assert_binlog_events.inc
+
+--echo # R2
+--source include/rpl/save_binlog_file_position.inc
+INSERT INTO t2 SELECT id + 10, 0 FROM t1;
+--let $event_sequence = !Gtid_or_anon # !Begin # Query # Xid
+--source include/rpl/assert_binlog_events.inc
+
+DROP TABLE t1, t2;
