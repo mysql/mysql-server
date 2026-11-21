@@ -1,0 +1,67 @@
+# Successful calls
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+CALL sys.diagnostics(1, 1, 'current');
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+CALL sys.diagnostics(1, 1, 'medium');
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+CALL sys.ps_trace_thread(CON1_THREAD_ID, 'OUTFILE', 0, NULL, FALSE, TRUE, FALSE);
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+CALL sys.ps_trace_statement_digest(REPEAT('0', 64), 0, 0.1, FALSE, TRUE);
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+# A call made with sql_log_bin = 0 leaves it at 0
+SET sql_log_bin = 0;
+CALL sys.ps_trace_statement_digest(REPEAT('0', 64), 0, 0.1, FALSE, TRUE);
+SELECT @@sql_log_bin;
+@@sql_log_bin
+0
+SET sql_log_bin = 1;
+# Argument and configuration errors
+CALL sys.statement_performance_analyzer('delta', NULL, NULL);
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+# No saved configuration
+CALL sys.ps_setup_reload_saved();
+ERROR 90001: An error occurred, was sys.ps_setup_save() run before this procedure?
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+# Another connection holds the saved configuration
+CALL sys.ps_setup_save(0);
+CALL sys.ps_setup_save(0);
+ERROR 90000: Could not lock the sys.ps_setup_save user lock, another thread has a saved configuration
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+CALL sys.ps_setup_reload_saved();
+ERROR 90001: An error occurred, was sys.ps_setup_save() run before this procedure?
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+CALL sys.diagnostics(1, 1, 'medium');
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+CALL sys.ps_trace_thread(CON1_THREAD_ID, 'OUTFILE', 0, NULL, FALSE, TRUE, FALSE);
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+CALL sys.ps_trace_statement_digest(REPEAT('0', 64), 0, 0.1, FALSE, TRUE);
+SELECT @@sql_log_bin;
+@@sql_log_bin
+1
+CALL sys.ps_setup_reload_saved();

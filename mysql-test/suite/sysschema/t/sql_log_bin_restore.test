@@ -1,0 +1,123 @@
+########### suite/sysschema/t/sql_log_bin_restore.test ##############
+#                                                                    #
+# The sys procedures that turn sql_log_bin off while they run must   #
+# leave it as they found it, both when they succeed and when they    #
+# fail. Some of them only turn it off with binlog_format=STATEMENT.  #
+#                                                                    #
+######################################################################
+
+--source include/have_binlog_format_statement.inc
+# ps_trace_statement_digest() does not work with prepared statements
+--source include/no_protocol.inc
+--source include/no_valgrind_without_big.inc
+
+# Thread stack overrun in debug mode on sparc
+--source include/not_sparc_debug.inc
+
+--let $outfile= $MYSQL_TMP_DIR/sql_log_bin_restore.dot
+
+connect (con1,localhost,root,,);
+--let $con1_thread_id= `SELECT THREAD_ID FROM performance_schema.threads WHERE PROCESSLIST_ID = CONNECTION_ID()`
+connect (con2,localhost,root,,);
+
+--echo # Successful calls
+connection default;
+SELECT @@sql_log_bin;
+
+--disable_result_log
+CALL sys.diagnostics(1, 1, 'current');
+--enable_result_log
+SELECT @@sql_log_bin;
+
+--disable_result_log
+CALL sys.diagnostics(1, 1, 'medium');
+--enable_result_log
+SELECT @@sql_log_bin;
+
+--disable_result_log
+--replace_result $con1_thread_id CON1_THREAD_ID $outfile OUTFILE
+--eval CALL sys.ps_trace_thread($con1_thread_id, '$outfile', 0, NULL, FALSE, TRUE, FALSE)
+--enable_result_log
+--remove_file $outfile
+SELECT @@sql_log_bin;
+
+--disable_result_log
+CALL sys.ps_trace_statement_digest(REPEAT('0', 64), 0, 0.1, FALSE, TRUE);
+--enable_result_log
+SELECT @@sql_log_bin;
+
+--echo # A call made with sql_log_bin = 0 leaves it at 0
+SET sql_log_bin = 0;
+--disable_result_log
+CALL sys.ps_trace_statement_digest(REPEAT('0', 64), 0, 0.1, FALSE, TRUE);
+--enable_result_log
+SELECT @@sql_log_bin;
+SET sql_log_bin = 1;
+
+# The failing calls below leave temporary tables and a disabled thread
+# behind, so they run in con2.
+connection con2;
+
+--echo # Argument and configuration errors
+--disable_result_log
+--error ER_SIGNAL_EXCEPTION
+CALL sys.statement_performance_analyzer('delta', NULL, NULL);
+--enable_result_log
+SELECT @@sql_log_bin;
+
+--disable_result_log
+--error ER_SIGNAL_EXCEPTION
+CALL sys.statement_performance_analyzer('overall', NULL, 'custom');
+--enable_result_log
+SELECT @@sql_log_bin;
+
+--echo # No saved configuration
+# The procedure empties setup_actors before it fails. Copying the table
+# into a temporary table would be an unsafe statement in the binary log,
+# so keep the rows in a statement instead.
+--let $restore_actors= `SELECT CONCAT('INSERT INTO performance_schema.setup_actors VALUES (', GROUP_CONCAT(CONCAT_WS(', ', QUOTE(HOST), QUOTE(USER), QUOTE(ROLE), QUOTE(ENABLED), QUOTE(HISTORY)) SEPARATOR '), ('), ')') FROM performance_schema.setup_actors`
+--error ER_SIGNAL_EXCEPTION
+CALL sys.ps_setup_reload_saved();
+SELECT @@sql_log_bin;
+--disable_query_log
+--eval $restore_actors
+--enable_query_log
+
+--echo # Another connection holds the saved configuration
+connection con1;
+CALL sys.ps_setup_save(0);
+
+connection con2;
+--error ER_SIGNAL_EXCEPTION
+CALL sys.ps_setup_save(0);
+SELECT @@sql_log_bin;
+
+--error ER_SIGNAL_EXCEPTION
+CALL sys.ps_setup_reload_saved();
+SELECT @@sql_log_bin;
+
+--disable_result_log
+--error ER_SIGNAL_EXCEPTION
+CALL sys.diagnostics(1, 1, 'medium');
+--enable_result_log
+SELECT @@sql_log_bin;
+
+--disable_result_log
+--replace_result $con1_thread_id CON1_THREAD_ID $outfile OUTFILE
+--error ER_SIGNAL_EXCEPTION
+--eval CALL sys.ps_trace_thread($con1_thread_id, '$outfile', 0, NULL, FALSE, TRUE, FALSE)
+--enable_result_log
+SELECT @@sql_log_bin;
+
+--disable_result_log
+--error ER_SIGNAL_EXCEPTION
+CALL sys.ps_trace_statement_digest(REPEAT('0', 64), 0, 0.1, FALSE, TRUE);
+--enable_result_log
+SELECT @@sql_log_bin;
+
+connection con1;
+CALL sys.ps_setup_reload_saved();
+
+disconnect con1;
+disconnect con2;
+connection default;

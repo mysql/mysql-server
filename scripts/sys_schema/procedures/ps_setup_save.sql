@@ -68,9 +68,17 @@ Query OK, 0 rows affected (0.32 sec)
     MODIFIES SQL DATA
 BEGIN
     DECLARE v_lock_result INT;
+    DECLARE v_log_bin BOOLEAN;
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        IF (@@sql_log_bin <> v_log_bin) THEN
+            SET sql_log_bin = v_log_bin;
+        END IF;
+        RESIGNAL;
+    END;
 
-    SET @log_bin := @@sql_log_bin;
-    IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+    SET v_log_bin = @@sql_log_bin;
+    IF ((v_log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
        SET sql_log_bin = 0;
     END IF;
 
@@ -96,8 +104,8 @@ BEGIN
            SET MESSAGE_TEXT = 'Could not lock the sys.ps_setup_save user lock, another thread has a saved configuration';
     END IF;
 
-    IF ((@log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
-	SET sql_log_bin = @log_bin;
+    IF ((v_log_bin = 1) AND (@@binlog_format = 'STATEMENT')) THEN
+	SET sql_log_bin = v_log_bin;
     END IF;
 END$$
 
