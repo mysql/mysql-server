@@ -1,0 +1,256 @@
+###############################################################################
+# ==== Purpose ====
+#
+# Verify that an Update_rows event whose after-image reuses a unique key value
+# that is still held by the before-image of a row coming later in the event
+# (unique key rotation, e.g. UPDATE t SET uk = uk + N) is applied on the
+# replica in event order, without ER_DUP_ENTRY, when the table has no usable
+# PRIMARY KEY / NOT NULL UNIQUE KEY, i.e. when HASH_SCAN would otherwise be
+# chosen for the replica-side row lookup.
+#
+# Background:
+#   If a table has no PK and no NOT NULL unique key, but does have a nullable
+#   unique key, the replica uses ROW_LOOKUP_HASH_SCAN with that unique key as
+#   the driving key. The rows of the event are then applied grouped by
+#   ascending key value instead of in event order. When an after-image reuses
+#   a unique key value that another row's before-image still holds, the
+#   replica hits a duplicate key error that never happened on the source.
+#
+#   Before this bug is fixed, cases 1-4 below fail at the first
+#   sync_to_replica with:
+#     1062 Duplicate entry '101-1' for key 't1.c1'
+#   and the replica SQL thread stops permanently (repeating on every restart).
+#
+# ==== Implementation ====
+# 1. Original report: nullable UK, rotation by c1 = c1 + 100.
+# 2. Rotation applied on the source in descending key order.
+# 3. Nullable UK plus a secondary key (HASH_SCAN would drive on the UK).
+# 4. Duplicated key values interleaved with a rotated row.
+# 5. Functional unique index only and no other usable index.
+# 6. FULL images, unchanged ordinary unique key: HASH_SCAN is kept.
+# 7. MINIMAL images, unchanged ordinary unique key: HASH_SCAN is kept.
+# 8. FULL images, generated unique key: HASH_SCAN is kept while the base
+#    columns are unchanged, TABLE_SCAN once they change.
+# 9. DELETE, and a table without unique keys: HASH_SCAN is kept.
+# 10. A table with a PRIMARY KEY keeps INDEX_SCAN (no unique key check).
+# 11. BLOB and JSON columns that feed a unique key are compared by value.
+# 12. PARTIAL_JSON updates that rotate a unique key.
+#
+# Every case asserts both the row lookup algorithm used on the replica
+# (Replica_rows_last_search_algorithm_used) and that the servers converge.
+# A replica applier that stops with ER_DUP_ENTRY makes sync_to_replica fail
+# right away, so the test does not need to poll the applier by itself.
+#
+# ==== References ====
+# Replica stops with ER_DUP_ENTRY when applying an Update_rows event whose
+# after-images rotate unique key values (reported in the MySQL bug system).
+###############################################################################
+
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # 1. Original case: nullable UK, key rotation by c1=c1+100
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (c1 INT NOT NULL, c2 INT DEFAULT NULL, UNIQUE KEY c1 (c1,c2)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,NULL),(1,1),(2,NULL),(2,2);
+INSERT INTO t1 VALUES (1,NULL),(2,NULL);
+UPDATE t1 SET c1=c1+100;
+INSERT INTO t1 VALUES (1,NULL),(1,1),(2,NULL),(2,2);
+INSERT INTO t1 VALUES (1,NULL),(2,NULL);
+UPDATE t1 SET c1=c1+100;
+
+--let $expected_alg= 'INDEX_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # 2. Shift with ORDER BY DESC (event order differs from clustered order)
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NULL, UNIQUE KEY uk(c1,c2)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1),(2,1),(3,1);
+UPDATE t1 SET c1=c1+1 ORDER BY c1 DESC;
+--let $expected_alg= 'INDEX_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # 3. Nullable UK plus a secondary key whose order differs from row order
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NULL, c3 INT,
+                 UNIQUE KEY uk(c1,c2), KEY k(c3)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (101,1,9),(1,1,0);
+UPDATE t1 SET c1=c1+100;
+--let $expected_alg= 'INDEX_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # 4. Duplicated NULL key values interleaved with a rotated row
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NULL, id INT, UNIQUE KEY uk(c1,c2)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,NULL,1),(1,5,2),(1,NULL,3);
+UPDATE t1 SET c2 = CASE id WHEN 1 THEN 7 WHEN 2 THEN 8 WHEN 3 THEN 5 END;
+--let $expected_alg= 'INDEX_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # 5. Functional UK only, no other index => TABLE_SCAN
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT, b INT, UNIQUE INDEX fi ((a+b))) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1),(0,1);
+UPDATE t1 SET a=a+1;
+--let $expected_alg= 'TABLE_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # 6. FULL images with an unchanged ordinary unique key keep HASH_SCAN
+--source include/rpl/connection_source.inc
+SET @old_binlog_row_image=@@session.binlog_row_image;
+SET SESSION binlog_row_image = 'FULL';
+CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NULL, payload INT,
+                 UNIQUE KEY uk(c1,c2)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,NULL,10),(1,1,20),(2,NULL,30);
+UPDATE t1 SET payload=payload+1;
+--let $expected_alg= 'HASH_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # 7. MINIMAL images with an unchanged ordinary unique key keep HASH_SCAN
+SET SESSION binlog_row_image = 'MINIMAL';
+CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NULL, payload INT,
+                 UNIQUE KEY uk(c1,c2)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,NULL,10),(1,1,20),(2,NULL,30);
+UPDATE t1 SET payload=payload+1;
+--let $expected_alg= 'HASH_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # 8. FULL images with unchanged generated-key inputs keep HASH_SCAN
+SET SESSION binlog_row_image = 'FULL';
+CREATE TABLE t1 (a INT, b INT, payload INT,
+                 UNIQUE INDEX fi ((a+b))) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,10),(0,1,20);
+UPDATE t1 SET payload=payload+1;
+--let $expected_alg= 'HASH_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+UPDATE t1 SET a=a+1;
+--let $expected_alg= 'TABLE_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+SET SESSION binlog_row_image = @old_binlog_row_image;
+
+--echo #
+--echo # 9. Unchanged paths: DELETE and tables without unique keys keep HASH_SCAN
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (c1 INT NOT NULL, c2 INT NULL, UNIQUE KEY uk(c1,c2)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,NULL),(1,1),(2,NULL);
+DELETE FROM t1;
+--let $expected_alg= 'HASH_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (c1 INT, c2 INT, KEY k(c1)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1),(2,2),(3,3);
+UPDATE t1 SET c1=c1+1;
+--let $expected_alg= 'HASH_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # 10. A table with a PRIMARY KEY keeps INDEX_SCAN
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, c2 INT, payload INT,
+                 UNIQUE KEY uk(c2)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,1,0),(2,2,0),(3,3,0);
+UPDATE t1 SET payload=payload+1;
+--let $expected_alg= 'INDEX_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+UPDATE t1 SET c2=c2+1 ORDER BY c2 DESC;
+--let $expected_alg= 'INDEX_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # 11.1 BLOB key part: compared by value
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (b TEXT, c2 INT NULL, payload INT,
+                 UNIQUE KEY uk(b(10), c2)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES ('a',1,0),('b',1,0),('c',1,0);
+UPDATE t1 SET payload=payload+1;
+--let $expected_alg= 'HASH_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+UPDATE t1 SET b=CASE b WHEN 'a' THEN 'b' WHEN 'b' THEN 'c' WHEN 'c' THEN 'd' END
+  ORDER BY b DESC;
+--let $expected_alg= 'INDEX_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # 11.2 JSON column feeding a generated unique key: compared by value
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (j JSON, g INT AS (CAST(j->>'$.k' AS SIGNED)) VIRTUAL,
+                 payload INT, UNIQUE KEY uk(g)) ENGINE=InnoDB;
+INSERT INTO t1(j, payload) VALUES ('{"k":1}',0),('{"k":2}',0),('{"k":3}',0);
+UPDATE t1 SET payload=payload+1;
+--let $expected_alg= 'HASH_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+UPDATE t1 SET j=JSON_OBJECT('k', g+1) ORDER BY g DESC;
+--let $expected_alg= 'INDEX_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+
+--echo #
+--echo # 12. PARTIAL_JSON updates that rotate a unique key
+--source include/rpl/connection_source.inc
+SET @old_binlog_row_value_options= @@session.binlog_row_value_options;
+SET SESSION binlog_row_value_options= 'PARTIAL_JSON';
+CREATE TABLE t1 (a INT, b JSON, UNIQUE KEY uk(a)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES
+  (1,'{"x":1,"long":"a long string to make a partial update worthwhile"}'),
+  (2,'{"x":1,"long":"a long string to make a partial update worthwhile"}'),
+  (3,'{"x":1,"long":"a long string to make a partial update worthwhile"}');
+UPDATE t1 SET a=a+1, b=JSON_SET(b,'$.x',2) ORDER BY a DESC;
+--let $expected_alg= 'INDEX_SCAN'
+--source include/rpl/hash_scan_assertion.inc
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+DROP TABLE t1;
+SET SESSION binlog_row_value_options= @old_binlog_row_value_options;
+
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

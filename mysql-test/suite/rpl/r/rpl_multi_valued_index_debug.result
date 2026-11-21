@@ -21,7 +21,7 @@ include/rpl/sync_to_replica.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Replica_rows_last_search_algorithm_used	HASH_SCAN
+Replica_rows_last_search_algorithm_used	TABLE_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/rpl/sync_to_replica.inc
@@ -41,7 +41,7 @@ include/rpl/sync_to_replica.inc
 [Connection Slave]
 SHOW STATUS LIKE 'Replica_rows_last_search_algorithm_used';
 Variable_name	Value
-Replica_rows_last_search_algorithm_used	HASH_SCAN
+Replica_rows_last_search_algorithm_used	TABLE_SCAN
 [connection master]
 DELETE FROM t1 WHERE JSON_CONTAINS(CAST(j AS JSON),'2');
 include/rpl/sync_to_replica.inc

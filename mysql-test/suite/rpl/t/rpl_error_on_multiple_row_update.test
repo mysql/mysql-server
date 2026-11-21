@@ -35,12 +35,22 @@ SET @@session.binlog_row_value_options = 'PARTIAL_JSON';
 CREATE TABLE t1 (a INT UNIQUE KEY, b JSON);
 INSERT INTO t1 VALUES (1, '{ "long string": "long string", "x": 2}');
 CREATE TABLE t2 (a INT);
+# t3 has no unique key: the replica keeps using HASH_SCAN for it.
+CREATE TABLE t3 (a INT, b JSON, KEY k(a));
+INSERT INTO t3 VALUES (1, '{ "long string": "long string", "x": 2}');
 
 --delimiter |
 CREATE FUNCTION f () RETURNS INT BEGIN
   UPDATE t1 SET a = 3, b = JSON_SET(b, '$.x', 3);
   UPDATE t1 SET a = 2;
   UPDATE t1 SET a = 4;
+  RETURN 1;
+END|
+
+CREATE FUNCTION f3 () RETURNS INT BEGIN
+  UPDATE t3 SET a = 3, b = JSON_SET(b, '$.x', 3);
+  UPDATE t3 SET a = 2;
+  UPDATE t3 SET a = 4;
   RETURN 1;
 END|
 --delimiter ;
@@ -58,6 +68,20 @@ COMMIT;
 --let diff_tables=master:test.t2, slave:test.t2
 --source include/diff_tables.inc
 
+# t1 has a nullable unique key that the event changes, so the rows are
+# applied in event order (Bug#121467).
+SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
+
+# Same event shape on a table without unique keys: HASH_SCAN is still used.
+--source include/rpl/connection_source.inc
+BEGIN;
+INSERT INTO t2 VALUES (f3());
+COMMIT;
+--source include/rpl/sync_to_replica.inc
+
+--let diff_tables=master:test.t3, slave:test.t3
+--source include/diff_tables.inc
+
 SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
 
 # 6. Cleanup.
@@ -65,5 +89,7 @@ SHOW STATUS LIKE 'Slave_rows_last_search_algorithm_used';
 SET @@SESSION.BINLOG_ROW_VALUE_OPTIONS= @old_binlog_row_value_options;
 DROP TABLE t1;
 DROP TABLE t2;
+DROP TABLE t3;
 DROP FUNCTION f;
+DROP FUNCTION f3;
 --source include/rpl/deinit.inc
