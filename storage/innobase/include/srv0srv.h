@@ -310,6 +310,15 @@ extern os_event_t srv_buf_dump_event;
 
 /** The buffer pool resize thread waits on this event. */
 extern os_event_t srv_buf_resize_event;
+
+#ifdef UNIV_DEBUG
+/** Debug-test event used to order an AHI enable request with buffer pool resize
+completion. The event is waited on by the resize thread after the new size is
+published and before its final AHI enable attempt. It is signaled by the SET
+GLOBAL callback after the requested AHI state is published; therefore, that
+state is visible when the resize thread continues. */
+extern os_event_t srv_buf_resize_ahi_enable_event;
+#endif /* UNIV_DEBUG */
 #endif /* !UNIV_HOTBACKUP */
 
 /** The buffer pool dump/load file name */

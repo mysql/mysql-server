@@ -778,6 +778,15 @@ os_event_t srv_buf_dump_event;
 /** Event to signal the buffer pool resize thread */
 os_event_t srv_buf_resize_event;
 
+#ifdef UNIV_DEBUG
+/** Debug-test event used to order an AHI enable request with buffer pool resize
+completion. The event is waited on by the resize thread after the new size is
+published and before its final AHI enable attempt. It is signaled by the SET
+GLOBAL callback after the requested AHI state is published; therefore, that
+state is visible when the resize thread continues. */
+os_event_t srv_buf_resize_ahi_enable_event;
+#endif /* UNIV_DEBUG */
+
 /** The buffer pool dump/load file name */
 char *srv_buf_dump_filename;
 
@@ -1175,6 +1184,8 @@ static void srv_init(void) {
 
   srv_buf_resize_event = os_event_create();
 
+  ut_d(srv_buf_resize_ahi_enable_event = os_event_create());
+
   ut_d(srv_master_thread_disabled_event = os_event_create());
 
   /* page_zip_stat_per_index_mutex is acquired from:
@@ -1224,6 +1235,8 @@ void srv_free(void) {
   os_event_destroy(srv_buf_resize_event);
 
 #ifdef UNIV_DEBUG
+  os_event_destroy(srv_buf_resize_ahi_enable_event);
+  srv_buf_resize_ahi_enable_event = nullptr;
   os_event_destroy(srv_master_thread_disabled_event);
   srv_master_thread_disabled_event = nullptr;
 #endif /* UNIV_DEBUG */
