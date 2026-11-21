@@ -1,0 +1,161 @@
+
+# 0. Set up a CSA channel with IMR enabled (8 MiB spill threshold).
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+SET @saved_stop_timeout = @@GLOBAL.rpl_stop_replica_timeout;
+SET GLOBAL rpl_stop_replica_timeout = 10;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 1. Memory path: STOP REPLICA SQL_THREAD while the receiver is stalled
+#    after the first WRITE_ROWS of a 2-row transaction (R1).
+
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (1, REPEAT('x', 10));
+INSERT INTO t1 VALUES (2, REPEAT('x', 10));
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+STOP REPLICA SQL_THREAD;
+[connection slave]
+include/assert.inc [1: the stop raises no applier error]
+include/assert.inc [1: the queue keeps the stalled transaction]
+include/assert.inc [1: the stalled transaction holds no lock on t1]
+include/assert.inc [1: the stalled transaction was rolled back]
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+SET DEBUG_SYNC = 'RESET';
+include/rpl/diff.inc
+
+# 2. Spill path: the same with a transaction of about 12 MiB (R2).
+
+[connection slave]
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+STOP REPLICA SQL_THREAD;
+[connection slave]
+include/assert.inc [2: the stop raises no applier error]
+include/assert.inc [2: the queue keeps the stalled transaction]
+include/assert.inc [2: the stalled transaction holds no lock on t1]
+include/assert.inc [2: the stalled transaction was rolled back]
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+SET DEBUG_SYNC = 'RESET';
+include/rpl/diff.inc
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 3. Full STOP REPLICA while the receiver is stalled after the first
+#    WRITE_ROWS (R3).
+
+[connection slave]
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (200, REPEAT('x', 10));
+INSERT INTO t1 VALUES (201, REPEAT('x', 10));
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+STOP REPLICA;
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+[connection slave]
+SET DEBUG_SYNC = 'RESET';
+include/assert.inc [3: the stop raises no applier error]
+include/assert.inc [3: the stop raises no receiver error]
+include/assert.inc [3: the receiver exit reset the queue]
+include/assert.inc [3: the stalled transaction holds no lock on t1]
+include/assert.inc [3: the stalled transaction was rolled back]
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+
+# 4. UNTIL SQL_AFTER_GTIDS: a client session executes the target while
+#    the post-target transaction is stalled after its first WRITE_ROWS
+#    (R4).
+
+[connection slave]
+include/rpl/stop_applier.inc
+START REPLICA SQL_THREAD UNTIL SQL_AFTER_GTIDS = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+include/rpl/wait_for_applier_to_start.inc
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (300, REPEAT('x', 10));
+INSERT INTO t1 VALUES (301, REPEAT('x', 10));
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET GTID_NEXT = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:1';
+BEGIN;
+COMMIT;
+SET GTID_NEXT = AUTOMATIC;
+[connection slave]
+include/assert.inc [4: the UNTIL stop raises no applier error]
+include/assert.inc [4: the queue keeps the stalled transaction]
+include/assert.inc [4: the stalled transaction holds no lock on t1]
+include/assert.inc [4: the stalled transaction was rolled back]
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+SET DEBUG_SYNC = 'RESET';
+include/rpl/diff.inc
+
+# 5. Cleanup.
+
+[connection slave]
+SET GLOBAL rpl_stop_replica_timeout = @saved_stop_timeout;
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

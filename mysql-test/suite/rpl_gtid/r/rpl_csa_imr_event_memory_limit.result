@@ -1,0 +1,88 @@
+
+# 1. Set up an IMR channel with a 5000-byte event memory limit.
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("Replica SQL thread .* killed");
+CALL mtr.add_suppression("Worker .* stopped");
+SET @@GLOBAL.replica_max_allowed_packet = 4096;
+CHANGE REPLICATION SOURCE TO
+APPLIER_WORKER_COUNT = 4,
+APPLIER_EVENT_MEMORY_LIMIT = 5000,
+IN_MEMORY_RELAYLOG_ENABLED = ON;
+include/assert.inc [The channel uses the in-memory relay log]
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. One worker holds a ~4 KB event; the other three wait.
+
+# Adding debug point 'pause_csa_before_releasing_event_memory' to @@GLOBAL.debug
+[connection master]
+[connection slave]
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+# Removing debug point 'pause_csa_before_releasing_event_memory' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL signal_continue_csa_releasing_event_memory';
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [All six transactions applied]
+
+# 3. A transaction with an event larger than the limit waits, then
+#    applies.
+
+# Adding debug point 'pause_csa_before_releasing_event_memory' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 VALUES (101, REPEAT('A', 3000));
+BEGIN;
+INSERT INTO t1 VALUES (102, REPEAT('A', 10000));
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+# Removing debug point 'pause_csa_before_releasing_event_memory' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL signal_continue_csa_releasing_event_memory';
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [Both transactions applied]
+include/assert.inc [The event larger than the limit applied in full]
+
+# 4. STOP REPLICA SQL_THREAD while one worker holds event memory and
+#    another waits for it.
+
+[connection slave]
+SET DEBUG_SYNC= 'RESET';
+# Adding debug point 'pause_csa_before_releasing_event_memory' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 VALUES (201, REPEAT('A', 4000));
+INSERT INTO t1 VALUES (202, REPEAT('A', 4000));
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+# Removing debug point 'pause_csa_before_releasing_event_memory' from @@GLOBAL.debug
+[connection slave1]
+STOP REPLICA SQL_THREAD;
+[connection slave]
+SET DEBUG_SYNC= 'RESET';
+include/rpl/assert_replica_no_error.inc
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/assert.inc [Both transactions applied after START]
+[connection master]
+[connection slave]
+include/assert.inc [Replica gtid_executed covers the source after START]
+include/rpl/diff.inc
+
+# 5. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

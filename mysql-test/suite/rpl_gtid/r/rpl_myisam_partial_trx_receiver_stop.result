@@ -1,0 +1,65 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Create the MyISAM table and the 40 source rows.
+
+[connection master]
+CREATE TABLE t2 (i INT, pad VARCHAR(2000)) ENGINE = MyISAM;
+CREATE TABLE src (i INT PRIMARY KEY, pad VARCHAR(2000)) ENGINE = InnoDB;
+CREATE TABLE t3 (i INT PRIMARY KEY) ENGINE = InnoDB;
+include/rpl/sync_to_replica.inc
+
+# 2. Arm the receiver pause, the receiver stop and the row barrier.
+
+# Adding debug point 'pause_after_queue_event' to @@GLOBAL.debug
+# Adding debug point 'stop_io_after_reading_write_rows_log_event' to @@GLOBAL.debug
+# Adding debug point 'dbug.rpl_apply_sync_barrier' to @@GLOBAL.debug
+
+# 3. The receiver queues Write_rows #1 and waits; the applier applies a
+#    row of it.
+
+[connection master]
+INSERT INTO t2 SELECT i, pad FROM src ORDER BY i;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR reached_after_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL continue_after_queue_event';
+SET DEBUG_SYNC = 'now WAIT_FOR reached_after_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL continue_after_queue_event';
+SET DEBUG_SYNC = 'now WAIT_FOR reached_after_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL continue_after_queue_event';
+SET DEBUG_SYNC = 'now WAIT_FOR reached_after_queue_event';
+SET DEBUG_SYNC = 'now WAIT_FOR signal.rpl_row_apply_progress_updated';
+
+# 4. The receiver stops after Write_rows #1, then the applier goes on.
+
+# Removing debug point 'dbug.rpl_apply_sync_barrier' from @@GLOBAL.debug
+# Removing debug point 'pause_after_queue_event' from @@GLOBAL.debug
+SET DEBUG_SYNC = 'now SIGNAL continue_after_queue_event';
+include/rpl/wait_for_replica_status.inc [Replica_IO_Running]
+SET DEBUG_SYNC = 'now SIGNAL signal.rpl_row_apply_process_next_row';
+# Removing debug point 'stop_io_after_reading_write_rows_log_event' from @@GLOBAL.debug
+
+# 5. Restart the receiver: every path ends with the same state.
+
+include/rpl/start_receiver.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [The source has 40 rows]
+include/assert.inc [The replica keeps the 8 rows of Write_rows #1 only]
+include/assert.inc [The cut transaction's GTID is executed on the replica]
+include/assert.inc [The applier runs without error]
+[connection master]
+INSERT INTO t3 VALUES (1);
+include/rpl/sync_to_replica.inc
+include/assert.inc [A following transaction applies]
+
+# Cleanup.
+
+SET DEBUG_SYNC = 'RESET';
+[connection master]
+DROP TABLE t2, src, t3;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

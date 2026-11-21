@@ -1,0 +1,212 @@
+# ==== Purpose ====
+#
+# Test that an in-memory relay log (IMR) CSA channel starts every new IMR
+# runtime with an empty Retrieved_Gtid_Set, so transactions that were only in
+# the volatile in-memory queue are fetched again after a replica restart.
+#
+# An IMR channel still keeps classic relay-log files. They hold no transaction
+# data, but each new file starts with a Previous_gtids event that names the
+# Retrieved_Gtid_Set at that moment, which on IMR includes transactions that
+# are only queued in memory. At server start init_gtid_sets() restores
+# Retrieved_Gtid_Set from the last relay-log file. Without clearing it when the
+# IMR runtime is created, the replica would tell the source it already has the
+# queued-but-lost transactions, never fetch them again, and diverge.
+#
+# ==== Requirements ====
+#
+# R1. Retrieved_Gtid_Set is empty after a replica restart (clean or crash),
+#     because the restart creates a new IMR runtime with an empty queue:
+#     In_Memory_Queue_Length = 0 and In_Memory_Relay_Log_Space = 0.
+# R2. A START REPLICA or CHANGE REPLICATION SOURCE that keeps the existing
+#     runtime does not clear Retrieved_Gtid_Set.
+# R3. After a restart with queued-but-unapplied transactions and a source
+#     binary log rotation in between, START REPLICA fetches them again and the
+#     replica converges to the source.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA replica, enable IMR, apply a first workload.
+#   2. R2: stop the applier, queue 2 transactions, then run a CHANGE
+#      REPLICATION SOURCE with an execute option and START the applier. Both
+#      keep the runtime; Retrieved_Gtid_Set must be kept.
+#   3. For a clean restart (variant 1) and a crash restart (variant 2):
+#      1. Stop the applier; queue 2 transactions; FLUSH BINARY LOGS on the
+#         source, so the replica writes a relay-log file whose Previous_gtids
+#         names them; queue 1 more transaction.
+#      2. Restart the replica.
+#      3. R1: Retrieved_Gtid_Set is empty and the queue is empty.
+#      4. R3: START REPLICA; wait (bounded) for the source's gtid_executed;
+#         gtid_executed and the table match the source.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+
+# CSA requires row-based replication.
+--source include/have_binlog_format_row.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable IMR on the CSA channel, start replication, apply W1.
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, v VARCHAR(50));
+INSERT INTO t1 VALUES (1, 'w1-a'), (2, 'w1-b'), (3, 'w1-c');
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. A CHANGE REPLICATION SOURCE or START that keeps the runtime keeps
+--echo #    Retrieved_Gtid_Set (R2).
+--echo
+
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (4, 'r2-a');
+INSERT INTO t1 VALUES (5, 'r2-b');
+--let $use_gtids= 1
+--source include/rpl/sync_to_replica_received.inc
+
+--let $rgs_before= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+
+# An execute option: allowed with the receiver running, it reconciles the IMR
+# runtime and leaves it in place.
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY = 0;
+
+--let $rgs_now= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= CHANGE REPLICATION SOURCE that keeps the runtime keeps Retrieved_Gtid_Set
+--let $assert_cond= GTID_SUBSET("$rgs_before", "$rgs_now") AND GTID_SUBSET("$rgs_now", "$rgs_before")
+--source include/assert.inc
+
+# START of the applier reconciles the runtime too and leaves it in place.
+--source include/rpl/start_applier.inc
+
+--let $rgs_now= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= START REPLICA that keeps the runtime keeps Retrieved_Gtid_Set
+--let $assert_cond= GTID_SUBSET("$rgs_before", "$rgs_now")
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 3. Restart with queued-but-unapplied transactions and a source binary
+--echo #    log rotation in between (R1, R3).
+--echo
+
+--let $variant= 1
+while ($variant <= 2)
+{
+  if ($variant == 1)
+  {
+    --echo
+    --echo # Variant 1: clean restart.
+    --echo
+  }
+  if ($variant == 2)
+  {
+    --echo
+    --echo # Variant 2: crash restart (kill -9).
+    --echo
+  }
+
+  --echo # 3.1. Stop the applier; queue 2 transactions, rotate the source
+  --echo #      binary log, queue 1 more.
+  --source include/rpl/connection_replica.inc
+  --source include/rpl/stop_applier.inc
+
+  # sync_to_replica_received.inc with $use_gtids is not usable from the second
+  # pass on: the restart in the previous pass created a new runtime, whose
+  # Retrieved_Gtid_Set covers only what it fetched, never the whole source
+  # gtid_executed. Wait for just the GTIDs sent in this pass instead.
+  --source include/rpl/connection_source.inc
+  --let $gtids_before= `SELECT @@GLOBAL.gtid_executed`
+  --let $row= `SELECT MAX(id) FROM t1`
+  --inc $row
+  --eval INSERT INTO t1 VALUES ($row, 'queued-before-rotate-a')
+  --inc $row
+  --eval INSERT INTO t1 VALUES ($row, 'queued-before-rotate-b')
+  --let $gtids_after= `SELECT @@GLOBAL.gtid_executed`
+  --source include/rpl/connection_replica.inc
+  --let $wait_condition= SELECT GTID_SUBSET(GTID_SUBTRACT('$gtids_after', '$gtids_before'), RECEIVED_TRANSACTION_SET) FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = ''
+  --source include/wait_condition.inc
+
+  --source include/rpl/connection_source.inc
+  FLUSH BINARY LOGS;
+  --inc $row
+  --eval INSERT INTO t1 VALUES ($row, 'queued-after-rotate')
+  --let $source_gtids= `SELECT @@GLOBAL.gtid_executed`
+  --source include/rpl/connection_replica.inc
+  --let $wait_condition= SELECT GTID_SUBSET(GTID_SUBTRACT('$source_gtids', '$gtids_before'), RECEIVED_TRANSACTION_SET) FROM performance_schema.replication_connection_status WHERE CHANNEL_NAME = ''
+  --source include/wait_condition.inc
+
+  --echo # 3.2. Restart the replica; the in-memory queue is lost.
+  --let $rpl_server_number= 2
+  if ($variant == 2)
+  {
+    --let $rpl_force_stop= 1
+  }
+  --source include/rpl/restart_server.inc
+  --let $rpl_force_stop= 0
+
+  --source include/rpl/connection_replica.inc
+
+  --echo # 3.3. The new runtime starts with an empty Retrieved_Gtid_Set (R1).
+  --let $rgs_now= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+  --let $assert_text= Retrieved_Gtid_Set is empty after the restart
+  --let $assert_cond= "$rgs_now" = ""
+  --source include/assert.inc
+
+  # The volatile queue is rebuilt empty.
+  --let $imr_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+  --let $assert_text= In_Memory_Queue_Length is 0 after the restart
+  --let $assert_cond= $imr_qlen = 0
+  --source include/assert.inc
+
+  --let $imr_space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+  --let $assert_text= In_Memory_Relay_Log_Space is 0 after the restart
+  --let $assert_cond= $imr_space = 0
+  --source include/assert.inc
+
+  --echo # 3.4. START REPLICA fetches the lost transactions again (R3).
+  --source include/rpl/start_replica.inc
+
+  # Bounded wait: fail here in 60 seconds instead of timing out in
+  # sync_to_replica.inc when the transactions are never fetched again.
+  --let $wait_rc= `SELECT WAIT_FOR_EXECUTED_GTID_SET('$source_gtids', 60)`
+  --let $assert_text= The replica applies the source's gtid_executed within 60 seconds
+  --let $assert_cond= $wait_rc = 0
+  --source include/assert.inc
+
+  --let $assert_text= gtid_executed on the replica equals the source's
+  --let $assert_cond= GTID_SUBSET(@@GLOBAL.gtid_executed, "$source_gtids") AND GTID_SUBSET("$source_gtids", @@GLOBAL.gtid_executed)
+  --source include/assert.inc
+
+  --let $diff_tables= master:test.t1, slave:test.t1
+  --source include/diff_tables.inc
+
+  --inc $variant
+}
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/deinit.inc

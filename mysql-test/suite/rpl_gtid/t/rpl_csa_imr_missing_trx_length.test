@@ -1,0 +1,165 @@
+# ==== Purpose ====
+#
+# Verify that the in-memory relay log (IMR) receiver stops when the source sends
+# a GTID event without a valid transaction length. Sources older than MySQL
+# 8.0.2 do not send it, and it then reads as 0. IMR admission and the store path
+# use the declared length, so with 0 neither IN_MEMORY_RELAYLOG_LIMIT nor
+# IN_MEMORY_RELAYLOG_SPILL_THRESHOLD would apply. The receiver instead stops
+# with a relay-log write failure before it admits the transaction, and the
+# channel replicates from such a source with IN_MEMORY_RELAYLOG_ENABLED = OFF.
+#
+# ==== Requirements ====
+#
+# R1. A GTID event whose transaction length is missing stops the IO thread with
+#     ER_REPLICA_RELAY_LOG_WRITE_FAILURE, and Last_IO_Error tells the user to
+#     set IN_MEMORY_RELAYLOG_ENABLED = OFF for the channel.
+# R2. Nothing of the transaction is queued or reserved: In_Memory_Queue_Length
+#     and In_Memory_Relay_Log_Space drop to 0.
+# R3. The SQL (applier) thread keeps running with no SQL error.
+# R4. The transaction is not applied and its GTID is not received: the
+#     source's gtid_executed is a subset of neither the replica's
+#     gtid_executed nor its Retrieved_Gtid_Set.
+# R5. After IN_MEMORY_RELAYLOG_ENABLED = OFF and START REPLICA, the transaction
+#     and a later one are fetched again and applied, and the replica data
+#     matches the source.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA channel with IMR enabled; keep the applier (SQL thread)
+#      running throughout.
+#   2. On the source, add the debug point do_not_write_rpl_timestamps (the GTID
+#      event is written without commit timestamps and without the transaction
+#      length) and run one transaction.
+#   3. Wait for the receiver error and assert R1-R4.
+#   4. Run a normal transaction on the source, set IN_MEMORY_RELAYLOG_ENABLED =
+#      OFF, START REPLICA, sync and assert R5.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+# CSA (Change Stream Applier): WL#10500.
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+# A compressed transaction is sent as one Transaction_payload_event; keep the
+# transaction uncompressed so it is a plain GTID event plus its body.
+--source include/not_binlog_transaction_compression_on.inc
+
+--echo
+--echo # 1. Set up a CSA channel with IMR enabled. The applier stays running for
+--echo #    the whole test.
+--echo
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+# The missing transaction length stops the IO thread through the relay-log
+# write failure path; suppress the expected error-log message.
+CALL mtr.add_suppression("\\[In-memory relay log\\] the source does not send a valid transaction length");
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 2. Write one transaction whose GTID event has no transaction length.
+--echo
+--source include/rpl/connection_source.inc
+--let $debug_point= do_not_write_rpl_timestamps
+--source include/add_debug_point.inc
+INSERT INTO t1 VALUES (1, REPEAT('x', 1048576));
+--source include/remove_debug_point.inc
+
+--echo
+--echo # 3. The receiver stops at the GTID event, before admission.
+--echo
+--source include/rpl/connection_replica.inc
+# R1: the IO thread stops with the relay-log write failure and the reason.
+--let $slave_io_errno= convert_error(ER_REPLICA_RELAY_LOG_WRITE_FAILURE)
+--let $show_slave_io_error= 1
+--source include/rpl/wait_for_receiver_error.inc
+
+# R2: nothing of the transaction was queued or reserved. The applier keeps
+# running, so it empties the queue of the committed CREATE TABLE.
+--let $slave_param= In_Memory_Queue_Length
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+--let $space= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $assert_text= No in-memory relay log space is reserved
+--let $assert_cond= $space = 0
+--source include/assert.inc
+
+# R3: the applier keeps running with no SQL error.
+--let $sql_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
+--let $assert_text= The SQL thread keeps running after the receiver error
+--let $assert_cond= "$sql_running" = "Yes"
+--source include/assert.inc
+--let $sql_errno= query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--let $assert_text= No SQL error is raised for the receiver error
+--let $assert_cond= $sql_errno = 0
+--source include/assert.inc
+
+# R4: the transaction was not applied.
+--let $applied= query_get_value(SELECT COUNT(*) AS c FROM t1, c, 1)
+--let $assert_text= The transaction without a transaction length was not applied
+--let $assert_cond= $applied = 0
+--source include/assert.inc
+
+# R4: its GTID is absent from the replica's gtid_executed. query_get_value()
+# cannot hold the comma in GTID_SUBSET(a, b), so evaluate it into a session
+# variable first (under disable_query_log so the UUID is not in the .result).
+--source include/rpl/connection_source.inc
+--let $source_gtid= query_get_value(SELECT @@GLOBAL.gtid_executed AS g, g, 1)
+--source include/rpl/connection_replica.inc
+--disable_query_log
+--eval SET @subset = GTID_SUBSET('$source_gtid', @@GLOBAL.gtid_executed)
+--enable_query_log
+--let $subset= query_get_value(SELECT @subset AS s, s, 1)
+--let $assert_text= The transaction's GTID is absent from the replica gtid_executed (source is ahead)
+--let $assert_cond= $subset = 0
+--source include/assert.inc
+
+# R4: its GTID was not received either: the receiver stopped before it queued
+# the GTID event, so Retrieved_Gtid_Set holds only the earlier CREATE TABLE.
+--let $retrieved= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--disable_query_log
+--eval SET @subset = GTID_SUBSET('$source_gtid', '$retrieved')
+--enable_query_log
+--let $subset= query_get_value(SELECT @subset AS s, s, 1)
+--let $assert_text= The transaction's GTID is absent from the replica Retrieved_Gtid_Set
+--let $assert_cond= "$retrieved" != "" AND $subset = 0
+--source include/assert.inc
+
+--echo
+--echo # 4. Disable IMR for the channel and restart replication: both
+--echo #    transactions are fetched and applied.
+--echo
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (2, REPEAT('y', 1048576));
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $rpl_diff_statement= SELECT id, LENGTH(data) AS len FROM t1 ORDER BY id
+--source include/rpl/diff.inc
+--let $applied= query_get_value(SELECT COUNT(*) AS c FROM t1, c, 1)
+--let $assert_text= Both transactions are applied with IMR disabled
+--let $assert_cond= $applied = 2
+--source include/assert.inc
+
+--echo
+--echo # 5. Cleanup.
+--echo
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

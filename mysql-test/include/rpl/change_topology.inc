@@ -40,6 +40,7 @@
 # [--let $rpl_require_row_format= *:0,1:0,2:1]
 # [--let $rpl_gtid_only= *:0,1:0,2:1]
 # [--let $rpl_applier_version= *:1,1:1,2:2]
+# [--let $rpl_in_memory_relaylog= ON|OFF|DEFAULT]
 # [--let $rpl_applier_worker_count= *:-1,1:-1,2:16]
 # --source include/rpl/change_topology.inc
 #
@@ -164,6 +165,19 @@
 #     To specify that all nodes have the CSA enabled, do:
 #
 #       --let $rpl_applier_version= *:2
+#
+#   $rpl_in_memory_relaylog
+#     For replicas that use the CSA (applier version other than 1): ON or OFF
+#     adds `IN_MEMORY_RELAYLOG_ENABLED = ON|OFF` to the
+#     `CHANGE REPLICATION SOURCE TO ...` statement. Empty or DEFAULT adds
+#     nothing, so the server default applies (IMR is ON unless set OFF). Any
+#     other value is an error. When not set, the RPL_IN_MEMORY_RELAYLOG
+#     environment variable is used. The test collections do not set it, so
+#     CSA replicas use IMR. A test that needs the on-disk relay log sets
+#     `--let $rpl_in_memory_relaylog= OFF` before it creates the topology; the
+#     MTA ignores it. An explicitly empty `--let $rpl_in_memory_relaylog=`
+#     hides the environment value, because mysqltest reads the environment
+#     only for a variable that does not exist. Applies to all replicas.
 #
 #   $rpl_applier_worker_count
 #     Include `APPLIER_WORKER_COUNT` option in the

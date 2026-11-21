@@ -22,6 +22,8 @@
 
 # This test case is binary log format agnostic
 --source include/have_binlog_format_row.inc
+# Uses on-disk relay-log files, which IMR does not write.
+--let $rpl_in_memory_relaylog= OFF
 --source include/rpl/init_source_replica.inc
 
 # BUG#28196680 Suppress warnings thrown when trying to purge logs which

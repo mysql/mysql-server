@@ -1,0 +1,95 @@
+# ==== Purpose ====
+#
+# With the in-memory relay log (IMR), the per-thread Performance Schema
+# accounting of memory/sql/Log_event stays balanced for compressed
+# transactions. The IMR memory path decompresses each Transaction_payload
+# event on fetch, and a decompressed event can be freed by a thread other
+# than the one that decoded it, so the fetch must disclaim its memory.
+# rpl.rpl_eventlog_psi_memory checks the same for uncompressed transactions.
+#
+# ==== Requirements ====
+#
+# R1. After compressed transactions are applied through the IMR memory path,
+#     the sum of CURRENT_NUMBER_OF_BYTES_USED for memory/sql/Log_event over
+#     memory_summary_by_thread_by_event_name equals the global value in
+#     memory_summary_global_by_event_name.
+#
+# ==== Implementation ====
+#
+# 1. Set up a CSA channel with IMR.
+# 2. On the source, run compressed DML transactions and sync.
+# 3. Wait until the per-thread sum equals the global value, then assert it.
+#    If a decompressed event stays charged to the worker that decoded it, the
+#    two values never match.
+#
+# ==== References ====
+#
+# BUG#35546877: Memory consumption isssue
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable the in-memory relay log on the CSA channel and start.
+--echo
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+--let $count= `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE IN_MEMORY_RELAYLOG_ENABLED = 'YES'`
+--let $assert_text= The channel reports the in-memory relay log as enabled
+--let $assert_cond= $count = 1
+--source include/assert.inc
+--source include/rpl/start_replica.inc
+
+--echo
+--echo # 2. Replicate compressed DML transactions.
+--echo
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY);
+--let $q_compressed= SELECT IFNULL(SUM(TRANSACTION_COUNTER), 0) FROM performance_schema.binary_log_transaction_compression_stats WHERE LOG_TYPE = 'BINARY' AND COMPRESSION_TYPE = 'ZSTD'
+--let $compressed_before= `$q_compressed`
+SET SESSION binlog_transaction_compression = ON;
+--let $i= 0
+while ($i < 10)
+{
+  --eval INSERT INTO t1 VALUES ($i)
+  --inc $i
+}
+UPDATE t1 SET c1 = c1 + 100;
+DELETE FROM t1;
+SET SESSION binlog_transaction_compression = OFF;
+--let $compressed_after= `$q_compressed`
+--let $assert_text= The source compressed the 12 DML transactions
+--let $assert_cond= $compressed_after - $compressed_before = 12
+--source include/assert.inc
+--source include/rpl/sync_to_replica.inc
+
+--echo
+--echo # 3. The per-thread sum of memory/sql/Log_event bytes equals the global
+--echo #    value.
+--echo
+--let $q_thread_sum= SELECT SUM(CURRENT_NUMBER_OF_BYTES_USED) FROM performance_schema.memory_summary_by_thread_by_event_name WHERE EVENT_NAME = 'memory/sql/Log_event'
+--let $q_global= SELECT CURRENT_NUMBER_OF_BYTES_USED FROM performance_schema.memory_summary_global_by_event_name WHERE EVENT_NAME = 'memory/sql/Log_event'
+# The applier frees the last events of a transaction shortly after it commits.
+# The per-thread table has a row per CSA session thread, so each check takes
+# about a second: wait at most 50 checks. On a mismatch, fail at the assert
+# below, which prints both values, without the replication debug dump.
+--let $show_rpl_debug_info= 0
+--let $wait_timeout= 5
+--let $silent_failure= 1
+--let $wait_condition= SELECT ($q_thread_sum) = ($q_global)
+--source include/wait_condition.inc
+--let $silent_failure= 0
+--let $thread_sum= `$q_thread_sum`
+--let $global_sum= `$q_global`
+--let $assert_text= Per-thread Log_event bytes match the global value
+--let $assert_cond= [ SELECT $thread_sum = $global_sum ]
+--source include/assert.inc
+--let $show_rpl_debug_info= 1
+
+# Cleanup.
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/deinit.inc

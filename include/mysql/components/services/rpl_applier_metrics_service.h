@@ -82,6 +82,36 @@ enum Enum_applier_metric_type {
   /// @brief the time sum spent reading from the relay log
   time_to_read_from_relay_log_t = 25,
 
+  /// @brief In-memory relay log: current bytes held by memory-path payloads
+  imr_memory_bytes_used_t = 26,
+
+  /// @brief In-memory relay log: current number of transaction envelopes in the
+  /// queue
+  imr_queue_length_t = 27,
+
+  /// @brief In-memory relay log: transactions the applier completed from the
+  /// memory path in its current run
+  imr_memory_trx_count_t = 28,
+
+  /// @brief In-memory relay log: sum of trx_length of the transactions the
+  /// applier completed from the memory path in its current run
+  imr_memory_trx_bytes_t = 29,
+
+  /// @brief In-memory relay log: transactions the applier completed from the
+  /// spill path in its current run
+  imr_spill_trx_count_t = 30,
+
+  /// @brief In-memory relay log: sum of trx_length of the transactions the
+  /// applier completed from the spill path in its current run
+  imr_spill_trx_bytes_t = 31,
+
+  /// @brief In-memory relay log: current number of spill temp files on disk
+  imr_spill_file_count_t = 32,
+
+  /// @brief In-memory relay log: current total on-disk bytes of spill temp
+  /// files
+  imr_spill_bytes_used_t = 33,
+
   /// @brief last element of the enum, not used for any field. This is the only
   /// enum entry that is allowed to change in new versions. Insert new fields
   /// above this one.

@@ -34,6 +34,8 @@
 # Therefore, cannot run with compression on.
 --source include/not_binlog_transaction_compression_on.inc
 
+# Uses on-disk relay-log files, which IMR does not write.
+--let $rpl_in_memory_relaylog= OFF
 --echo
 --echo # 1. Create a source-replica topology.
 --echo

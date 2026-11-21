@@ -1,0 +1,56 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Start the channel on MTA with the options CSA needs.
+
+[connection slave]
+CHANGE REPLICATION SOURCE TO REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1;
+include/assert.inc [The MTA channel stores IN_MEMORY_RELAYLOG_ENABLED = ON]
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, payload VARCHAR(32)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 'a');
+include/rpl/sync_to_replica.inc
+
+# 2. Leave 5 received transactions unapplied in the relay log.
+
+include/rpl/stop_applier.inc
+[connection master]
+INSERT INTO t1 VALUES (2, 'b');
+INSERT INTO t1 VALUES (3, 'c');
+INSERT INTO t1 VALUES (4, 'd');
+INSERT INTO t1 VALUES (5, 'e');
+INSERT INTO t1 VALUES (6, 'f');
+include/rpl/save_server_position.inc
+[connection slave]
+include/rpl/sync_received_with_saved.inc
+include/rpl/stop_receiver.inc
+include/assert.inc [The backlog is not applied]
+
+# 3. Switch to CSA: IMR becomes active and Retrieved_Gtid_Set is cleared.
+
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2;
+include/assert.inc [The channel is on CSA with IMR enabled]
+include/assert.inc [Retrieved_Gtid_Set is empty after the switch]
+
+# 4. START REPLICA applies the whole backlog through the in-memory relay
+#    log.
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+include/rpl/sync_with_saved.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/assert.inc [All 6 rows are on the replica]
+
+# Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1, REQUIRE_ROW_FORMAT = 0, GTID_ONLY = 0;
+include/rpl/deinit.inc

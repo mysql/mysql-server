@@ -1,0 +1,232 @@
+
+# 1. Set up a CSA channel with IMR enabled.
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608,
+SOURCE_CONNECT_RETRY = 1;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. Memory path, GTID not executed on the replica (R1, R3).
+
+# Pause the receiver after the GTID event, and the coordinator before it
+# builds the job.
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+SET GLOBAL debug = '+d,imr_pause_before_job_build';
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now WAIT_FOR coordinator_reached_before_job_build';
+SET GLOBAL debug = '-d,imr_pause_before_job_build';
+# The receiver reconnects. Pause it again at the first event of the new
+# connection, the fake Rotate, which truncates the open transaction.
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET GLOBAL debug = '+d,simulate_reconnect_after_failed_event_read';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET GLOBAL debug = '-d,simulate_reconnect_after_failed_event_read';
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+# Let the coordinator build the job of the truncated transaction.
+SET DEBUG_SYNC = 'now SIGNAL coordinator_continue_job_build';
+# The resent copy is applied in full.
+[connection master]
+include/rpl/sync_to_replica.inc
+# No worker is left applying, and no GTID, lock or error is left.
+include/assert.inc [No GTID is owned]
+include/assert.inc [No transaction holds locks on t1]
+include/assert.inc [The truncation raises no applier error]
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+# STOP REPLICA SQL_THREAD returns.
+SET @saved_stop_timeout= @@GLOBAL.rpl_stop_replica_timeout;
+SET GLOBAL rpl_stop_replica_timeout= 30;
+STOP REPLICA SQL_THREAD;
+SET GLOBAL rpl_stop_replica_timeout= @saved_stop_timeout;
+include/assert.inc [The SQL thread stopped]
+START REPLICA SQL_THREAD;
+include/rpl/wait_for_applier_to_start.inc
+SET DEBUG_SYNC = 'RESET';
+
+# 3. Memory path, GTID already executed on the replica (R2, R3).
+
+# The replica executes the GTID the source assigns next.
+[connection master]
+[connection slave]
+SET GTID_NEXT = 'SOURCE_UUID:GNO';
+BEGIN;
+COMMIT;
+SET GTID_NEXT = AUTOMATIC;
+# Pause the receiver after the GTID event, and the coordinator before it
+# builds the job.
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+SET GLOBAL debug = '+d,imr_pause_before_job_build';
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now WAIT_FOR coordinator_reached_before_job_build';
+SET GLOBAL debug = '-d,imr_pause_before_job_build';
+# The receiver reconnects. Pause it again at the first event of the new
+# connection, the fake Rotate, which truncates the open transaction.
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET GLOBAL debug = '+d,simulate_reconnect_after_failed_event_read';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET GLOBAL debug = '-d,simulate_reconnect_after_failed_event_read';
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+# Let the coordinator build the job of the truncated transaction.
+SET DEBUG_SYNC = 'now SIGNAL coordinator_continue_job_build';
+# Following transactions replicate; the skipped rows are not applied.
+[connection master]
+INSERT INTO t1 VALUES (13, 'after');
+INSERT INTO t1 VALUES (14, 'after');
+[connection slave]
+include/assert.inc [The truncated transaction's rows are not applied]
+[connection master]
+SET sql_log_bin = 0;
+DELETE FROM t1 WHERE id BETWEEN 10 AND 12;
+SET sql_log_bin = 1;
+[connection slave]
+# No worker is left applying, and no GTID, lock or error is left.
+include/assert.inc [No GTID is owned]
+include/assert.inc [No transaction holds locks on t1]
+include/assert.inc [The truncation raises no applier error]
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+# STOP REPLICA SQL_THREAD returns.
+SET @saved_stop_timeout= @@GLOBAL.rpl_stop_replica_timeout;
+SET GLOBAL rpl_stop_replica_timeout= 30;
+STOP REPLICA SQL_THREAD;
+SET GLOBAL rpl_stop_replica_timeout= @saved_stop_timeout;
+include/assert.inc [The SQL thread stopped]
+START REPLICA SQL_THREAD;
+include/rpl/wait_for_applier_to_start.inc
+SET DEBUG_SYNC = 'RESET';
+
+# 4. Spill path, GTID not executed on the replica (R1, R4).
+
+# Pause the receiver after the GTID event, and the coordinator before it
+# builds the job.
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+SET GLOBAL debug = '+d,imr_pause_before_job_build';
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now WAIT_FOR coordinator_reached_before_job_build';
+SET GLOBAL debug = '-d,imr_pause_before_job_build';
+# The receiver reconnects. Pause it again at the first event of the new
+# connection, the fake Rotate, which truncates the open transaction.
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET GLOBAL debug = '+d,simulate_reconnect_after_failed_event_read';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET GLOBAL debug = '-d,simulate_reconnect_after_failed_event_read';
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+# Let the coordinator build the job of the truncated transaction.
+SET DEBUG_SYNC = 'now SIGNAL coordinator_continue_job_build';
+# The resent copy is applied in full.
+[connection master]
+include/rpl/sync_to_replica.inc
+# No worker is left applying, and no GTID, lock or error is left.
+include/assert.inc [No GTID is owned]
+include/assert.inc [No transaction holds locks on t1]
+include/assert.inc [The truncation raises no applier error]
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+# STOP REPLICA SQL_THREAD returns.
+SET @saved_stop_timeout= @@GLOBAL.rpl_stop_replica_timeout;
+SET GLOBAL rpl_stop_replica_timeout= 30;
+STOP REPLICA SQL_THREAD;
+SET GLOBAL rpl_stop_replica_timeout= @saved_stop_timeout;
+include/assert.inc [The SQL thread stopped]
+START REPLICA SQL_THREAD;
+include/rpl/wait_for_applier_to_start.inc
+SET DEBUG_SYNC = 'RESET';
+
+# 5. Spill path, GTID already executed on the replica (R2, R4).
+
+# The replica executes the GTID the source assigns next.
+[connection master]
+[connection slave]
+SET GTID_NEXT = 'SOURCE_UUID:GNO';
+BEGIN;
+COMMIT;
+SET GTID_NEXT = AUTOMATIC;
+# Pause the receiver after the GTID event, and the coordinator before it
+# builds the job.
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+SET GLOBAL debug = '+d,imr_pause_before_job_build';
+[connection master]
+BEGIN;
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now WAIT_FOR coordinator_reached_before_job_build';
+SET GLOBAL debug = '-d,imr_pause_before_job_build';
+# The receiver reconnects. Pause it again at the first event of the new
+# connection, the fake Rotate, which truncates the open transaction.
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET GLOBAL debug = '+d,simulate_reconnect_after_failed_event_read';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET GLOBAL debug = '-d,simulate_reconnect_after_failed_event_read';
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+# Let the coordinator build the job of the truncated transaction.
+SET DEBUG_SYNC = 'now SIGNAL coordinator_continue_job_build';
+# Following transactions replicate; the skipped rows are not applied.
+[connection master]
+INSERT INTO t1 VALUES (212, 'after');
+INSERT INTO t1 VALUES (213, 'after');
+[connection slave]
+include/assert.inc [The truncated transaction's rows are not applied]
+[connection master]
+SET sql_log_bin = 0;
+DELETE FROM t1 WHERE id BETWEEN 200 AND 211;
+SET sql_log_bin = 1;
+[connection slave]
+# No worker is left applying, and no GTID, lock or error is left.
+include/assert.inc [No GTID is owned]
+include/assert.inc [No transaction holds locks on t1]
+include/assert.inc [The truncation raises no applier error]
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+# STOP REPLICA SQL_THREAD returns.
+SET @saved_stop_timeout= @@GLOBAL.rpl_stop_replica_timeout;
+SET GLOBAL rpl_stop_replica_timeout= 30;
+STOP REPLICA SQL_THREAD;
+SET GLOBAL rpl_stop_replica_timeout= @saved_stop_timeout;
+include/assert.inc [The SQL thread stopped]
+START REPLICA SQL_THREAD;
+include/rpl/wait_for_applier_to_start.inc
+SET DEBUG_SYNC = 'RESET';
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+include/rpl/diff.inc
+
+# 6. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

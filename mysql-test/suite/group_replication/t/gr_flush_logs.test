@@ -46,6 +46,8 @@
 #  - Make sure binary logs was not flushed on M1.
 #  - Test that replication is working fine between the members.
 ################################################################################
+# FLUSH RELAY LOGS does not rotate an IMR relay log.
+--let $rpl_in_memory_relaylog= OFF
 --source include/have_group_replication_plugin.inc
 --source include/group_replication.inc
 

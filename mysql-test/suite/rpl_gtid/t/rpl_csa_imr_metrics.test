@@ -1,0 +1,277 @@
+# ==== Purpose ====
+#
+# Per-channel in-memory relay log (IMR) runtime metrics are surfaced as columns
+# of performance_schema.replication_applier_metrics (the loadable component
+# table), for a CSA (Change Stream Applier) channel with IMR enabled.
+#
+# Covers Batch 1 (runtime gauges that already exist) and Batch 2 (memory-path
+# cumulative counters):
+#   - IN_MEMORY_BYTES_USED         -- current memory-path bytes held
+#   - IN_MEMORY_QUEUE_LENGTH       -- current queued transaction envelopes
+#   - IN_MEMORY_TRANSACTIONS_COUNT -- memory-path transactions completed by
+#                                     the applier in its current run
+#   - IN_MEMORY_TRANSACTIONS_BYTES -- sum of their declared size
+#
+# The configured limit (IN_MEMORY_RELAYLOG_LIMIT) is intentionally NOT mirrored
+# here: it is already exposed per-channel in
+# performance_schema.replication_applier_configuration.
+#
+# ==== Requirements ====
+#
+# R1. The gauge columns agree with the SHOW REPLICA STATUS fields backed by
+#     the same runtime values: IN_MEMORY_BYTES_USED ==
+#     In_Memory_Relay_Log_Space once the channel has drained, and
+#     IN_MEMORY_QUEUE_LENGTH == In_Memory_Queue_Length with the applier
+#     stopped (the only state in which the queue length cannot change
+#     between the two reads).
+# R2. With the applier stopped and transactions queued, the gauges are non-zero
+#     and consistent with SHOW REPLICA STATUS; once applied, IN_MEMORY_BYTES_USED
+#     drains to 0.
+# R3. IN_MEMORY_TRANSACTIONS_COUNT / _BYTES count at apply time, not at
+#     receive time: they read 0 while the applier is stopped, queued but
+#     unapplied transactions do not count, and after the applier restarts
+#     (which resets them) they count exactly the transactions it
+#     applies.
+# R5. A transaction received, discarded at a full channel stop, and re-fetched
+#     is counted once, when it is applied.
+# R4. A channel that does not use the in-memory relay log (IMR disabled) reports
+#     0 for all four columns.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+# Requires that the metrics component has been compiled.
+--source include/have_component_replication_applier_metrics.inc
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--echo
+--echo # 1. Enable IMR on the CSA channel, install the metrics component, and
+--echo #    start the replica.
+--echo
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--let $from_ch= FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = ''
+
+--source include/rpl/start_replica.inc
+
+--echo
+--echo # 2. A workload replicates; once drained, IN_MEMORY_BYTES_USED is 0, the
+--echo #    gauges agree with SHOW REPLICA STATUS, and the cumulative counters
+--echo #    are non-zero.
+--echo
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(50));
+INSERT INTO t1 VALUES (1, 'one'), (2, 'two'), (3, 'three');
+BEGIN;
+INSERT INTO t1 VALUES (4, 'four'), (5, 'five');
+UPDATE t1 SET b = 'ONE' WHERE a = 1;
+COMMIT;
+
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= In_Memory_Relay_Log_Space
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+
+--let $used= `SELECT IN_MEMORY_BYTES_USED $from_ch`
+--let $assert_text= IN_MEMORY_BYTES_USED is 0 once everything is applied
+--let $assert_cond= $used = 0
+--source include/assert.inc
+
+# The cumulative counters registered the memory-path workload above.
+--let $mem_count= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+--let $assert_text= IN_MEMORY_TRANSACTIONS_COUNT is non-zero after a memory-path workload
+--let $assert_cond= $mem_count > 0
+--source include/assert.inc
+--let $mem_bytes= `SELECT IN_MEMORY_TRANSACTIONS_BYTES $from_ch`
+--let $assert_text= IN_MEMORY_TRANSACTIONS_BYTES is non-zero after a memory-path workload
+--let $assert_cond= $mem_bytes > 0
+--source include/assert.inc
+
+# Quiescent cross-check: the gauge column and the SHOW REPLICA STATUS field
+# read the same queue length, but two reads of a running channel can differ.
+# A committed envelope releases its bytes at commit and leaves the queue only
+# at the coordinator's next sweep, up to 100 ms later, so
+# In_Memory_Relay_Log_Space = 0 does not mean the queue length is final.
+# Stop the applier first: its exit sweeps the committed envelopes, and with
+# the source idle and no applier nothing changes the queue length between the
+# two reads.
+--source include/rpl/stop_applier.inc
+--let $tbl_qlen= query_get_value(SELECT IN_MEMORY_QUEUE_LENGTH FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = '', IN_MEMORY_QUEUE_LENGTH, 1)
+--let $srs_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= IN_MEMORY_QUEUE_LENGTH matches SHOW REPLICA STATUS In_Memory_Queue_Length
+--let $assert_cond= $tbl_qlen = $srs_qlen
+--source include/assert.inc
+
+--echo
+--echo # 3. With the applier stopped, queued transactions make the gauges
+--echo #    non-zero, while the cumulative counters read 0 (the applier is not
+--echo #    running). The restarted applier counts exactly the transactions it
+--echo #    applies (R3).
+--echo
+
+--source include/rpl/connection_replica.inc
+
+--let $qlen_before= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $count_stopped= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+--let $bytes_stopped= `SELECT IN_MEMORY_TRANSACTIONS_BYTES $from_ch`
+--let $assert_text= IN_MEMORY_TRANSACTIONS_COUNT / _BYTES read 0 while the applier is stopped
+--let $assert_cond= $count_stopped = 0 AND $bytes_stopped = 0
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+--let $trx_count= 10
+--disable_query_log
+--let $i= 1
+while ($i <= $trx_count)
+{
+  --eval INSERT INTO t1 VALUES (100 + $i, 'x')
+  --inc $i
+}
+--enable_query_log
+
+# Ensure the receiver has enqueued everything; the applier is stopped, so
+# nothing is dispatched, committed, or swept.
+--source include/rpl/sync_to_replica_received.inc
+
+# Each autocommit INSERT is one transaction = one queue envelope, so the queue
+# length grew by exactly $trx_count.
+--let $tbl_qlen= query_get_value(SELECT IN_MEMORY_QUEUE_LENGTH FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = '', IN_MEMORY_QUEUE_LENGTH, 1)
+--let $assert_text= IN_MEMORY_QUEUE_LENGTH grew by exactly $trx_count while the applier was stopped
+--let $assert_cond= $tbl_qlen - $qlen_before = $trx_count
+--source include/assert.inc
+
+# The table column and the SHOW REPLICA STATUS field agree in this stable state.
+--let $srs_qlen= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $assert_text= IN_MEMORY_QUEUE_LENGTH matches In_Memory_Queue_Length while queued
+--let $assert_cond= $tbl_qlen = $srs_qlen
+--source include/assert.inc
+
+--let $tbl_used= query_get_value(SELECT IN_MEMORY_BYTES_USED FROM performance_schema.replication_applier_metrics WHERE CHANNEL_NAME = '', IN_MEMORY_BYTES_USED, 1)
+--let $srs_used= query_get_value(SHOW REPLICA STATUS, In_Memory_Relay_Log_Space, 1)
+--let $assert_text= IN_MEMORY_BYTES_USED is non-zero while transactions are queued
+--let $assert_cond= $tbl_used > 0
+--source include/assert.inc
+--let $assert_text= IN_MEMORY_BYTES_USED matches In_Memory_Relay_Log_Space while queued
+--let $assert_cond= $tbl_used = $srs_used
+--source include/assert.inc
+
+# Queued but not applied: the cumulative counters still read 0.
+--let $mc= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+--let $assert_text= IN_MEMORY_TRANSACTIONS_COUNT does not count queued, unapplied transactions
+--let $assert_cond= $mc = 0
+--source include/assert.inc
+
+# The restarted applier starts from 0 and counts exactly the $trx_count
+# transactions it applies (nothing else was left in the queue).
+--source include/rpl/start_applier.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $rpl_diff_statement= SELECT * FROM t1 ORDER BY a
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $slave_param= In_Memory_Relay_Log_Space
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+
+--let $mc= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+--let $assert_text= IN_MEMORY_TRANSACTIONS_COUNT is exactly the $trx_count transactions the restarted applier applied
+--let $assert_cond= $mc = $trx_count
+--source include/assert.inc
+--let $mb= `SELECT IN_MEMORY_TRANSACTIONS_BYTES $from_ch`
+--let $assert_text= IN_MEMORY_TRANSACTIONS_BYTES is non-zero after the applier applied them
+--let $assert_cond= $mb > 0
+--source include/assert.inc
+
+--echo
+--echo # 4. Transactions received, discarded at a full channel stop, and
+--echo #    re-fetched are counted once, when applied (R5).
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_applier.inc
+
+--source include/rpl/connection_source.inc
+--let $refetch_count= 5
+--disable_query_log
+--let $i= 1
+while ($i <= $refetch_count)
+{
+  --eval INSERT INTO t1 VALUES (200 + $i, 'r')
+  --inc $i
+}
+--enable_query_log
+--source include/rpl/sync_to_replica_received.inc
+
+# A full stop discards the queued transactions; the next start re-fetches
+# them by GTID auto-positioning and applies them once.
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_receiver.inc
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $rpl_diff_statement= SELECT * FROM t1 ORDER BY a
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+--let $mc= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+--let $assert_text= IN_MEMORY_TRANSACTIONS_COUNT counts each re-fetched transaction once
+--let $assert_cond= $mc = $refetch_count
+--source include/assert.inc
+
+--echo
+--echo # 5. A channel that does not use the in-memory relay log reports 0 for
+--echo #    all four columns. Disable IMR on the channel and restart it.
+--echo
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+--source include/rpl/start_replica.inc
+
+--let $used= `SELECT IN_MEMORY_BYTES_USED $from_ch`
+--let $qlen= `SELECT IN_MEMORY_QUEUE_LENGTH $from_ch`
+--let $mc= `SELECT IN_MEMORY_TRANSACTIONS_COUNT $from_ch`
+--let $mb= `SELECT IN_MEMORY_TRANSACTIONS_BYTES $from_ch`
+--let $assert_text= IN_MEMORY_BYTES_USED is 0 for a non-IMR channel
+--let $assert_cond= $used = 0
+--source include/assert.inc
+--let $assert_text= IN_MEMORY_QUEUE_LENGTH is 0 for a non-IMR channel
+--let $assert_cond= $qlen = 0
+--source include/assert.inc
+--let $assert_text= IN_MEMORY_TRANSACTIONS_COUNT is 0 for a non-IMR channel
+--let $assert_cond= $mc = 0
+--source include/assert.inc
+--let $assert_text= IN_MEMORY_TRANSACTIONS_BYTES is 0 for a non-IMR channel
+--let $assert_cond= $mb = 0
+--source include/assert.inc
+
+--echo
+--echo # 6. Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+
+--source include/rpl/deinit.inc

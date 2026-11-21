@@ -1,0 +1,86 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. IMR at the 32 MiB limit floor with an 8 MiB spill threshold.
+
+[connection slave]
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_LIMIT = 33554432,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+CALL mtr.add_suppression("Replica I/O thread killed");
+CALL mtr.add_suppression("Replica I/O thread .* killed while");
+SET @saved_innodb_lock_wait_timeout = @@GLOBAL.innodb_lock_wait_timeout;
+SET GLOBAL innodb_lock_wait_timeout = 120;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. A replica session holds the row lock on id = 1. The receiver pauses
+#    after T1's first WRITE_ROWS; the worker applies it and blocks.
+
+[connection slave1]
+BEGIN;
+INSERT INTO t1 VALUES (1, 'replica-blocker');
+[connection slave]
+SET GLOBAL debug = '+d,pause_on_queue_event_after_write_buffer';
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (2, 'b');
+COMMIT;
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+SET DEBUG_SYNC = 'now WAIT_FOR receiver_reached_pause_on_queue_event';
+SET GLOBAL debug = '-d,pause_on_queue_event_after_write_buffer';
+T1 is reserved on the memory path (7 MiB < reservation <= 8 MiB): 1
+In_Memory_Queue_Length with T1 dispatched: 1
+
+# 3. STOP REPLICA IO_THREAD while the receiver is paused: the open group
+#    is truncated and the coordinator sweeps it, while the worker is
+#    still blocked and still holds T1's event buffers.
+
+STOP REPLICA IO_THREAD;
+SET DEBUG_SYNC = 'now SIGNAL receiver_continue_queuing_event';
+include/rpl/wait_for_receiver_to_stop.inc
+SET DEBUG_SYNC = 'RESET';
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+Worker still blocked on the row lock after the sweep: 1
+Replica_SQL_Running: Yes
+In_Memory_Relay_Log_Space still counts the blocked job's transaction: 1
+
+# 4. START REPLICA IO_THREAD: T1 is fetched again and more memory-path
+#    transactions are admitted until the receiver waits at the limit.
+
+include/rpl/start_receiver.inc
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+In_Memory_Relay_Log_Space after T1 is fetched again counts both copies of T1: 1
+[connection master]
+[connection slave]
+The stale worker is still blocked while the receiver waits at the limit: 1
+In_Memory_Relay_Log_Space is within IN_MEMORY_RELAYLOG_LIMIT: 1
+In_Memory_Relay_Log_Space covers the stale copy of T1 and every queued transaction: 1
+
+# 5. Release the row lock: the stale worker rolls back, T1 and the rest
+#    apply. Compare and clean up.
+
+[connection slave1]
+ROLLBACK;
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [No applier error]
+include/rpl/wait_for_replica_status.inc [In_Memory_Relay_Log_Space]
+include/rpl/diff.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+SET GLOBAL innodb_lock_wait_timeout = @saved_innodb_lock_wait_timeout;
+include/rpl/deinit.inc

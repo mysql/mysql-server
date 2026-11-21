@@ -48,5 +48,7 @@ LENGTH(data) > 5000
 [connection master]
 DROP TABLE t1;
 include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET @@global.replica_max_allowed_packet=@tmp_max;
+include/rpl/start_replica.inc
 include/rpl/deinit.inc

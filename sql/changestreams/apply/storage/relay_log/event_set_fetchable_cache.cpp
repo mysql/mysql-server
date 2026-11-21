@@ -150,14 +150,13 @@ Event_set_fetchable_cache::decompress() {
   return {};
 }
 
-bool Event_set_fetchable_cache::wait_next() {
+Event_set_fetchable::Wait_result Event_set_fetchable_cache::wait_next() {
   while (true) {
-    if (is_error() || is_done()) {
-      return false;
-    }
+    if (is_error()) return Wait_result::error;
+    if (is_done()) return Wait_result::end;
 
     if (m_decompressing) {
-      return true;
+      return Wait_result::ready;
     }
 
     {
@@ -165,12 +164,12 @@ bool Event_set_fetchable_cache::wait_next() {
       while (m_event_id >= m_events.size()) {
         if (m_stream_truncated || m_stream_sealed) {
           m_is_done = true;
-          return false;
+          return Wait_result::end;
         }
         m_stream_cv.wait(lock);
       }
     }
-    return true;
+    return Wait_result::ready;
   }
 }
 

@@ -1,0 +1,188 @@
+# ==== Purpose ====
+#
+# Verify that a STOP REPLICA whose IO thread does not stop in time leaves the
+# in-memory relay log (IMR) queue alone, and that the queue is reset once that
+# thread finally exits.
+#
+# Each replication thread detaches its IMR role in its own exit path, and the
+# thread that detaches last resets the queue and the Retrieved_Gtid_Set.
+# A thread that is still running after the stop timed out keeps its
+# role, so the other thread's exit is not the last and does not reset.
+#
+# ==== Requirements ====
+#
+# R1. On a full STOP REPLICA where the IO (receiver) thread does not stop before
+#     the stop times out, the volatile receiver state is NOT reset: the
+#     Retrieved_Gtid_Set is preserved UNCHANGED (a normal full stop clears it),
+#     even though the SQL thread has stopped.
+# R2. When the IO thread is released and exits, it is the last role out: the
+#     queue and the Retrieved_Gtid_Set are reset, with no server restart.
+# R3. START REPLICA then resumes replication and the replica data matches the
+#     source.
+#
+# ==== Implementation ====
+#
+#   1. Set up a CSA channel with IMR enabled, start it, seed a baseline and sync
+#      so the Retrieved_Gtid_Set is non-empty.
+#   2. Park the IO thread mid-queuing with the pause_on_queuing_event debug
+#      point, so it cannot observe a stop.
+#   3. Snapshot the received set while the IO thread is frozen. With a short
+#      rpl_stop_replica_timeout, issue a full STOP REPLICA: the SQL thread stops
+#      and detaches, the IO thread times out. Assert the statement fails with the
+#      IO-thread timeout and that the Retrieved_Gtid_Set is unchanged from the
+#      snapshot (no reset -- the receiver stayed attached).
+#   4. Release the receiver and let it exit. Assert the queue and the
+#      Retrieved_Gtid_Set were reset, then START REPLICA and verify data
+#      equality.
+#   5. Cleanup.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+# See design/replication/684-in-memory-relaylog.
+
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+
+--echo
+--echo # 1. Set up a CSA channel with the in-memory relay log enabled and seed a
+--echo #    baseline so the Retrieved_Gtid_Set is non-empty.
+--echo
+
+--let $rpl_skip_start_slave= 1
+--let $rpl_applier_version= 2:2
+--let $rpl_applier_worker_count= 2:4
+--source include/rpl/init_source_replica.inc
+
+--source include/rpl/connection_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+# The timed-out STOP REPLICA logs that its execution is incomplete.
+CALL mtr.add_suppression("STOP REPLICA command execution is incomplete");
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2), (3);
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--source include/rpl/connection_replica.inc
+--let $retrieved_before= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= Baseline received something: Retrieved_Gtid_Set is non-empty before the stop
+--let $assert_cond= "$retrieved_before" != ""
+--source include/assert.inc
+
+--echo
+--echo # 2. Park the IO thread mid-queuing so it cannot join a stop.
+--echo
+
+--let $debug_point= pause_on_queuing_event
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (4);
+
+# Block until the IO thread is parked inside queue_event: it has signalled
+# reached_queuing_event and is now waiting for continue_queuing_event. It keeps
+# its receiver role for the whole wait, so it cannot join a stop.
+--source include/rpl/connection_replica.inc
+SET DEBUG_SYNC= 'now WAIT_FOR reached_queuing_event';
+
+--echo
+--echo # 3. Full STOP REPLICA with a short timeout: the SQL thread stops and
+--echo #    detaches, the IO thread times out and keeps its role, so the
+--echo #    volatile state is NOT reset.
+--echo
+
+# Snapshot the received set while the IO thread is frozen at the debug sync. It
+# cannot change until the thread is released (step 4), and detach_applier on the
+# SQL side never touches it, so any later difference can only come from a reset.
+--let $retrieved_at_park= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= The received set is non-empty while the IO thread is parked
+--let $assert_cond= "$retrieved_at_park" != ""
+--source include/assert.inc
+
+SET @saved_stop_timeout= @@GLOBAL.rpl_stop_replica_timeout;
+SET GLOBAL rpl_stop_replica_timeout= 2;
+
+--error ER_STOP_REPLICA_IO_THREAD_TIMEOUT
+STOP REPLICA;
+
+# The SQL thread stopped (it joined and detached), proving this was a real full
+# stop attempt -- not a no-op.
+--let $sql_running= query_get_value(SHOW REPLICA STATUS, Replica_SQL_Running, 1)
+--let $assert_text= The SQL thread stopped during the timed-out full STOP REPLICA
+--let $assert_cond= "$sql_running" = "No"
+--source include/assert.inc
+
+# The key assertion: a normal full STOP REPLICA resets the volatile receiver
+# state and clears the Retrieved_Gtid_Set. Here the IO thread is still running
+# with its role attached, so the SQL thread's exit was not the last and no
+# reset ran.
+# The received set is therefore UNCHANGED from the frozen snapshot (a reset would
+# have cleared it to the empty string).
+--let $retrieved_after_timeout= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= A timed-out full STOP (IO thread unjoined) leaves the received set unchanged (a normal full stop would clear it): no reset ran
+--let $assert_cond= "$retrieved_after_timeout" = "$retrieved_at_park"
+--source include/assert.inc
+
+--echo
+--echo # 4. Release the receiver and let it exit: it is the last role out and
+--echo #    resets the queue. Then resume and verify data equality.
+--echo
+
+--source include/remove_debug_point.inc
+SET DEBUG_SYNC= 'now SIGNAL continue_queuing_event';
+
+# The receiver stop flag is already set, so once released the receiver's
+# admission sees the stop and it exits with no IO error. Wait for it through
+# performance_schema.
+--let $wait_condition= SELECT SERVICE_STATE = 'OFF' FROM performance_schema.replication_connection_status WHERE channel_name = ''
+--source include/wait_condition.inc
+
+--let $io_errno= query_get_value(SHOW REPLICA STATUS, Last_IO_Errno, 1)
+--let $assert_text= The released receiver exits with no IO error (Last_IO_Errno = 0)
+--let $assert_cond= $io_errno = 0
+--source include/assert.inc
+
+SET GLOBAL rpl_stop_replica_timeout= @saved_stop_timeout;
+SET DEBUG_SYNC= 'RESET';
+
+# The SQL thread had already detached, so the IO thread's exit was the last
+# role out and reset the queue and the Retrieved_Gtid_Set. The thread shows
+# as stopped before its exit path runs the reset, so wait for it.
+--let $slave_param= In_Memory_Queue_Length
+--let $slave_param_value= 0
+--source include/rpl/wait_for_replica_status.inc
+--let $slave_param= Retrieved_Gtid_Set
+--let $slave_param_value=
+--source include/rpl/wait_for_replica_status.inc
+--let $queue_len= query_get_value(SHOW REPLICA STATUS, In_Memory_Queue_Length, 1)
+--let $retrieved_after_exit= query_get_value(SHOW REPLICA STATUS, Retrieved_Gtid_Set, 1)
+--let $assert_text= The IO thread's late exit reset the queue and the Retrieved_Gtid_Set
+--let $assert_cond= $queue_len = 0 AND "$retrieved_after_exit" = ""
+--source include/assert.inc
+
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (5), (6), (7);
+--source include/rpl/sync_to_replica.inc
+
+--let $diff_tables= master:test.t1, slave:test.t1
+--source include/diff_tables.inc
+
+--echo
+--echo # 5. Cleanup.
+--echo
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc

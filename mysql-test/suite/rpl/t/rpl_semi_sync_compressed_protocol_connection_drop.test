@@ -24,6 +24,8 @@
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
 
+# IMR does not support semisync.
+--let $rpl_in_memory_relaylog= OFF
 --source include/save_error_log_position.inc
 --source include/rpl/init_source_replica.inc
 

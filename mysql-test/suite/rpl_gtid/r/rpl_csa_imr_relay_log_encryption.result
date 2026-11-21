@@ -1,0 +1,150 @@
+# ----------------------------------------------------------------------
+# Setup
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection slave]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection master]
+# ----------------------------------------------------------------------
+
+# 1. Load the keyring on the replica, enable IMR and binlog_encryption.
+
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+SET GLOBAL binlog_encryption = ON;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+
+# 2. Key rotations with source binary log rotations and a receiver
+#    restart in between (R1, R2).
+
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1);
+include/rpl/sync_to_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+# Key rotation 1 rotates the relay log (R1).
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The replica's binary log is encrypted after key rotation 1]
+include/assert.inc [The last relay-log file uses the newest master key after key rotation 1]
+include/assert.inc [Key rotation 1 rotated the relay log]
+# Source binary log rotation and receiver restart create no relay-log
+# file (R2).
+include/include/rpl/save_relay_log_file_position.inc
+[connection master]
+FLUSH BINARY LOGS;
+INSERT INTO t1 VALUES (2);
+include/rpl/sync_to_replica.inc
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
+[connection master]
+INSERT INTO t1 VALUES (3);
+include/rpl/sync_to_replica.inc
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The relay-log index has the same number of files after a source binary log rotation and a receiver restart]
+include/assert.inc [The last relay-log file is the same file after a source binary log rotation and a receiver restart]
+include/assert.inc [The last relay-log file has the same size after a source binary log rotation and a receiver restart]
+include/assert.inc [Relay_Log_Space is unchanged after a source binary log rotation and a receiver restart]
+# Key rotations 2 and 3 succeed (R2).
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The replica's binary log is encrypted after key rotation 2]
+include/assert.inc [The last relay-log file uses the newest master key after key rotation 2]
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The replica's binary log is encrypted after key rotation 3]
+include/assert.inc [The last relay-log file uses the newest master key after key rotation 3]
+[connection master]
+INSERT INTO t1 VALUES (4);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 3. STOP REPLICA, key rotation, START REPLICA (R3).
+
+include/rpl/stop_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The replica's binary log is encrypted after STOP REPLICA and a key rotation]
+include/assert.inc [The last relay-log file uses the newest master key after STOP REPLICA and a key rotation]
+include/rpl/start_replica.inc
+include/assert.inc [The applier started without error after the key rotation]
+[connection master]
+INSERT INTO t1 VALUES (5);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 4. Key rotation, restart, START REPLICA (R4).
+
+include/rpl/stop_replica.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+include/assert_grep.inc [The replica initialized the channel's relay log at startup]
+START REPLICA;
+include/rpl/wait_for_replica_to_start.inc
+[connection master]
+INSERT INTO t1 VALUES (6);
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/assert.inc [The channel has no receiver or applier error after the restart]
+
+# 5. FLUSH RELAY LOGS is a no-op on the IMR channel (R5).
+
+include/include/rpl/save_relay_log_file_position.inc
+FLUSH RELAY LOGS;
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The relay-log index has the same number of files after FLUSH RELAY LOGS]
+include/assert.inc [The last relay-log file is the same file after FLUSH RELAY LOGS]
+include/assert.inc [The last relay-log file has the same size after FLUSH RELAY LOGS]
+include/assert.inc [Relay_Log_Space is unchanged after FLUSH RELAY LOGS]
+
+# 6. Key rotation while the receiver waits for queue memory (R6).
+
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_LIMIT = 33554432,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+include/rpl/start_receiver.inc
+[connection master]
+SET SESSION binlog_transaction_compression = OFF;
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, data LONGBLOB);
+SET SESSION binlog_transaction_compression = DEFAULT;
+[connection slave]
+[connection slave1]
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+[connection slave]
+[connection slave1]
+[connection slave]
+include/include/rpl/save_relay_log_file_position.inc
+include/assert.inc [The replica's binary log is encrypted after a key rotation while the receiver waited for queue memory]
+include/assert.inc [The last relay-log file uses the newest master key after a key rotation while the receiver waited for queue memory]
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t1, t2;
+include/rpl/sync_to_replica.inc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+include/rpl/deinit.inc
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

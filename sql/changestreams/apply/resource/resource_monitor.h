@@ -72,15 +72,32 @@ using Resource_instance_monitor_ref =
 /// indefinite blocks.
 /// - Suitable for resources like channel memory limit in the applier.
 ///
+/// Name-based lookups must not overlap register_resource(). A thread that
+/// outlives the registering one (e.g. the IO thread while the SQL thread
+/// restarts) takes the Resource_entry once with get_resource_entry() and uses
+/// the static entry-based functions. Re-registering the same name frees the old
+/// entry, so the registering side must ensure no holder still uses it.
+///
 class Resource_instance_monitor {
  public:
   /// @brief Registers a named resource with the given limit (maximum
-  /// available)
+  /// available). If the name is already registered, its entry is replaced by
+  /// a new one and the old entry is freed, which invalidates pointers taken
+  /// earlier with get_resource_entry() for that name. Not concurrent with
+  /// other calls that read the map (the name-based functions).
   /// @param name The name of the resource.
   /// @param limit The maximum available count for this resource.
   /// @param stage Optional PSI stage to set during waiting for lock.
   void register_resource(const std::string &name, std::size_t limit,
                          PSI_stage_info *stage = nullptr);
+
+  /// @brief The entry of a registered resource, for the static entry-based
+  /// functions. Must not overlap register_resource(). The pointer stays valid
+  /// until @p name is registered again.
+  /// @param name The name of the resource.
+  /// @return The resource's entry, or nullptr when resource tracking is
+  ///         disabled or @p name is not registered.
+  Resource_entry *get_resource_entry(const std::string &name);
 
   /// @brief Function locks resource and returns resource guard that will
   /// release the resource if locked upon destruction
@@ -100,6 +117,43 @@ class Resource_instance_monitor {
   /// @param amount The amount to lock.
   /// @return True when successfully locked. False if exited before obtaining.
   bool lock_resource(const std::string &name, std::size_t amount);
+
+  /// @brief Wait-free reservation attempt. Reserves @p amount when available
+  /// >= amount, or when the resource is fully free (so a request larger than
+  /// the limit can pass); otherwise leaves the count unchanged. Never waits, so
+  /// the caller polls under its own stop condition. Reads no map.
+  /// @param resource Resource handle, from get_resource_entry().
+  /// @param amount The amount to reserve.
+  /// @return True iff it reserved.
+  static bool try_lock_resource(Resource_entry &resource, std::size_t amount);
+
+  /// @brief Soft reservation attempt: reserves @p amount whenever the resource
+  /// is under its limit (available > 0), whatever the size, so available may go
+  /// negative; fails at or over the limit. Lock-free CAS loop, safe with
+  /// several reservers; never waits. Reads no map. Release with
+  /// release_resource().
+  /// @param resource Resource handle, from get_resource_entry().
+  /// @param amount The amount to reserve.
+  /// @return True iff it reserved.
+  static bool try_lock_resource_soft(Resource_entry &resource,
+                                     std::size_t amount);
+
+  /// @brief Would try_lock_resource() reserve now? Reserves nothing; wait-free.
+  /// The answer stays true only while no other thread reserves on
+  /// @p resource.
+  /// @param resource Resource handle, from get_resource_entry().
+  /// @param amount The amount a later try_lock_resource() would reserve.
+  /// @return True iff that reservation would succeed now.
+  static bool would_lock(const Resource_entry &resource, std::size_t amount);
+
+  /// @brief Would try_lock_resource_soft() reserve now? Reserves nothing;
+  /// wait-free. The answer stays true only while no other thread reserves on
+  /// @p resource.
+  /// @param resource Resource handle, from get_resource_entry().
+  /// @param amount The amount a later try_lock_resource_soft() would reserve.
+  /// @return True iff that reservation would succeed now.
+  static bool would_lock_soft(const Resource_entry &resource,
+                              std::size_t amount);
 
   /// @brief Releases the specified amount of the named resource. Wait-free.
   /// @param resource Resource handle

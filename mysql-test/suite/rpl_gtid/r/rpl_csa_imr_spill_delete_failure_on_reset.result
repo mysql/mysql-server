@@ -1,0 +1,66 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. A CSA channel with the in-memory relay log and an 8 MiB spill
+#    threshold.
+
+[connection slave]
+CALL mtr.add_suppression("\\[In-memory relay log\\] could not delete spill file");
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+INSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 2. Stop the applier and queue one spill transaction (received, not
+#    applied).
+
+[connection slave]
+include/rpl/stop_applier.inc
+[connection master]
+BEGIN;
+COMMIT;
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+# The received transaction has one spill file.
+imr_sp_<ID>
+
+# 3. Make the spill directory read-only and stop the receiver. Both
+#    threads are now stopped, so the queue resets and the delete fails.
+
+include/rpl/stop_receiver.inc
+include/assert.inc [The reset did not set Last_SQL_Errno]
+include/assert.inc [The reset did not set Last_IO_Errno]
+include/assert.inc [The queue is empty after the full stop]
+include/assert.inc [SPILL_FILE_COUNT reads 0 after the full stop]
+include/assert.inc [SPILL_BYTES_USED reads 0 after the full stop]
+include/assert_grep.inc [The reset-time failed delete is logged with the file and the error]
+# The orphan spill file is still on disk after the reset.
+imr_sp_<ID>
+
+# 4. START REPLICA has no stale error; the transaction is re-fetched by
+#    GTID auto-positioning and applied (R4).
+
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/assert.inc [The re-fetched transaction is applied]
+include/rpl/diff.inc
+[connection slave]
+include/assert.inc [START REPLICA ran with no stale SQL error]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 16777216;
+UNINSTALL COMPONENT 'file://component_replication_applier_metrics';
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

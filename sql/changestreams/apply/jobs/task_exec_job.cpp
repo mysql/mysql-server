@@ -50,6 +50,8 @@ Task_exec_job::Task_exec_job(Job_ptr job, uint64_t job_id,
       m_applier_stop(stop_ref) {}
 
 Task_result Task_exec_job::operator()(unsigned int thread_id) {
+  // Statistics updated where no worker id is passed use this worker's shard.
+  Statistics_map_csa::set_worker_shard(thread_id);
   auto &stat_monitor = m_stat_monitor.get();
   m_started = true;
   stat_monitor.get_stat(Statistics_map_csa::active_job_cnt).add(1, thread_id);

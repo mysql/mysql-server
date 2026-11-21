@@ -1,0 +1,76 @@
+
+# 1. Set up an IMR channel with the minimum 8 MiB spill threshold.
+
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+CALL mtr.add_suppression("Replica SQL thread .* killed");
+CALL mtr.add_suppression("Worker .* stopped");
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+include/assert.inc [The channel uses the in-memory relay log]
+
+# 2. A 1.5 MiB limit: one worker holds a ~1 MiB event, a second waits.
+
+SET @@GLOBAL.replica_max_allowed_packet = 1572864;
+CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = 1572864;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+# Adding debug point 'pause_csa_before_releasing_event_memory' to @@GLOBAL.debug
+[connection master]
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+# Both uncommitted transactions took the spill path:
+imr_sp_<ID>
+imr_sp_<ID>
+# Removing debug point 'pause_csa_before_releasing_event_memory' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL signal_continue_csa_releasing_event_memory';
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 3. A 512 KiB limit: every ~1 MiB event is larger than the limit.
+
+SET DEBUG_SYNC= 'RESET';
+include/rpl/stop_applier.inc
+SET @@GLOBAL.replica_max_allowed_packet = 524288;
+CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = 524288;
+SET @@GLOBAL.replica_max_allowed_packet = 1572864;
+include/rpl/start_applier.inc
+include/assert.inc [The event memory limit stays at 512 KiB]
+# Adding debug point 'pause_csa_before_releasing_event_memory' to @@GLOBAL.debug
+[connection master]
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+SET DEBUG_SYNC= 'now WAIT_FOR paused_csa_before_releasing_event_memory TIMEOUT 30';
+# Both uncommitted transactions took the spill path:
+imr_sp_<ID>
+imr_sp_<ID>
+# Removing debug point 'pause_csa_before_releasing_event_memory' from @@GLOBAL.debug
+SET DEBUG_SYNC= 'now SIGNAL signal_continue_csa_releasing_event_memory';
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+SET DEBUG_SYNC= 'RESET';
+
+# 4. Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
+include/rpl/deinit.inc

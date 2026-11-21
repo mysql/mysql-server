@@ -40,7 +40,10 @@
 --echo
 --let $rpl_applier_version=2:2
 --let $rpl_applier_worker_count=2:8
+# Purges on-disk relay-log files, which IMR does not write.
+--let $rpl_in_memory_relaylog= OFF
 --source include/rpl/init_source_replica.inc
+--source include/rpl/connection_replica.inc
 
 --echo
 --echo #  2. Run queries including rotations of the relay log

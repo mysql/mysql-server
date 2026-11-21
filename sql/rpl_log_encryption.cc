@@ -26,6 +26,7 @@
 #include <string.h>
 #include <algorithm>
 #include <sstream>
+#include <utility>
 #include "mutex_lock.h"
 #include "my_byteorder.h"
 #include "mysql/binlog/event/event_reader.h"
@@ -656,6 +657,7 @@ bool Rpl_encryption::rotate_master_key(Key_rotation_step step,
         /* Rotate relay logs and re-encrypt previous existent relay logs. */
         if (flush_relay_logs_cmd(current_thd)) goto err2;
         if (reencrypt_relay_logs()) return true;
+        if (imr_reencrypt_spill_files()) return true;
       }
     }
       [[fallthrough]];
@@ -1078,17 +1080,53 @@ bool Rpl_encryption_header_v1::deserialize(Basic_istream *istream) {
     return true;
   }
 
-  m_key_id.clear();
-  m_encrypted_password.clear();
-  m_iv.clear();
+  DBUG_EXECUTE_IF("corrupt_encryption_header_unknown_field_type",
+                  { header[OPTIONAL_FIELD_OFFSET] = 255; });
 
-  const char *header_buffer = reinterpret_cast<char *>(header);
+  Fields fields;
+  const char *error = nullptr;
+  switch (parse_fields(header, &fields)) {
+    case Parse_status::ok:
+      break;
+    case Parse_status::unknown_field:
+      error = "Unknown field type";
+      break;
+    case Parse_status::corrupted:
+      /* Error deserializing header fields */
+      error = "Header is corrupted";
+      break;
+    case Parse_status::missing_key_id:
+      error = "Header is missing the replication encryption key ID";
+      break;
+    case Parse_status::missing_password:
+      error = "Header is missing the encrypted password";
+      break;
+    case Parse_status::missing_iv:
+      error = "Header is missing the IV";
+      break;
+  }
+
+  m_key_id = std::move(fields.key_id);
+  m_encrypted_password = std::move(fields.encrypted_password);
+  m_iv = std::move(fields.iv);
+
+  if (error != nullptr) {
+    throw_encryption_header_error(error);
+    return true;
+  }
+  return false;
+}
+
+Rpl_encryption_header_v1::Parse_status Rpl_encryption_header_v1::parse_fields(
+    const unsigned char *header, Fields *fields) {
+  fields->key_id.clear();
+  fields->encrypted_password.clear();
+  fields->iv.clear();
+
+  const char *header_buffer = reinterpret_cast<const char *>(header);
   mysql::binlog::event::Event_reader reader(header_buffer, HEADER_SIZE);
   reader.go_to(OPTIONAL_FIELD_OFFSET);
   uint8_t field_type = 0;
-
-  DBUG_EXECUTE_IF("corrupt_encryption_header_unknown_field_type",
-                  { header[OPTIONAL_FIELD_OFFSET] = 255; });
 
   while (!reader.has_error()) {
     field_type = reader.read<uint8_t>();
@@ -1102,7 +1140,7 @@ bool Rpl_encryption_header_v1::deserialize(Basic_istream *istream) {
                         { reader.go_to(HEADER_SIZE - 1); });
         if (!reader.has_error()) {
           const char *key_ptr = reader.ptr(length);
-          if (!reader.has_error()) m_key_id.assign(key_ptr, length);
+          if (!reader.has_error()) fields->key_id.assign(key_ptr, length);
         }
         break;
       }
@@ -1111,49 +1149,33 @@ bool Rpl_encryption_header_v1::deserialize(Basic_istream *istream) {
             reinterpret_cast<const unsigned char *>(
                 reader.ptr(PASSWORD_FIELD_SIZE));
         if (!reader.has_error())
-          m_encrypted_password.assign(password_ptr, PASSWORD_FIELD_SIZE);
+          fields->encrypted_password.assign(password_ptr, PASSWORD_FIELD_SIZE);
         break;
       }
       case IV_FOR_FILE_PASSWORD: {
         const unsigned char *iv_ptr =
             reinterpret_cast<const unsigned char *>(reader.ptr(IV_FIELD_SIZE));
-        if (!reader.has_error()) m_iv.assign(iv_ptr, IV_FIELD_SIZE);
+        if (!reader.has_error()) fields->iv.assign(iv_ptr, IV_FIELD_SIZE);
         break;
       }
       default:
-        throw_encryption_header_error("Unknown field type");
-        return true;
+        return Parse_status::unknown_field;
     }
     if (field_type == 0) break;
   }
 
   DBUG_EXECUTE_IF("corrupt_encryption_header_missing_key_id",
-                  { m_key_id.clear(); });
+                  { fields->key_id.clear(); });
   DBUG_EXECUTE_IF("corrupt_encryption_header_missing_password",
-                  { m_encrypted_password.clear(); });
-  DBUG_EXECUTE_IF("corrupt_encryption_header_missing_iv", { m_iv.clear(); });
+                  { fields->encrypted_password.clear(); });
+  DBUG_EXECUTE_IF("corrupt_encryption_header_missing_iv",
+                  { fields->iv.clear(); });
 
-  bool res = false;
-
-  if (reader.has_error()) {
-    /* Error deserializing header fields */
-    throw_encryption_header_error("Header is corrupted");
-    res = true;
-  } else {
-    if (m_key_id.empty()) {
-      throw_encryption_header_error(
-          "Header is missing the replication encryption key ID");
-      res = true;
-    } else if (m_encrypted_password.empty()) {
-      throw_encryption_header_error("Header is missing the encrypted password");
-      res = true;
-    } else if (m_iv.empty()) {
-      throw_encryption_header_error("Header is missing the IV");
-      res = true;
-    }
-  }
-
-  return res;
+  if (reader.has_error()) return Parse_status::corrupted;
+  if (fields->key_id.empty()) return Parse_status::missing_key_id;
+  if (fields->encrypted_password.empty()) return Parse_status::missing_password;
+  if (fields->iv.empty()) return Parse_status::missing_iv;
+  return Parse_status::ok;
 }
 
 char Rpl_encryption_header_v1::get_version() const { return m_version; }

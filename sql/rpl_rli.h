@@ -79,6 +79,12 @@ class Slave_worker;
 class String;
 struct LEX_SOURCE_INFO;
 
+namespace mysql::csa {
+/// In-memory relay-log runtime (see in_memory/imr_runtime.h). Forward-declared
+/// so the queue and spill types stay out of this header.
+class Imr_runtime;
+}  // namespace mysql::csa
+
 extern uint sql_replica_skip_counter;
 
 typedef Prealloced_array<Slave_worker *, 4> Slave_worker_array;
@@ -1923,6 +1929,13 @@ class Relay_log_info : public Rpl_info {
 
   static const int APPLIER_METADATA_LINES_WITH_APPLIER_EVENT_MEMORY_LIMIT = 17;
 
+  static const int APPLIER_METADATA_LINES_WITH_IN_MEMORY_RELAYLOG = 18;
+
+  static const int APPLIER_METADATA_LINES_WITH_IN_MEMORY_RELAYLOG_LIMIT = 19;
+
+  static const int
+      APPLIER_METADATA_LINES_WITH_IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 20;
+
   /*
     Total lines in applier metadata.
     This has to be updated every time a member is added or removed.
@@ -1932,7 +1945,7 @@ class Relay_log_info : public Rpl_info {
     preserved.
   */
   static const int MAXIMUM_APPLIER_METADATA_LINES =
-      APPLIER_METADATA_LINES_WITH_APPLIER_EVENT_MEMORY_LIMIT;
+      APPLIER_METADATA_LINES_WITH_IN_MEMORY_RELAYLOG_SPILL_THRESHOLD;
 
   bool read_info(Rpl_info_handler *from) override;
   bool write_info(Rpl_info_handler *to) override;
@@ -2165,6 +2178,25 @@ class Relay_log_info : public Rpl_info {
   /// @return The maximum amount of memory the channel can use to keep binlog
   /// events
   ulong get_applier_event_memory_limit();
+  /// Sets the persisted IN_MEMORY_RELAYLOG_ENABLED setting (used only on CSA)
+  /// @param value true for ON, false for OFF
+  void set_in_memory_relaylog(bool value);
+  /// @return the IMR setting; always false for group_replication_applier
+  bool is_in_memory_relaylog() const;
+  /// Sets the persisted hard memory bound (bytes) of the in-memory relay-log
+  /// queue for the channel. A value of 0 forces the default.
+  /// @param number Requested memory limit in bytes
+  void set_in_memory_relaylog_limit(ulonglong number);
+  /// Accesses the hard memory bound (bytes) of the in-memory relay-log queue
+  /// @return The configured memory limit in bytes, or the default when unset
+  ulonglong get_in_memory_relaylog_limit() const;
+  /// Sets the persisted spill threshold (bytes) of the in-memory relay-log
+  /// queue for the channel. A value of 0 forces the default.
+  /// @param number Requested spill threshold in bytes
+  void set_in_memory_relaylog_spill_threshold(ulonglong number);
+  /// Accesses the spill threshold (bytes) of the in-memory relay-log queue
+  /// @return The configured spill threshold in bytes, or the default when unset
+  ulonglong get_in_memory_relaylog_spill_threshold() const;
   /// Set CSA worker context used by commit order manager
   /// @param csa_worker_context CSA worker context
   void set_csa_worker_context(Parallel_worker_context *csa_worker_context);
@@ -2179,6 +2211,19 @@ class Relay_log_info : public Rpl_info {
   /// Obtain Coordinator RLI
   /// @return Coordinator (SQL) thread RLI
   Relay_log_info *get_parent_rli() const;
+
+  /// The channel's in-memory relay-log runtime, cached so the hot path needs no
+  /// lookup. Owned by the mysql::csa::Imr_service runtime map; see Imr_runtime
+  /// for its lifetime.
+  /// @return Non-owning pointer, or nullptr unless IMR is selected on a CSA
+  ///         channel.
+  mysql::csa::Imr_runtime *imr() { return m_imr; }
+
+  /// Caches (or, with nullptr, clears) the runtime pointer; destroys nothing.
+  /// Called by Imr_service::reconcile()/remove() under the channel_map write
+  /// lock, which keeps the cache and the owning map entry in sync.
+  /// @param imr Non-owning runtime pointer to cache, or nullptr to clear.
+  void set_imr_ptr(mysql::csa::Imr_runtime *imr) { m_imr = imr; }
 
  protected:
   /// Downgrades stop-generated CSA session errors for sessions that were clean
@@ -2204,12 +2249,32 @@ class Relay_log_info : public Rpl_info {
   /// default value for the m_applier_event_memory_limit
   static constexpr ulong applier_event_memory_limit_default =
       1024 * 1024 * 1024;
+  /// Persisted IN_MEMORY_RELAYLOG_ENABLED setting; ON for a new channel.
+  bool m_in_memory_relaylog{true};
+  /// Persisted hard memory bound (bytes) of the in-memory relay-log queue,
+  /// applied to the queue at channel init and by CHANGE REPLICATION SOURCE.
+  /// 0 means "use default". 64-bit to match the BIGINT UNSIGNED column; see
+  /// Imr_service option bounds.
+  ulonglong m_in_memory_relaylog_limit{0};
+  /// Default value for m_in_memory_relaylog_limit (128 MiB).
+  static constexpr ulonglong in_memory_relaylog_limit_default =
+      128ULL * 1024 * 1024;
+  /// Persisted spill threshold (bytes) of the in-memory relay-log queue,
+  /// applied like m_in_memory_relaylog_limit. 0 means "use default". 64-bit
+  /// like m_in_memory_relaylog_limit.
+  ulonglong m_in_memory_relaylog_spill_threshold{0};
+  /// Default value for m_in_memory_relaylog_spill_threshold (16 MiB).
+  static constexpr ulonglong in_memory_relaylog_spill_threshold_default =
+      16ULL * 1024 * 1024;
   /// Non-owning, parallel CSA worker execution context, set by CSA
   Parallel_worker_context *m_csa_worker_context{nullptr};
   /// Coordinator RLI. Used in CSA to attach/detach temporary tables
   Relay_log_info *m_parent_rli{nullptr};
   /// Downgrade errors produced after a clean CSA stop request.
   std::atomic<bool> m_csa_stop_error_suppression{false};
+  /// Non-owning runtime pointer; see imr() and set_imr_ptr().
+  /// ~Relay_log_info() calls Imr_service::remove() when it is set.
+  mysql::csa::Imr_runtime *m_imr{nullptr};
 };
 
 /**

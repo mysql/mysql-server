@@ -26,6 +26,8 @@
 --source include/not_group_replication_plugin.inc
 --source include/have_binlog_format_row.inc
 --source include/have_debug.inc
+# IMR does not support semisync.
+--let $rpl_in_memory_relaylog= OFF
 
 #
 # One Master and 8 Slaves in the semi sync topology.

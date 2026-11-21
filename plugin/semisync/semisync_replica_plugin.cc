@@ -105,6 +105,17 @@ static int repl_semi_replica_request_dump(Binlog_relay_IO_param *param,
 
   if (!repl_semisync->getReplicaEnabled()) return 0;
 
+  /*
+    The in-memory relay log does not persist received transactions, so they
+    must not be acknowledged. Refusing on the same read that would negotiate
+    leaves no race with a concurrent change of the setting.
+  */
+  if (param->in_memory_relay_log) {
+    my_error(ER_REPLICA_IN_MEMORY_RELAYLOG_INCOMPATIBLE_CONFIGURATION, MYF(0),
+             "semi-synchronous replication");
+    return 1;
+  }
+
   int source_state = has_source_semisync(mysql);
   if (source_state == 0) {
     /* Source does not support semi-sync */

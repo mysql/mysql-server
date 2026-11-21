@@ -1,0 +1,37 @@
+include/group_replication.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server1]
+[connection server1]
+include/stop_group_replication.inc
+
+# Switch both GR channels to CSA. The recovery channel's IMR is ON by default; the applier channel's is always OFF.
+
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2 FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2 FOR CHANNEL 'group_replication_applier';
+include/assert.inc [recovery channel: IMR ON by default under CSA]
+include/assert.inc [applier channel: IMR OFF by default under CSA]
+
+# The recovery channel (a normal async channel) may enable IMR.
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON FOR CHANNEL 'group_replication_recovery';
+include/assert.inc [recovery channel: IMR can be enabled explicitly]
+
+# The applier channel has no receiver thread: enabling IMR is rejected.
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON FOR CHANNEL 'group_replication_applier';
+ERROR HY000: The in-memory relay log is incompatible with the group_replication_applier channel and cannot be used while it is active.
+include/assert.inc [applier channel: IMR still OFF after the rejected enable]
+
+# Restore MTA + IMR OFF on both channels and clean up.
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1 FOR CHANNEL 'group_replication_recovery';
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1 FOR CHANNEL 'group_replication_applier';
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, IN_MEMORY_RELAYLOG_ENABLED = ON FOR CHANNEL 'group_replication_applier';
+ERROR HY000: The in-memory relay log is incompatible with the group_replication_applier channel and cannot be used while it is active.
+include/assert.inc [Rejected IMR statement left the applier configuration unchanged]
+include/start_group_replication.inc
+include/assert.inc [START ran with and persisted the old configuration]
+include/group_replication_end.inc

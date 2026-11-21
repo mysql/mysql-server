@@ -55,8 +55,13 @@ void Fetchable_transaction::reset_fetching(bool all) {
     batch->reset(all);
   }
   m_is_done = false;
-  m_is_truncated.store(false, std::memory_order_release);
-  m_status = Return_status::ok;
+  m_is_aborted.store(false, std::memory_order_release);
+  // Truncation is receiver state and survives a consumer reset (new job or
+  // retry); erasing it would leave the worker waiting on a stream that never
+  // completes. A truncated transaction rewinds but fails its reads at once.
+  m_status = m_is_truncated.load(std::memory_order_acquire)
+                 ? Return_status::error
+                 : Return_status::ok;
   m_error_message.assign("");
 }
 
@@ -117,25 +122,32 @@ std::optional<Managed_event> Fetchable_transaction::fetch_next() {
 }
 
 bool Fetchable_transaction::wait_next() {
+  using Wait_result = Event_set_fetchable::Wait_result;
   while (true) {
     auto *event_batch = wait_for_current_batch();
     if (event_batch == nullptr) {
       return false;
     }
 
-    if (event_batch->wait_next()) {
-      return true;
-    }
-
-    {
-      std::lock_guard<std::mutex> lock(m_mutex);
-      if (event_batch->is_error()) {
+    switch (event_batch->wait_next()) {
+      case Wait_result::ready:
+        return true;
+      case Wait_result::cancelled:
+        // Applier stop or coordinator kill: the job is aborted, not failed.
+        m_is_aborted.store(true, std::memory_order_release);
+        return false;
+      case Wait_result::error: {
+        std::lock_guard<std::mutex> lock(m_mutex);
         m_status = Return_status::error;
         m_error_message = event_batch->get_error_str();
         return false;
       }
-      if (advance_finished_batch_unsafe(event_batch)) {
-        return false;
+      case Wait_result::end: {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        if (advance_finished_batch_unsafe(event_batch)) {
+          return false;
+        }
+        break;  // Continue with the transaction's next batch.
       }
     }
   }
@@ -154,6 +166,10 @@ bool Fetchable_transaction::is_fetching_done() const {
 
 bool Fetchable_transaction::is_truncated() const {
   return m_is_truncated.load(std::memory_order_acquire);
+}
+
+bool Fetchable_transaction::is_aborted() const {
+  return m_is_aborted.load(std::memory_order_acquire);
 }
 
 std::size_t Fetchable_transaction::get_max_event_length() const {

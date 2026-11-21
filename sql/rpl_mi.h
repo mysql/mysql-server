@@ -27,6 +27,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <atomic>
+#include <memory>
 
 #include "compression.h"  // COMPRESSION_ALGORITHM_NAME_BUFFER_SIZE
 #include "my_inttypes.h"
@@ -305,6 +306,7 @@ class Master_info : public Rpl_info {
   MYSQL *mysql;
   uint32 file_id; /* for 3.23 load data infile */
   Relay_log_info *rli;
+
   uint port;
   uint connect_retry;
   /*
@@ -651,17 +653,16 @@ class Master_info : public Rpl_info {
     Locks:
     All access is protected by Relay_log::LOCK_log.
   */
-  Format_description_log_event *mi_description_event;
+  std::shared_ptr<Format_description_log_event> mi_description_event;
 
  public:
   Format_description_log_event *get_mi_description_event() {
     mysql_mutex_assert_owner(rli->relay_log.get_log_lock());
-    return mi_description_event;
+    return mi_description_event.get();
   }
   void set_mi_description_event(Format_description_log_event *fdle) {
     mysql_mutex_assert_owner(rli->relay_log.get_log_lock());
-    delete mi_description_event;
-    mi_description_event = fdle;
+    mi_description_event.reset(fdle);
   }
 
   bool set_info_search_keys(Rpl_info_handler *to) override;

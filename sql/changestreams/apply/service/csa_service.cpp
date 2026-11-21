@@ -152,7 +152,8 @@ bool Csa_service::run(Relay_log_info *rli) {
   if (mysql::scheduler::Statistics_map::init_statistics(
           channel_instance_id, n_workers, tune::extended_statistics_enabled) ||
       mysql::csa::Statistics_map::init_statistics(
-          channel_instance_id, n_workers, tune::extended_statistics_enabled)) {
+          channel_instance_id, n_workers, tune::extended_statistics_enabled,
+          rli->mi->is_metric_collection_enabled())) {
     rli->report(ERROR_LEVEL, ER_SERVER_OUT_OF_RESOURCES, "%s",
                 ER_THD(rli->info_thd, ER_SERVER_OUT_OF_RESOURCES));
     return true;
@@ -229,10 +230,16 @@ bool Csa_service::run(Relay_log_info *rli) {
   assert(new_scheduler);
 
   Transaction_provider_sptr provider;
-  // create a relay log reader
-  provider.reset(new Sync_transaction_provider(
-      channel_instance_id, rli, tune::provider_max_read_event_bytes,
-      tune::provider_max_read_payload_bytes));
+  if (rli->imr() != nullptr) {
+    // In-memory relay log: drain the channel's queue through a
+    // Queued_transaction_reader instead of reading the relay log.
+    provider.reset(new Sync_transaction_provider(channel_instance_id, rli));
+  } else {
+    // Classic path: read consecutive events from the on-disk relay log.
+    provider.reset(new Sync_transaction_provider(
+        channel_instance_id, rli, tune::provider_max_read_event_bytes,
+        tune::provider_max_read_payload_bytes));
+  }
   if (!provider) {
     rli->report(ERROR_LEVEL, ER_SERVER_OUT_OF_RESOURCES, "%s",
                 ER_THD(rli->info_thd, ER_SERVER_OUT_OF_RESOURCES));
@@ -465,6 +472,32 @@ void Csa_service::stop(const char *channel_id, bool force_kill) {
   // csa_channel.thread_pool->end_execution();
   // awake all sessions and kill if needed
   csa_channel.session_service->awake_sessions(force_kill);
+}
+
+Imr_applier_stats Csa_service::get_imr_applier_stats(const char *channel) {
+  Imr_applier_stats result;
+  if (!is_inited()) {
+    return result;
+  }
+  // The read lock excludes run() registering the statistics (before the
+  // channel is added to csa_channels) and clean_up_context() clearing them
+  // (before it is removed), both under the write lock.
+  auto scope_lock = rdlock();
+  auto it = csa_channels.find(channel);
+  if (it == csa_channels.end()) {
+    return result;  // applier not running: its statistics are cleared
+  }
+  auto &stat_monitor =
+      mysql::scheduler::Statistics_monitor::get(it->second.channel_instance_id);
+  const auto read = [&stat_monitor](const char *name) -> long long {
+    auto stat = stat_monitor.find_stat(name);
+    return stat.has_value() ? stat->get().get() : 0;
+  };
+  result.memory_trx_count = read(Statistics_map::imr_mem_trx_cnt);
+  result.memory_trx_bytes = read(Statistics_map::imr_mem_trx_len);
+  result.spill_trx_count = read(Statistics_map::imr_spl_trx_cnt);
+  result.spill_trx_bytes = read(Statistics_map::imr_spl_trx_len);
+  return result;
 }
 
 std::size_t Csa_service::get_workers_number(const char *channel) {

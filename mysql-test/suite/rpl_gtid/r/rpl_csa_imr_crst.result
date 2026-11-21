@@ -1,0 +1,202 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection slave]
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
+
+# 1. IMR metadata defaults on a freshly created channel: the feature is
+#    ON (in effect only once the channel is on CSA), and the limit /
+#    spill-threshold columns carry their default values.
+
+include/assert.inc [IN_MEMORY_RELAYLOG is ON by default in mysql.slave_relay_log_info]
+include/assert.inc [IN_MEMORY_RELAYLOG_LIMIT defaults to 134217728 in mysql.slave_relay_log_info]
+include/assert.inc [IN_MEMORY_RELAYLOG_SPILL_THRESHOLD defaults to 16777216 in mysql.slave_relay_log_info]
+# PFS view of the IMR defaults:
+SELECT IN_MEMORY_RELAYLOG_ENABLED, IN_MEMORY_RELAYLOG_LIMIT, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD
+FROM performance_schema.replication_applier_configuration;
+IN_MEMORY_RELAYLOG_ENABLED	IN_MEMORY_RELAYLOG_LIMIT	IN_MEMORY_RELAYLOG_SPILL_THRESHOLD
+YES	134217728	16777216
+
+# 2. IMR options are rejected on a non-CSA (MTA) channel (R1).
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+ERROR HY000: The in-memory relay log is only available on a CSA-enabled channel.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 67108864;
+ERROR HY000: The in-memory relay log is only available on a CSA-enabled channel.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 12582912;
+ERROR HY000: The in-memory relay log is only available on a CSA-enabled channel.
+# Disabling IMR is rejected as well.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+ERROR HY000: The in-memory relay log is only available on a CSA-enabled channel.
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1, IN_MEMORY_RELAYLOG_LIMIT = 33554431;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_LIMIT (33554431 bytes) must be between 33554432 and 4294967295 bytes
+include/assert.inc [Rejected IMR statement left the applier configuration unchanged]
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
+include/assert.inc [START ran with and persisted the old configuration]
+
+# 3. Switch the channel to CSA, then reject invalid ranges / ordering (R2).
+
+# IMR OFF is accepted in the statement that switches the channel to CSA.
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2, REQUIRE_ROW_FORMAT = 1, GTID_ONLY = 1, IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/assert.inc [The channel is on CSA with IMR OFF]
+# LIMIT below the 32 MiB floor.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 33554431;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_LIMIT (33554431 bytes) must be between 33554432 and 4294967295 bytes
+# LIMIT one byte above the ceiling: kLimitMax is 4294967295 (4 GiB - 1),
+# so 4294967296 (a full 4 GiB) is the first rejected value.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 4294967296;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_LIMIT (4294967296 bytes) must be between 33554432 and 4294967295 bytes
+# Above the ceiling by an amount that WRAPS INTO the valid range when the
+# value is truncated to 32 bits: 4 GiB + 64 MiB = 4362076160, whose low
+# 32 bits are 67108864 (64 MiB), an otherwise-valid limit. The option is
+# parsed at full 64-bit width, so this is rejected on every platform
+# (regression guard: on LLP64/64-bit-Windows `unsigned long` is 32-bit,
+# and a narrower parse would have silently accepted 64 MiB here).
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 4362076160;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_LIMIT (4362076160 bytes) must be between 33554432 and 4294967295 bytes
+# Same hazard for the spill threshold: 4 GiB + 16 MiB = 4311744512 wraps
+# to 16777216 (16 MiB). Rejected because the true value exceeds the limit.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 4311744512;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_LIMIT (134217728 bytes) must be greater than IN_MEMORY_RELAYLOG_SPILL_THRESHOLD (4311744512 bytes)
+# SPILL_THRESHOLD below the 8 MiB floor.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388607;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_SPILL_THRESHOLD (8388607 bytes) must be at least 8388608 bytes
+# SPILL_THRESHOLD alone >= persisted LIMIT (default 134217728).
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 134217728;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_LIMIT (134217728 bytes) must be greater than IN_MEMORY_RELAYLOG_SPILL_THRESHOLD (134217728 bytes)
+# Both together, valid individual ranges but SPILL_THRESHOLD == LIMIT.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 33554432, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 33554432;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_LIMIT (33554432 bytes) must be greater than IN_MEMORY_RELAYLOG_SPILL_THRESHOLD (33554432 bytes)
+# Both together, SPILL_THRESHOLD > LIMIT.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 33554432, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 67108864;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_LIMIT (33554432 bytes) must be greater than IN_MEMORY_RELAYLOG_SPILL_THRESHOLD (67108864 bytes)
+
+# The rejection carries the preserved ER_CRST_IN_MEMORY_RELAYLOG_INVALID_CONFIG
+# error code AND the client-visible reason text. Show the message for each
+# of the three validation-failure shapes: the limit range, the
+# spill-threshold floor, and the limit-exceeds-spill-threshold ordering
+# rule (the last with both options supplied together).
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 33554431;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_LIMIT (33554431 bytes) must be between 33554432 and 4294967295 bytes
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388607;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_SPILL_THRESHOLD (8388607 bytes) must be at least 8388608 bytes
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 33554432, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 33554432;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_LIMIT (33554432 bytes) must be greater than IN_MEMORY_RELAYLOG_SPILL_THRESHOLD (33554432 bytes)
+
+# 3b. Exact upper boundary is accepted: kLimitMax (4294967295 = 4 GiB - 1)
+#     is a valid LIMIT -- the default 16 MiB spill threshold stays below
+#     it, so the pair is valid. (Section 4 overwrites this below.)
+
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 4294967295;
+include/assert.inc [IN_MEMORY_RELAYLOG_LIMIT accepts the exact maximum 4294967295]
+
+# 4. Apply a valid IMR configuration and assert it is persisted (R5).
+
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_LIMIT = 268435456,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 33554432;
+include/assert.inc [IN_MEMORY_RELAYLOG is ON in mysql.slave_relay_log_info]
+include/assert.inc [IN_MEMORY_RELAYLOG_LIMIT is 268435456 in mysql.slave_relay_log_info]
+include/assert.inc [IN_MEMORY_RELAYLOG_SPILL_THRESHOLD is 33554432 in mysql.slave_relay_log_info]
+# PFS view of the applied IMR configuration:
+SELECT IN_MEMORY_RELAYLOG_ENABLED, IN_MEMORY_RELAYLOG_LIMIT, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD
+FROM performance_schema.replication_applier_configuration;
+IN_MEMORY_RELAYLOG_ENABLED	IN_MEMORY_RELAYLOG_LIMIT	IN_MEMORY_RELAYLOG_SPILL_THRESHOLD
+YES	268435456	33554432
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1, IN_MEMORY_RELAYLOG_ENABLED = ON;
+ERROR HY000: The in-memory relay log is only available on a CSA-enabled channel.
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1, IN_MEMORY_RELAYLOG_ENABLED = OFF;
+ERROR HY000: The in-memory relay log is only available on a CSA-enabled channel.
+include/assert.inc [Rejected IMR statement left the applier configuration unchanged]
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
+include/assert.inc [START ran with and persisted the old configuration]
+
+# 4b. An APPLIER_EVENT_MEMORY_LIMIT below replica_max_allowed_packet is
+#     raised with a warning, and the IMR options in the same statement
+#     are still applied (R6). A rejected statement changes nothing (R7).
+
+SET @@GLOBAL.replica_max_allowed_packet = 16777216;
+# (a) IN_MEMORY_RELAYLOG_ENABLED = OFF is applied.
+CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = 1048576, IN_MEMORY_RELAYLOG_ENABLED = OFF;
+Warnings:
+Warning	6905	Applier event memory limit out of bounds. Actual limit has been set to the max_allowed_packet.
+SELECT APPLIER_EVENT_MEMORY_LIMIT, IN_MEMORY_RELAYLOG_ENABLED
+FROM performance_schema.replication_applier_configuration;
+APPLIER_EVENT_MEMORY_LIMIT	IN_MEMORY_RELAYLOG_ENABLED
+16777216	NO
+# (b) IN_MEMORY_RELAYLOG_LIMIT is applied.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = 1048576, IN_MEMORY_RELAYLOG_LIMIT = 134217728;
+Warnings:
+Warning	6905	Applier event memory limit out of bounds. Actual limit has been set to the max_allowed_packet.
+SELECT APPLIER_EVENT_MEMORY_LIMIT, IN_MEMORY_RELAYLOG_ENABLED, IN_MEMORY_RELAYLOG_LIMIT
+FROM performance_schema.replication_applier_configuration;
+APPLIER_EVENT_MEMORY_LIMIT	IN_MEMORY_RELAYLOG_ENABLED	IN_MEMORY_RELAYLOG_LIMIT
+16777216	YES	134217728
+# (c) An invalid IMR pair is rejected and changes nothing; the event memory limit is not raised.
+CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = 33554432;
+CHANGE REPLICATION SOURCE TO APPLIER_EVENT_MEMORY_LIMIT = 1048576, IN_MEMORY_RELAYLOG_LIMIT = 33554432, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 33554432;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_LIMIT (33554432 bytes) must be greater than IN_MEMORY_RELAYLOG_SPILL_THRESHOLD (33554432 bytes)
+include/assert.inc [Rejected IMR statement left the applier configuration unchanged]
+include/rpl/start_replica.inc
+include/rpl/stop_replica.inc
+include/assert.inc [START ran with and persisted the old configuration]
+# Restore the section 4 configuration and replicate one transaction.
+include/assert.inc [The section 4 configuration is restored]
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (a INT PRIMARY KEY);
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+
+# 4c. A value of 0 for a bound is treated as "not supplied": it keeps the
+#     current value (FR16 rule 4). The configuration here is
+#     LIMIT = 268435456, SPILL_THRESHOLD = 33554432 (R8, R7).
+
+# LIMIT = 0 is a no-op: the current limit and threshold are kept.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 0;
+include/assert.inc [IN_MEMORY_RELAYLOG_LIMIT = 0 kept the current limit and threshold]
+# SPILL_THRESHOLD = 0 is a no-op: the current limit and threshold are kept.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 0;
+include/assert.inc [IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 0 kept the current limit and threshold]
+# Both bounds = 0 in one statement is a no-op.
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 0, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 0;
+include/assert.inc [Both bounds = 0 kept the current configuration]
+# A no-op 0 does not exempt the statement: 0 for the limit (keeps the
+# current 268435456) combined with a below-floor spill threshold is
+# rejected as a whole, changing nothing (R8, R7).
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 0, IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388607;
+ERROR HY000: Invalid in-memory relay log configuration: IN_MEMORY_RELAYLOG_SPILL_THRESHOLD (8388607 bytes) must be at least 8388608 bytes
+include/assert.inc [The rejected 0 + out-of-range statement left the configuration unchanged]
+
+# 5. IMR options cannot be changed while replication is running (R4).
+
+include/rpl/start_replica.inc
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_LIMIT = 134217728;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
+include/rpl/stop_replica.inc
+
+# 6. The valid configuration survives a server restart (R5).
+
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+include/assert.inc [IN_MEMORY_RELAYLOG survived restart in mysql.slave_relay_log_info]
+include/assert.inc [IN_MEMORY_RELAYLOG survived restart in replication_applier_configuration]
+
+# 7. RESET REPLICA keeps the configuration; RESET REPLICA ALL clears it (R5).
+
+RESET REPLICA;
+include/assert.inc [RESET REPLICA keeps the IN_MEMORY_RELAYLOG configuration]
+RESET REPLICA ALL;
+include/assert.inc [RESET REPLICA ALL clears the channel row from mysql.slave_relay_log_info]
+include/rpl/deinit.inc

@@ -83,6 +83,15 @@ Plugin_table table_replication_applier_configuration::m_table_def(
     "    'Number of worker threads utilized by the applier',\n"
     "  APPLIER_EVENT_MEMORY_LIMIT INTEGER UNSIGNED not null COMMENT "
     "    'Number of worker threads utilized by the applier',\n"
+    "  IN_MEMORY_RELAYLOG_ENABLED ENUM('YES','NO') not null COMMENT "
+    "    'Indicates whether the channel buffers the relaylog in memory instead"
+    " of on disk.',\n"
+    "  IN_MEMORY_RELAYLOG_LIMIT BIGINT UNSIGNED not null COMMENT "
+    "    'Hard per-channel memory bound of the in-memory relaylog"
+    " queue.',\n"
+    "  IN_MEMORY_RELAYLOG_SPILL_THRESHOLD BIGINT UNSIGNED not null COMMENT "
+    "    'Per-channel size threshold, in bytes, above which a transaction is"
+    " spilled to disk instead of held in memory.',\n"
     "  PRIMARY KEY (CHANNEL_NAME) USING HASH\n",
     /* Options */
     " ENGINE=PERFORMANCE_SCHEMA",
@@ -270,6 +279,14 @@ int table_replication_applier_configuration::make_row(Master_info *mi) {
 
   m_row.applier_event_memory_limit = mi->rli->get_applier_event_memory_limit();
 
+  m_row.in_memory_relaylog_enabled =
+      mi->rli->is_in_memory_relaylog() ? PS_RPL_YES : PS_RPL_NO;
+
+  m_row.in_memory_relaylog_limit = mi->rli->get_in_memory_relaylog_limit();
+
+  m_row.in_memory_relaylog_spill_threshold =
+      mi->rli->get_in_memory_relaylog_spill_threshold();
+
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
 
@@ -332,6 +349,15 @@ int table_replication_applier_configuration::read_row_values(TABLE *table,
         case 9: /** applier_event_memory_limit */
           set_field_ulong(f,
                           static_cast<ulong>(m_row.applier_event_memory_limit));
+          break;
+        case 10: /** in_memory_relaylog_enabled */
+          set_field_enum(f, m_row.in_memory_relaylog_enabled);
+          break;
+        case 11: /** in_memory_relaylog_limit */
+          set_field_ulonglong(f, m_row.in_memory_relaylog_limit);
+          break;
+        case 12: /** in_memory_relaylog_spill_threshold */
+          set_field_ulonglong(f, m_row.in_memory_relaylog_spill_threshold);
           break;
         default:
           assert(false);

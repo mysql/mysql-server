@@ -1,0 +1,170 @@
+# ----------------------------------------------------------------------
+# Setup
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection slave]
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+[connection master]
+# ----------------------------------------------------------------------
+
+# 0. Load the keyring on the replica, enable binlog_encryption and IMR.
+
+include/rpl/restart_server.inc [server_number=2]
+[connection slave]
+CALL mtr.add_suppression("\\[In-memory relay log\\] spill file .* names the master key .*, which is not in the keyring; it is left unchanged and cannot be read");
+CALL mtr.add_suppression("\\[In-memory relay log\\] spill file .* has an invalid encryption header; it is left unchanged");
+SET GLOBAL binlog_encryption = ON;
+CHANGE REPLICATION SOURCE TO
+IN_MEMORY_RELAYLOG_ENABLED = ON,
+IN_MEMORY_RELAYLOG_SPILL_THRESHOLD = 8388608;
+include/rpl/start_replica.inc
+# Key check source: pfs
+[connection master]
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, c LONGBLOB);
+include/rpl/sync_to_replica.inc
+
+# 1. A rotation moves a live spill file to the new key and purges the
+#    old one (R1).
+
+include/rpl/stop_applier.inc
+[connection master]
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+include/assert.inc [One spill file, encrypted with _1]
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/assert.inc [The rotation succeeds with no warning]
+include/assert.inc [The spill file names _2]
+include/assert.inc [The header changed and the bytes after it did not]
+include/assert.inc [The replica binary log names _2]
+include/assert.inc [_1 is gone]
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+include/rpl/stop_receiver.inc
+include/rpl/start_receiver.inc
+[connection master]
+FLUSH BINARY LOGS;
+include/rpl/sync_to_replica.inc
+
+# 2. Writer first: the rotation waits on the channel's LOCK_log, then
+#    rewraps the header written under it (R2).
+
+include/rpl/stop_applier.inc
+# Adding debug point 'imr_spill_pause_after_key_taken' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR imr_key_taken';
+# Removing debug point 'imr_spill_pause_after_key_taken' from @@GLOBAL.debug
+include/assert.inc [The new spill file is 0 bytes while the writer is parked]
+include/assert.inc [The LOCK_log mutex instrument is enabled]
+include/assert.inc [The events_waits_current, global and thread consumers are enabled]
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+[connection slave]
+include/assert.inc [The replica binary log names _3]
+include/assert.inc [The spill file is still 0 bytes while the rotation waits]
+SET DEBUG_SYNC = 'now SIGNAL imr_key_go';
+include/assert.inc [The rotation succeeds with no warning]
+[connection master]
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+include/assert.inc [The spill file names _3]
+include/assert.inc [_1 is gone]
+include/assert.inc [_2 is gone]
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+SET DEBUG_SYNC = 'RESET';
+
+# 3. Rotation first: a writer that starts after the rotation copies the
+#    new key (R3).
+
+include/rpl/stop_applier.inc
+# Adding debug point 'pause_on_queuing_event' to @@GLOBAL.debug
+[connection master]
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+[connection slave]
+SET DEBUG_SYNC = 'now WAIT_FOR reached_queuing_event';
+# Removing debug point 'pause_on_queuing_event' from @@GLOBAL.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+SET DEBUG_SYNC = 'now SIGNAL continue_queuing_event';
+[connection master]
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+include/assert.inc [The spill file names _4]
+include/assert.inc [_3 is gone]
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+SET DEBUG_SYNC = 'RESET';
+
+# 4. With a live spill file, a rotation purges every older key (R4).
+
+include/rpl/stop_applier.inc
+[connection master]
+INSERT INTO t1 (c) VALUES (CONCAT('IMR_SPILL_ENCRYPTION_MARKER', REPEAT('x', 9437184)));
+include/rpl/sync_to_replica_received.inc
+[connection slave]
+include/assert.inc [One spill file, encrypted with _4]
+# Adding debug point 'verify_unusable_encryption_keys_are_purged' to @@SESSION.debug
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+# Removing debug point 'verify_unusable_encryption_keys_are_purged' from @@SESSION.debug
+include/assert.inc [The spill file names _5]
+include/assert.inc [_4 is gone]
+include/rpl/start_applier.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+[connection slave]
+include/rpl/wait_for_no_imr_spill_files.inc
+# No spill files remain in the in-memory relay log temp directory.
+
+# 5. Files the rewrap skips: a missing key, a corrupt header, another
+#    server's key, a plain file (R5).
+
+include/rpl/stop_applier.inc
+ALTER INSTANCE ROTATE BINLOG MASTER KEY;
+include/assert.inc [The rotation succeeds with no warning]
+include/assert.inc [The file naming a missing key is unchanged]
+include/assert.inc [The file with a corrupt header is unchanged]
+include/assert.inc [The file naming another server's key is unchanged]
+include/assert.inc [The plain file is unchanged]
+include/assert_grep.inc [The missing key is logged once]
+include/assert_grep.inc [The corrupt header is logged once]
+include/assert.inc [_5 is gone]
+include/rpl/start_applier.inc
+include/rpl/diff.inc
+[connection slave]
+include/rpl/stop_replica.inc
+SET GLOBAL binlog_encryption = OFF;
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = OFF;
+include/rpl/start_replica.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+include/rpl/deinit.inc
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

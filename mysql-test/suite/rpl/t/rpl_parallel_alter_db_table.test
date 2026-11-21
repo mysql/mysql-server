@@ -8,6 +8,8 @@
 #
 
 --source include/have_debug.inc
+# Reads logical timestamps from the relay log, which IMR does not write.
+--let $rpl_in_memory_relaylog= OFF
 --source include/rpl/init_source_replica.inc
 
 # Setup to run ALTER TABLE and ALTER DATABASE in parallel.

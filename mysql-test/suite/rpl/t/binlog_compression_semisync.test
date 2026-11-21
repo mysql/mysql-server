@@ -26,6 +26,8 @@
 #
 # WL#3549: binlog compression
 #
+# IMR does not support semisync.
+--let $rpl_in_memory_relaylog= OFF
 --source include/rpl/init_source_replica.inc
 --source include/have_binlog_format_row.inc
 

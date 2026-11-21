@@ -1,0 +1,120 @@
+# ==== Purpose ====
+#
+# Verify that the receiver (IO thread) of an in-memory relay log (IMR) channel
+# stops cleanly in the middle of a transaction that follows an event ignored by
+# server id.
+#
+# The receiver records an event ignored by server id in
+# rli->ign_master_log_name_end/pos_end. Any later non-ignored event must clear
+# that info, as the relay-log write does on disk. Otherwise the info is stale at
+# IO-thread exit and the debug asserts in write_ignored_events_info_to_relay_log()
+# fire. Clearing only when a transaction is complete would leave it stale when
+# the receiver stops mid-transaction, which is the case tested here.
+#
+# ==== Requirements ====
+#
+# R1. After a transaction ignored by server id, stopping the receiver after the
+#     first WRITE_ROWS of the next transaction ends without an error.
+# R2. After START REPLICA IO_THREAD the channel replicates that transaction.
+#
+# ==== Implementation ====
+#
+#   0. Set up a 1->2->1 topology; server_2's channel uses the CSA with IMR.
+#   1. Run a transaction on server_2. It comes back from server_1 and server_2's
+#      receiver ignores it by server id. Wait until the receiver has read it.
+#   2. With the receiver still running, add
+#      stop_io_after_reading_write_rows_log_event on server_2 and run a
+#      transaction on server_1. Wait for the receiver to stop (R1).
+#   3. Remove the debug point, START REPLICA IO_THREAD and sync (R2).
+#   4. Cleanup.
+#
+# ==== References ====
+#
+# In-memory relay log for the Change Stream Applier (feature 684).
+
+# CSA is row-based only.
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--echo
+--echo # 0. Set up a 1->2->1 topology; server_2 uses the CSA with IMR.
+--echo
+
+--let $rpl_server_count= 2
+--let $rpl_topology= 1->2->1
+--let $rpl_applier_version= 1:1,2:2
+--let $rpl_applier_worker_count= 2:4
+--let $rpl_in_memory_relaylog= ON
+--source include/rpl/init.inc
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--let $count= `SELECT COUNT(*) FROM performance_schema.replication_applier_configuration WHERE CHANNEL_NAME = '' AND IN_MEMORY_RELAYLOG_ENABLED = 'YES'`
+--let $assert_text= server_2's channel uses the in-memory relay log
+--let $assert_cond= $count = 1
+--source include/assert.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+CREATE TABLE t1 (id INT PRIMARY KEY);
+--source include/rpl/sync.inc
+
+--echo
+--echo # 1. A transaction from server_2 comes back from server_1 and is ignored
+--echo #    by server_2's receiver.
+--echo
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+INSERT INTO t1 VALUES (1);
+--let $sync_slave_connection= server_1
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/save_server_position.inc
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--let $ignore_gtids_on_sync= 1
+--source include/rpl/sync_received_with_saved.inc
+--let $ignore_gtids_on_sync=
+
+--echo
+--echo # 2. Stop server_2's receiver after the first WRITE_ROWS of the next
+--echo #    transaction (R1).
+--echo
+
+--let $debug_point= stop_io_after_reading_write_rows_log_event
+--source include/add_debug_point.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+INSERT INTO t1 VALUES (2);
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--source include/rpl/wait_for_receiver_to_stop.inc
+
+--echo
+--echo # 3. Start the receiver again and replicate the transaction (R2).
+--echo
+
+--source include/remove_debug_point.inc
+--source include/rpl/start_receiver.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--let $sync_slave_connection= server_2
+--source include/rpl/sync_to_replica.inc
+--let $assert_text= server_2 has both rows
+--let $assert_cond= [SELECT COUNT(*) FROM t1] = 2
+--source include/assert.inc
+
+--echo
+--echo # 4. Cleanup.
+--echo
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+DROP TABLE t1;
+--source include/rpl/sync.inc
+
+--source include/rpl/deinit.inc

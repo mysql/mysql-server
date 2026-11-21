@@ -805,6 +805,35 @@ class Rpl_encryption_header_v1 : public Rpl_encryption_header {
   */
   static std::string key_id_with_suffix(const char *suffix);
 
+  /** Result of parse_fields(), one value per deserialize() error. */
+  enum class Parse_status {
+    ok,
+    unknown_field,
+    corrupted,
+    missing_key_id,
+    missing_password,
+    missing_iv
+  };
+
+  /** The optional fields of a version 1 header. */
+  struct Fields {
+    std::string key_id;
+    Key_string encrypted_password;
+    Key_string iv;
+  };
+
+  /**
+    Parses the optional fields of a version 1 header. It reports nothing, so
+    each caller reports a failure its own way. The magic and the version are
+    not checked.
+
+    @param[in]  header A whole header, HEADER_SIZE bytes.
+    @param[out] fields The fields read.
+
+    @return Parse_status::ok if all three fields are present and valid.
+  */
+  static Parse_status parse_fields(const unsigned char *header, Fields *fields);
+
  private:
   /* The prefix for key IDs */
   static const char *KEY_ID_PREFIX;

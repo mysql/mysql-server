@@ -1,0 +1,67 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Replicate a table; the IMR queue drains.
+
+CREATE TABLE t1 (id INT PRIMARY KEY, data LONGBLOB);
+include/rpl/sync_to_replica.inc
+include/rpl/wait_for_replica_status.inc [In_Memory_Queue_Length]
+
+# 2. The replica takes the source's server_id while its receiver is
+#    connected.
+
+[connection master]
+[connection slave]
+SET GLOBAL server_id = SOURCE_SERVER_ID;
+
+# 3. A small transaction is dropped by server id and leaves nothing.
+
+[connection master]
+INSERT INTO t1 VALUES (1, 'small');
+include/rpl/save_server_position.inc
+[connection slave]
+include/rpl/sync_received_with_saved.inc
+include/assert.inc [In_Memory_Queue_Length and In_Memory_Relay_Log_Space are 0 (R1)]
+include/read_file_to_var.inc
+include/assert.inc [No spill file exists (R1)]
+include/assert.inc [The dropped transactions are not applied (R2)]
+include/assert.inc [Both threads run without an error (R2)]
+
+# 4. A spill-sized transaction is dropped by server id and leaves
+#    nothing.
+
+[connection master]
+BEGIN;
+COMMIT;
+include/rpl/save_server_position.inc
+[connection slave]
+include/rpl/sync_received_with_saved.inc
+include/assert.inc [In_Memory_Queue_Length and In_Memory_Relay_Log_Space are 0 (R1)]
+include/read_file_to_var.inc
+include/assert.inc [No spill file exists (R1)]
+include/assert.inc [The dropped transactions are not applied (R2)]
+include/assert.inc [Both threads run without an error (R2)]
+
+# 5. With server_id restored, the next transaction is applied (R3).
+
+SET GLOBAL server_id = REPLICA_SERVER_ID;
+[connection master]
+INSERT INTO t1 VALUES (200, 'after');
+[connection slave]
+include/assert.inc [Only the last transaction is applied (R3)]
+
+# 6. After a reconnection the dropped transactions are fetched and the
+#    replica converges (R4).
+
+include/rpl/stop_replica.inc
+include/rpl/start_replica.inc
+[connection master]
+include/rpl/sync_to_replica.inc
+include/rpl/diff.inc
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

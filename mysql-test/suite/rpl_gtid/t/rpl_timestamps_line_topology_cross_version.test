@@ -36,6 +36,8 @@
 
 # Establish the line topology.
 --let $rpl_topology=1->2, 2->3
+# The sources send GTID events without the transaction length, which the in-memory relay log needs.
+--let $rpl_in_memory_relaylog= OFF
 --source include/rpl/init.inc
 
 --echo # A. First server in the replication chain is not 5.8

@@ -34,12 +34,12 @@ SET DEBUG_SYNC='now SIGNAL signal_continue_csa_releasing_event_memory';
 [connection master]
 include/rpl/sync_to_replica.inc
 [connection slave]
-SELECT COUNT(*) = 6 FROM t1;
-COUNT(*) = 6
-0
+include/assert.inc [All 12 rows of the 6 transactions are applied]
 # Cleanup
 [connection master]
 DROP TABLE t1;
 include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
 SET @@global.replica_max_allowed_packet=@tmp_max;
+include/rpl/start_replica.inc
 include/rpl/deinit.inc

@@ -26,6 +26,8 @@
 #
 ###############################################################################
 --source include/have_debug.inc
+# Uses on-disk relay-log files, which IMR does not write.
+--let $rpl_in_memory_relaylog= OFF
 --source include/rpl/init_source_replica.inc
 
 # Generate events to be replicated to the slave

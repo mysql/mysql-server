@@ -1,0 +1,93 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+
+# 1. Enable IMR on the CSA channel and replicate some data.
+
+[connection slave]
+CHANGE REPLICATION SOURCE TO IN_MEMORY_RELAYLOG_ENABLED = ON;
+include/rpl/start_replica.inc
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, v VARCHAR(50));
+INSERT INTO t1 VALUES (1, 'a');
+include/rpl/sync_to_replica.inc
+
+# 2. R1: stop only the SQL thread. Both APPLIER_VERSION values are
+#    rejected while the receiver runs.
+
+include/rpl/stop_applier.inc
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
+include/assert.inc [The rejected statements left CSA and IMR enabled]
+
+# 3. R3: the receiver still queues into the in-memory relay log while the
+#    applier is stopped, and the applier catches up once restarted.
+
+[connection master]
+INSERT INTO t1 VALUES (2, 'b');
+INSERT INTO t1 VALUES (3, 'c');
+include/rpl/save_server_position.inc
+[connection slave]
+include/rpl/sync_received_with_saved.inc
+include/assert.inc [The receiver queued the new transactions in memory]
+include/rpl/start_applier.inc
+include/rpl/sync_with_saved.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 4. R2: stop only the IO thread. Both APPLIER_VERSION values are
+#    rejected while the applier runs.
+
+include/rpl/stop_receiver.inc
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
+include/rpl/start_receiver.inc
+[connection master]
+INSERT INTO t1 VALUES (4, 'd');
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# 5. R4: with both threads stopped, APPLIER_VERSION = 1 succeeds, keeps the
+#    IMR setting, and the channel replicates through the disk relay log.
+
+include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 1;
+include/assert.inc [The channel is on MTA and keeps the IMR setting]
+include/rpl/start_replica.inc
+[connection master]
+INSERT INTO t1 VALUES (5, 'e');
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+include/assert.inc [The in-memory relay log columns read 0 after switching to MTA]
+
+# 6. R5: with the setting ON, APPLIER_VERSION = 2 is rejected while the IO
+#    thread runs; with both threads stopped it succeeds and IMR is active again.
+
+include/rpl/stop_applier.inc
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2;
+ERROR HY000: This operation cannot be performed with running replication threads; run STOP REPLICA FOR CHANNEL '' first
+include/rpl/stop_receiver.inc
+CHANGE REPLICATION SOURCE TO APPLIER_VERSION = 2;
+include/assert.inc [Back on CSA, the saved IMR setting is in effect]
+include/rpl/start_receiver.inc
+[connection master]
+INSERT INTO t1 VALUES (6, 'f');
+include/rpl/save_server_position.inc
+[connection slave]
+include/rpl/sync_received_with_saved.inc
+include/assert.inc [The receiver queues into the in-memory relay log again]
+include/rpl/start_applier.inc
+include/rpl/sync_with_saved.inc
+include/diff_tables.inc [master:test.t1, slave:test.t1]
+
+# Cleanup.
+
+[connection master]
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc
