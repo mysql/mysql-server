@@ -1,0 +1,138 @@
+#
+# Bug#120911 Regression coverage
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120911 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120911;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE t0 (c0 DOUBLE,c1 TINYINT);
+INSERT INTO t0 (c0,c1) VALUES (2.1498754579837528e+29,69),(6.072842930493321e+29,126),(NULL,0),(0,0),(NULL,0),(0,NULL),(0,0),(3.939572903036893e+29,119),(0,NULL),(8.41717808718879e+29,88),(4.585345453702677e+29,17),(0,NULL),(0,0),(0,0),(NULL,NULL),(4.550116764513005e+29,112),(-6.0833392788278086e+29,15);
+CREATE VIEW v0 AS SELECT SIGN(c1) AS vc_0,SUM(c0) AS vc_1 FROM t0 GROUP BY vc_0 HAVING COUNT(DISTINCT c0)>=0;
+SET SESSION optimizer_switch='derived_condition_pushdown=on';
+SELECT * FROM v0 WHERE vc_1=2.363159231809063e+30 AND vc_0<>0;
+vc_0	vc_1
+1	2.363159231809063e30
+PREPARE regression_stmt FROM 'SELECT * FROM v0 WHERE vc_1=2.363159231809063e+30 AND vc_0<>0;';
+EXECUTE regression_stmt;
+vc_0	vc_1
+1	2.363159231809063e30
+EXECUTE regression_stmt;
+vc_0	vc_1
+1	2.363159231809063e30
+DEALLOCATE PREPARE regression_stmt;
+SELECT * FROM v0 WHERE vc_0<>0 AND vc_1=2.363159231809063e+30;
+vc_0	vc_1
+1	2.363159231809063e30
+SELECT * FROM v0 WHERE NOT NOT (vc_1=2.363159231809063e+30 AND vc_0<>0);
+vc_0	vc_1
+1	2.363159231809063e30
+SELECT * FROM v0 WHERE NOT (NOT (vc_1=2.363159231809063e+30) OR NOT (vc_0<>0));
+vc_0	vc_1
+1	2.363159231809063e30
+SELECT * FROM v0 WHERE CASE WHEN (vc_1=2.363159231809063e+30 AND vc_0<>0) THEN (vc_1=2.363159231809063e+30 AND vc_0<>0) ELSE (vc_1=2.363159231809063e+30 AND vc_0<>0) END;
+vc_0	vc_1
+1	2.363159231809063e30
+SELECT * FROM v0 WHERE (((vc_1=2.363159231809063e+30 AND vc_0<>0) OR NOT (vc_1=2.363159231809063e+30 AND vc_0<>0)) OR (vc_1=2.363159231809063e+30 AND vc_0<>0) IS NULL) AND (vc_1=2.363159231809063e+30 AND vc_0<>0);
+vc_0	vc_1
+1	2.363159231809063e30
+SELECT * FROM v0 WHERE (((vc_1=2.363159231809063e+30 AND vc_0<>0) AND NOT (vc_1=2.363159231809063e+30 AND vc_0<>0)) AND (vc_1=2.363159231809063e+30 AND vc_0<>0) IS NOT NULL) OR (vc_1=2.363159231809063e+30 AND vc_0<>0);
+vc_0	vc_1
+1	2.363159231809063e30
+SELECT * FROM v0 WHERE NOT (NOT (vc_1=2.363159231809063e+30 AND vc_0<>0));
+vc_0	vc_1
+1	2.363159231809063e30
+SELECT q.vc_0, q.vc_1 FROM (SELECT vc_0, vc_1, vc_1=2.363159231809063e+30 AND vc_0<>0 AS keep_row FROM v0) AS q WHERE q.keep_row;
+vc_0	vc_1
+1	2.363159231809063e30
+SELECT * FROM v0 WHERE vc_1=2.363159231809063e+30 AND vc_0<>0 AND vc_0 IS NOT NULL UNION ALL SELECT * FROM v0 WHERE vc_1=2.363159231809063e+30 AND vc_0<>0 AND vc_0 IS NULL;
+vc_0	vc_1
+1	2.363159231809063e30
+SELECT d.vc_0, d.vc_1 FROM (SELECT SIGN(c1) AS vc_0, SUM(c0) AS vc_1 FROM t0 GROUP BY vc_0 HAVING COUNT(DISTINCT c0)>=0) AS d WHERE d.vc_1=2.363159231809063e+30 AND d.vc_0<>0;
+vc_0	vc_1
+1	2.363159231809063e30
+SELECT * FROM v0 WHERE vc_1=2.363159231809063e+30 AND CASE WHEN vc_0<>0 THEN vc_0<>0 ELSE vc_0<>0 END;
+vc_0	vc_1
+1	2.363159231809063e30
+USE test;
+DROP DATABASE bug_120911;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
+#
+# DISTINCT REAL sums preserve grouping-key condition pushdown.
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET optimizer_switch='derived_condition_pushdown=on';
+CREATE TABLE t1 (k INT, x DOUBLE);
+INSERT INTO t1 VALUES (1,1),(1,1),(1,2),(2,4),(2,4),(2,NULL),(3,NULL);
+EXPLAIN FORMAT=TREE
+SELECT * FROM (SELECT k, SUM(DISTINCT x) AS s FROM t1 GROUP BY k) AS d
+WHERE k>1;
+EXPLAIN
+-> Table scan on d  (...)
+    -> Materialize  (...)
+        -> Group aggregate: sum(distinct t1.x)  (...)
+            -> Sort: t1.k  (...)
+                -> Filter: (t1.k > 1)  (...)
+                    -> Table scan on t1  (...)
+
+Warnings:
+Note	1003	/* select#1 */ select `d`.`k` AS `k`,`d`.`s` AS `s` from (/* select#2 */ select `test`.`t1`.`k` AS `k`,sum(distinct `test`.`t1`.`x`) AS `s` from `test`.`t1` where (`test`.`t1`.`k` > 1) group by `test`.`t1`.`k`) `d`
+SELECT * FROM (SELECT k, SUM(DISTINCT x) AS s FROM t1 GROUP BY k) AS d
+WHERE k>1;
+k	s
+2	4
+3	NULL
+EXPLAIN FORMAT=TREE
+SELECT * FROM (SELECT k FROM t1 GROUP BY k HAVING SUM(DISTINCT x)>0) AS d
+WHERE k>1;
+EXPLAIN
+-> Table scan on d  (...)
+    -> Materialize  (...)
+        -> Filter: (sum(distinct t1.x) > 0)  (...)
+            -> Group aggregate: sum(distinct t1.x)  (...)
+                -> Sort: t1.k  (...)
+                    -> Filter: (t1.k > 1)  (...)
+                        -> Table scan on t1  (...)
+
+Warnings:
+Note	1003	/* select#1 */ select `d`.`k` AS `k` from (/* select#2 */ select `test`.`t1`.`k` AS `k` from `test`.`t1` where (`test`.`t1`.`k` > 1) group by `test`.`t1`.`k` having (sum(distinct `test`.`t1`.`x`) > 0)) `d`
+SELECT * FROM (SELECT k FROM t1 GROUP BY k HAVING SUM(DISTINCT x)>0) AS d
+WHERE k>1;
+k
+2
+EXPLAIN FORMAT=TREE
+SELECT * FROM
+(SELECT k, SUM(x) AS s, SUM(DISTINCT x) AS ds FROM t1 GROUP BY k) AS d
+WHERE k>1;
+EXPLAIN
+-> Table scan on d  (...)
+    -> Materialize  (...)
+        -> Filter: (t1.k > 1)  (...)
+            -> Group aggregate: sum(t1.x), sum(distinct t1.x)  (...)
+                -> Sort: t1.k  (...)
+                    -> Table scan on t1  (...)
+
+Warnings:
+Note	1003	/* select#1 */ select `d`.`k` AS `k`,`d`.`s` AS `s`,`d`.`ds` AS `ds` from (/* select#2 */ select `test`.`t1`.`k` AS `k`,sum(`test`.`t1`.`x`) AS `s`,sum(distinct `test`.`t1`.`x`) AS `ds` from `test`.`t1` group by `test`.`t1`.`k` having (`test`.`t1`.`k` > 1)) `d`
+SELECT * FROM
+(SELECT k, SUM(x) AS s, SUM(DISTINCT x) AS ds FROM t1 GROUP BY k) AS d
+WHERE k>1;
+k	s	ds
+2	8	4
+3	NULL	NULL
+DROP TABLE t1;
+SET optimizer_switch=@save_optimizer_switch;
