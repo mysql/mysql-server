@@ -2534,18 +2534,53 @@ void row_sel_field_store_in_mysql_format_func(
     const byte *field_end;
     byte *pad;
     case DATA_INT:
-      /* Convert integer data from Innobase to a little-endian
-      format, sign bit restored to normal */
-
-      ptr = dest + len;
-
-      for (;;) {
-        ptr--;
-        *ptr = *data;
-        if (ptr == dest) {
+      /* Convert integer data from Innobase (big-endian) to little-endian,
+      sign bit restored. One swap for the common 2/4/8-byte widths. */
+      switch (len) {
+        case 2: {
+          uint16_t v;
+          memcpy(&v, data, 2);
+#if defined(_MSC_VER)
+          v = _byteswap_ushort(v);
+#else
+          v = __builtin_bswap16(v);
+#endif
+          memcpy(dest, &v, 2);
           break;
         }
-        data++;
+        case 4: {
+          uint32_t v;
+          memcpy(&v, data, 4);
+#if defined(_MSC_VER)
+          v = _byteswap_ulong(v);
+#else
+          v = __builtin_bswap32(v);
+#endif
+          memcpy(dest, &v, 4);
+          break;
+        }
+        case 8: {
+          uint64_t v;
+          memcpy(&v, data, 8);
+#if defined(_MSC_VER)
+          v = _byteswap_uint64(v);
+#else
+          v = __builtin_bswap64(v);
+#endif
+          memcpy(dest, &v, 8);
+          break;
+        }
+        default: {
+          ptr = dest + len;
+          for (;;) {
+            ptr--;
+            *ptr = *data;
+            if (ptr == dest) {
+              break;
+            }
+            data++;
+          }
+        }
       }
 
       if (!templ->is_unsigned) {
@@ -4970,6 +5005,18 @@ rec_loop:
   rec = pcur->get_rec();
 
   ut_ad(page_rec_is_comp(rec) == comp);
+
+  /* Hide the next-record pointer chase, which dominates the loop's latency.
+  The offset is only bounds-checked here: page_rec_get_next_const() would
+  abort on a corrupt REDUNDANT offset before the wrong_offs handling below. */
+  {
+    const ulint next_offs = rec_get_next_offs(rec, comp);
+    if (next_offs >= (comp ? PAGE_NEW_SUPREMUM : PAGE_OLD_SUPREMUM) &&
+        next_offs < UNIV_PAGE_SIZE) {
+      UNIV_PREFETCH_R(page_align(rec) + next_offs -
+                      (comp ? REC_N_NEW_EXTRA_BYTES : REC_N_OLD_EXTRA_BYTES));
+    }
+  }
 
   if (page_rec_is_infimum(rec)) {
     /* The infimum record on a page cannot be in the result set,
