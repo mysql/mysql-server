@@ -1631,3 +1631,322 @@ ORDER BY S;
 
 DROP TABLE t;
 
+
+--echo #
+--echo # Bug#121011: subquery_to_derived causes wrong result with
+--echo # GROUP BY ... WITH ROLLUP
+--echo #
+SET @save_optimizer_switch=@@optimizer_switch;
+CREATE TABLE t0 (id INT PRIMARY KEY, c0 INT, c1 INT);
+CREATE TABLE t1 (id INT PRIMARY KEY, c0 INT, c1 INT);
+INSERT INTO t0 VALUES (1,NULL,5),(2,10,5),(3,20,5);
+INSERT INTO t1 VALUES (1,10,100),(2,20,200);
+SET SESSION optimizer_switch='subquery_to_derived=on';
+--sorted_result
+SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE t1.c0 = t0.c0) AS cnt
+FROM t0
+GROUP BY t0.c0 WITH ROLLUP;
+PREPARE ps FROM '
+SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE t1.c0 = t0.c0) AS cnt
+FROM t0
+GROUP BY t0.c0 WITH ROLLUP;';
+--sorted_result
+EXECUTE ps;
+--sorted_result
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+--sorted_result
+SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE NOT (t1.c0 <> t0.c0)) AS cnt
+FROM t0
+GROUP BY t0.c0 WITH ROLLUP;
+--sorted_result
+SELECT t0.c0,
+       (SELECT COUNT(CASE WHEN t1.c0 = t0.c0 THEN 1 ELSE NULL END)
+        FROM t1) AS cnt
+FROM t0
+GROUP BY t0.c0 WITH ROLLUP;
+--sorted_result
+SELECT d.c0, d.cnt
+FROM (SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE t1.c0 = t0.c0) AS cnt
+      FROM t0
+      GROUP BY t0.c0 WITH ROLLUP) AS d;
+--sorted_result
+SELECT t0.c0, (SELECT COUNT(*) FROM t1 WHERE NOT NOT (t1.c0 = t0.c0)) AS cnt
+FROM t0
+GROUP BY t0.c0 WITH ROLLUP;
+--sorted_result
+SELECT t0.c0,
+       (SELECT COUNT(*)
+        FROM t1
+        WHERE CASE WHEN t1.c0 = t0.c0 THEN t1.c0 = t0.c0
+                   ELSE t1.c0 = t0.c0 END) AS cnt
+FROM t0
+GROUP BY t0.c0 WITH ROLLUP;
+--sorted_result
+SELECT t0.c0,
+       (SELECT COUNT(*)
+        FROM t1
+        WHERE (((t1.c0 = t0.c0) OR NOT (t1.c0 = t0.c0)) OR
+               (t1.c0 = t0.c0) IS NULL) AND (t1.c0 = t0.c0)) AS cnt
+FROM t0
+GROUP BY t0.c0 WITH ROLLUP;
+--sorted_result
+SELECT t0.c0,
+       (SELECT COUNT(CASE WHEN TRUE THEN 1 END)
+        FROM t1
+        WHERE t1.c0 = t0.c0) AS cnt
+FROM t0
+GROUP BY t0.c0 WITH ROLLUP;
+--sorted_result
+SELECT q.c0, q.cnt
+FROM (SELECT t0.c0 AS c0,
+             (SELECT COUNT(*) FROM t1 WHERE t1.c0 = t0.c0) AS cnt
+      FROM t0
+      GROUP BY t0.c0 WITH ROLLUP) AS q;
+DROP TABLE t0, t1;
+
+--echo # Correlated HAVING must see the current ROLLUP level
+CREATE TABLE t1 (a INT NOT NULL);
+CREATE TABLE t2 (a INT NOT NULL);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t2 VALUES (1), (2);
+SET optimizer_switch='subquery_to_derived=off';
+--sorted_result
+SELECT a, GROUPING(a) AS g
+FROM t1
+GROUP BY a WITH ROLLUP
+HAVING (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) = 0;
+SET optimizer_switch='subquery_to_derived=on';
+--sorted_result
+SELECT a, GROUPING(a) AS g
+FROM t1
+GROUP BY a WITH ROLLUP
+HAVING (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) = 0;
+PREPARE ps FROM '
+SELECT a, GROUPING(a) AS g
+FROM t1
+GROUP BY a WITH ROLLUP
+HAVING (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) = 0';
+--sorted_result
+EXECUTE ps;
+--sorted_result
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+PREPARE ps FROM '
+SELECT a, GROUPING(a) AS g
+FROM t1
+GROUP BY a WITH ROLLUP
+HAVING (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) = ?';
+SET @count=0;
+--sorted_result
+EXECUTE ps USING @count;
+SET @count=1;
+--sorted_result
+EXECUTE ps USING @count;
+SET @count=0;
+--sorted_result
+EXECUTE ps USING @count;
+DELETE FROM t2 WHERE a = 2;
+--sorted_result
+EXECUTE ps USING @count;
+DEALLOCATE PREPARE ps;
+DROP TABLE t1, t2;
+
+--echo # ROLLUP subtotal rows and stored NULLs in correlated SELECT and HAVING
+CREATE TABLE t1 (a INT, b INT);
+CREATE TABLE t2 (a INT, b INT);
+INSERT INTO t1 VALUES
+(NULL, 10), (1, NULL), (1, 10), (1, 10), (1, 20), (2, 10);
+INSERT INTO t2 VALUES (1, 10), (1, 10), (1, 20), (2, 10);
+--sorted_result
+SELECT a, b, GROUPING(a, b) AS g,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a AND t2.b = t1.b) AS cnt
+FROM t1
+GROUP BY a, b WITH ROLLUP
+HAVING (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a AND t2.b = t1.b) = 0;
+PREPARE ps FROM '
+SELECT a, b, GROUPING(a, b) AS g,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a AND t2.b = t1.b) AS cnt
+FROM t1
+GROUP BY a, b WITH ROLLUP
+HAVING (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a AND t2.b = t1.b) = 0';
+--sorted_result
+EXECUTE ps;
+--sorted_result
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+--sorted_result
+SELECT a, b, GROUPING(a, b) AS g,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a AND t2.b = t1.b) AS cnt
+FROM t1
+GROUP BY a, b WITH ROLLUP
+HAVING cnt = 0;
+DROP TABLE t1, t2;
+
+--echo # Keep decorrelation for scalar subqueries evaluated as grouping keys
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t1 VALUES (NULL), (1), (2), (2);
+INSERT INTO t2 VALUES (1), (2), (2);
+--disable_ps_protocol
+SET optimizer_trace='enabled=on';
+--sorted_result
+SELECT (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS k, COUNT(*) AS n
+FROM t1
+GROUP BY k WITH ROLLUP;
+SELECT JSON_SEARCH(trace, 'one', 'scalar subquery') IS NOT NULL AS transformed
+FROM information_schema.optimizer_trace;
+SET optimizer_trace='enabled=off';
+--enable_ps_protocol
+PREPARE ps FROM '
+SELECT (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS k, COUNT(*) AS n
+FROM t1
+GROUP BY k WITH ROLLUP';
+--sorted_result
+EXECUTE ps;
+--sorted_result
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+--sorted_result
+SELECT (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS k, COUNT(*) AS n
+FROM t1
+GROUP BY k WITH ROLLUP
+HAVING k IS NULL OR k > 1;
+--disable_ps_protocol
+SET optimizer_trace='enabled=on';
+--sorted_result
+SELECT (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) + 1 AS k, COUNT(*) AS n
+FROM t1
+GROUP BY k WITH ROLLUP;
+SELECT JSON_SEARCH(trace, 'one', 'scalar subquery') IS NOT NULL AS transformed
+FROM information_schema.optimizer_trace;
+SET optimizer_trace='enabled=off';
+--enable_ps_protocol
+PREPARE ps FROM '
+SELECT (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) + 1 AS k, COUNT(*) AS n
+FROM t1
+GROUP BY k WITH ROLLUP';
+--sorted_result
+EXECUTE ps;
+--sorted_result
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+--sorted_result
+SELECT (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) + 1 AS k, COUNT(*) AS n
+FROM t1
+GROUP BY k WITH ROLLUP
+HAVING k IS NULL OR k > 1;
+--sorted_result
+SELECT a, (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS k, COUNT(*) AS n
+FROM t1
+GROUP BY a, k WITH ROLLUP
+HAVING k IS NULL;
+DROP TABLE t1, t2;
+
+--echo # Empty ROLLUP must evaluate scalar subqueries and allow PS re-execution
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (a INT);
+INSERT INTO t2 VALUES (1), (2), (2);
+SET optimizer_switch='subquery_to_derived=off';
+--sorted_result
+SELECT a, GROUPING(a) AS g, COUNT(*) AS n,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS cnt
+FROM t1
+GROUP BY a WITH ROLLUP;
+--sorted_result
+SELECT a, GROUPING(a) AS g, COUNT(*) AS n,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS cnt
+FROM t1
+GROUP BY a WITH ROLLUP
+HAVING cnt = 0;
+--sorted_result
+SELECT a, GROUPING(a) AS g, COUNT(*) AS n,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS cnt
+FROM t1
+GROUP BY a WITH ROLLUP
+HAVING (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) = 0;
+PREPARE ps FROM '
+SELECT a, GROUPING(a) AS g, COUNT(*) AS n,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS cnt
+FROM t1
+GROUP BY a WITH ROLLUP';
+--sorted_result
+EXECUTE ps;
+INSERT INTO t1 VALUES (1), (2);
+--sorted_result
+EXECUTE ps;
+DELETE FROM t1;
+--sorted_result
+EXECUTE ps;
+INSERT INTO t1 VALUES (2);
+--sorted_result
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+DELETE FROM t1;
+SET optimizer_switch='subquery_to_derived=on';
+--sorted_result
+SELECT a, GROUPING(a) AS g, COUNT(*) AS n,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS cnt
+FROM t1
+GROUP BY a WITH ROLLUP;
+--sorted_result
+SELECT a, GROUPING(a) AS g, COUNT(*) AS n,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS cnt
+FROM t1
+GROUP BY a WITH ROLLUP
+HAVING cnt = 0;
+--sorted_result
+SELECT a, GROUPING(a) AS g, COUNT(*) AS n,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS cnt
+FROM t1
+GROUP BY a WITH ROLLUP
+HAVING (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) = 0;
+PREPARE ps FROM '
+SELECT a, GROUPING(a) AS g, COUNT(*) AS n,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS cnt
+FROM t1
+GROUP BY a WITH ROLLUP';
+--sorted_result
+EXECUTE ps;
+INSERT INTO t1 VALUES (1), (2);
+--sorted_result
+EXECUTE ps;
+DELETE FROM t1;
+--sorted_result
+EXECUTE ps;
+INSERT INTO t1 VALUES (2);
+--sorted_result
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+DELETE FROM t1;
+--sorted_result
+SELECT a, GROUPING(a) AS g, COUNT(*) AS n,
+       (SELECT SUM(t2.a) FROM t2 WHERE t2.a = t1.a) AS s,
+       (SELECT MIN(t2.a) FROM t2 WHERE t2.a = t1.a) AS m
+FROM t1
+GROUP BY a WITH ROLLUP;
+CREATE VIEW v AS
+SELECT a, GROUPING(a) AS g, COUNT(*) AS n,
+       (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS cnt
+FROM t1
+GROUP BY a WITH ROLLUP;
+--sorted_result
+SELECT * FROM v;
+DROP VIEW v;
+
+--echo # No-row suppression for implicit grouping must reset between executions
+SET @save_sql_mode=@@sql_mode;
+SET sql_mode=REPLACE(@@sql_mode, 'ONLY_FULL_GROUP_BY', '');
+SET optimizer_switch='subquery_to_derived=off';
+PREPARE ps FROM '
+SELECT COUNT(*) AS n, (SELECT COUNT(*) FROM t2 WHERE t2.a = t1.a) AS cnt
+FROM t1';
+EXECUTE ps;
+INSERT INTO t1 VALUES (1);
+EXECUTE ps;
+DELETE FROM t1;
+EXECUTE ps;
+DEALLOCATE PREPARE ps;
+SET sql_mode=@save_sql_mode;
+DROP TABLE t1, t2;
+SET optimizer_switch=@save_optimizer_switch;

@@ -424,6 +424,7 @@ bool Item_singlerow_subselect::fix_fields(THD *thd, Item **ref) {
 void Item_singlerow_subselect::cleanup() {
   DBUG_TRACE;
   Item_subselect::cleanup();
+  m_no_rows = false;
 }
 
 /**
@@ -1211,6 +1212,10 @@ bool Item_singlerow_subselect::resolve_type(THD *thd) {
 }
 
 void Item_singlerow_subselect::no_rows_in_result() {
+  // An empty ROLLUP still has a grand-total row. Evaluate correlations against
+  // its NULL grouping values, just as for a nonempty input's grand-total row.
+  if (query_expr()->outer_query_block()->olap == ROLLUP_TYPE) return;
+
   /*
     This is only possible if we have a dependent subquery in the SELECT list
     and an aggregated outer query based on zero rows, which is an illegal query
