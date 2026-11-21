@@ -61,11 +61,7 @@ bool Csa_worker_context::found_commit_order_deadlock() const {
   return m_is_commit_order_deadlock;
 }
 
-bool Csa_worker_context::wait_for_rollback() {
-  auto rollback_future = m_rollback_promise.get_future();
-  rollback_future.wait();
-  return rollback_future.get();
-}
+bool Csa_worker_context::wait_for_rollback() { return m_rollback_future.get(); }
 
 void Csa_worker_context::handle_commit_order_deadlock() {
   if (!m_rollback.exchange(true)) {
@@ -93,6 +89,7 @@ void Csa_worker_context::reset_commit_order_deadlock() {
   m_rollback = false;
   m_rpco_state = Rpco_state::preparing;
   m_rollback_promise = std::promise<bool>{};
+  m_rollback_future = m_rollback_promise.get_future().share();
 }
 
 bool Csa_worker_context::is_same_channel(

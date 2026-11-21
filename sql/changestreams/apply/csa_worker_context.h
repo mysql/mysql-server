@@ -147,6 +147,9 @@ class Csa_worker_context : public Parallel_worker_context {
   std::atomic<Rpco_state> m_rpco_state{Rpco_state::preparing};
   /// Completes when the external rollback worker finishes rescue handling.
   std::promise<bool> m_rollback_promise;
+  /// Commit and job destruction may both observe the same recovery result.
+  std::shared_future<bool> m_rollback_future{
+      m_rollback_promise.get_future().share()};
   /// Transaction identifier reused by commit-order logic.
   Trx_id m_trx_id{0};
   /// Current worker slot owning this transaction context.

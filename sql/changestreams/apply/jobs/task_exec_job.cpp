@@ -22,11 +22,13 @@
 // Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA.
 
 #include "sql/changestreams/apply/jobs/task_exec_job.h"
+#include "mysql/scheduler/dispatch_reason.h"
 #include "mysql/scheduler/logger_stream.h"
 #include "mysql/scheduler/statistics_map.h"
 #include "sql/changestreams/apply/psi/psi.h"
 #include "sql/changestreams/apply/psi/stage.h"
 #include "sql/changestreams/apply/resource/statistics_map.h"
+#include "sql/sql_class.h"
 
 using namespace mysql::scheduler;
 
@@ -36,8 +38,8 @@ using Statistics_map_csa = mysql::csa::Statistics_map;
 
 namespace mysql::csa {
 
-bool Task_exec_job::is_error() const { return m_is_error; }
-void Task_exec_job::set_error() { m_is_error = true; }
+bool Task_exec_job::is_error() const { return m_job->is_error(); }
+void Task_exec_job::set_error() { m_job->set_error(); }
 
 Task_exec_job::Task_exec_job(Job_ptr job, uint64_t job_id,
                              Session_service_ptr session_service,
@@ -47,11 +49,12 @@ Task_exec_job::Task_exec_job(Job_ptr job, uint64_t job_id,
       m_job_id(job_id),
       m_session_service(session_service),
       m_stat_monitor(stat_monitor),
-      m_applier_stop(stop_ref) {}
+      m_applier_stop(stop_ref) {
+  m_job->set_applier_stop(stop_ref);
+}
 
 Task_result Task_exec_job::operator()(unsigned int thread_id) {
   auto &stat_monitor = m_stat_monitor.get();
-  m_started = true;
   stat_monitor.get_stat(Statistics_map_csa::active_job_cnt).add(1, thread_id);
   stat_monitor.get_stat(Statistics_map_csa::active_trx_cnt).add(1, thread_id);
   auto run_res = run(m_job.get(), m_job_id, thread_id);
@@ -71,12 +74,36 @@ Task_result Task_exec_job::run(Job_ptr job, uint64_t job_id,
   if (job->is_done()) {
     /// This is early return for multiple phase tasks returning in early
     /// phases
+    if (job->is_error()) {
+      set_error();
+      return Task_result::fatal_error;
+    }
     return Task_result::success;
   }
 
-  job->set_applier_stop(m_applier_stop);
-
   auto end_task = [this, job, thread_id](Task_result status) -> Task_result {
+    if (current_dispatch_reason() == Dispatch_reason::unblocked) {
+      // Early registration does not own the prepare thread's session or
+      // its completion handling. A failed job must not advance the clock.
+      if (status != Task_result::success || job->is_error() ||
+          job->is_stopped()) {
+        set_error();
+        return Task_result::fatal_error;
+      }
+      return Task_result::success;
+    }
+    // Prepare may already have detached and handed over to commit. Its
+    // successful epilogue must not finalize a job now owned by that thread.
+    // Ordinary registration also completes without an attached session.
+    if (current_thd == nullptr) {
+      if (status != Task_result::success) {
+        // Registration can fail without attaching. The destructor cleans
+        // its retained session after the other task phases have finished.
+        job->set_fatal_error();
+        return Task_result::fatal_error;
+      }
+      return Task_result::success;
+    }
     job->set_done();
     if (status == Task_result::success) {
       job->set_success();

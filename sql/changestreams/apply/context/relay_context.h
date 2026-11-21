@@ -87,7 +87,8 @@ class Relay_context {
                                    int current_retry, int retries_num);
   /// @brief if attached to commit order manager, registers parallel worker
   /// to commit order (using parallel worker context)
-  void register_to_commit_order();
+  /// @return True if the session was killed or the worker slot is still in use.
+  bool register_to_commit_order();
   /// @brief Report error to parent thread
   /// @param trx_id Applier transaction identifier
   void report_error(const std::string &trx_id);
