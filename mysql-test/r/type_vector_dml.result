@@ -1,0 +1,86 @@
+#
+# A VECTOR NOT NULL column without a default value can't get the
+# implicit (empty) value or NULL through INSERT, REPLACE, UPDATE or
+# LOAD DATA, in both strict and non-strict mode, even with IGNORE.
+#
+SET sql_mode = DEFAULT;
+SELECT @@sql_mode;
+@@sql_mode
+ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION
+CREATE TABLE t (a INT, v VECTOR(2) NOT NULL);
+CREATE VIEW vw AS SELECT * FROM t;
+INSERT INTO t(a) VALUES (1);
+ERROR HY000: Field 'v' doesn't have a default value
+INSERT IGNORE INTO t(a) VALUES (1);
+ERROR HY000: Field 'v' doesn't have a default value
+INSERT INTO vw(a) VALUES (1);
+ERROR HY000: Field of view 'test.vw' underlying table doesn't have a default value
+INSERT INTO t VALUES (1, DEFAULT);
+ERROR HY000: Field 'v' doesn't have a default value
+REPLACE INTO t(a) VALUES (1);
+ERROR HY000: Field 'v' doesn't have a default value
+INSERT INTO t VALUES (1, NULL);
+ERROR 23000: Column 'v' cannot be null
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,2]')), (2, NULL);
+ERROR 23000: Column 'v' cannot be null
+INSERT IGNORE INTO t VALUES (1, NULL);
+ERROR 23000: Column 'v' cannot be null
+INSERT INTO t SELECT 1, NULL;
+ERROR 23000: Column 'v' cannot be null
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,2]'));
+UPDATE t SET v = NULL;
+ERROR 23000: Column 'v' cannot be null
+UPDATE IGNORE t SET v = NULL;
+ERROR 23000: Column 'v' cannot be null
+UPDATE t SET v = DEFAULT;
+ERROR HY000: Field 'v' doesn't have a default value
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/type_vector.txt' INTO TABLE t (a);
+ERROR HY000: Field 'v' doesn't have a default value
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/type_vector.txt' INTO TABLE t (a, @x) SET v = NULL;
+ERROR 23000: Column 'v' cannot be null
+SELECT a, VECTOR_TO_STRING(v) FROM t;
+a	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00]
+DROP VIEW vw;
+DROP TABLE t;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+SELECT @@sql_mode;
+@@sql_mode
+NO_ENGINE_SUBSTITUTION
+CREATE TABLE t (a INT, v VECTOR(2) NOT NULL);
+CREATE VIEW vw AS SELECT * FROM t;
+INSERT INTO t(a) VALUES (1);
+ERROR HY000: Field 'v' doesn't have a default value
+INSERT IGNORE INTO t(a) VALUES (1);
+ERROR HY000: Field 'v' doesn't have a default value
+INSERT INTO vw(a) VALUES (1);
+ERROR HY000: Field of view 'test.vw' underlying table doesn't have a default value
+INSERT INTO t VALUES (1, DEFAULT);
+ERROR HY000: Field 'v' doesn't have a default value
+REPLACE INTO t(a) VALUES (1);
+ERROR HY000: Field 'v' doesn't have a default value
+INSERT INTO t VALUES (1, NULL);
+ERROR 23000: Column 'v' cannot be null
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,2]')), (2, NULL);
+ERROR 23000: Column 'v' cannot be null
+INSERT IGNORE INTO t VALUES (1, NULL);
+ERROR 23000: Column 'v' cannot be null
+INSERT INTO t SELECT 1, NULL;
+ERROR 23000: Column 'v' cannot be null
+INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,2]'));
+UPDATE t SET v = NULL;
+ERROR 23000: Column 'v' cannot be null
+UPDATE IGNORE t SET v = NULL;
+ERROR 23000: Column 'v' cannot be null
+UPDATE t SET v = DEFAULT;
+ERROR HY000: Field 'v' doesn't have a default value
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/type_vector.txt' INTO TABLE t (a);
+ERROR HY000: Field 'v' doesn't have a default value
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/type_vector.txt' INTO TABLE t (a, @x) SET v = NULL;
+ERROR 23000: Column 'v' cannot be null
+SELECT a, VECTOR_TO_STRING(v) FROM t;
+a	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00]
+DROP VIEW vw;
+DROP TABLE t;
+SET sql_mode = DEFAULT;

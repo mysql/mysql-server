@@ -1,0 +1,57 @@
+--echo #
+--echo # A VECTOR NOT NULL column without a default value can't get the
+--echo # implicit (empty) value or NULL through INSERT, REPLACE, UPDATE or
+--echo # LOAD DATA, in both strict and non-strict mode, even with IGNORE.
+--echo #
+let $i = 2;
+while ($i) {
+  if ($i == 2) {
+    SET sql_mode = DEFAULT;
+  }
+  if ($i == 1) {
+    SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+  }
+  SELECT @@sql_mode;
+  CREATE TABLE t (a INT, v VECTOR(2) NOT NULL);
+  CREATE VIEW vw AS SELECT * FROM t;
+  --error ER_NO_DEFAULT_FOR_FIELD
+  INSERT INTO t(a) VALUES (1);
+  --error ER_NO_DEFAULT_FOR_FIELD
+  INSERT IGNORE INTO t(a) VALUES (1);
+  --error ER_NO_DEFAULT_FOR_VIEW_FIELD
+  INSERT INTO vw(a) VALUES (1);
+  --error ER_NO_DEFAULT_FOR_FIELD
+  INSERT INTO t VALUES (1, DEFAULT);
+  --error ER_NO_DEFAULT_FOR_FIELD
+  REPLACE INTO t(a) VALUES (1);
+  --error ER_BAD_NULL_ERROR_NOT_IGNORED
+  INSERT INTO t VALUES (1, NULL);
+  --error ER_BAD_NULL_ERROR_NOT_IGNORED
+  INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,2]')), (2, NULL);
+  --error ER_BAD_NULL_ERROR_NOT_IGNORED
+  INSERT IGNORE INTO t VALUES (1, NULL);
+  --error ER_BAD_NULL_ERROR_NOT_IGNORED
+  INSERT INTO t SELECT 1, NULL;
+  INSERT INTO t VALUES (1, STRING_TO_VECTOR('[1,2]'));
+  --error ER_BAD_NULL_ERROR_NOT_IGNORED
+  UPDATE t SET v = NULL;
+  --error ER_BAD_NULL_ERROR_NOT_IGNORED
+  UPDATE IGNORE t SET v = NULL;
+  --error ER_NO_DEFAULT_FOR_FIELD
+  UPDATE t SET v = DEFAULT;
+  --write_file $MYSQLTEST_VARDIR/tmp/type_vector.txt
+2
+EOF
+  --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  --error ER_NO_DEFAULT_FOR_FIELD
+  eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/type_vector.txt' INTO TABLE t (a);
+  --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+  --error ER_BAD_NULL_ERROR_NOT_IGNORED
+  eval LOAD DATA INFILE '$MYSQLTEST_VARDIR/tmp/type_vector.txt' INTO TABLE t (a, @x) SET v = NULL;
+  --remove_file $MYSQLTEST_VARDIR/tmp/type_vector.txt
+  SELECT a, VECTOR_TO_STRING(v) FROM t;
+  DROP VIEW vw;
+  DROP TABLE t;
+  dec $i;
+}
+SET sql_mode = DEFAULT;

@@ -206,8 +206,10 @@ type_conversion_status set_field_to_null_with_conversions(Field *field,
     return TYPE_OK;
   }
 
-  // Conversion of NULL to empty string does not apply to geometry columns.
-  if (field->type() == MYSQL_TYPE_GEOMETRY) {
+  // Conversion of NULL to empty string does not apply to geometry and vector
+  // columns, as an empty value is not valid for them.
+  if (field->type() == MYSQL_TYPE_GEOMETRY ||
+      field->type() == MYSQL_TYPE_VECTOR) {
     my_error(ER_BAD_NULL_ERROR_NOT_IGNORED, MYF(0), field->field_name);
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
