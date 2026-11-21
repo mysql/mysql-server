@@ -304,7 +304,7 @@ cast(? as date)
 prepare s from 'select cast(? as time(6))';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6"]]
+[["TIME decimals=6"]]
 execute s using @t;
 cast(? as time(6))
 23:59:59.999999
@@ -1288,7 +1288,7 @@ json_extract(trace,"$.steps[*].statement_parameters")
 prepare s from 'select HOUR(?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6"]]
+[["TIME decimals=6"]]
 set @a= time "10:11:12.345";
 flush status;
 execute s using @a;
@@ -1873,7 +1873,7 @@ json_extract(trace,"$.steps[*].statement_parameters")
 prepare s from 'select MICROSECOND(?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6"]]
+[["TIME decimals=6"]]
 prepare s from 'select MID(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
@@ -1889,7 +1889,7 @@ json_extract(trace,"$.steps[*].statement_parameters")
 prepare s from 'select MINUTE(?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6"]]
+[["TIME decimals=6"]]
 prepare s from 'select MOD(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
@@ -2119,7 +2119,7 @@ json_extract(trace,"$.steps[*].statement_parameters")
 prepare s from 'select SECOND(?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6"]]
+[["TIME decimals=6"]]
 prepare s from 'select SESSION_USER()';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
@@ -2715,11 +2715,11 @@ json_extract(trace,"$.steps[*].statement_parameters")
 prepare s from 'select TIME(?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6"]]
+[["TIME decimals=6"]]
 prepare s from 'select TIME_FORMAT(?,?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
-[["DATETIME decimals=6", "VARCHAR"]]
+[["TIME decimals=6", "VARCHAR"]]
 prepare s from 'select TIME_TO_SEC(?)';
 select json_extract(trace,"$.steps[*].statement_parameters") from information_schema.optimizer_trace;
 json_extract(trace,"$.steps[*].statement_parameters")
