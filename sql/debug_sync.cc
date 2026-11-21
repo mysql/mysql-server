@@ -440,6 +440,37 @@ struct st_debug_sync_control {
     It must not go away as long as the thread exists.
   */
   char ds_proc_info[80]; /* proc_info string */
+  /*
+    A sync point is normally hit by the thread that owns the THD, but the
+    threads working on behalf of a statement can share its THD. A parallel
+    InnoDB DDL is the example: its worker threads hit the sync points of
+    ddl::Builder on the THD of the connection, and so does the thread of the
+    connection, which in addition hits every other sync point on its way.
+    The two mutexes below make that safe. If both are needed,
+    ds_execute_mutex is acquired first.
+
+    ds_execute_mutex serializes the threads that execute an action on this
+    THD. It is held for as long as the action is executed, the wait
+    included, and until the action has been removed if this was its last
+    activation. The threads sharing a THD thus execute their actions one at
+    a time, as a single thread would do. Otherwise they would race on the
+    activation count of an action and on its removal, and two of them
+    waiting in one sync point would lose a signal: the first one to wake up
+    clears it. Arming an action requires this mutex too, so the action array
+    does not change under a thread that is executing an action.
+
+    ds_array_mutex protects the action array and the activation counts
+    against the threads that just look up their sync point. It is only held
+    briefly, and never while waiting, so a thread that hits a sync point
+    without an armed action does not wait for a thread that is waiting in a
+    sync point.
+
+    The mutexes are per THD on purpose. Statements of different connections
+    must stay independent: one of them may wait in a sync point for a signal
+    that is only emitted after another one has reached the same sync point.
+  */
+  mysql_mutex_t ds_execute_mutex;
+  mysql_mutex_t ds_array_mutex;
 };
 
 typedef std::set<std::string> signal_event_set;
@@ -476,6 +507,9 @@ extern DebugSyncCallbackFp debug_sync_C_callback_ptr;
   Callbacks from C files.
 */
 static void debug_sync_C_callback(const char *, size_t);
+
+static void debug_sync_hit(THD *thd, const char *sync_point_name,
+                           size_t name_len);
 
 /**
   Callback for debug sync, to be used by C files. See thr_lock.c for example.
@@ -675,6 +709,12 @@ void debug_sync_init_thread(THD *thd) {
         We must disable the facility. We have no way to return an error.
       */
       debug_sync_emergency_disable(); /* purecov: tested */
+    } else {
+      st_debug_sync_control *ds_control = thd->debug_sync_control;
+      mysql_mutex_init(PSI_NOT_INSTRUMENTED, &ds_control->ds_execute_mutex,
+                       MY_MUTEX_INIT_FAST);
+      mysql_mutex_init(PSI_NOT_INSTRUMENTED, &ds_control->ds_array_mutex,
+                       MY_MUTEX_INIT_FAST);
     }
   }
 }
@@ -739,6 +779,8 @@ void debug_sync_end_thread(THD *thd) {
       debug_sync_global.dsp_max_active = ds_control->dsp_max_active;
     mysql_mutex_unlock(&debug_sync_global.ds_mutex);
 
+    mysql_mutex_destroy(&ds_control->ds_array_mutex);
+    mysql_mutex_destroy(&ds_control->ds_execute_mutex);
     my_free(ds_control);
     thd->debug_sync_control = nullptr;
   }
@@ -912,6 +954,8 @@ static void debug_sync_reset(THD *thd) {
   DBUG_TRACE;
   assert(thd);
   assert(ds_control);
+  mysql_mutex_assert_owner(&ds_control->ds_execute_mutex);
+  mysql_mutex_assert_owner(&ds_control->ds_array_mutex);
 
   /* Remove all actions of this thread. */
   ds_control->ds_active = 0;
@@ -940,8 +984,12 @@ static void debug_sync_remove_action(st_debug_sync_control *ds_control,
   uint dsp_idx = static_cast<uint>(action - ds_control->ds_action);
   DBUG_TRACE;
   assert(ds_control);
-  assert(current_thd == nullptr ||
-         ds_control == current_thd->debug_sync_control);
+  /*
+    The control block need not belong to the current thread, see
+    st_debug_sync_control::ds_execute_mutex.
+  */
+  mysql_mutex_assert_owner(&ds_control->ds_execute_mutex);
+  mysql_mutex_assert_owner(&ds_control->ds_array_mutex);
   assert(action);
   assert(dsp_idx < ds_control->ds_active);
 
@@ -1001,6 +1049,8 @@ static st_debug_sync_action *debug_sync_get_action(THD *thd,
   assert(dsp_name);
   assert(name_len);
   assert(ds_control);
+  mysql_mutex_assert_owner(&ds_control->ds_execute_mutex);
+  mysql_mutex_assert_owner(&ds_control->ds_array_mutex);
   DBUG_PRINT("debug_sync", ("sync_point: '%.*s'", (int)name_len, dsp_name));
   DBUG_PRINT("debug_sync", ("active: %u  allocated: %u", ds_control->ds_active,
                             ds_control->ds_allocated));
@@ -1109,6 +1159,8 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action) {
   assert(thd);
   assert(action);
   assert(ds_control);
+  mysql_mutex_assert_owner(&ds_control->ds_execute_mutex);
+  mysql_mutex_assert_owner(&ds_control->ds_array_mutex);
 
   action->activation_count = max(action->hit_limit, action->execute);
   if (!action->activation_count) {
@@ -1147,7 +1199,10 @@ static bool debug_sync_set_action(THD *thd, st_debug_sync_action *action) {
 
   /* Execute the special sync point 'now' if activated above. */
   if (is_dsp_now) {
-    DEBUG_SYNC(thd, "now");
+    /* The action array is consistent again. Do not wait with it locked. */
+    mysql_mutex_unlock(&ds_control->ds_array_mutex);
+    debug_sync_hit(thd, STRING_WITH_LEN("now"));
+    mysql_mutex_lock(&ds_control->ds_array_mutex);
     /*
       If HIT_LIMIT for sync point "now" was 1, the execution of the sync
       point decremented it to 0. In this case the following happened:
@@ -1374,9 +1429,12 @@ end:
 
   @see the function comment of debug_sync_token() for more constraints
     for the string.
+
+  @note
+    The caller must hold both mutexes of st_debug_sync_control.
 */
 
-static bool debug_sync_eval_action(THD *thd, char *action_str) {
+static bool debug_sync_eval_action_locked(THD *thd, char *action_str) {
   st_debug_sync_action *action = nullptr;
   const char *errmsg;
   char *ptr;
@@ -1442,8 +1500,10 @@ static bool debug_sync_eval_action(THD *thd, char *action_str) {
       goto err;
     }
 
-    /* Execute sync point. */
-    debug_sync(thd, action->sync_point.ptr(), action->sync_point.length());
+    /* Execute sync point. Do not wait with the action array locked. */
+    mysql_mutex_unlock(&thd->debug_sync_control->ds_array_mutex);
+    debug_sync_hit(thd, action->sync_point.ptr(), action->sync_point.length());
+    mysql_mutex_lock(&thd->debug_sync_control->ds_array_mutex);
     /* Fix statistics. This was not a real hit of the sync point. */
     thd->debug_sync_control->dsp_hits--;
     goto end;
@@ -1613,6 +1673,35 @@ end:
 }
 
 /**
+  Evaluate a debug sync action string.
+
+  @param[in]        thd             thread handle
+  @param[in,out]    action_str      action string to receive '\0' terminators
+
+  @return           status
+    @retval         false           ok
+    @retval         true            error
+
+  @description
+    The action is parsed into, and may be removed again from, the action
+    array of the thread, and other threads may hit sync points on this THD
+    in the meantime. See st_debug_sync_control::ds_execute_mutex.
+*/
+
+static bool debug_sync_eval_action(THD *thd, char *action_str) {
+  st_debug_sync_control *ds_control = thd->debug_sync_control;
+  assert(ds_control);
+
+  mysql_mutex_lock(&ds_control->ds_execute_mutex);
+  mysql_mutex_lock(&ds_control->ds_array_mutex);
+  const bool rc = debug_sync_eval_action_locked(thd, action_str);
+  mysql_mutex_unlock(&ds_control->ds_array_mutex);
+  mysql_mutex_unlock(&ds_control->ds_execute_mutex);
+
+  return rc;
+}
+
+/**
   Set the system variable 'debug_sync'.
 
   @param[in]    thd             thread handle
@@ -1751,7 +1840,9 @@ static inline void clear_signal_event(const std::string *signal_name) {
   @param[in]    action              action to be executed
 
   @note
-    This is to be called only if activation count > 0.
+    This is to be called only if activation count > 0. The caller must hold
+    st_debug_sync_control::ds_execute_mutex of the THD, but not its
+    ds_array_mutex.
 */
 
 static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
@@ -1769,8 +1860,11 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
               dsp_name, action->activation_count, action->hit_limit,
               action->execute, action->timeout, sig_emit, sig_wait));
 
+  /* Threads looking up their sync point read the activation count. */
+  mysql_mutex_lock(&thd->debug_sync_control->ds_array_mutex);
   assert(action->activation_count);
   action->activation_count--;
+  mysql_mutex_unlock(&thd->debug_sync_control->ds_array_mutex);
 
   if (action->execute) {
     const char *old_proc_info = nullptr;
@@ -1918,13 +2012,14 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action) {
   @param[in]     thd                thread handle
   @param[in]     sync_point_name    name of synchronization point
   @param[in]     name_len           length of sync point name
+
+  @note
+    The caller must hold st_debug_sync_control::ds_execute_mutex of the THD,
+    but not its ds_array_mutex.
 */
 
-void debug_sync(THD *thd, const char *sync_point_name, size_t name_len) {
-  if (!thd) {
-    return;
-  }
-
+static void debug_sync_hit(THD *thd, const char *sync_point_name,
+                           size_t name_len) {
   st_debug_sync_control *ds_control = thd->debug_sync_control;
   st_debug_sync_action *action;
   DBUG_TRACE;
@@ -1932,7 +2027,10 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len) {
   assert(sync_point_name);
   assert(name_len);
   assert(ds_control);
+  mysql_mutex_assert_owner(&ds_control->ds_execute_mutex);
   DBUG_PRINT("debug_sync_point", ("hit: '%s'", sync_point_name));
+
+  mysql_mutex_lock(&ds_control->ds_array_mutex);
 
   /* Statistics. */
   ds_control->dsp_hits++;
@@ -1941,8 +2039,14 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len) {
       (action = debug_sync_find(ds_control->ds_action, ds_control->ds_active,
                                 sync_point_name, name_len)) &&
       action->activation_count) {
-    /* Sync point is active (action exists). */
+    /*
+      Sync point is active (action exists). The action stays where it is
+      while it is executed, as changing the action array requires
+      ds_execute_mutex.
+    */
+    mysql_mutex_unlock(&ds_control->ds_array_mutex);
     debug_sync_execute(thd, action);
+    mysql_mutex_lock(&ds_control->ds_array_mutex);
 
     /* Statistics. */
     ds_control->dsp_executed++;
@@ -1950,6 +2054,60 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len) {
     /* If action became inactive, remove it to shrink the search array. */
     if (!action->activation_count) debug_sync_remove_action(ds_control, action);
   }
+
+  mysql_mutex_unlock(&ds_control->ds_array_mutex);
+}
+
+/**
+  Execute requested action at a synchronization point.
+
+  @param[in]     thd                thread handle
+  @param[in]     sync_point_name    name of synchronization point
+  @param[in]     name_len           length of sync point name
+
+  @note
+    The calling thread need not be the one owning the THD, and it need not
+    be the only one hitting a sync point on this THD at this moment. See
+    st_debug_sync_control::ds_execute_mutex.
+*/
+
+void debug_sync(THD *thd, const char *sync_point_name, size_t name_len) {
+  if (!thd) {
+    return;
+  }
+
+  st_debug_sync_control *ds_control = thd->debug_sync_control;
+  assert(sync_point_name);
+  assert(name_len);
+  assert(ds_control);
+
+  /*
+    Most sync points are hit without an action being armed for them. Do not
+    make these wait for a thread that is executing an action on this THD.
+  */
+  mysql_mutex_lock(&ds_control->ds_array_mutex);
+  const st_debug_sync_action *action =
+      ds_control->ds_active
+          ? debug_sync_find(ds_control->ds_action, ds_control->ds_active,
+                            sync_point_name, name_len)
+          : nullptr;
+  const bool is_active = action != nullptr && action->activation_count;
+  if (!is_active) {
+    DBUG_PRINT("debug_sync_point", ("hit: '%s'", sync_point_name));
+    /* Statistics. */
+    ds_control->dsp_hits++;
+  }
+  mysql_mutex_unlock(&ds_control->ds_array_mutex);
+
+  if (!is_active) return;
+
+  /*
+    The action may be executed and removed by another thread before this
+    one gets its turn, so debug_sync_hit() looks it up again.
+  */
+  mysql_mutex_lock(&ds_control->ds_execute_mutex);
+  debug_sync_hit(thd, sync_point_name, name_len);
+  mysql_mutex_unlock(&ds_control->ds_execute_mutex);
 }
 
 /**
