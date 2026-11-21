@@ -260,17 +260,26 @@ bool JOIN::create_intermediate_table(
       new (thd->mem_root) Temp_table_param(thd->mem_root, tmp_table_param);
   tab->tmp_table_param->skip_create_table = true;
 
-  const bool distinct_arg =
-      select_distinct &&
-      // GROUP BY is absent or has been done in a previous step
-      group_list.empty() &&
-      // We can only do DISTINCT in last window's tmp table step
-      (!windowing || (tab->tmp_table_param->m_window &&
-                      tab->tmp_table_param->m_window->is_last()));
+  // DISTINCT must still be required, and GROUP BY must be absent or
+  // already handled.
+  bool distinct_in_tmp_table = select_distinct && group_list.empty();
+
+  if (distinct_in_tmp_table) {
+    if (windowing) {
+      // HAVING is applied before windowing. Enforce DISTINCT only in
+      // the last window's output table.
+      const Window *window = tab->tmp_table_param->m_window;
+      distinct_in_tmp_table = window != nullptr && window->is_last();
+    } else if (query_block->is_grouped() && having_cond != nullptr) {
+      // Grouped rows may be filtered by HAVING after materialization.
+      // Leave DISTINCT for the later duplicate-removal step.
+      distinct_in_tmp_table = false;
+    }
+  }
 
   TABLE *table = create_tmp_table(
       thd, tab->tmp_table_param, tmp_table_fields, tmp_table_group.order,
-      distinct_arg, save_sum_fields, query_block->active_options(),
+      distinct_in_tmp_table, save_sum_fields, query_block->active_options(),
       tmp_rows_limit, (alias != nullptr ? alias : ""));
   if (!table) return true;
   tmp_table_param.using_outer_summary_function =
@@ -3287,6 +3296,15 @@ AccessPath *JOIN::create_root_access_path_for_join() {
       }
     }
 
+    // When DISTINCT is handled by a later sort, evaluate HAVING against the
+    // stored projection before removing duplicates. An alias may contain a
+    // non-deterministic expression that must not be evaluated again by
+    // copy_funcs(). Both materialization and streaming provide the stored row.
+    const bool having_after_materialization =
+        qep_tab->needs_duplicate_removal &&
+        (qep_tab->op_type == QEP_TAB::OT_MATERIALIZE ||
+         qep_tab->op_type == QEP_TAB::OT_AGGREGATE_THEN_MATERIALIZE);
+
     // Attach HAVING if needed (it's put on the QEP_TAB and not on the JOIN if
     // we have a temporary table) and we've done all aggregation.
     //
@@ -3302,7 +3320,7 @@ AccessPath *JOIN::create_root_access_path_for_join() {
     // which was obsolete for the old executor after said fix, was never
     // removed. See if we can get this fixed in the new executor as well,
     // and then remove the code that moves HAVING onto qep_tab->condition().
-    if (qep_tab->having != nullptr &&
+    if (qep_tab->having != nullptr && !having_after_materialization &&
         qep_tab->op_type != QEP_TAB::OT_AGGREGATE_INTO_TMP_TABLE) {
       path = NewFilterAccessPath(thd, path, qep_tab->having);
     }
@@ -3473,6 +3491,10 @@ AccessPath *JOIN::create_root_access_path_for_join() {
             /*reject_multiple_rows=*/false);
         EstimateMaterializeCost(thd, path);
       }
+    }
+
+    if (having_after_materialization && qep_tab->having != nullptr) {
+      path = NewFilterAccessPath(thd, path, qep_tab->having);
     }
 
     if (qep_tab->condition() != nullptr) {
