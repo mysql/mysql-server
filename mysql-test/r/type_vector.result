@@ -52,3 +52,63 @@ TO_VECTOR(b2)
 0x0000803F0000004000004040
 0x0000803F0000004000004040
 DROP TABLE B;
+#
+# Prepared statements with VECTOR parameters and unset user variables
+#
+PREPARE stmt FROM 'SELECT VECTOR_DIM(?), FROM_VECTOR(?), VECTOR_TO_STRING(?)';
+EXECUTE stmt USING @unset_v, @unset_v, @unset_v;
+VECTOR_DIM(?)	FROM_VECTOR(?)	VECTOR_TO_STRING(?)
+NULL	NULL	NULL
+SET @v = TO_VECTOR('[1,2,3]');
+EXECUTE stmt USING @v, @v, @v;
+VECTOR_DIM(?)	FROM_VECTOR(?)	VECTOR_TO_STRING(?)
+3	[1.00000e+00,2.00000e+00,3.00000e+00]	[1.00000e+00,2.00000e+00,3.00000e+00]
+SET @v = NULL;
+EXECUTE stmt USING @v, @v, @v;
+VECTOR_DIM(?)	FROM_VECTOR(?)	VECTOR_TO_STRING(?)
+NULL	NULL	NULL
+DEALLOCATE PREPARE stmt;
+CREATE TABLE C(c1 INT, c2 VECTOR(3));
+PREPARE ins_stmt FROM 'INSERT INTO C VALUES (?, ?)';
+SET @id = 1;
+EXECUTE ins_stmt USING @id, @unset_vec;
+SET @id = 2;
+SET @v = TO_VECTOR('[1,2,3]');
+EXECUTE ins_stmt USING @id, @v;
+SELECT c1, FROM_VECTOR(c2) FROM C ORDER BY c1;
+c1	FROM_VECTOR(c2)
+1	NULL
+2	[1.00000e+00,2.00000e+00,3.00000e+00]
+DEALLOCATE PREPARE ins_stmt;
+DROP TABLE C;
+# Non-binary string variables passed to VECTOR parameters in prepared
+# statements must preserve their non-binary charset and be rejected,
+# matching direct (non-prepared) execution.
+CREATE TABLE vec_tbl (id INT AUTO_INCREMENT PRIMARY KEY, v VECTOR(3));
+INSERT INTO vec_tbl (v) VALUES (TO_VECTOR('[1,2,3]'));
+SET @str12 = 'abcdefghijkl';
+SELECT CHARSET(@str12), LENGTH(@str12);
+CHARSET(@str12)	LENGTH(@str12)
+utf8mb4	12
+INSERT INTO vec_tbl (v) VALUES (@str12);
+ERROR HY000: Value of type 'string, size: 12' cannot be converted to 'vector' type.
+SELECT VECTOR_TO_STRING(@str12);
+ERROR HY000: Incorrect arguments to from_vector
+SELECT VECTOR_DIM(@str12);
+ERROR HY000: Incorrect arguments to vector_dim
+PREPARE ins_stmt FROM 'INSERT INTO vec_tbl (v) VALUES (?)';
+EXECUTE ins_stmt USING @str12;
+ERROR HY000: Value of type 'string, size: 12' cannot be converted to 'vector' type.
+SELECT id, VECTOR_TO_STRING(v) FROM vec_tbl;
+id	VECTOR_TO_STRING(v)
+1	[1.00000e+00,2.00000e+00,3.00000e+00]
+DEALLOCATE PREPARE ins_stmt;
+PREPARE sel_stmt FROM 'SELECT VECTOR_TO_STRING(?)';
+EXECUTE sel_stmt USING @str12;
+ERROR HY000: Incorrect arguments to from_vector
+DEALLOCATE PREPARE sel_stmt;
+PREPARE dim_stmt FROM 'SELECT VECTOR_DIM(?)';
+EXECUTE dim_stmt USING @str12;
+ERROR HY000: Incorrect arguments to vector_dim
+DEALLOCATE PREPARE dim_stmt;
+DROP TABLE vec_tbl;

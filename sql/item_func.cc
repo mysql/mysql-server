@@ -4495,6 +4495,10 @@ longlong Item_func_vector_dim::val_int() {
   if (res == nullptr || res->ptr() == nullptr) {
     return error_int(); /* purecov: inspected */
   }
+  if (res->charset() != &my_charset_bin) {
+    my_error(ER_WRONG_ARGUMENTS, MYF(0), func_name());
+    return error_int();
+  }
   uint32 dimensions = get_dimensions(res->length(), Field_vector::precision);
   if (dimensions == UINT32_MAX) {
     my_error(ER_TO_VECTOR_CONVERSION, MYF(0), res->length(), res->ptr());
