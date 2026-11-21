@@ -1,0 +1,65 @@
+include/rpl/init.inc [topology=1->2, 2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection server_1]
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+[connection server_2]
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET GLOBAL replica_parallel_workers = 4;
+include/rpl/start_replica.inc
+[connection server_3]
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+SET @save_replica_parallel_workers_3 = @@GLOBAL.replica_parallel_workers;
+SET GLOBAL replica_parallel_workers = 4;
+include/rpl/start_replica.inc
+[connection server_1]
+CREATE TABLE t (a INT PRIMARY KEY, b INT);
+include/rpl/sync.inc
+#
+# Test case 3: Chain topology A -> B -> C.
+#   A long transaction (SLEEP(10)) commits on A, then is blocked
+#   on B for 20 seconds, and finally blocked on C.
+#     - B's SBM reflects the real waiting time and grows as the
+#       transaction stays blocked.
+#     - C's SBM does not include the 20 seconds the transaction
+#       spent blocked on B, because B regenerates
+#       immediate_commit_timestamp using B's local clock.
+#
+[connection server_2]
+LOCK TABLE t WRITE;
+[connection server_3]
+LOCK TABLE t WRITE;
+[connection server_1]
+INSERT INTO t(a, b) SELECT 1, SLEEP(10);
+[connection server_2]
+include/assert.inc [SBM on B must be small right after transaction arrives]
+include/assert.inc [SBM on B must be >= 20 (real waiting time, not reduced by source execution time)]
+[connection server_3]
+include/assert.inc [SBM on C must be 0 while transaction is blocked on B]
+[connection server_2]
+UNLOCK TABLES;
+[connection server_3]
+include/assert.inc [SBM on C must not include the time spent blocked on B]
+UNLOCK TABLES;
+include/rpl/sync.inc
+#
+# Cleanup
+#
+[connection server_1]
+DROP TABLE t;
+include/rpl/sync.inc
+[connection server_2]
+include/rpl/stop_replica.inc
+SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
+include/rpl/start_replica.inc
+[connection server_3]
+include/rpl/stop_replica.inc
+SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers_3;
+include/rpl/start_replica.inc
+[connection server_1]
+include/rpl/deinit.inc
