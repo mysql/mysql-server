@@ -1209,6 +1209,13 @@ static bool substitute_gc_expression(Item **expr, Item **value,
         (field->is_array() && predicate->functype() !=  // (2)
                                   Item_func::MEMBER_OF_FUNC))
       continue;
+    // A temporal array key can map different JSON strings to the same value.
+    // Keep MEMBER OF on the source JSON when the lookup is not temporal; the
+    // converted generated column cannot establish JSON atom equality.
+    if (field->is_array() && value != nullptr &&
+        is_temporal_type(field->type()) &&
+        !is_temporal_type((*value)->data_type()))
+      continue;
     // If the field is a hidden field used by a functional index, we require
     // that the collation of the field must match the collation of the
     // expression. If not, we might end up with the wrong result when using
