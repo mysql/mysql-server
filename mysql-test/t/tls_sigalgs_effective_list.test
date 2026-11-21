@@ -1,0 +1,100 @@
+--source include/no_valgrind_without_big.inc
+
+# Verify that the effective signature-algorithm list is exposed via
+# performance_schema.tls_channel_status as Ssl_sigalgs_list, that
+# TLS is operational, that at least one RFC 8446 §9.1 floor token is present,
+# and that every token in the property is one of the configured tokens
+# (no foreign token injected).  The test is robust to the TLS library
+# legitimately dropping tokens it does not support.
+
+# Suppress possible warnings from the filter (some OpenSSL builds
+# reject tokens like rsa_pss_pss_*).
+call mtr.add_suppression("Signature algorithm .* is not supported by the TLS library and was removed from the preference list");
+
+# Connect with TLS and verify a cipher was negotiated.
+--connect (ssl_con,localhost,root,,,,,SSL)
+--replace_column 2 CIPHER
+SHOW STATUS LIKE 'Ssl_cipher';
+
+# Query the effective sigalgs list for the main channel.
+let $sigalgs = `SELECT VALUE FROM performance_schema.tls_channel_status
+WHERE CHANNEL = 'mysql_main' AND PROPERTY = 'Ssl_sigalgs_list'`;
+
+# Property must be non-empty.
+--let $assert_text = Ssl_sigalgs_list is non-empty
+--let $assert_cond = "$sigalgs" <> ""
+--source include/assert.inc
+
+# The floor (RFC 8446 §9.1 MTI) requires at least one of the MTI tokens.
+--let $assert_text = Effective sigalgs list contains at least one RFC 8446 MTI algorithm
+--let $assert_cond = "$sigalgs" LIKE "%ECDSA+SHA256%" OR "$sigalgs" LIKE "%rsa_pss_rsae_sha256%"
+--source include/assert.inc
+
+# No-foreign-token check: verify every token in the effective list is
+# a known configured token.  Use a SQL approach: strip all known tokens
+# and their separating colons; the result must be empty.
+let $no_foreign = `SELECT
+  REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+  REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+  REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(
+    '$sigalgs',
+    'ML-DSA-44', ''), 'ML-DSA-65', ''), 'ML-DSA-87', ''),
+    'rsa_pss_rsae_sha256', ''), 'rsa_pss_rsae_sha384', ''),
+    'rsa_pss_rsae_sha512', ''),
+    'rsa_pss_pss_sha256', ''), 'rsa_pss_pss_sha384', ''),
+    'rsa_pss_pss_sha512', ''),
+    'ECDSA+SHA256', ''), 'ECDSA+SHA384', ''), 'ECDSA+SHA512', ''),
+    'RSA+SHA256', ''), 'RSA+SHA384', ''), 'RSA+SHA512', ''),
+    'ed25519', ''), 'ECDSA+SHA224', ''), 'RSA+SHA224', '')
+  AS result`;
+# After stripping tokens, only colons should remain.
+--let $assert_text = Every token in Ssl_sigalgs_list is a known configured token
+--let $assert_cond = REPLACE("$no_foreign", ":", "") = ""
+--source include/assert.inc
+
+# Conditional exact-content check: use a perl block to count
+# ER_WARN_TLS_SIGALG_UNSUPPORTED lines. If zero, assert the property
+# equals the full configured list.
+perl;
+  use strict;
+  my $file = "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+  open(my $fh, '<', $file) or die "Cannot open $file: $!";
+  my $count = 0;
+  while (<$fh>) {
+    if (/was removed from the preference list/) {
+      $count++;
+    }
+  }
+  close($fh);
+  my $tmpf = "$ENV{'MYSQLTEST_VARDIR'}/tmp/sigalg_warn_count.inc";
+  open(my $wfh, '>', $tmpf) or die "Cannot write $tmpf: $!";
+  print $wfh "--let \$warn_count = $count\n";
+  close($wfh);
+EOF
+--source $MYSQLTEST_VARDIR/tmp/sigalg_warn_count.inc
+--remove_file $MYSQLTEST_VARDIR/tmp/sigalg_warn_count.inc
+
+# On a stock build no token is dropped, so the effective list must equal the
+# configured one: the FIPS list when FIPS mode is on (it omits ed25519 and the
+# SHA224 tokens), the non-FIPS list otherwise.  The assertion is run silently
+# ($include_silent) so that the recorded output is identical on builds that
+# legitimately drop tokens (there the floor and no-foreign-token assertions
+# above are the contract) and in FIPS mode.
+if ($warn_count == 0)
+{
+  --let $include_silent = 1
+  --let $fips_list = ECDSA+SHA256:ECDSA+SHA384:ECDSA+SHA512:rsa_pss_pss_sha256:rsa_pss_pss_sha384:rsa_pss_pss_sha512:rsa_pss_rsae_sha256:rsa_pss_rsae_sha384:rsa_pss_rsae_sha512:RSA+SHA256:RSA+SHA384:RSA+SHA512
+  --let $expected_list = $fips_list:ed25519:ECDSA+SHA224:RSA+SHA224
+  --let $fips_mode = `SELECT @@global.ssl_fips_mode`
+  if ($fips_mode != OFF)
+  {
+    --let $expected_list = $fips_list
+  }
+  --let $assert_text = Effective list equals configured list (stock build)
+  --let $assert_cond = REPLACE("$sigalgs", "ML-DSA-44:ML-DSA-65:ML-DSA-87:", "") = "$expected_list"
+  --source include/assert.inc
+  --let $include_silent =
+}
+
+--disconnect ssl_con
+--connection default

@@ -186,6 +186,7 @@ SET(TESTS
   unhex
   utf8alias
   val_int_compare
+  vio_sigalgs
   )
 
 LIST(TRANSFORM TESTS APPEND "-t.cc" OUTPUT_VARIABLE ALL_SMALL_TESTS)
@@ -375,6 +376,14 @@ IF(TARGET merge_small_tests-t)
   DOWNGRADE_STRINGOP_WARNINGS(merge_small_tests-t)
 ENDIF()
 
+# vio_sigalgs-t.cc asserts the floor predicate against the shipped
+# preference lists via the shipped_list_*() accessors defined in the vio
+# library (vio/viosslfactories.cc), so both the merged executable above
+# and the per-test executable created by the FOREACH loop below link vio.
+IF(TARGET merge_small_tests-t)
+  TARGET_LINK_LIBRARIES(merge_small_tests-t vio)
+ENDIF()
+
 LIST(APPEND ALL_LARGE_TESTS ../../storage/example/ha_example.cc)
 
 MYSQL_ADD_EXECUTABLE(merge_large_tests-t ${ALL_LARGE_TESTS}
@@ -420,6 +429,12 @@ IF(APPLE)
     ${CMAKE_SOURCE_DIR}/components/library_mysys/my_system_api/system_info_linux_procfs.cc)
   TARGET_SOURCES(merge_small_tests-t PRIVATE
     ${CMAKE_SOURCE_DIR}/components/library_mysys/my_system_api/system_info_linux_procfs.cc)
+ENDIF()
+
+# See comment above merge_small_tests-t: vio_sigalgs-t links the vio library
+# for the shipped_list_*() accessors.
+IF(TARGET vio_sigalgs-t)
+  TARGET_LINK_LIBRARIES(vio_sigalgs-t vio)
 ENDIF()
 
 # Disable by default, since it dumps a stack trace.
