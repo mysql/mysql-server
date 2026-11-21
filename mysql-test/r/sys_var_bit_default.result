@@ -1,0 +1,159 @@
+#
+# Global values the session defaults must be copied from.
+#
+SELECT @@global.foreign_key_checks, @@global.unique_checks;
+@@global.foreign_key_checks	@@global.unique_checks
+1	1
+#
+# foreign_key_checks: 0 followed by DEFAULT must yield the global value.
+#
+SET @@session.foreign_key_checks = 0;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+0
+SET SESSION foreign_key_checks = DEFAULT;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+1
+# 1 followed by DEFAULT must keep 1.
+SET @@session.foreign_key_checks = 1;
+SET SESSION foreign_key_checks = DEFAULT;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+1
+# Same, using the other ways of spelling a session assignment.
+SET @@foreign_key_checks = 0;
+SET @@foreign_key_checks = DEFAULT;
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+1
+SET foreign_key_checks = 0;
+SET foreign_key_checks = DEFAULT;
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+1
+SET @@local.foreign_key_checks = 0;
+SET @@local.foreign_key_checks = DEFAULT;
+SELECT @@foreign_key_checks;
+@@foreign_key_checks
+1
+#
+# unique_checks: 0 followed by DEFAULT must yield the global value.
+#
+SET @@session.unique_checks = 0;
+SELECT @@session.unique_checks;
+@@session.unique_checks
+0
+SET SESSION unique_checks = DEFAULT;
+SELECT @@session.unique_checks;
+@@session.unique_checks
+1
+# 1 followed by DEFAULT must keep 1.
+SET @@session.unique_checks = 1;
+SET SESSION unique_checks = DEFAULT;
+SELECT @@session.unique_checks;
+@@session.unique_checks
+1
+# Same, using the other ways of spelling a session assignment.
+SET @@unique_checks = 0;
+SET @@unique_checks = DEFAULT;
+SELECT @@unique_checks;
+@@unique_checks
+1
+SET unique_checks = 0;
+SET unique_checks = DEFAULT;
+SELECT @@unique_checks;
+@@unique_checks
+1
+#
+# The session DEFAULT must follow the global value, not the compiled-in
+# default: with the global set to 0, DEFAULT must give 0.
+#
+SET @@global.foreign_key_checks = 0;
+SET @@session.foreign_key_checks = 1;
+SET SESSION foreign_key_checks = DEFAULT;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+0
+SET @@global.unique_checks = 0;
+SET @@session.unique_checks = 1;
+SET SESSION unique_checks = DEFAULT;
+SELECT @@session.unique_checks;
+@@session.unique_checks
+0
+#
+# SET GLOBAL ... = DEFAULT restores the compiled-in default (1) for both
+# reversed variables, and a following session DEFAULT picks it up.
+#
+SET GLOBAL foreign_key_checks = DEFAULT;
+SELECT @@global.foreign_key_checks;
+@@global.foreign_key_checks
+1
+SET SESSION foreign_key_checks = DEFAULT;
+SELECT @@session.foreign_key_checks;
+@@session.foreign_key_checks
+1
+SET GLOBAL unique_checks = DEFAULT;
+SELECT @@global.unique_checks;
+@@global.unique_checks
+1
+SET SESSION unique_checks = DEFAULT;
+SELECT @@session.unique_checks;
+@@session.unique_checks
+1
+#
+# Bit variables without reversed semantics keep resetting correctly.
+#
+SELECT @@global.sql_safe_updates, @@global.autocommit, @@global.sql_notes,
+@@global.sql_auto_is_null;
+@@global.sql_safe_updates	@@global.autocommit	@@global.sql_notes	@@global.sql_auto_is_null
+0	1	1	0
+SET @@session.sql_safe_updates = 1;
+SET SESSION sql_safe_updates = DEFAULT;
+SELECT @@session.sql_safe_updates;
+@@session.sql_safe_updates
+0
+SET @@session.autocommit = 0;
+SET SESSION autocommit = DEFAULT;
+SELECT @@session.autocommit;
+@@session.autocommit
+1
+SET @@session.sql_notes = 0;
+SET SESSION sql_notes = DEFAULT;
+SELECT @@session.sql_notes;
+@@session.sql_notes
+1
+SET @@session.sql_auto_is_null = 1;
+SET SESSION sql_auto_is_null = DEFAULT;
+SELECT @@session.sql_auto_is_null;
+@@session.sql_auto_is_null
+0
+SET @@session.sql_quote_show_create = 0;
+SET SESSION sql_quote_show_create = DEFAULT;
+SELECT @@session.sql_quote_show_create;
+@@session.sql_quote_show_create
+1
+#
+# The value reset by DEFAULT is really in effect, not just reported:
+# after SET foreign_key_checks = 0, DEFAULT must re-enable the check.
+#
+CREATE TABLE parent (id INT PRIMARY KEY);
+CREATE TABLE child (id INT PRIMARY KEY, pid INT,
+FOREIGN KEY (pid) REFERENCES parent (id));
+SET @@session.foreign_key_checks = 0;
+INSERT INTO child VALUES (1, 100);
+SET SESSION foreign_key_checks = DEFAULT;
+INSERT INTO child VALUES (2, 200);
+ERROR 23000: Cannot add or update a child row: a foreign key constraint fails (`test`.`child`, CONSTRAINT `child_ibfk_1` FOREIGN KEY (`pid`) REFERENCES `parent` (`id`))
+SELECT * FROM child;
+id	pid
+1	100
+DROP TABLE child, parent;
+#
+# Cleanup.
+#
+SET SESSION foreign_key_checks = DEFAULT;
+SET SESSION unique_checks = DEFAULT;
+SELECT @@session.foreign_key_checks, @@session.unique_checks;
+@@session.foreign_key_checks	@@session.unique_checks
+1	1
