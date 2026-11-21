@@ -19204,7 +19204,12 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
 
   /* MySQL is releasing a table lock */
 
-  trx->n_mysql_tables_in_use--;
+  /* Simulate an earlier unmatched unlock having already released the count. */
+  DBUG_EXECUTE_IF("ib_unmatched_external_unlock",
+                  trx->n_mysql_tables_in_use = 0;);
+  if (trx->n_mysql_tables_in_use > 0) {
+    trx->n_mysql_tables_in_use--;
+  }
   m_mysql_has_locked = false;
 
   innobase_srv_conc_force_exit_innodb(trx);
