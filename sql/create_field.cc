@@ -397,9 +397,18 @@ bool Create_field::init(
                  m_max_display_width_in_codepoints,
                  m_max_display_width_in_codepoints / Field_vector::precision,
                  max_dimension_bytes, Field_vector::max_dimensions, fld_name);
-        break;
+        return true;
       }
-      [[fallthrough]];
+      /*
+        An empty value is not a valid VECTOR, so unlike BLOB, a constant
+        default value is an error even in non-strict mode.
+      */
+      if (fld_default_value) {
+        my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), fld_name);
+        return true;
+      }
+      flags |= BLOB_FLAG;
+      break;
     }
     case MYSQL_TYPE_BLOB:
     case MYSQL_TYPE_TINY_BLOB:
