@@ -1,0 +1,35 @@
+#
+# Live case: page written by the running server
+#
+CREATE TABLE t1 (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0,
+SPATIAL INDEX sg (g)) ENGINE=InnoDB;
+FLUSH TABLES t1 FOR EXPORT;
+t1.ibd: FIL_PAGE_TYPE=17854 PAGE_DIRECTION=5 PAGE_N_DIRECTION=0
+UNLOCK TABLES;
+#
+# Recovered case: page rebuilt from redo by crash recovery
+#
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+CREATE TABLE t2 (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0,
+SPATIAL INDEX sg (g)) ENGINE=InnoDB;
+# Kill and restart
+FLUSH TABLES t2 FOR EXPORT;
+t2.ibd: FIL_PAGE_TYPE=17854 PAGE_DIRECTION=5 PAGE_N_DIRECTION=0
+UNLOCK TABLES;
+#
+# Both tables are otherwise consistent
+#
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+10
+SELECT COUNT(*) FROM t2;
+COUNT(*)
+10
+CHECK TABLE t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+CHECK TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	check	status	OK
+DROP TABLE t1, t2;
