@@ -2130,6 +2130,11 @@ static bool safe_update_on_fly(const QEP_TAB *join_tab,
 
   // Check that the table is not joined to itself:
   if (unique_table(table_ref, all_tables, false)) return false;
+  // Defer updating, if foreign key actions may modify rows that the statement
+  // still needs to read.
+  if (fk_actions_affect_queried_table(table_ref, join_tab->join()->query_block,
+                                      /*is_delete=*/false))
+    return false;
   if (table->part_info &&
       // if there is risk for a row to move in a next partition, in which case
       // it may be read twice:
