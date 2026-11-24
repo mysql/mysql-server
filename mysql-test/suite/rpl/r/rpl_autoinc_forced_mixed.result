@@ -1,0 +1,94 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t1 (id INT AUTO_INCREMENT PRIMARY KEY, tag VARCHAR(8)) ENGINE=InnoDB;
+include/rpl/sync_to_replica.inc
+START TRANSACTION;
+INSERT INTO t1 VALUES (NULL, 'a1'), (100, 'explicit'), (NULL, 'a2');
+INSERT INTO t1(tag) VALUES ('b');
+COMMIT;
+SELECT id, tag FROM t1 ORDER BY id;
+id	tag
+1	a1
+100	explicit
+101	a2
+102	b
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:t1,slave:t1]
+CREATE TABLE t2 (id INT AUTO_INCREMENT PRIMARY KEY, tag VARCHAR(8)) ENGINE=InnoDB;
+include/rpl/sync_to_replica.inc
+SET SESSION auto_increment_increment=3, auto_increment_offset=2;
+START TRANSACTION;
+INSERT INTO t2 VALUES
+(NULL, 'a1'), (100, 'e1'), (NULL, 'a2'), (200, 'e2'), (NULL, 'a3');
+INSERT INTO t2(tag) VALUES ('b');
+COMMIT;
+SELECT id, tag FROM t2 ORDER BY id;
+id	tag
+2	a1
+100	e1
+101	a2
+200	e2
+203	a3
+206	b
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:t2,slave:t2]
+SET SESSION auto_increment_increment=1, auto_increment_offset=1;
+CREATE TABLE t3 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+tag VARCHAR(8) UNIQUE
+) ENGINE=InnoDB;
+INSERT INTO t3 VALUES (-1, 'dup'), (1000, 'b');
+include/rpl/sync_to_replica.inc
+SET INSERT_ID=1;
+INSERT INTO t3 VALUES (NULL, 'a1'), (100, 'explicit'), (NULL, 'dup')
+ON DUPLICATE KEY UPDATE id=102;
+SELECT id, tag FROM t3 ORDER BY id;
+id	tag
+1	a1
+100	explicit
+102	dup
+1000	b
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:t3,slave:t3]
+CREATE TABLE t4 (
+id INT AUTO_INCREMENT PRIMARY KEY,
+tag VARCHAR(8) UNIQUE
+) ENGINE=InnoDB;
+INSERT INTO t4 VALUES (-1, 'dup'), (1000, 'b');
+include/rpl/sync_to_replica.inc
+SET INSERT_ID=1;
+INSERT INTO t4 VALUES (NULL, 'a1'), (100, 'explicit'), (NULL, 'dup')
+ON DUPLICATE KEY UPDATE id=2;
+SELECT id, tag FROM t4 ORDER BY id;
+id	tag
+1	a1
+2	dup
+100	explicit
+1000	b
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:t4,slave:t4]
+CREATE TABLE t5 (
+id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+tag VARCHAR(8)
+) ENGINE=InnoDB AUTO_INCREMENT=18446744073709551595;
+include/rpl/sync_to_replica.inc
+SET SESSION auto_increment_increment=3, auto_increment_offset=1;
+START TRANSACTION;
+INSERT INTO t5 VALUES
+(NULL, 'a1'), (18446744073709551610, 'explicit'), (NULL, 'a2');
+INSERT INTO t5 VALUES (18446744073709551614, 'b');
+COMMIT;
+SELECT id, tag FROM t5 ORDER BY id;
+id	tag
+18446744073709551595	a1
+18446744073709551610	explicit
+18446744073709551613	a2
+18446744073709551614	b
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:t5,slave:t5]
+SET SESSION auto_increment_increment=1, auto_increment_offset=1;
+DROP TABLE t1, t2, t3, t4, t5;
+include/rpl/deinit.inc

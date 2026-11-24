@@ -4946,6 +4946,19 @@ class handler {
 
  private:
   /**
+    This handler consumed the statement's forced AUTO_INCREMENT interval.
+    Subsequent intervals must continue from its local cursor, including
+    after an explicit value jumps beyond the current reservation.
+  */
+  bool m_auto_inc_interval_forced{false};
+  /**
+    Rows left in the forced reservation, including explicit values. Keep
+    the reservation finite for ON DUPLICATE KEY UPDATE conflict checks.
+    ULLONG_MAX denotes an unknown row count.
+  */
+  ulonglong m_auto_inc_forced_rows_remaining{0};
+
+  /**
     The lock type set by when calling::ha_external_lock(). This is
     propagated down to the storage engine. The reason for also storing
     it here, is that when doing MRR we need to create/clone a second handler

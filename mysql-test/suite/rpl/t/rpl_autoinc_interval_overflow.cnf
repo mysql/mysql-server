@@ -1,0 +1,8 @@
+!include ../my.cnf
+
+[mysqld.1]
+innodb-autoinc-lock-mode=1
+
+[mysqld.2]
+innodb-autoinc-lock-mode=1
+replica-parallel-workers=1
