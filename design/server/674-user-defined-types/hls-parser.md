@@ -125,7 +125,25 @@ which are not implemented.
 
 ```bison
 <method_characteristic>:
-    <null_call_clause>
+    <deterministic_characteristic>
+  | <sql_data_access_indication>
+  | <null_call_clause>
+  ;
+```
+
+```bison
+<deterministic_characteristic>:
+    DETERMINISTIC
+  | NOT DETERMINISTIC
+  ;
+```
+
+```bison
+<sql_data_access_indication>:
+    NO SQL
+  | CONTAINS SQL
+  | READS SQL
+  | MODIFIES SQL
   ;
 ```
 
@@ -218,6 +236,11 @@ type.
   ;
 ```
 
+FR:
+
+ALTER TYPE DROP METHOD reports an error if the method to drop is used for
+type ordering.
+
 # DROP TYPE statement
 
 ```bison
@@ -231,6 +254,25 @@ For example:
 ```sql
   DROP TYPE `complex`;
 ```
+
+FR:
+
+DROP TYPE implicitly drops ordering declared with the type, if any.
+
+FR:
+
+DROP TYPE implicitly drops all methods declared with the type (cascade
+behavior).
+
+# DROP SCHEMA statement
+
+This is an existing statement.
+
+FR:
+
+DROP SCHEMA implicitly executes DROP TYPE for types present in the schema to
+drop (cascade behavior)
+
 
 # CREATE ORDERING statement
 
