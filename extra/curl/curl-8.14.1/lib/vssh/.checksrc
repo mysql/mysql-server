@@ -1,3 +1,0 @@
-banfunc strerror
-banfunc strncpy
-banfunc sscanf
