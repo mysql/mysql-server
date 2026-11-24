@@ -1,0 +1,23 @@
+[DEFAULT]
+
+[logger]
+level=DEBUG
+
+[routing:static]
+bind_address=0.0.0.0
+routing_strategy=round-robin
+protocol=classic
+client_ssl_mode=PREFERRED
+server_ssl_mode=PREFERRED
+server_ssl_verify=DISABLED
+
+[http_server]
+
+[mysql_rest_service]
+mysql_read_write_route=static
+wait_for_metadata_schema_access=320
+
+# Keep the pool-exhaustion requests runnable while four DB queries block.
+# The default I/O thread count follows CPU count and can be only four in CI.
+[io]
+threads=16
