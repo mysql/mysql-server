@@ -76,7 +76,8 @@ class Regexp_facade {
     The `regexp_column` expression is non-constant and hence we have to
     recompile the regular expression for each row.
   */
-  bool SetPattern(Item *pattern_expr, uint32_t flags);
+  bool SetPattern(Item *pattern_expr, uint32_t flags,
+                  MEM_ROOT *mem_root = nullptr);
 
   /**
     Tries to match the subject against the compiled regular expression.
@@ -130,6 +131,8 @@ class Regexp_facade {
     return m_engine != nullptr && m_engine->HasWarning();
   }
 
+  bool m_caller_is_duckdb = false;
+
  private:
   /**
     Resets the compiled regular expression with a new string.
@@ -146,7 +149,8 @@ class Regexp_facade {
   /**
     Actually compiles the regular expression.
   */
-  bool SetupEngine(Item *pattern_expr, uint flags);
+  bool SetupEngine(Item *pattern_expr, uint flags,
+                   MEM_ROOT *mem_root = nullptr);
 
   /**
     Converts a string position in m_current_subject.

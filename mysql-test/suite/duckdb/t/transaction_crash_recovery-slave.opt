@@ -1,0 +1,5 @@
+--skip-log-bin
+--gtid_mode=ON
+--enforce_gtid_consistency
+--duckdb_dml_in_batch=OFF
+--duckdb_log_options='DUCKDB_QUERY,DUCKDB_QUERY_RESULT'

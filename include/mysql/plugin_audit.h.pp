@@ -349,6 +349,8 @@ enum enum_sql_command {
   SQLCOM_CREATE_MASKING_POLICY,
   SQLCOM_DROP_MASKING_POLICY,
   SQLCOM_SHOW_CREATE_MASKING_POLICY,
+  SQLCOM_ADMIN_PROC,
+  SQLCOM_TRANS_PROC,
   SQLCOM_END
 };
 #include "plugin_audit_message_types.h"

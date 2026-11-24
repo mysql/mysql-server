@@ -1,0 +1,52 @@
+CREATE TABLE t1 (col1 VARCHAR(20) COLLATE utf8mb4_0900_ai_ci PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t1 VALUES ('B'), ('a'), ('b');
+#
+# 1) modify the scope of default_collation to local
+#
+[ connection default ]
+SET collation_connection = 'utf8mb4_0900_as_ci';
+[ connection con1 ]
+SELECT 'a' = 'A' FROM t1 LIMIT 1;
+'a' = 'A'
+1
+[ connection default ]
+SET collation_connection = 'utf8mb4_0900_as_cs';
+[ connection con1 ]
+SELECT 'a' = 'A' FROM t1 LIMIT 1;
+'a' = 'A'
+1
+SET collation_connection = 'utf8mb4_0900_as_ci';
+SELECT 'a' = 'A' FROM t1 LIMIT 1;
+'a' = 'A'
+1
+SET collation_connection = 'utf8mb4_0900_as_cs';
+SELECT 'a' = 'A' FROM t1 LIMIT 1;
+'a' = 'A'
+0
+#
+# 2) force_no_collation
+#
+SET duckdb_force_no_collation = false;
+SELECT * FROM t1 WHERE col1 = 'A';
+col1
+a
+SELECT min(col1) FROM t1;
+min(col1)
+a
+SELECT * FROM t1 ORDER BY col1;
+col1
+a
+B
+b
+SET duckdb_force_no_collation = true;
+SELECT * FROM t1 WHERE col1 = 'A';
+col1
+SELECT min(col1) FROM t1;
+min(col1)
+B
+SELECT * FROM t1 ORDER BY col1;
+col1
+B
+a
+b
+DROP TABLE t1;

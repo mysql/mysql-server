@@ -1,0 +1,70 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--echo ###########################################################################
+--echo # 0. Prepare
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+SET autocommit = 1;
+CREATE TABLE t1 (
+    id BIGINT NOT NULL,
+    c0 VARCHAR(20) NOT NULL,
+    c1 CHAR(10) DEFAULT 'duckdb',
+    PRIMARY KEY(id, c0)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE t1 ENGINE=DuckDB;
+CALL dbms_duckdb.query("ALTER TABLE test.t1 ADD PRIMARY KEY (id, c0)");
+SHOW CREATE TABLE t1;
+
+--echo ###########################################################################
+--echo # 1. Test Slave SQL Thread encountered an error during commit
+--echo ###########################################################################
+--echo # 1.1 Insert some data and sync
+--source include/rpl/connection_source.inc
+INSERT INTO t1 (id, c0, c1) VALUES (1, 'abc', NULL);
+FLUSH LOGS;
+
+UPDATE t1 SET c1='AliSQL' WHERE id=1;
+FLUSH LOGS;
+
+--echo # 1.2 Sync and stop replica, then inject commit error
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+STOP REPLICA;
+
+--source include/rpl/connection_source.inc
+UPDATE t1 SET c1='DuckDB' WHERE id=1;
+FLUSH LOGS;
+
+--echo # 1.3 DuckDB fails when committing due to injected error
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("MY-010583");
+CALL mtr.add_suppression("MY-010584");
+CALL mtr.add_suppression("MY-010586");
+SET GLOBAL DEBUG='+d,duckdb_inject_commit_error';
+START REPLICA;
+--let $slave_sql_errno=1105
+--source include/rpl/wait_for_applier_to_stop.inc
+
+--echo # 1.4 Remove the error injection and restart replica
+--source include/rpl/connection_replica.inc
+SET GLOBAL DEBUG='-d,duckdb_inject_commit_error';
+START REPLICA;
+--source include/rpl/sync.inc
+
+--echo # 1.5 Check the result
+--let $rpl_diff_statement = SELECT id, c0, c1 FROM test.t1 ORDER BY id;
+--source include/rpl/diff.inc
+
+--echo ###########################################################################
+--echo # 2. Cleanup
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

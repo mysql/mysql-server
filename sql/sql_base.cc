@@ -8615,11 +8615,14 @@ bool find_item_in_list(THD *thd, Item *find, mem_root_deque<Item *> *items,
       }
     } else if (find_ident == nullptr || find_ident->table_name == nullptr ||
                is_rollup_group_wrapper(item)) {
+      bool is_rollup = is_rollup_group_wrapper(item);
       // Unwrap rollup wrappers, if any
       item = unwrap_rollup_group(item);
       find = unwrap_rollup_group(find);
 
-      if (find_ident != nullptr && item->item_name.eq_safe(find->item_name)) {
+      if (find_ident != nullptr &&
+          (!is_rollup || find_ident->table_name == nullptr) &&
+          item->item_name.eq_safe(find->item_name)) {
         *found = &*it;
         *counter = i;
         *resolution = RESOLVED_AGAINST_ALIAS;

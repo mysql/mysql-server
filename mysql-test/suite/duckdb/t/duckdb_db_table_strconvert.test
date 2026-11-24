@@ -1,0 +1,62 @@
+# Test for escape characters in the table name or database name.
+
+--echo #
+--echo # 1) PREPARE
+--echo #
+CREATE DATABASE `my-db`;
+USE `my-db`;
+CREATE TABLE `my-table` (
+  `id` int(11) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE = InnoDB;
+INSERT INTO `my-table` (`id`, `name`) VALUES (1, 'John'), (2, 'Jane'), (3, 'Jim');
+--let $checksum_innodb_1 = query_get_value(CHECKSUM TABLE `my-table`, Checksum, 1)
+
+
+--echo #
+--echo # 2) ALTER TO DUCKDB
+--echo #
+ALTER TABLE `my-table` ENGINE = DuckDB;
+--let $checksum_duckdb_1 = query_get_value(CHECKSUM TABLE `my-table`, Checksum, 1)
+--let $assert_cond = "$checksum_duckdb_1" = "$checksum_innodb_1"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+# DO RENAME
+ALTER TABLE `my-table` RENAME TO `my-table-renamed`;
+RENAME TABLE `my-table-renamed` TO `my-table`;
+
+# DO INPLACE/INSTANT DDL
+ALTER TABLE `my-table` ADD COLUMN `col1` INT;
+
+# DO COPY DDL
+ALTER TABLE `my-table` ADD COLUMN `col2` INT, ALGORITHM = COPY;
+
+# DO DML
+SELECT COUNT(*) FROM `my-table`;
+INSERT INTO `my-table` (`id`, `name`) VALUES (4, 'Joe');
+UPDATE `my-table` SET `name` = 'Jack' WHERE `id` = 4;
+DELETE FROM `my-table` WHERE `id` = 4;
+
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema = 'my-db'");
+CALL dbms_duckdb.query("DESC `my-db`.`my-table`");
+--let $checksum_duckdb_2 = query_get_value(CHECKSUM TABLE `my-table`, Checksum, 1)
+
+
+--echo #
+--echo # 3) ALTER TO INNODB
+--echo #
+ALTER TABLE `my-table` ENGINE = InnoDB;
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'my-db'");
+--let $checksum_innodb_2 = query_get_value(CHECKSUM TABLE `my-table`, Checksum, 1)
+--let $assert_cond = "$checksum_duckdb_2" = "$checksum_innodb_2"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+
+--echo #
+--echo # 4) CLEANUP
+--echo #
+DROP DATABASE `my-db`;
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = 'my-db'");

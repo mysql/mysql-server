@@ -1,0 +1,119 @@
+# name: test/sql/function/string/test_right.test
+# description: RIGHT test
+# group: [string]
+
+statement ok
+PRAGMA enable_verification
+
+foreach FUN RIGHT RIGHT_GRAPHEME
+
+# test RIGHT on positive positions
+query TTTTT
+SELECT ${FUN}('abcd', 0), ${FUN}('abc', 1), ${FUN}('abc', 2), ${FUN}('abc', 3), ${FUN}('abc', 4)
+----
+(empty)	c	bc	abc	abc
+
+query TTTTT
+SELECT ${FUN}('🦆ab', 0), ${FUN}('🦆ab', 1), ${FUN}('🦆ab', 2), ${FUN}('🦆ab', 3), ${FUN}('🦆ab', 4)
+----
+(empty)	b	ab	🦆ab	🦆ab
+
+# test RIGHT on negative positions
+query TTTTT
+SELECT ${FUN}('abcd', 0), ${FUN}('abc', -1), ${FUN}('abc', -2), ${FUN}('abc', -3), ${FUN}('abc', -4)
+----
+(empty)	bc	c	(empty)	(empty)
+
+query TTTTT
+SELECT ${FUN}('🦆ab', 0), ${FUN}('🦆ab', -1), ${FUN}('🦆ab', -2), ${FUN}('🦆ab', -3), ${FUN}('🦆ab', -4)
+----
+(empty)	ab	b	(empty)	(empty)
+
+# test RIGHT on NULL values
+query TTT
+SELECT ${FUN}(NULL, 0), ${FUN}('abc', NULL), ${FUN}(NULL, NULL)
+----
+NULL	NULL	NULL
+
+query TTT
+SELECT ${FUN}(NULL, 0), ${FUN}('🦆ab', NULL), ${FUN}(NULL, NULL)
+----
+NULL	NULL	NULL
+
+# test on tables
+statement ok
+DROP TABLE IF EXISTS strings
+
+statement ok
+CREATE TABLE strings(a STRING, b BIGINT)
+
+statement ok
+INSERT INTO STRINGS VALUES ('abcd', 0), ('abc', 1), ('abc', 2), ('abc', 3), ('abc', 4)
+
+query T
+SELECT ${FUN}(a, b) FROM strings
+----
+(empty)
+c
+bc
+abc
+abc
+
+statement ok
+DROP TABLE IF EXISTS strings
+
+statement ok
+CREATE TABLE strings(a STRING, b BIGINT)
+
+statement ok
+INSERT INTO STRINGS VALUES ('abcd', 0), ('abc', -1), ('abc', -2), ('abc', -3), ('abc', -4)
+
+query T
+SELECT ${FUN}(a, b) FROM strings
+----
+(empty)
+bc
+c
+(empty)
+(empty)
+
+statement ok
+DROP TABLE IF EXISTS strings
+
+statement ok
+CREATE TABLE strings(a STRING, b BIGINT)
+
+statement ok
+INSERT INTO STRINGS VALUES (NULL, 0), ('abc', NULL), (NULL, NULL)
+
+query T
+SELECT ${FUN}(a, b) FROM strings
+----
+NULL
+NULL
+NULL
+
+endloop
+
+# grapheme clusters
+query TTTT
+SELECT RIGHT_GRAPHEME('🦆🤦S̈', 0), RIGHT_GRAPHEME('🦆🤦S̈', 1), RIGHT_GRAPHEME('🦆🤦S̈', 2), RIGHT_GRAPHEME('🦆🤦S̈', 3)
+----
+(empty)	S̈	🤦S̈	🦆🤦S̈
+
+query TTTT
+SELECT RIGHT_GRAPHEME('🦆🤦S̈', 0), RIGHT_GRAPHEME('🦆🤦S̈', -1), RIGHT_GRAPHEME('🦆🤦S̈', -2), RIGHT_GRAPHEME('🦆🤦S̈', -3)
+----
+(empty)	🤦S̈	S̈	(empty)
+
+# grapheme overflow
+statement ok
+SELECT right_grapheme('a', -9223372036854775808);
+
+statement ok
+SELECT "right"('a', -9223372036854775808);
+
+statement error
+SELECT right_grapheme('a', 9223372036854775808);
+----
+<REGEX>:^Binder Error: No function matches.*

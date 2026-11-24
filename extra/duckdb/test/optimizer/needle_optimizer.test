@@ -1,0 +1,18 @@
+# name: test/optimizer/needle_optimizer.test
+# description: Test move constants
+# group: [optimizer]
+
+statement ok
+CREATE TABLE test(S VARCHAR);
+
+statement ok
+PRAGMA explain_output = OPTIMIZED_ONLY;
+
+# empty prefix/suffix/contains is transformed to this case statement
+query I nosort no_output
+EXPLAIN SELECT PREFIX(S, '') FROM test
+----
+
+query I nosort no_output
+EXPLAIN SELECT CONTAINS(S, '') FROM test
+----

@@ -1,0 +1,2 @@
+--replicate-ignore-table=global_db.t1
+--replicate-ignore-table=:default_db.t1

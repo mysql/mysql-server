@@ -1,0 +1,57 @@
+#
+# Failed to commit in COPY DDL, crash.
+#
+CREATE TABLE `t1` (
+`id` bigint NOT NULL,
+`name` varchar(100),
+PRIMARY KEY (`id`) ) ENGINE=InnoDB;
+INSERT INTO t1 (id, name) VALUES (1, 'abc');
+SET SESSION duckdb_copy_ddl_threads = 0;
+SET SESSION DEBUG = '+d, simulate_duckdb_commit_failed';
+ALTER TABLE t1 ENGINE = DuckDB;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `name` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+id	name
+1	abc
+SET SESSION duckdb_copy_ddl_threads = 4;
+SET SESSION DEBUG = '+d, simulate_duckdb_commit_failed';
+ALTER TABLE t1 ENGINE = DuckDB;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `name` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM t1;
+id	name
+1	abc
+#
+# Failed to commit but not in COPY DDL, not crash
+#
+ALTER TABLE t1 ENGINE = DuckDB;
+SET SESSION DEBUG = '+d, simulate_duckdb_commit_failed';
+BEGIN;
+INSERT INTO t1 (id, name) VALUES (2, 'abc');
+INSERT INTO t1 (id, name) VALUES (3, 'abc');
+COMMIT;
+ERROR HY000: [DuckDB] DuckDB commit transaction error. DuckDB COMMIT failed.
+SET SESSION DEBUG = '-d, simulate_duckdb_commit_failed';
+SELECT * FROM t1;
+id	name
+1	abc
+include/assert.inc [GITD 2 is same with GTID 1.]
+#
+# Cleanup
+#
+DROP TABLE t1;

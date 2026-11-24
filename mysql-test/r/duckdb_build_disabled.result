@@ -1,0 +1,21 @@
+SELECT COUNT(*) AS duckdb_plugins
+FROM information_schema.plugins WHERE plugin_name = 'duckdb';
+duckdb_plugins
+0
+SHOW GLOBAL VARIABLES WHERE Variable_name LIKE '%duckdb%' OR Variable_name = 'ignore_index_hint_error';
+Variable_name	Value
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+ERROR 42000: Unknown storage engine 'DuckDB'
+CALL dbms_duckdb.query('SELECT 42');
+ERROR 42000: PROCEDURE dbms_duckdb.query does not exist
+CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(20)) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1, 'native');
+COMMIT;
+PREPARE native_select FROM 'SELECT id, value FROM t1 WHERE id = ?';
+SET @id= 1;
+EXECUTE native_select USING @id;
+id	value
+1	native
+DEALLOCATE PREPARE native_select;
+DROP TABLE t1;

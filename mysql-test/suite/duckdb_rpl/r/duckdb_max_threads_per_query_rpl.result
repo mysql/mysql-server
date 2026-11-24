@@ -1,0 +1,110 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Test for duckdb_max_threads_per_query_rpl parameter
+# This parameter only affects SQL thread when replaying binlog events on slave
+#
+# 1) Check default value on master and slave
+[connection master]
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+@@global.duckdb_max_threads_per_query_rpl
+1000000
+[connection slave]
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+@@global.duckdb_max_threads_per_query_rpl
+1000000
+SET GLOBAL duckdb_dml_in_batch = OFF;
+# 2) Set different RPL values on master and slave
+[connection master]
+SET GLOBAL duckdb_max_threads_per_query_rpl = 100;
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+@@global.duckdb_max_threads_per_query_rpl
+100
+[connection slave]
+SET GLOBAL duckdb_max_threads_per_query_rpl = 50;
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+@@global.duckdb_max_threads_per_query_rpl
+50
+# 3) Create test table on master with DuckDB engine
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, data VARCHAR(100)) ENGINE=duckdb;
+INSERT INTO t1 VALUES (1, 'master_data_1'), (2, 'master_data_2'), (3, 'master_data_3');
+include/rpl/sync.inc
+# 4) Verify data is replicated to slave via SQL thread
+[connection slave]
+SELECT * FROM t1 ORDER BY id;
+id	data
+1	master_data_1
+2	master_data_2
+3	master_data_3
+# 5) Execute more DML on master to trigger SQL thread replication
+[connection master]
+INSERT INTO t1 VALUES (4, 'master_data_4'), (5, 'master_data_5');
+# 6) Verify slave received the changes via SQL thread
+[connection slave]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+5
+# 7) Check error log to verify SQL thread used correct RPL setting (50)
+Occurrences of 'my_duckdb:.*SET max_threads_per_query = 50' in the input file: 1
+# 8) Change slave's RPL setting and check log under DeltaAppender::Flush
+SET GLOBAL duckdb_max_threads_per_query_rpl = 25;
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+@@global.duckdb_max_threads_per_query_rpl
+25
+SET GLOBAL duckdb_dml_in_batch = ON;
+[connection master]
+BEGIN;
+INSERT INTO t1 VALUES (6, 'master_data_6');
+COMMIT;
+[connection slave]
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+6
+Occurrences of 'my_duckdb:.*SET max_threads_per_query = 25' in the input file: 1
+# 9) Check current setting on slave using DuckDB query, should not affected by duckdb_max_threads_per_query_rpl
+CALL dbms_duckdb.query("select name, value from duckdb_settings() where name='max_threads_per_query' ");
+RESULT
+name	value	
+VARCHAR	VARCHAR	
+[ Rows: 1]
+max_threads_per_query	1000000
+
+
+SET GLOBAL duckdb_max_threads_per_query = 70;
+SELECT count(*) FROM t1;
+count(*)
+6
+CALL dbms_duckdb.query("select name, value from duckdb_settings() where name='max_threads_per_query'");
+RESULT
+name	value	
+VARCHAR	VARCHAR	
+[ Rows: 1]
+max_threads_per_query	1000000
+
+
+# 10) Test invalid values on slave
+SET GLOBAL duckdb_max_threads_per_query_rpl = 0;
+Warnings:
+Warning	1292	Truncated incorrect duckdb_max_threads_per_query_rpl value: '0'
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+@@global.duckdb_max_threads_per_query_rpl
+1
+SET GLOBAL duckdb_max_threads_per_query_rpl = -1;
+Warnings:
+Warning	1292	Truncated incorrect duckdb_max_threads_per_query_rpl value: '-1'
+SELECT @@global.duckdb_max_threads_per_query_rpl;
+@@global.duckdb_max_threads_per_query_rpl
+1
+# 11) Cleanup
+[connection master]
+SET GLOBAL duckdb_max_threads_per_query_rpl = default;
+DROP TABLE t1;
+[connection slave]
+SET GLOBAL duckdb_max_threads_per_query_rpl = default;
+SET GLOBAL duckdb_max_threads_per_query = default;
+SET GLOBAL duckdb_dml_in_batch = default;
+include/rpl/deinit.inc

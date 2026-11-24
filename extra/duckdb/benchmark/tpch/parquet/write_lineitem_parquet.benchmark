@@ -1,0 +1,16 @@
+# name: benchmark/tpch/parquet/write_lineitem_parquet.benchmark
+# description: Write the lineitem of TPC-H SF1 to a Parquet file
+# group: [parquet]
+
+include benchmark/tpch/tpch_load.benchmark.in
+
+name Write Lineitem Parquet
+group parquet
+
+require parquet
+
+run
+COPY lineitem TO '${BENCHMARK_DIR}/lineitem.parquet';
+
+result I sf=1
+6001215

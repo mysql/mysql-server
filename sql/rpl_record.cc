@@ -38,8 +38,9 @@
 #include "sql/changestreams/misc/replicated_columns_view_factory.h"  // get_columns_view
 #include "sql/current_thd.h"
 #include "sql/debug_sync.h"
-#include "sql/derror.h"  // ER_THD
-#include "sql/field.h"   // Field
+#include "sql/derror.h"               // ER_THD
+#include "sql/duckdb/duckdb_table.h"  // is_duckdb_table
+#include "sql/field.h"                // Field
 #include "sql/log_event.h"
 #include "sql/rpl_rli.h"      // Relay_log_info
 #include "sql/rpl_utility.h"  // table_def
@@ -184,7 +185,8 @@ static bool unpack_field(const uchar **pack_ptr, Field *field, uint metadata,
     function is not called when applying updated records in
     replication.
   */
-  if (field->handle_old_value())
+  if (field->is_flag_set(BLOB_FLAG) &&
+      (down_cast<Field_blob *>(field))->get_keep_old_value())
     (down_cast<Field_blob *>(field))->keep_old_value();
 
   if (is_partial_column) {
@@ -674,6 +676,10 @@ bool unpack_row(Relay_log_info const *rli, TABLE *table,
         if (len > f->max_packed_col_length()) {
           my_error(ER_REPLICA_CORRUPT_EVENT, MYF(0));
           return true;
+        }
+        if (row_image_type == enum_row_image_type::UPDATE_AI &&
+            myduck::is_duckdb_table(table) && f->is_flag_set(BLOB_FLAG)) {
+          (down_cast<Field_blob *>(f))->set_keep_old_value(true);
         }
         if (only_seek)
           pack_ptr += len;

@@ -1,0 +1,63 @@
+# name: test/sql/table_function/sqlite_master.test
+# description: Test sqlite_master function
+# group: [table_function]
+
+statement ok
+CREATE TABLE integers(i INTEGER);
+
+query IIIII
+SELECT * FROM sqlite_master;
+----
+table	integers	integers	0	CREATE TABLE integers(i INTEGER);
+
+query I
+SELECT EXISTS(SELECT * FROM sqlite_master)
+----
+1
+
+query I
+SELECT EXISTS(SELECT * FROM sqlite_master OFFSET 1)
+----
+0
+
+query I
+SELECT COUNT(*) FROM sqlite_master WHERE name='test'
+----
+0
+
+query I
+SELECT COUNT(*) FROM sqlite_master WHERE name='integers'
+----
+1
+
+statement ok
+create table tconstraint1(i integer primary key default(3), j blob not null);
+
+query IIIII
+SELECT * FROM sqlite_master WHERE name='tconstraint1';
+----
+table	tconstraint1	tconstraint1	0	CREATE TABLE tconstraint1(i INTEGER DEFAULT(3) PRIMARY KEY, j BLOB NOT NULL);
+
+statement ok
+create table tconstraint2(i integer, j integer, k integer, l integer unique, primary key(i, j, k));
+
+query IIIII
+SELECT * FROM sqlite_master WHERE name='tconstraint2';
+----
+table	tconstraint2	tconstraint2	0	CREATE TABLE tconstraint2(i INTEGER, j INTEGER, k INTEGER, l INTEGER UNIQUE, PRIMARY KEY(i, j, k));
+
+statement ok
+CREATE INDEX i_index ON integers(i);
+
+query IIIII
+SELECT * REPLACE (trim(sql, chr(10)) as sql) FROM sqlite_master WHERE name='i_index';
+----
+index	i_index	integers	0	CREATE INDEX i_index ON integers(i);
+
+statement ok
+CREATE VIEW v1 AS SELECT 42
+
+query IIII
+SELECT "type", "name", "tbl_name", rootpage FROM sqlite_master WHERE name='v1';
+----
+view	v1	v1	0

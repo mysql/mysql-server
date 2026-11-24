@@ -1,0 +1,72 @@
+#
+# 1) PREPARE
+#
+CREATE DATABASE `my-db`;
+USE `my-db`;
+CREATE TABLE `my-table` (
+`id` int(11) NOT NULL,
+`name` varchar(255) NOT NULL,
+PRIMARY KEY (`id`)
+) ENGINE = InnoDB;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+INSERT INTO `my-table` (`id`, `name`) VALUES (1, 'John'), (2, 'Jane'), (3, 'Jim');
+#
+# 2) ALTER TO DUCKDB
+#
+ALTER TABLE `my-table` ENGINE = DuckDB;
+include/assert.inc [CHECKSUM is the same]
+ALTER TABLE `my-table` RENAME TO `my-table-renamed`;
+RENAME TABLE `my-table-renamed` TO `my-table`;
+ALTER TABLE `my-table` ADD COLUMN `col1` INT;
+ALTER TABLE `my-table` ADD COLUMN `col2` INT, ALGORITHM = COPY;
+SELECT COUNT(*) FROM `my-table`;
+COUNT(*)
+3
+INSERT INTO `my-table` (`id`, `name`) VALUES (4, 'Joe');
+UPDATE `my-table` SET `name` = 'Jack' WHERE `id` = 4;
+DELETE FROM `my-table` WHERE `id` = 4;
+CALL dbms_duckdb.query("SELECT table_schema, table_name FROM information_schema.tables WHERE table_schema = 'my-db'");
+RESULT
+table_schema	table_name	
+VARCHAR	VARCHAR	
+[ Rows: 1]
+my-db	my-table
+
+
+CALL dbms_duckdb.query("DESC `my-db`.`my-table`");
+RESULT
+column_name	column_type	null	key	default	extra	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+id	INTEGER	NO	NULL	NULL	NULL
+name	VARCHAR	NO	NULL	NULL	NULL
+col1	INTEGER	YES	NULL	NULL	NULL
+col2	INTEGER	YES	NULL	NULL	NULL
+
+
+#
+# 3) ALTER TO INNODB
+#
+ALTER TABLE `my-table` ENGINE = InnoDB;
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'my-db'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+0
+
+
+include/assert.inc [CHECKSUM is the same]
+#
+# 4) CLEANUP
+#
+DROP DATABASE `my-db`;
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name = 'my-db'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+0
+
+

@@ -208,6 +208,9 @@
 #include "thr_lock.h"
 #include "typelib.h"
 
+#include "sql/duckdb/duckdb_table.h"
+#include "sql/sql_table_ext.h"
+
 namespace dd {
 class View;
 }  // namespace dd
@@ -8313,6 +8316,11 @@ bool mysql_prepare_create_table(
     int select_field_count, bool find_parent_keys) {
   DBUG_TRACE;
 
+  /* Do some modification for duckdb. */
+  if (myduck::prepare_create_duckdb_table(thd, create_info, alter_info)) {
+    return true;
+  }
+
   /*
     Validation of table properties.
   */
@@ -9039,6 +9047,13 @@ static Table_exists_result check_if_table_exists(
   return {false, false};
 }
 
+static bool has_primary_key(Alter_info *alter_info) {
+  for (auto &key : alter_info->key_list) {
+    if (key->type == KEYTYPE_PRIMARY) return true;
+  }
+  return false;
+}
+
 bool validate_secondary_engine_temporary_table(THD *thd,
                                                HA_CREATE_INFO *create_info) {
   /*
@@ -9654,6 +9669,9 @@ static bool create_table_impl(
   DBUG_PRINT("enter", ("db: '%s'  table: '%s'  tmp: %d", db, table_name,
                        internal_tmp_table));
 
+  /* Force convert InnoDB to DuckDB. */
+  force_convert_engine(thd, db, create_info);
+
   if (check_engine(db, table_name, create_info)) return true;
 
   if (is_temp_table(*create_info) &&
@@ -9898,6 +9916,12 @@ static bool create_table_impl(
   if (thd->variables.keep_files_on_create)
     create_info->options |= HA_CREATE_KEEP_FILES;
 
+  if (create_info->db_type->db_type == DB_TYPE_DUCKDB &&
+      duckdb_require_primary_key && !has_primary_key(alter_info)) {
+    my_error(ER_REQUIRES_PRIMARY_KEY, MYF(0));
+    return true;
+  }
+
   StringBuffer<STRING_BUFFER_USUAL_SIZE> engine_attr_buffer;
   if (convert_to_engine_attribute(thd, create_info, engine_attr_buffer)) {
     return true;
@@ -9949,6 +9973,10 @@ static bool create_table_impl(
   @returns true on failure, false on success.
 */
 static bool validate_table_encryption(THD *thd, HA_CREATE_INFO *create_info) {
+  /* Currently we just allow encryption for DuckDB and do nothing */
+  if (create_info->db_type->db_type == DB_TYPE_DUCKDB) {
+    return false;
+  }
   // Study if this table uses general tablespaces and if any one is encrypted.
   bool uses_general_tablespace = false;
   bool uses_encrypted_tablespace = false;
@@ -10944,6 +10972,9 @@ bool mysql_create_table(THD *thd, Table_ref *create_table,
   Foreign_key_parents_invalidator fk_invalidator;
   DBUG_TRACE;
 
+  /* Force convert InnoDB to DuckDB. */
+  force_convert_engine(thd, create_table->db, create_info);
+
   handlerton *actual_hton = get_viable_handlerton_for_create(
       thd, create_table->table_name, *create_info);
   if (actual_hton == nullptr) return true;
@@ -11551,6 +11582,11 @@ bool mysql_rename_table(THD *thd, handlerton *base, const char *old_db,
       thd->dd_client()->acquire_for_modification(old_db, old_name,
                                                  &to_table_def))
     return true;
+
+  DBUG_EXECUTE_IF("simulate_parallel_copy_ddl_rename_failed", {
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
+    return true;
+  });
 
   Table_ddl_hton_notification_guard notification_guard{
       thd,
@@ -13635,8 +13671,8 @@ static void update_altered_table(const Alter_inplace_info &ha_alter_info,
                         which is used for identifying new columns.
 */
 
-static void set_column_static_defaults(TABLE *altered_table,
-                                       List<Create_field> &create) {
+void set_column_static_defaults(TABLE *altered_table,
+                                List<Create_field> &create) {
   // Initialize TABLE::field default values
   restore_record(altered_table, s->default_values);
 
@@ -17614,6 +17650,21 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     }
   }
 
+  /* Force convert InnoDB to DuckDB. */
+  force_convert_engine(thd, table_list->table, table_list->db, new_db,
+                       create_info);
+
+  if (myduck::is_duckdb_table(table_list->table)) {
+    if (!myduck::is_supported_ddl(alter_info, table_list->table)) return true;
+
+    /* Reset ALGORITHM and LOCK in slave. */
+    if (thd->slave_thread) {
+      alter_info->requested_algorithm =
+          Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT;
+      alter_info->requested_lock = Alter_info::ALTER_TABLE_LOCK_DEFAULT;
+    }
+  }
+
   // Check tablespace name validity for the relevant engine.
   {
     // If there is no target handlerton, use the current.
@@ -18033,7 +18084,8 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
 
   THD_STAGE_INFO(thd, stage_setup);
 
-  if (is_simple_rename_or_index_change(alter_info) && !table->s->tmp_table) {
+  if (is_simple_rename_or_index_change(alter_info) && !table->s->tmp_table &&
+      (!myduck::is_duckdb_table(table) || !alter_ctx.is_database_changed())) {
     // This requires X-lock, no other lock levels supported.
     if (alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_DEFAULT &&
         alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE) {
@@ -18099,6 +18151,16 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   while ((create_field = list_it++)) {
     if (create_field->change != nullptr) columns.emplace(create_field->change);
   }
+
+  /*
+    For duckdb, non-primary key is removed, if master do DDL on non-primary key,
+    or constraint, slave DDL will fail. So we need to remove related DDL
+    operation, include:
+    DROP INDEX, RENAME INDEX, ALTER VISIBLILITY, DROP FOREIGN KEY,
+    DROP_CHECK_CONSTRAINT, ENFORCE_CHECK_CONSTRAINT, SUSPEND_CHECK_CONSTRAINT,
+    DROP_ANY_CONSTRAINT, ENFORCE_ANY_CONSTRAINT, SUSPEND_ANY_CONSTRAINT
+  */
+  myduck::prepare_alter_duckdb_table(thd, create_info, alter_info);
 
   /*
     Type of a constraint marked for DROP with DROP CONSTRAINT clause is unknown.
@@ -18843,6 +18905,18 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
   }
 
   {
+    if (table->s->tmp_table && new_db_type &&
+        new_db_type->db_type == DB_TYPE_DUCKDB) {
+      my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
+               ha_resolve_storage_engine_name(new_db_type), "TEMPORARY");
+      goto err_new_table_cleanup;
+    }
+
+    if (new_db_type->db_type == DB_TYPE_DUCKDB &&
+        old_db_type->db_type == DB_TYPE_INNODB) {
+      thd->get_rds_context().set_copy_ddl_from_innodb_to_duckdb(true);
+    }
+
     if (ha_create_table(thd, alter_ctx.get_tmp_path(), alter_ctx.new_db,
                         alter_ctx.tmp_name, create_info, false, true,
                         table_def))
@@ -18900,6 +18974,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
       my_error(ER_LOCK_WAIT_TIMEOUT, MYF(0));
       goto err_new_table_cleanup;
     });
+
+    if (new_db_type->db_type == DB_TYPE_DUCKDB &&
+        old_db_type->db_type == DB_TYPE_DUCKDB) {
+      thd->get_rds_context().set_copy_ddl_from_duckdb_to_duckdb(true);
+    }
 
     if (copy_data_between_tables(thd, thd->m_stage_progress_psi, table,
                                  new_table, alter_info->create_list, &copied,
@@ -19213,6 +19292,11 @@ bool mysql_alter_table(THD *thd, const char *new_db, const char *new_name,
     goto err_with_mdl;
   }
 
+  DBUG_EXECUTE_IF("simulate_parallel_copy_ddl_failed_after_rename", {
+    my_error(ER_UNKNOWN_ERROR, MYF(0));
+    goto err_with_mdl;
+  });
+
   /*
     If ALTER TABLE is non-atomic and fails after this point it can add
     foreign keys and such addition won't be reverted. So we need to
@@ -19338,6 +19422,32 @@ end_inplace_noop:
 
     uncommitted_tables.add_table(table_list);
 
+    DBUG_EXECUTE_IF("sync_before_update_view_metadata", {
+      /*
+        Barrier: wait until two threads both reach this point (each holding
+        MDL_EXCLUSIVE on its own table) before proceeding to
+        update_referencing_views_metadata(). This deterministically
+        reproduces the VIEW MDL deadlock during parallel conversion.
+      */
+      static std::atomic<int> barrier_count{0};
+      barrier_count.fetch_add(1);
+      while (barrier_count.load() < 2) my_sleep(100000);
+    });
+
+    /*
+      Minimal-repro hook for the FIL-cache fs-charset-vs-system-charset
+      split bug: any copy-style ALTER that rolls back through err_with_mdl
+      after mysql_rename_table goes through Log_DDL::post_ddl ->
+      fil_op_replay_rename, whose "rollback target file does NOT exist"
+      branch string-slices the .ibd path with zero charset decoding and
+      leaves space->name in filesystem charset (e.g. "mydb@002dx/t1").
+      Engine-agnostic — used by bugfix_alter_rollback_fs_charset_split.test.
+    */
+    DBUG_EXECUTE_IF("force_alter_rollback_after_rename", {
+      my_error(ER_LOCK_DEADLOCK, MYF(0));
+      goto err_with_mdl;
+    });
+
     if (update_referencing_views_metadata(thd, table_list, new_db, new_name,
                                           !atomic_replace, &uncommitted_tables))
       goto err_with_mdl;
@@ -19416,6 +19526,11 @@ end_temporary:
   return false;
 
 err_new_table_cleanup:
+  /* Cleanup tmp DuckDB table. */
+  if (thd->get_rds_context().is_copy_ddl_from_innodb_to_duckdb()) {
+    myduck::cleanup_tmp_table(thd, alter_ctx.new_db, alter_ctx.tmp_name);
+  }
+
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
     if (new_table)
       close_temporary_table(thd, new_table, true, true);
@@ -19477,6 +19592,13 @@ err_new_table_cleanup:
   return true;
 
 err_with_mdl:
+  /* Cleanup tmp DuckDB table. */
+  if (thd->get_rds_context().is_copy_ddl_from_innodb_to_duckdb()) {
+    myduck::cleanup_tmp_table(thd, alter_ctx.new_db, alter_ctx.tmp_name);
+    /* New DuckDB table may have been renamed, so cleanup it again. */
+    myduck::cleanup_tmp_table(thd, alter_ctx.new_db, alter_ctx.new_alias);
+  }
+
   /*
     An error happened while we were holding exclusive name metadata lock
     on table being altered. Before releasing locks we need to rollback
@@ -19602,6 +19724,18 @@ static int copy_data_between_tables(
     List<Create_field> &create, ha_rows *copied, ha_rows *deleted,
     Alter_info::enum_enable_or_disable keys_onoff, Alter_table_ctx *alter_ctx) {
   DBUG_TRACE;
+
+  if (thd->get_rds_context().is_copy_ddl_from_innodb_to_duckdb() &&
+      thd->variables.duckdb_copy_ddl_threads > 1) {
+    return parallel_copy_data_between_tables(thd, psi, from, to, create, copied,
+                                             deleted, alter_ctx);
+  }
+
+  if (thd->get_rds_context().is_copy_ddl_from_duckdb_to_duckdb() &&
+      thd->variables.duckdb_copy_data_between_tables_use_ins_sel) {
+    return copy_data_between_duckdb_tables(thd, psi, from, to, create, copied,
+                                           deleted, alter_ctx);
+  }
 
   int error;
   Copy_field *copy, *copy_end;

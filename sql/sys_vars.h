@@ -2843,4 +2843,7 @@ void update_temptable_max_ram_default();
 void update_parser_max_mem_size();
 void update_optimizer_switch();
 
+bool check_outside_trx(sys_var *var, THD *thd, set_var *);
+bool check_slave_stopped(sys_var *self, THD *thd, set_var *var);
+
 #endif /* SYS_VARS_H_INCLUDED */

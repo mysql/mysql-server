@@ -1,0 +1,118 @@
+# ----------------------------------------------------------------------
+# Setup
+# Creating local configuration file for keyring component: component_keyring_file
+# Creating manifest file for current MySQL server instance
+# Re-starting mysql server with manifest file
+# ----------------------------------------------------------------------
+DROP DATABASE IF EXISTS encryption_test;
+CREATE DATABASE encryption_test;
+USE encryption_test;
+#
+# Test: create duckdb table with encryption option
+#
+CREATE TABLE string_table (
+id INT PRIMARY KEY,
+bool_field BOOLEAN,
+decimal_field DECIMAL(10,2),
+enum_field ENUM('small', 'medium', 'large'),
+set_field SET('red', 'green', 'blue'),
+varchar_field VARCHAR(255),
+json_field JSON ,
+text_field TEXT,
+new_decimal_field DECIMAL(20,6)
+) ENGINE=DuckDB ENCRYPTION = 'Y';
+INSERT INTO string_table VALUES (1, TRUE, 123.45, 'small', 'red,green', 'varchar_sample','{"name": "Alice", "age": 30}', 'This is a sample text.', 123456.789012);
+INSERT INTO string_table VALUES (2, NULL, NULL, NULL, NULL, NULL, NULL,NULL,NULL);
+INSERT INTO string_table VALUES (3, FALSE, 100.00, 'medium', 'red,blue', 'varchar_final', '{"animal": "dog", "legs": 4}', 'End of this test text.', 778899.001122);
+SHOW CREATE TABLE string_table;
+Table	Create Table
+string_table	CREATE TABLE `string_table` (
+  `id` int NOT NULL,
+  `bool_field` tinyint(1) DEFAULT NULL,
+  `decimal_field` decimal(10,2) DEFAULT NULL,
+  `enum_field` enum('small','medium','large') DEFAULT NULL,
+  `set_field` set('red','green','blue') DEFAULT NULL,
+  `varchar_field` varchar(255) DEFAULT NULL,
+  `json_field` json DEFAULT NULL,
+  `text_field` text,
+  `new_decimal_field` decimal(20,6) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+CHECKSUM TABLE string_table;
+Table	Checksum
+encryption_test.string_table	1870613497
+#
+# alter table to innodb and check whether innodb is encrypted
+#
+ALTER TABLE string_table ENGINE = InnoDB;
+SHOW CREATE TABLE string_table;
+Table	Create Table
+string_table	CREATE TABLE `string_table` (
+  `id` int NOT NULL,
+  `bool_field` tinyint(1) DEFAULT NULL,
+  `decimal_field` decimal(10,2) DEFAULT NULL,
+  `enum_field` enum('small','medium','large') DEFAULT NULL,
+  `set_field` set('red','green','blue') DEFAULT NULL,
+  `varchar_field` varchar(255) DEFAULT NULL,
+  `json_field` json DEFAULT NULL,
+  `text_field` text,
+  `new_decimal_field` decimal(20,6) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+CHECKSUM TABLE string_table;
+Table	Checksum
+encryption_test.string_table	1870613497
+#
+# Test: create innodb table with encryption option
+#
+CREATE TABLE blob_table (
+id INT PRIMARY KEY,
+tiny_blob_field TINYBLOB,
+medium_blob_field MEDIUMBLOB,
+long_blob_field LONGBLOB,
+blob_field BLOB,
+bit_field BIT(64)
+) ENGINE=InnoDB ENCRYPTION = 'Y';
+INSERT INTO blob_table VALUES (1, 'tinyblob_data', 'mediumblob_data', 'longblob_data', 'blob_data', b'00000001');
+INSERT INTO blob_table VALUES (2, NULL, NULL, 'longblob_data3', NULL, b'00000010');
+INSERT INTO blob_table VALUES (3, 'tinyblob_data4', 'mediumblob_data4', NULL, 'blob_data2', NULL);
+SHOW CREATE TABLE blob_table;
+Table	Create Table
+blob_table	CREATE TABLE `blob_table` (
+  `id` int NOT NULL,
+  `tiny_blob_field` tinyblob,
+  `medium_blob_field` mediumblob,
+  `long_blob_field` longblob,
+  `blob_field` blob,
+  `bit_field` bit(64) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+CHECKSUM TABLE blob_table;
+Table	Checksum
+encryption_test.blob_table	814255090
+#
+# Test: alter table to duckdb and check whether duckdb is encrypted
+#
+ALTER TABLE blob_table ENGINE = DuckDB;
+SHOW CREATE TABLE blob_table;
+Table	Create Table
+blob_table	CREATE TABLE `blob_table` (
+  `id` int NOT NULL,
+  `tiny_blob_field` tinyblob,
+  `medium_blob_field` mediumblob,
+  `long_blob_field` longblob,
+  `blob_field` blob,
+  `bit_field` bit(64) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ENCRYPTION='Y'
+CHECKSUM TABLE blob_table;
+Table	Checksum
+encryption_test.blob_table	814255090
+DROP DATABASE encryption_test;
+# ----------------------------------------------------------------------
+# Teardown
+# Removing manifest file for current MySQL server instance
+# Removing local keyring file for keyring component: component_keyring_file
+# Removing local configuration file for keyring component: component_keyring_file
+# Restarting server without the manifest file
+# ----------------------------------------------------------------------

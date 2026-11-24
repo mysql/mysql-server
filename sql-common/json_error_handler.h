@@ -99,6 +99,7 @@ class JsonParseDefaultErrorHandler {
       : m_func_name(func_name), m_arg_idx(arg_idx) {}
 
   void operator()(const char *parse_err, size_t err_offset) const;
+  bool m_caller_is_duckdb = false;
 
  private:
   const char *m_func_name;
@@ -177,6 +178,7 @@ class JsonCoercionDeprecatedDefaultHandler {
  public:
   void operator()(MYSQL_TIME_STATUS &status) const;
 };
+void JsonDocumentDefaultDepthHandlerDuckDB();
 
 #endif  // MYSQL_SERVER
 #endif  // JSON_ERROR_HANDLER_INCLUDED

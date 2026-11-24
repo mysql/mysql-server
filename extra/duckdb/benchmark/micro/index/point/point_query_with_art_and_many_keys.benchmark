@@ -1,0 +1,17 @@
+# name: benchmark/micro/index/point/point_query_with_art_and_many_keys.benchmark
+# description: Point query with an ART and many duplicate keys.
+# group: [point]
+
+name Point Query (ART) With Many Keys
+group art
+
+load
+SET index_scan_percentage = 1.0;
+CREATE TABLE integers AS SELECT range % 100 AS i FROM range(10000000);
+CREATE INDEX i_index ON integers USING ART(i);
+
+run
+SELECT COUNT(i) FROM integers WHERE i = '42';
+
+result I
+100000

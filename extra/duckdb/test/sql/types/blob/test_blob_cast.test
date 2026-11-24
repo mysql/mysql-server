@@ -1,0 +1,81 @@
+# name: test/sql/types/blob/test_blob_cast.test
+# description: Cast BLOB values
+# group: [blob]
+
+# BLOB to VARCHAR -> CastFromBlob, it always results in a hex representation
+query T
+SELECT 'a'::BYTEA::VARCHAR
+----
+a
+
+# VARCHAR to BLOB -> CastToBlob
+query T
+SELECT 'a'::VARCHAR::BYTEA
+----
+a
+
+# Hex string with BLOB
+query T
+SELECT '\x20\x00\xFF'::BYTEA
+----
+ \x00\xFF
+
+# CastFromBlob with hex string
+query T
+SELECT '\x20\x00\xFF'::BLOB::VARCHAR
+----
+ \x00\xFF
+
+# CastFromBlob and after CastToBlob with hex string
+query T
+SELECT '\x20\x00\xFF'::BLOB::VARCHAR::BLOB
+----
+ \x00\xFF
+
+# CastFromBlob -> CastToBlob -> CastFromBlob with hex string
+query T
+SELECT '\x20\x00\xFF'::BLOB::VARCHAR::BLOB::VARCHAR
+----
+ \x00\xFF
+
+# CastToBlob -> CastFromBlob -> CastToBlob with hex string
+query T
+SELECT '\x20\x00\xFF'::VARCHAR::BLOB::VARCHAR::BLOB
+----
+ \x00\xFF
+
+statement error
+SELECT 1::BYTEA
+----
+<REGEX>:.*Conversion Error.*Unimplemented type for cast.*
+
+statement error
+SELECT 1.0::BYTEA
+----
+<REGEX>:.*Conversion Error.*Unimplemented type for cast.*
+
+# numeric -> bytea, not valid/implemented casts
+statement error
+SELECT 1::tinyint::BYTEA
+----
+<REGEX>:.*Conversion Error.*Unimplemented type for cast.*
+
+statement error
+SELECT 1::smallint::BYTEA
+----
+<REGEX>:.*Conversion Error.*Unimplemented type for cast.*
+
+statement error
+SELECT 1::integer::BYTEA
+----
+<REGEX>:.*Conversion Error.*Unimplemented type for cast.*
+
+statement error
+SELECT 1::bigint::BYTEA
+----
+<REGEX>:.*Conversion Error.*Unimplemented type for cast.*
+
+statement error
+SELECT 1::decimal::BYTEA
+----
+<REGEX>:.*Conversion Error.*Unimplemented type for cast.*

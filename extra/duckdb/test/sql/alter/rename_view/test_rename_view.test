@@ -1,0 +1,80 @@
+# name: test/sql/alter/rename_view/test_rename_view.test
+# description: Test RENAME VIEW single transaction
+# group: [rename_view]
+
+statement ok
+CREATE TABLE tbl(i INTEGER);
+INSERT INTO tbl VALUES (999), (100);
+CREATE VIEW vw AS SELECT * FROM tbl;
+
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+ALTER VIEW vw RENAME TO vw2
+
+query I
+SELECT * FROM vw2
+----
+999
+100
+
+statement error
+SELECT * FROM vw
+----
+Catalog Error: Table with name vw does not exist
+
+statement ok
+ROLLBACK
+
+query I
+SELECT * FROM vw;
+----
+999
+100
+
+statement error
+SELECT * FROM vw2
+----
+Catalog Error: Table with name vw2 does not exist
+
+statement ok
+BEGIN TRANSACTION;
+
+statement ok
+ALTER VIEW vw RENAME TO vw2
+
+statement ok
+COMMIT
+
+query I
+SELECT * FROM vw2
+----
+999
+100
+
+statement error
+SELECT * FROM vw
+----
+Catalog Error: Table with name vw does not exist
+
+statement ok
+CREATE VIEW vw AS SELECT i+1 AS i FROM tbl
+
+query I
+SELECT * FROM vw
+----
+1000
+101
+
+# cannot rename a system view
+statement error
+ALTER VIEW sqlite_master RENAME TO my_sqlite_master
+----
+Binder Error: Can not comment on System Catalog entries
+
+# cannot rename a view that does not exist
+statement error
+ALTER VIEW nonexistingview RENAME TO my_new_view
+----
+Catalog Error: View with name nonexistingview does not exist

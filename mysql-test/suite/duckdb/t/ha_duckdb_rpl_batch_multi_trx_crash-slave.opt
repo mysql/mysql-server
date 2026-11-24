@@ -1,0 +1,6 @@
+--skip-log-bin
+--replica_parallel_workers=1
+--duckdb_multi_trx_in_batch=on
+--duckdb_multi_trx_timeout=1000
+--duckdb_log_options='DUCKDB_QUERY,DUCKDB_QUERY_RESULT'
+--debug=+d,duckdb_print_dml

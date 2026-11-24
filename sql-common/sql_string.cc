@@ -946,7 +946,7 @@ size_t well_formed_copy_nchars(const CHARSET_INFO *to_cs, char *to,
   return res;
 }
 
-void String::print(String *str) const {
+void String::print(String *str, bool duckdb_rewrite) const {
   char *st = m_ptr;
   char *end = st + m_length;
 
@@ -962,7 +962,11 @@ void String::print(String *str) const {
         str->append(STRING_WITH_LEN("\\0"));
         break;
       case '\'':
-        str->append(STRING_WITH_LEN("\\'"));
+        if (duckdb_rewrite) {
+          str->append(STRING_WITH_LEN("''"));
+        } else {
+          str->append(STRING_WITH_LEN("\\'"));
+        }
         break;
       case '\n':
         str->append(STRING_WITH_LEN("\\n"));

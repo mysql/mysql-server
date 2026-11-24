@@ -1,0 +1,154 @@
+# 
+# auto-increment-offset and auto-increment-increment
+#
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = ON;
+--enable_query_log
+
+--echo # ======================================================== #
+--echo # 1) Auto increment variables, like xengine.autoinc_vars
+--echo # ======================================================== #
+
+--echo #---------------------------
+--echo # auto_increment_offset
+--echo #---------------------------
+SET auto_increment_offset = 200;
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b CHAR(8)) ENGINE=DuckDB;
+
+# If auto_increment_offset is greater than auto_increment_increment,
+# the offset is ignored
+
+INSERT INTO t1 (a,b) VALUES (NULL,'a'),(NULL,'b'),(NULL,'c');
+SELECT LAST_INSERT_ID();
+SELECT a,b FROM t1 ORDER BY a;
+
+--echo #---------------------------
+--echo # auto_increment_increment
+--echo #---------------------------
+
+SET auto_increment_increment = 300;
+# offset should not be ignored anymore
+
+INSERT INTO t1 (a,b) VALUES (NULL,'d'),(NULL,'e'),(NULL,'f');
+SELECT LAST_INSERT_ID();
+SELECT a,b FROM t1 ORDER BY a;
+
+SET auto_increment_increment = 50;
+INSERT INTO t1 (a,b) VALUES (NULL,'g'),(NULL,'h'),(NULL,'i');
+SELECT LAST_INSERT_ID();
+SELECT a,b FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+
+--echo #---------------------------
+--echo # offset is greater than the max value
+--echo #---------------------------
+
+SET auto_increment_increment = 500;
+SET auto_increment_offset = 300;
+
+CREATE TABLE t1 (a TINYINT AUTO_INCREMENT PRIMARY KEY) ENGINE=DuckDB;
+
+# now test with the 5.6 behavior just to be sure
+set @orig_sql_mode=@@session.sql_mode;
+set session sql_mode="";
+INSERT INTO t1 (a) VALUES (NULL);
+set session sql_mode=@orig_sql_mode;
+
+SELECT LAST_INSERT_ID();
+SELECT a FROM t1 ORDER BY a;
+DROP TABLE t1;
+
+#--echo #---------------------------
+#--echo # test large autoincrement values
+#--echo #---------------------------
+SET auto_increment_increment = 1;
+SET auto_increment_offset = 1;
+CREATE TABLE t1 (a BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b CHAR(8)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (18446744073709551613, 'a');
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (NULL, 'b');
+SHOW CREATE TABLE t1;
+--error ER_AUTOINC_READ_FAILED
+INSERT INTO t1 VALUES (NULL, 'c');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+SET auto_increment_increment = 300;
+CREATE TABLE t1 (a BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b CHAR(8)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (18446744073709551613, 'a');
+SHOW CREATE TABLE t1;
+--error ER_AUTOINC_READ_FAILED
+INSERT INTO t1 VALUES (NULL, 'b');
+SHOW CREATE TABLE t1;
+--error ER_AUTOINC_READ_FAILED
+INSERT INTO t1 VALUES (NULL, 'c');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+SET auto_increment_offset = 200;
+CREATE TABLE t1 (a BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, b CHAR(8)) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (18446744073709551613, 'a');
+SHOW CREATE TABLE t1;
+--error ER_AUTOINC_READ_FAILED
+INSERT INTO t1 VALUES (NULL, 'b');
+SHOW CREATE TABLE t1;
+--error ER_AUTOINC_READ_FAILED
+INSERT INTO t1 VALUES (NULL, 'c');
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #----------------------------------
+--echo # Issue #792 Crash in autoincrement
+--echo #----------------------------------
+
+--error ER_WRONG_FIELD_SPEC
+CREATE TABLE t1(C1 DOUBLE AUTO_INCREMENT KEY,C2 CHAR) ENGINE=DuckDB;
+
+set auto_increment_offset = 1;
+set auto_increment_increment = 1;
+CREATE TABLE t1 (pk INT AUTO_INCREMENT, a INT, PRIMARY KEY(pk)) ENGINE=DuckDB;
+INSERT INTO t1 (a) VALUES (1);
+SHOW CREATE TABLE t1;
+select * from t1;
+UPDATE t1 SET pk = 100;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 (a) VALUES (2);
+SELECT * FROM t1;
+
+#useless if less than current max_value
+ALTER TABLE t1 AUTO_INCREMENT 2;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 (a) VALUES (3);
+select * from t1;
+
+#auto_increment value start from 200
+ALTER TABLE t1 AUTO_INCREMENT 200;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 (a) VALUES (4);
+select * from t1;
+
+DROP TABLE t1;
+
+--echo #----------------------------------
+--echo # Issue #902 Debug assert in autoincrement with small field type
+--echo #----------------------------------
+
+SET auto_increment_increment=100, auto_increment_offset=10;
+CREATE TABLE t1(i INT AUTO_INCREMENT PRIMARY KEY) ENGINE=DuckDB AUTO_INCREMENT=18446744073709551615;
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+ALTER TABLE t1 AUTO_INCREMENT=1;
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+ALTER TABLE t1 AUTO_INCREMENT=18446744073709551615;
+
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+DROP TABLE t1;
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = default;
+--enable_query_log

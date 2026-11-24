@@ -1,0 +1,6 @@
+--duckdb_convert_all_at_startup=ON
+--force_innodb_to_duckdb=ON
+--duckdb_convert_all_skip_mtr_db=ON
+--duckdb_require_primary_key=OFF
+--duckdb_dml_in_batch=OFF
+--skip-log-bin

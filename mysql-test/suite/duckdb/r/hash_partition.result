@@ -1,0 +1,374 @@
+CREATE DATABASE IF NOT EXISTS test_partition;
+USE test_partition;
+#
+# 1) Convert engine between InnoDB and DuckDB
+#
+CREATE TABLE t_hash (id INT KEY) PARTITION BY HASH (id) PARTITIONS 4;
+INSERT INTO t_hash VALUES (1), (2), (3), (4);
+ALTER TABLE t_hash ENGINE = DuckDB;
+SHOW CREATE TABLE t_hash;
+Table	Create Table
+t_hash	CREATE TABLE `t_hash` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 4 */
+INSERT INTO t_hash VALUES (5), (6), (7), (8);
+ALTER TABLE t_hash ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash;
+Table	Create Table
+t_hash	CREATE TABLE `t_hash` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 4 */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_hash PARTITION(p0) ORDER BY id;
+id
+4
+8
+SELECT * FROM t_hash PARTITION(p1) ORDER BY id;
+id
+1
+5
+SELECT * FROM t_hash PARTITION(p2) ORDER BY id;
+id
+2
+6
+SELECT * FROM t_hash PARTITION(p3) ORDER BY id;
+id
+3
+7
+#
+# 2) Add partition, which is no operation in DuckDB
+#
+ALTER TABLE t_hash ENGINE = DuckDB;
+ALTER TABLE t_hash ADD PARTITION PARTITIONS 1;
+SHOW CREATE TABLE t_hash;
+Table	Create Table
+t_hash	CREATE TABLE `t_hash` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 5 */
+INSERT INTO t_hash VALUES(9), (10);
+ALTER TABLE t_hash ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash;
+Table	Create Table
+t_hash	CREATE TABLE `t_hash` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 5 */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_hash PARTITION(p0) ORDER BY id;
+id
+5
+10
+SELECT * FROM t_hash PARTITION(p1) ORDER BY id;
+id
+1
+6
+SELECT * FROM t_hash PARTITION(p2) ORDER BY id;
+id
+2
+7
+SELECT * FROM t_hash PARTITION(p3) ORDER BY id;
+id
+3
+8
+SELECT * FROM t_hash PARTITION(p4) ORDER BY id;
+id
+4
+9
+#
+# 3) Coalesce partition, which is no operation in DuckDB
+#
+ALTER TABLE t_hash ENGINE = DuckDB;
+ALTER TABLE t_hash COALESCE PARTITION 1;
+INSERT INTO t_hash VALUES(11), (12);
+ALTER TABLE t_hash ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash;
+Table	Create Table
+t_hash	CREATE TABLE `t_hash` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 4 */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_hash PARTITION(p0) ORDER BY id;
+id
+4
+8
+12
+SELECT * FROM t_hash PARTITION(p1) ORDER BY id;
+id
+1
+5
+9
+SELECT * FROM t_hash PARTITION(p2) ORDER BY id;
+id
+2
+6
+10
+SELECT * FROM t_hash PARTITION(p3) ORDER BY id;
+id
+3
+7
+11
+#
+# 4) Reorganize partition, which is no operation in DuckDB
+#
+ALTER TABLE t_hash ENGINE = DuckDB;
+ALTER TABLE t_hash REORGANIZE PARTITION;
+SHOW CREATE TABLE t_hash;
+Table	Create Table
+t_hash	CREATE TABLE `t_hash` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 1 */
+INSERT INTO t_hash VALUES (13), (14), (15), (16);
+ALTER TABLE t_hash ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash;
+Table	Create Table
+t_hash	CREATE TABLE `t_hash` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 1 */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_hash PARTITION(p0) ORDER BY id;
+id
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+11
+12
+13
+14
+15
+16
+#
+# 5) Rebuild partition, which is no operation in DuckDB
+#
+ALTER TABLE t_hash ENGINE = DuckDB;
+ALTER TABLE t_hash PARTITION BY HASH(id) PARTITIONS 4;
+ALTER TABLE t_hash REBUILD PARTITION ALL;
+SHOW CREATE TABLE t_hash;
+Table	Create Table
+t_hash	CREATE TABLE `t_hash` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 4 */
+INSERT INTO t_hash VALUES (17), (18), (19), (20);
+ALTER TABLE t_hash ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash;
+Table	Create Table
+t_hash	CREATE TABLE `t_hash` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 4 */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_hash PARTITION(p0) ORDER BY id;
+id
+4
+8
+12
+16
+20
+SELECT * FROM t_hash PARTITION(p1) ORDER BY id;
+id
+1
+5
+9
+13
+17
+SELECT * FROM t_hash PARTITION(p2) ORDER BY id;
+id
+2
+6
+10
+14
+18
+SELECT * FROM t_hash PARTITION(p3) ORDER BY id;
+id
+3
+7
+11
+15
+19
+#
+# 5) Remove partitioning, which is no operation in DuckDB
+#
+ALTER TABLE t_hash ENGINE = DuckDB;
+CREATE TABLE t_hash_2 LIKE t_hash;
+ALTER TABLE t_hash_2 REMOVE PARTITIONING;
+SHOW CREATE TABLE t_hash_2;
+Table	Create Table
+t_hash_2	CREATE TABLE `t_hash_2` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+INSERT INTO t_hash_2 SELECT * FROM t_hash;
+ALTER TABLE t_hash_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash_2;
+Table	Create Table
+t_hash_2	CREATE TABLE `t_hash_2` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/assert.inc [CHECKSUM is the same]
+#
+# 6) Exchange partition, which is not implemented
+#
+ALTER TABLE t_hash_2 ENGINE = DuckDB;
+ALTER TABLE t_hash EXCHANGE PARTITION p1 WITH TABLE t_hash_2;
+ERROR HY000: Partition management on a not partitioned table is not possible
+#
+# 7) Partitioning, which is no operation in DuckDB
+#
+ALTER TABLE t_hash_2 PARTITION BY HASH(id) PARTITIONS 4;
+SHOW CREATE TABLE t_hash_2;
+Table	Create Table
+t_hash_2	CREATE TABLE `t_hash_2` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 4 */
+ALTER TABLE t_hash_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_hash_2;
+Table	Create Table
+t_hash_2	CREATE TABLE `t_hash_2` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+/*!50100 PARTITION BY HASH (`id`)
+PARTITIONS 4 */
+include/assert.inc [CHECKSUM is the same]
+SELECT * FROM t_hash_2 PARTITION(p0) ORDER BY id;
+id
+4
+8
+12
+16
+20
+SELECT * FROM t_hash_2 PARTITION(p1) ORDER BY id;
+id
+1
+5
+9
+13
+17
+SELECT * FROM t_hash_2 PARTITION(p2) ORDER BY id;
+id
+2
+6
+10
+14
+18
+SELECT * FROM t_hash_2 PARTITION(p3) ORDER BY id;
+id
+3
+7
+11
+15
+19
+#
+# 8) Truncate partition, HASH/KEY partition is not supported
+#
+ALTER TABLE t_hash TRUNCATE PARTITION p3;
+ERROR HY000: [DuckDB] TRUNCATE HASH/KEY PARTITION is not supported for this operation.
+#
+# 9) Drop partition, HASH/KEY partition is not supported
+#
+ALTER TABLE t_hash DROP PARTITION p3;
+ERROR HY000: [DuckDB] DROP/TRUNCATE PARTITION on HASH/KEY partitions is not supported for this operation.
+#
+# 10) ADMIN PARTITION
+#
+ALTER TABLE t_hash OPTIMIZE PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_hash	optimize	note	The storage engine for the table doesn't support optimize
+ALTER TABLE t_hash ANALYZE PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_hash	analyze	note	The storage engine for the table doesn't support analyze
+ALTER TABLE t_hash CHECK PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_hash	check	note	The storage engine for the table doesn't support check
+ALTER TABLE t_hash REPAIR PARTITION p0;
+Table	Op	Msg_type	Msg_text
+test_partition.t_hash	repair	note	The storage engine for the table doesn't support repair
+#
+# 11) DML which specify partition
+#
+SELECT * FROM t_hash PARTITION(p0);
+ERROR HY000: [DuckDB] Parser Error: errhint NOT IMPLEMENTED.
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = OFF;
+INSERT INTO t_hash PARTITION(p0) VALUES (16);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_hash PARTITION(p0) WHERE id = 4;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: DELETE FROM t_hash PARTITION(p0) WHERE id = 4
+                           ^.
+UPDATE t_hash PARTITION (p0) SET id = 16 WHERE id = 4;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: UPDATE t_hash PARTITION (p0) SET id = 16 WHERE id = 4
+                      ^.
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = ON;
+INSERT INTO t_hash PARTITION(p0) VALUES (16);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_hash PARTITION(p0) WHERE id = 4;
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+UPDATE t_hash PARTITION (p0) SET id = 16 WHERE id = 4;
+ERROR HY000: [DuckDB] Data import mode: update is not allowed.
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = ON;
+INSERT INTO t_hash PARTITION(p0) VALUES (16);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_hash PARTITION(p0) WHERE id = 4;
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+UPDATE t_hash PARTITION (p0) SET id = 16 WHERE id = 4;
+ERROR HY000: [DuckDB] Data import mode: update is not allowed.
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = OFF;
+INSERT INTO t_hash PARTITION(p0) VALUES (16);
+ERROR HY000: [DuckDB] Specifying partitions is not supported.
+DELETE FROM t_hash PARTITION(p0) WHERE id = 4;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: DELETE FROM t_hash PARTITION(p0) WHERE id = 4
+                           ^.
+UPDATE t_hash PARTITION (p0) SET id = 16 WHERE id = 4;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "PARTITION"
+
+LINE 1: UPDATE t_hash PARTITION (p0) SET id = 16 WHERE id = 4
+                      ^.
+#
+# 12) Cleanup
+#
+SET GLOBAL duckdb_dml_in_batch = default;
+DROP DATABASE test_partition;

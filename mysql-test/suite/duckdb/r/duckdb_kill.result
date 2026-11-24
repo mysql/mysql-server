@@ -1,0 +1,94 @@
+#
+# Prepare the test
+#
+CREATE FUNCTION MY_KILL_QUERY(tid INT) RETURNS INT
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+KILL QUERY tid;
+RETURN (SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = tid AND Info like '%SELECT%');
+END|
+CREATE FUNCTION MY_KILL_CONNECTION(tid INT) RETURNS INT
+BEGIN
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION BEGIN END;
+KILL CONNECTION tid;
+RETURN (SELECT COUNT(*) = 0 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = tid);
+END|
+CREATE TABLE integers(i int primary key) ENGINE=duckdb;
+CALL dbms_duckdb.query("INSERT INTO test.integers FROM range(10000)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+10000
+
+
+#
+# 1. Kill query during executing duckdb query
+#
+SELECT i1.i FROM integers i1, integers i2, integers i3, integers i4, integers i5, integers i6, integers i7, integers i8, integers i9, integers i10, integers i11, integers i12, integers i13;
+ERROR HY000: [DuckDB] INTERRUPT Error: Interrupted!.
+SELECT 1;
+1
+1
+#
+# 2. Kill query before executing duckdb query
+#
+SELECT COUNT(*) FROM integers;
+COUNT(*)
+10000
+#
+# 3. support MAX_EXECUTION_TIME for duckdb query
+#
+SET MAX_EXECUTION_TIME=100;
+SELECT i1.i FROM integers i1, integers i2, integers i3, integers i4, integers i5, integers i6, integers i7, integers i8, integers i9, integers i10, integers i11, integers i12, integers i13;
+ERROR HY000: [DuckDB] INTERRUPT Error: Interrupted!.
+SET MAX_EXECUTION_TIME=0;
+SELECT /*+ MAX_EXECUTION_TIME(100) */ i1.i FROM integers i1, integers i2, integers i3, integers i4, integers i5, integers i6, integers i7, integers i8, integers i9, integers i10, integers i11, integers i12, integers i13;
+ERROR HY000: [DuckDB] INTERRUPT Error: Interrupted!.
+SELECT COUNT(*) FROM integers;
+COUNT(*)
+10000
+SET max_execution_time = 1000;
+SET DEBUG = '+d, simulate_interrupt_duckdb_row';
+SELECT * FROM integers;
+ERROR HY000: [DuckDB] DuckDB send result error. Interrupted!
+SET DEBUG = 'reset';
+SET DEBUG = '+d, simulate_interrupt_duckdb_chunk';
+SELECT * FROM integers;
+ERROR HY000: [DuckDB] DuckDB send result error. Interrupted!
+SET DEBUG = 'reset';
+include/assert_grep.inc [Found interrupt when fetching rows.]
+include/assert_grep.inc [Found interrupt when fetching chunks.]
+#
+# 4. Kill connection when executing duckdb query
+#
+SELECT i1.i FROM integers i1, integers i2, integers i3, integers i4, integers i5, integers i6, integers i7, integers i8, integers i9, integers i10, integers i11, integers i12, integers i13;
+Timeout in wait_condition.inc for SELECT count(*) = 1 FROM information_schema.processlist WHERE id = @id and Time > 1 and command != 'Sleep' and Info like 'SELECT%intergers%'
+ERROR HY000: Lost connection to MySQL server during query
+SELECT COUNT(*) FROM integers;
+COUNT(*)
+10000
+#
+# 5. Kill connection before executing duckdb query
+#
+SELECT COUNT(*) FROM integers;
+ERROR HY000: Lost connection to MySQL server during query
+SELECT COUNT(*) FROM integers;
+COUNT(*)
+10000
+#
+# 6. Kill query beween mysql prepare and duckdb_query
+#
+SET DEBUG_SYNC= 'before_duckdb_query SIGNAL con1_prepared WAIT_FOR con2_killed_con1';
+SELECT COUNT(*) FROM integers;
+SET DEBUG_SYNC='now WAIT_FOR con1_prepared';
+set debug_sync='now SIGNAL con2_killed_con1';
+ERROR HY000: [DuckDB] current query or connection was killed.
+SET DEBUG_SYNC='RESET';
+SET DEBUG_SYNC='RESET';
+#
+# Cleanup the test
+#
+DROP TABLE IF EXISTS integers;
+DROP FUNCTION IF EXISTS MY_KILL_QUERY;
+DROP FUNCTION IF EXISTS MY_KILL_CONNECTION;

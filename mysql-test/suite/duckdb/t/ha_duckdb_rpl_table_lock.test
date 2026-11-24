@@ -1,0 +1,50 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+
+--echo ###########################################################################
+--echo # Prepare
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+SET autocommit = 1;
+CREATE TABLE t1 (
+    id BIGINT NOT NULL,
+    PRIMARY KEY(id)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+
+--echo ###########################################################################
+--echo # Test slow SELECT query will not block Replication
+--echo ###########################################################################
+--source include/rpl/connection_replica.inc
+SET debug_sync = "wait_duckdb_send_result SIGNAL wait_signal WAIT_FOR resume_signal";
+send SELECT * FROM t1;
+
+--source include/rpl/connection_replica1.inc
+SET debug_sync = "now WAIT_FOR wait_signal";
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 values (1);
+
+--source include/rpl/sync.inc
+--let $rpl_diff_statement = SELECT id FROM test.t1 ORDER BY id;
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica1.inc
+SET debug_sync = "now SIGNAL resume_signal";
+
+--source include/rpl/connection_replica.inc
+reap;
+
+--echo ###########################################################################
+--echo # Test Cleanup
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

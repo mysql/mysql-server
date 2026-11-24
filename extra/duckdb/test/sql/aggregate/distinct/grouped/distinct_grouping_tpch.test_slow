@@ -1,0 +1,64 @@
+# name: test/sql/aggregate/distinct/grouped/distinct_grouping_tpch.test_slow
+# group: [grouped]
+
+require tpch
+
+require ram 8gb
+
+require disk_space 40gb
+
+statement ok
+pragma enable_verification
+
+statement ok
+pragma verify_parallelism
+
+statement ok
+PRAGMA verify_external
+
+statement ok
+CALL dbgen(sf=1);
+
+query IIIII
+select
+	grouping(l_returnflag, l_linestatus),
+	l_returnflag,
+	l_linestatus,
+	count(distinct l_orderkey),
+	count(distinct l_comment)
+from lineitem
+group by cube(l_returnflag, l_linestatus)
+order by all;
+----
+0	A	F	644207	1181362
+0	N	F	30908	37987
+0	N	O	770587	2146525
+0	R	F	645527	1181807
+1	A	NULL	644207	1181362
+1	N	NULL	780997	2168690
+1	R	NULL	645527	1181807
+2	NULL	F	767956	2142221
+2	NULL	O	770587	2146525
+3	NULL	NULL	1500000	3610733
+
+query IIIIIIIII
+SELECT
+	COUNT(DISTINCT l_orderkey),
+	COUNT(DISTINCT l_partkey),
+	COUNT(*),
+	MIN(l_orderkey),
+	MAX(l_orderkey),
+	MIN(l_partkey),
+	MAX(l_partkey),
+	SUM(distinct_comment),
+	AVG(distinct_comment)
+FROM (
+	select
+		l_orderkey,
+		l_partkey,
+		count(distinct l_comment) AS distinct_comment
+	from lineitem
+	group by cube(l_orderkey, l_partkey)
+);
+----
+1500000	200000	7701170	1	6000000	1	200000	21614257	2.8066199032095125

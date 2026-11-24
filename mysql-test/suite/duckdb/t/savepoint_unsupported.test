@@ -1,0 +1,14 @@
+--let $saved_duckdb_dml_in_batch= `SELECT @@GLOBAL.duckdb_dml_in_batch`
+CREATE TABLE savepoint_duckdb(id INT PRIMARY KEY) ENGINE=DuckDB;
+CREATE TABLE savepoint_innodb(id INT PRIMARY KEY) ENGINE=InnoDB;
+
+--echo # Batching enabled.
+SET GLOBAL duckdb_dml_in_batch=ON;
+--source suite/duckdb/include/savepoint_unsupported.inc
+
+--echo # Batching disabled.
+SET GLOBAL duckdb_dml_in_batch=OFF;
+--source suite/duckdb/include/savepoint_unsupported.inc
+
+DROP TABLE savepoint_duckdb, savepoint_innodb;
+--eval SET GLOBAL duckdb_dml_in_batch=$saved_duckdb_dml_in_batch

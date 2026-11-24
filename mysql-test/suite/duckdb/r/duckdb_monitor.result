@@ -1,0 +1,127 @@
+# restart
+CREATE TABLE t1(id INT PRIMARY KEY, v VARCHAR(255)) ENGINE=duckdb;
+CREATE TABLE t2(id INT PRIMARY KEY, v VARCHAR(255)) ENGINE=duckdb;
+CREATE TABLE t3(id INT PRIMARY KEY, v VARCHAR(255)) ENGINE=innodb;
+#
+# 1) Duckdb related status variables
+#
+SHOW GLOBAL STATUS LIKE '%duckdb%';
+Variable_name	Value
+Com_duckdb_select	0
+Com_duckdb_insert	0
+Com_duckdb_update	0
+Com_duckdb_delete	0
+Com_duckdb_insert_select	0
+Com_duckdb_explain	0
+DuckDB_convert_stage_at_startup	FINISHED
+Duckdb_rows_insert	0
+Duckdb_rows_update	0
+Duckdb_rows_delete	0
+Duckdb_rows_insert_in_batch	0
+Duckdb_rows_update_in_batch	0
+Duckdb_rows_delete_in_batch	0
+Duckdb_commit	4
+Duckdb_rollback	0
+# Com_duckdb_insert/Duckdb_rows_insert
+SHOW STATUS LIKE '%duckdb%insert%';
+Variable_name	Value
+Com_duckdb_insert	0
+Com_duckdb_insert_select	0
+Duckdb_rows_insert	0
+Duckdb_rows_insert_in_batch	0
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e');
+INSERT INTO t2 VALUES (1, 'a'), (2, 'b'), (3, 'c'), (4, 'd'), (5, 'e');
+SHOW STATUS LIKE '%duckdb%insert%';
+Variable_name	Value
+Com_duckdb_insert	2
+Com_duckdb_insert_select	0
+Duckdb_rows_insert	0
+Duckdb_rows_insert_in_batch	10
+# Com_duckdb_delete/Duckdb_rows_delete
+SHOW STATUS LIKE '%duckdb%delete%';
+Variable_name	Value
+Com_duckdb_delete	0
+Duckdb_rows_delete	0
+Duckdb_rows_delete_in_batch	0
+DELETE FROM t1 WHERE id IN (1,2);
+SHOW STATUS LIKE '%duckdb%delete%';
+Variable_name	Value
+Com_duckdb_delete	1
+Duckdb_rows_delete	0
+Duckdb_rows_delete_in_batch	0
+# Com_duckdb_update/Duckdb_rows_update
+SHOW STATUS LIKE '%duckdb%update%';
+Variable_name	Value
+Com_duckdb_update	0
+Duckdb_rows_update	0
+Duckdb_rows_update_in_batch	0
+UPDATE t1 SET v = 'x' WHERE id IN (3,4);
+SHOW STATUS LIKE '%duckdb%update%';
+Variable_name	Value
+Com_duckdb_update	1
+Duckdb_rows_update	0
+Duckdb_rows_update_in_batch	0
+# Com_duckdb_insert_select: insert into duckdb select * from duckdb
+SHOW STATUS LIKE '%duckdb%insert%';
+Variable_name	Value
+Com_duckdb_insert	2
+Com_duckdb_insert_select	0
+Duckdb_rows_insert	0
+Duckdb_rows_insert_in_batch	10
+INSERT INTO t1 SELECT * FROM t2;
+SHOW STATUS LIKE '%duckdb%insert%';
+Variable_name	Value
+Com_duckdb_insert	2
+Com_duckdb_insert_select	1
+Duckdb_rows_insert	0
+Duckdb_rows_insert_in_batch	10
+# Duckdb_commit
+SHOW STATUS LIKE 'Duckdb_commit';
+Variable_name	Value
+Duckdb_commit	9
+BEGIN;
+INSERT INTO t1 VALUES(6,'f');
+COMMIT;
+SHOW STATUS LIKE 'Duckdb_commit';
+Variable_name	Value
+Duckdb_commit	10
+# Duckdb_rollback
+SHOW STATUS LIKE 'Duckdb_rollback';
+Variable_name	Value
+Duckdb_rollback	0
+BEGIN;
+INSERT INTO t1 VALUES(7,'g');
+ROLLBACK;
+SHOW STATUS LIKE 'Duckdb_rollback';
+Variable_name	Value
+Duckdb_rollback	1
+# Com_duckdb_explain
+SHOW STATUS LIKE 'Com_duckdb_explain';
+Variable_name	Value
+Com_duckdb_explain	0
+EXPLAIN SELECT * FROM t1;
+EXPLAIN UPDATE t1 SET v='x' WHERE id=1;
+EXPLAIN DELETE FROM t1 WHERE id=1;
+SHOW STATUS LIKE 'Com_duckdb_explain';
+Variable_name	Value
+Com_duckdb_explain	3
+SHOW GLOBAL STATUS LIKE '%duckdb%';
+Variable_name	Value
+Com_duckdb_select	1
+Com_duckdb_insert	4
+Com_duckdb_update	1
+Com_duckdb_delete	1
+Com_duckdb_insert_select	1
+Com_duckdb_explain	3
+DuckDB_convert_stage_at_startup	FINISHED
+Duckdb_rows_insert	0
+Duckdb_rows_update	0
+Duckdb_rows_delete	0
+Duckdb_rows_insert_in_batch	12
+Duckdb_rows_update_in_batch	0
+Duckdb_rows_delete_in_batch	0
+Duckdb_commit	13
+Duckdb_rollback	1
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;

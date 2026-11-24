@@ -1,0 +1,177 @@
+--source include/have_binlog_format_row.inc
+--source include/have_debug.inc
+--source include/rpl/init_source_replica.inc
+
+--echo ###########################################################################
+--echo # 0. Prepare
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+SET autocommit = 1;
+--source suite/duckdb/include/rpl_batch_create_table.inc
+
+--echo ###########################################################################
+--echo # 1. Test IO Thread reconnect after the Trx2's GTID Event queued
+--echo ###########################################################################
+--source include/rpl/connection_replica.inc
+STOP REPLICA;
+
+--source include/rpl/connection_source.inc
+--echo # 1.1 Execute two Transactions on Master
+INSERT INTO t1 (id, c0, c1) VALUES (1, 'abc', NULL), (3, 'efg', 'RSA');
+UPDATE t1 SET id=6, c1='AliSQL' WHERE id=1;
+
+--echo # 1.2 Make IO Thread stop after the Trx2's GTID Event queued
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("MY-013122");
+SET GLOBAL debug="+d,stop_when_queue_2nd_query_event";
+START REPLICA IO_THREAD;
+--let $slave_io_errno=13122
+--source include/rpl/wait_for_receiver_to_stop.inc
+SET GLOBAL debug="-d,stop_when_queue_2nd_query_event";
+START REPLICA;
+
+--echo # 1.3 Check the result
+--source include/rpl/sync.inc
+--let $rpl_diff_statement = SELECT id, c0, c1 FROM test.t1 ORDER BY id;
+--source include/rpl/diff.inc
+
+--echo ###########################################################################
+--echo # 2. Test IO Thread reconnect before the Trx2's XID Event queued
+--echo ###########################################################################
+--source include/rpl/connection_replica.inc
+STOP REPLICA;
+
+--source include/rpl/connection_source.inc
+--echo # 2.1 Execute two Transactions on Master
+UPDATE t1 SET c0='yyyyyy' WHERE id=3;
+
+INSERT INTO t1 (id, c0, c1) VALUES (2, 'xxx', 'Duck');
+
+--echo # 2.2 Make IO Thread stop before the Trx2's XID Event queued
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("MY-013122");
+SET GLOBAL debug="+d,stop_when_queue_2nd_xid_event";
+START REPLICA IO_THREAD;
+--let $slave_io_errno=13122
+--source include/rpl/wait_for_receiver_to_stop.inc
+SET GLOBAL debug="-d,stop_when_queue_2nd_xid_event";
+START REPLICA;
+
+--echo # 2.3 Check the result
+--source include/rpl/sync.inc
+--let $rpl_diff_statement = SELECT id, c0, c1 FROM test.t1 ORDER BY id;
+--source include/rpl/diff.inc
+
+--echo ###########################################################################
+--echo # 3. Test IO Thread reconnect before the Trx2's Table Map Event queued,
+--echo #    and SQL Thread restart after Rotate.
+--echo ###########################################################################
+--source include/rpl/connection_replica.inc
+STOP REPLICA;
+
+--source include/rpl/connection_source.inc
+--echo # 3.1 Execute two Transactions on Master
+INSERT INTO t1 (id, c0, c1) VALUES (4, 'xxx', 'Duck');
+UPDATE t1 SET c0='yyyyyy' WHERE id=4;
+
+--echo # 3.2 Make IO Thread stop before the Trx2's Table Map Event queued
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("MY-013122");
+SET GLOBAL debug="+d,stop_when_queue_2nd_table_map_event";
+START REPLICA IO_THREAD;
+--let $slave_io_errno=13122
+--source include/rpl/wait_for_receiver_to_stop.inc
+SET GLOBAL debug="-d,stop_when_queue_2nd_table_map_event";
+
+--echo # 3.3 Make SQL Thread execute the partial Trx2, and then restart SQL Thread
+SET GLOBAL debug="+d,debug_sync_before_reader_commit";
+START REPLICA SQL_THREAD;
+SET debug_sync="now WAIT_FOR commit_signal";
+SET debug_sync="now SIGNAL resume_signal";
+SET GLOBAL debug="-d,debug_sync_before_reader_commit";
+STOP REPLICA SQL_THREAD;
+--source include/rpl/wait_for_applier_to_stop.inc
+START REPLICA;
+
+--echo # 3.4 Check the result
+--let $slave_timeout=10
+--source include/rpl/sync.inc
+--let $rpl_diff_statement = SELECT id, c0, c1 FROM test.t1 ORDER BY id;
+--source include/rpl/diff.inc
+
+--echo ###########################################################################
+--echo # 4. Test Rotate Event will implicit commit the current batch
+--echo ###########################################################################
+--source include/rpl/connection_replica.inc
+SET @old_duckdb_multi_trx_timeout = @@GLOBAL.duckdb_multi_trx_timeout;
+SET GLOBAL duckdb_multi_trx_timeout = 1000000;
+
+--echo # 4.1 Execute one Transaction on Master, and then Rotate the Binlog
+--source include/rpl/connection_source.inc
+INSERT INTO t1 (id, c0, c1) VALUES (4, 'zzzzz', '123456');
+FLUSH LOGS;
+
+--echo # 4.2 Check the result
+--source include/rpl/sync.inc
+--let $rpl_diff_statement = SELECT id, c0, c1 FROM test.t1 ORDER BY id;
+--source include/rpl/diff.inc
+
+--source include/rpl/connection_replica.inc
+SET GLOBAL duckdb_multi_trx_timeout = @old_duckdb_multi_trx_timeout;
+
+--echo ###########################################################################
+--echo # 5. Test IO Thread reconnect before the Trx2's XID Event queued, and then
+--echo #    SQL Thread failed to rollback the partial Trx.
+--echo ###########################################################################
+--source include/rpl/connection_replica.inc
+STOP REPLICA;
+
+--source include/rpl/connection_source.inc
+--echo # 5.1 Execute two Transactions on Master
+UPDATE t1 SET c0='sssssss' WHERE id=3;
+
+INSERT INTO t1 (id, c0, c1) VALUES (6, 'ggggg', 'DDDD');
+
+--echo # 5.2 Make IO Thread stop before the Trx2's XID Event queued
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("MY-013122");
+SET GLOBAL debug="+d,stop_when_queue_2nd_xid_event";
+START REPLICA IO_THREAD;
+--let $slave_io_errno=13122
+--source include/rpl/wait_for_receiver_to_stop.inc
+SET GLOBAL debug="-d,stop_when_queue_2nd_xid_event";
+
+--echo # 5.3 Make SQL Thread failed to rollback the partial Trx
+SET GLOBAL debug="+d,simulate_duckdb_rollback_partial_trx_failed";
+--disable_query_log
+call mtr.add_suppression("MY-010584");
+--enable_query_log
+START REPLICA;
+--let $slave_sql_errno = 7511
+--source include/rpl/wait_for_applier_error.inc
+
+--echo # 5.4 Restart SQL Thread
+SET GLOBAL debug="-d,simulate_duckdb_rollback_partial_trx_failed";
+START REPLICA SQL_THREAD;
+
+--echo # 5.5 Check the result
+--source include/rpl/sync.inc
+--let $rpl_diff_statement = SELECT id, c0, c1 FROM test.t1 ORDER BY id;
+--source include/rpl/diff.inc
+
+--echo ###########################################################################
+--echo # 6. Test transactions are not replayed by executing SQL
+--echo ###########################################################################
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.2.err
+--let $assert_text = Check DML SQL is not executed
+--let $assert_select = duckdb_print_dml
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+--echo ###########################################################################
+--echo # Cleanup
+--echo ###########################################################################
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

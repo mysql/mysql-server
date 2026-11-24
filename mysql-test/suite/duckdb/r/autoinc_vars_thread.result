@@ -1,0 +1,24 @@
+#---------------------------
+# two threads inserting simultaneously with increment > 1
+# Issue #390
+#---------------------------
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) ENGINE=DuckDB;
+SET auto_increment_increment = 2;
+SET auto_increment_offset = 1;
+INSERT INTO t1 VALUES(NULL);
+SET auto_increment_increment = 2;
+SET auto_increment_offset = 1;
+SET debug_sync='duckdb_get_auto_inc_val SIGNAL parked1 WAIT_FOR go NO_CLEAR_EVENT';
+INSERT INTO t1 VALUES(NULL);
+SET debug_sync='duckdb_get_auto_inc_val SIGNAL parked2 WAIT_FOR go NO_CLEAR_EVENT';
+INSERT INTO t1 VALUES(NULL);
+SET debug_sync='now WAIT_FOR parked1';
+SET debug_sync='now WAIT_FOR parked2';
+SET debug_sync='now SIGNAL go';
+SET debug_sync='RESET';
+SELECT * FROM t1;
+a
+1
+3
+5
+DROP TABLE t1;

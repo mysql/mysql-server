@@ -1,0 +1,286 @@
+# Binlog enabled, batching enabled.
+SET GLOBAL duckdb_dml_in_batch=ON;
+CREATE TABLE rollback_duckdb(id INT PRIMARY KEY, v INT NOT NULL) ENGINE=DuckDB;
+CREATE TABLE rollback_innodb(id INT PRIMARY KEY, v INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO rollback_duckdb VALUES(100,100);
+INSERT INTO rollback_innodb VALUES(100,100);
+# Explicit transaction: discard earlier writes in both engines.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+START TRANSACTION;
+INSERT INTO rollback_innodb VALUES(1,1);
+INSERT INTO rollback_duckdb VALUES(1,1);
+Warnings:
+Warning	6414	Combining the storage engines DUCKDB and InnoDB is deprecated, but the statement or transaction updates both the DUCKDB table test.rollback_duckdb and the InnoDB table test.rollback_innodb.
+INSERT INTO rollback_duckdb VALUES(2,2),(3,NULL);
+ERROR 23000: Column 'v' cannot be null
+COMMIT;
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+100	100
+# Autocommit disabled: discard all writes and close the transaction.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+SET autocommit=0;
+INSERT INTO rollback_duckdb VALUES(4,4);
+INSERT INTO rollback_innodb VALUES(4,4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.rollback_innodb and the DUCKDB table test.rollback_duckdb.
+INSERT INTO rollback_duckdb VALUES(5,5),(6,NULL);
+ERROR 23000: Column 'v' cannot be null
+COMMIT;
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+100	100
+SET autocommit=1;
+# An autocommit failure must not retain a partial insert either.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+INSERT INTO rollback_duckdb VALUES(7,7),(8,NULL);
+ERROR 23000: Column 'v' cannot be null
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+# The same connection can commit a fresh transaction after the failure.
+START TRANSACTION;
+INSERT INTO rollback_duckdb VALUES(9,9);
+INSERT INTO rollback_innodb VALUES(9,9);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.rollback_innodb and the DUCKDB table test.rollback_duckdb.
+COMMIT;
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+9	9
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+9	9
+100	100
+DROP TABLE rollback_duckdb, rollback_innodb;
+# Binlog enabled, batching disabled.
+SET GLOBAL duckdb_dml_in_batch=OFF;
+CREATE TABLE rollback_duckdb(id INT PRIMARY KEY, v INT NOT NULL) ENGINE=DuckDB;
+CREATE TABLE rollback_innodb(id INT PRIMARY KEY, v INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO rollback_duckdb VALUES(100,100);
+INSERT INTO rollback_innodb VALUES(100,100);
+# Explicit transaction: discard earlier writes in both engines.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+START TRANSACTION;
+INSERT INTO rollback_innodb VALUES(1,1);
+INSERT INTO rollback_duckdb VALUES(1,1);
+Warnings:
+Warning	6414	Combining the storage engines DUCKDB and InnoDB is deprecated, but the statement or transaction updates both the DUCKDB table test.rollback_duckdb and the InnoDB table test.rollback_innodb.
+INSERT INTO rollback_duckdb VALUES(2,2),(3,NULL);
+ERROR 23000: Column 'v' cannot be null
+COMMIT;
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+100	100
+# Autocommit disabled: discard all writes and close the transaction.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+SET autocommit=0;
+INSERT INTO rollback_duckdb VALUES(4,4);
+INSERT INTO rollback_innodb VALUES(4,4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.rollback_innodb and the DUCKDB table test.rollback_duckdb.
+INSERT INTO rollback_duckdb VALUES(5,5),(6,NULL);
+ERROR 23000: Column 'v' cannot be null
+COMMIT;
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+100	100
+SET autocommit=1;
+# An autocommit failure must not retain a partial insert either.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+INSERT INTO rollback_duckdb VALUES(7,7),(8,NULL);
+ERROR 23000: Column 'v' cannot be null
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+# The same connection can commit a fresh transaction after the failure.
+START TRANSACTION;
+INSERT INTO rollback_duckdb VALUES(9,9);
+INSERT INTO rollback_innodb VALUES(9,9);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.rollback_innodb and the DUCKDB table test.rollback_duckdb.
+COMMIT;
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+9	9
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+9	9
+100	100
+DROP TABLE rollback_duckdb, rollback_innodb;
+# restart: --skip-log-bin
+# Binlog disabled, batching enabled.
+SET GLOBAL duckdb_dml_in_batch=ON;
+CREATE TABLE rollback_duckdb(id INT PRIMARY KEY, v INT NOT NULL) ENGINE=DuckDB;
+CREATE TABLE rollback_innodb(id INT PRIMARY KEY, v INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO rollback_duckdb VALUES(100,100);
+INSERT INTO rollback_innodb VALUES(100,100);
+# Explicit transaction: discard earlier writes in both engines.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+START TRANSACTION;
+INSERT INTO rollback_innodb VALUES(1,1);
+INSERT INTO rollback_duckdb VALUES(1,1);
+Warnings:
+Warning	6414	Combining the storage engines DUCKDB and InnoDB is deprecated, but the statement or transaction updates both the DUCKDB table test.rollback_duckdb and the InnoDB table test.rollback_innodb.
+INSERT INTO rollback_duckdb VALUES(2,2),(3,NULL);
+ERROR 23000: Column 'v' cannot be null
+COMMIT;
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+100	100
+# Autocommit disabled: discard all writes and close the transaction.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+SET autocommit=0;
+INSERT INTO rollback_duckdb VALUES(4,4);
+INSERT INTO rollback_innodb VALUES(4,4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.rollback_innodb and the DUCKDB table test.rollback_duckdb.
+INSERT INTO rollback_duckdb VALUES(5,5),(6,NULL);
+ERROR 23000: Column 'v' cannot be null
+COMMIT;
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+100	100
+SET autocommit=1;
+# An autocommit failure must not retain a partial insert either.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+INSERT INTO rollback_duckdb VALUES(7,7),(8,NULL);
+ERROR 23000: Column 'v' cannot be null
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+# The same connection can commit a fresh transaction after the failure.
+START TRANSACTION;
+INSERT INTO rollback_duckdb VALUES(9,9);
+INSERT INTO rollback_innodb VALUES(9,9);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.rollback_innodb and the DUCKDB table test.rollback_duckdb.
+COMMIT;
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+9	9
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+9	9
+100	100
+DROP TABLE rollback_duckdb, rollback_innodb;
+# Binlog disabled, batching disabled.
+SET GLOBAL duckdb_dml_in_batch=OFF;
+CREATE TABLE rollback_duckdb(id INT PRIMARY KEY, v INT NOT NULL) ENGINE=DuckDB;
+CREATE TABLE rollback_innodb(id INT PRIMARY KEY, v INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO rollback_duckdb VALUES(100,100);
+INSERT INTO rollback_innodb VALUES(100,100);
+# Explicit transaction: discard earlier writes in both engines.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+START TRANSACTION;
+INSERT INTO rollback_innodb VALUES(1,1);
+INSERT INTO rollback_duckdb VALUES(1,1);
+Warnings:
+Warning	6414	Combining the storage engines DUCKDB and InnoDB is deprecated, but the statement or transaction updates both the DUCKDB table test.rollback_duckdb and the InnoDB table test.rollback_innodb.
+INSERT INTO rollback_duckdb VALUES(2,2),(3,NULL);
+ERROR 23000: Column 'v' cannot be null
+COMMIT;
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+100	100
+# Autocommit disabled: discard all writes and close the transaction.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+SET autocommit=0;
+INSERT INTO rollback_duckdb VALUES(4,4);
+INSERT INTO rollback_innodb VALUES(4,4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.rollback_innodb and the DUCKDB table test.rollback_duckdb.
+INSERT INTO rollback_duckdb VALUES(5,5),(6,NULL);
+ERROR 23000: Column 'v' cannot be null
+COMMIT;
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+100	100
+SET autocommit=1;
+# An autocommit failure must not retain a partial insert either.
+SET @rollback_gtid=@@GLOBAL.gtid_executed;
+INSERT INTO rollback_duckdb VALUES(7,7),(8,NULL);
+ERROR 23000: Column 'v' cannot be null
+SELECT @@GLOBAL.gtid_executed=@rollback_gtid AS gtid_unchanged;
+gtid_unchanged
+1
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+100	100
+# The same connection can commit a fresh transaction after the failure.
+START TRANSACTION;
+INSERT INTO rollback_duckdb VALUES(9,9);
+INSERT INTO rollback_innodb VALUES(9,9);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.rollback_innodb and the DUCKDB table test.rollback_duckdb.
+COMMIT;
+SELECT * FROM rollback_duckdb ORDER BY id;
+id	v
+9	9
+100	100
+SELECT * FROM rollback_innodb ORDER BY id;
+id	v
+9	9
+100	100
+DROP TABLE rollback_duckdb, rollback_innodb;
+# restart:

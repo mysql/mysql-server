@@ -97,7 +97,9 @@ enum enum_query_type {
     Items we insert, since they are inserted during resolving and not
     optimization. Used when getting the canonical representation of a view.
    */
-  QT_HIDE_ROLLUP_FUNCTIONS = (1 << 14)
+  QT_HIDE_ROLLUP_FUNCTIONS = (1 << 14),
+
+  QT_DUCKDB_REWRITE = (1 << 15)
 
 };
 

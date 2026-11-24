@@ -1,0 +1,12 @@
+PREPARE duckdb_proc FROM 'CALL dbms_duckdb.query(''SELECT 42 AS answer'')';
+EXECUTE duckdb_proc;
+RESULT
+answer	
+INTEGER	
+[ Rows: 1]
+42
+
+
+DEALLOCATE PREPARE duckdb_proc;
+CALL dbms_duckdb.query(1);
+ERROR HY000: Native procedure dbms_duckdb.query the 1th parameter mismatch

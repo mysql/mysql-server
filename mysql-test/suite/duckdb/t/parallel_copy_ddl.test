@@ -1,0 +1,241 @@
+# This is a big test for check parallel copy ddl FROM InnoDB to duckdb
+
+--write_file $MYSQL_TMP_DIR/insert_and_check.inc
+  --disable_query_log
+  while ($i)
+  {
+    --eval $insert_stmt
+    --dec $i
+  }
+
+  --inc $copy_ddl_times
+  --let $checksum_1 = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+  ALTER TABLE t1 ENGINE = DuckDB;
+  --let $checksum_2 = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+
+  --let $assert_text = CHECKSUM is same.
+  --let $assert_cond = $checksum_1 = $checksum_2
+  --source include/assert.inc
+  DROP TABLE t1;
+  --enable_query_log
+
+  --let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+  --let $assert_count = $copy_ddl_times
+  --let $assert_text = Found parallel copy ddl begin.
+  --let $assert_select = .* Parallel copy DDL begin, table: #sql-.*
+  --source include/assert_grep.inc
+  --let $assert_text = Found parallel copy ddl finished.
+  --let $assert_select = .* Parallel copy DDL finished, table: #sql-.*
+  --source include/assert_grep.inc
+EOF
+
+SET SESSION duckdb_copy_ddl_threads = 4;
+--let $copy_ddl_times = 0
+
+--echo #
+--echo # 1. Number Types
+--echo #
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  col1 INT,
+  col2 BIGINT,
+  col3 FLOAT,
+  col4 DOUBLE,
+  col5 DECIMAL(10,4),
+  col6 TINYINT,
+  col7 SMALLINT,
+  col8 MEDIUMINT
+) ENGINE = InnoDB;
+
+INSERT INTO t1(col1, col2, col3, col4, col5, col6, col7, col8) VALUES
+  (1, -1, 1.01, -1.001, 1.0001, 1, 1, 1),
+  (-2, 2, -2.02, 2.002, -2.0002, 2, 2, 2),
+  (3, 3, 3.03, 3.003, 3.0003, 3, 3, 3),
+  (-2147483648, -9223372036854775808, -3.402823466E+38, -1.7976931348623157E+308, -999999.9999, -128, -32768, -8388608),
+  (2147483647, 9223372036854775807, 3.402823466E+38, 1.7976931348623157E+308, 999999.9999, 127, 32767, 8388607);
+
+--let $i=8
+--let $insert_stmt = INSERT INTO t1(col1, col2, col3, col4, col5, col6, col7, col8) SELECT col1, col2, col3, col4, col5, col6, col7, col8 FROM t1
+--source $MYSQL_TMP_DIR/insert_and_check.inc
+
+
+--echo #
+--echo # 2. Number Types(UNSIGNED)
+--echo #
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  col1 INT UNSIGNED,
+  col2 BIGINT UNSIGNED,
+  col3 FLOAT UNSIGNED,
+  col4 DOUBLE UNSIGNED,
+  col5 DECIMAL(10,4) UNSIGNED,
+  col6 bit(10),
+  col7 TINYINT UNSIGNED,
+  col8 SMALLINT UNSIGNED,
+  col9 MEDIUMINT UNSIGNED
+) ENGINE = InnoDB;
+
+INSERT INTO t1(col1, col2, col3, col4, col5, col6, col7, col8, col9) VALUES
+  (1, 1, 1.01, 1.001, 1.0001, B'111111111', 1, 1, 1),
+  (2, 2, 2.02, 2.002, 2.0002, B'0000000000', 1, 1, 1),
+  (3, 3, 3.03, 3.003, 3.0003, B'0001100110', 1, 1, 1),
+  (0, 0, 0, 0, 0, B'00000000000', 0, 0, 0),
+  (255, 18446744073709551615, 3.402823466E+38, 1.7976931348623157E+308, 999999.9999, B'1111111111', 255, 65535, 8388607);
+
+--let $i=8
+--let $insert_stmt = INSERT INTO t1(col1, col2, col3, col4, col5, col6, col7, col8, col9) SELECT col1, col2, col3, col4, col5, col6, col7, col8, col9 FROM t1
+--source $MYSQL_TMP_DIR/insert_and_check.inc
+
+
+--echo #
+--echo # 3. Decimal
+--echo #
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  col1 DECIMAL(65, 30),
+  col2 DECIMAL(65, 15),
+  col3 DECIMAL(65, 0),
+  col4 DECIMAL(38,30),
+  col5 DECIMAL(38,18),
+  col6 DECIMAL(38,0),
+  col7 DECIMAL(9,9),
+  col8 DECIMAL(9,4),
+  col9 DECIMAL(9,0)
+) ENGINE = InnoDB;
+
+INSERT INTO t1(col1, col2, col3, col4, col5, col6, col7, col8, col9) VALUES (
+                       99999999999999999999999999999999999.999999999999999999999999999999,
+                       99999999999999999999999999999999999999999999999999.999999999999999,
+                       99999999999999999999999999999999999999999999999999999999999999999,
+                       99999999.999999999999999999999999999999,
+                       99999999999999999999.999999999999999999,
+                       99999999999999999999999999999999999999,
+                       0.99999999,
+                       99999.9999,
+                       999999999);
+--let $i=8
+--let $insert_stmt = INSERT INTO t1(col1, col2, col3, col4, col5, col6, col7, col8, col9) SELECT col1, col2, col3, col4, col5, col6, col7, col8, col9 FROM t1
+--source $MYSQL_TMP_DIR/insert_and_check.inc
+
+
+--echo #
+--echo # 4. Time
+--echo #
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  col1 DATE,
+  col2 DATETIME,
+  col3 TIMESTAMP,
+  col4 DATETIME(6),
+  col5 time,
+  col6 time(6),
+  col7 year
+) ENGINE = InnoDB;
+
+INSERT INTO t1(col1, col2, col3, col4, col5, col6, col7) VALUES
+  ('2020-01-01', '2020-01-01 12:00:00', '2020-01-01 12:00:00', '2020-01-01 12:00:00.1', '12:00:00', '12:00:00.1', 2020),
+  ('2020-12-31', '2020-12-31 00:00:00', '2020-12-31 00:00:00', '2020-12-31 00:00:00.123456789', '00:00:00', '00:00:00.123456789', 1970),
+  ('1970-01-01', '1970-01-01 23:59:59', '1970-01-01 23:59:59', '2020-12-31 23:59:59.123456', '23:59:59', '23:59:59.123456', 2050),
+  ('2000-12-31 23:59:59.123456', '2000-12-31 23:59:59.123456', '2000-12-31 23:59:59.123456', '2000-12-31 23:59:59.123456', '23:59:59.123456', '23:59:59.123456', 2100);
+
+--let $i=8
+--let $insert_stmt = INSERT INTO t1(col1, col2, col3, col4, col5, col6, col7) SELECT col1, col2, col3, col4, col5, col6, col7 FROM t1
+--source $MYSQL_TMP_DIR/insert_and_check.inc
+
+
+--echo #
+--echo # 5. BLOB1
+--echo #
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  col1 TINYBLOB,
+  col2 MEDIUMBLOB,
+  col3 LONGBLOB,
+  col4 BLOB,
+  col5 BIT(64)
+) ENGINE = InnoDB;
+
+INSERT INTO t1(col1, col2, col3, col4, col5) VALUES
+  ('tinyblob_data', 'mediumblob_data', 'longblob_data', repeat('a', 65535), b'00000001'),
+  ('tinyblob_data2', 'mediumblob_data2', 'longblob_data2', repeat('b', 65535), b'00000010'),
+  (NULL, NULL, 'longblob_data3', NULL, b'00000010'),
+  ('tinyblob_data4', 'mediumblob_data4', NULL, repeat('c', 65535), NULL),
+  ('tinyblob_data5', 'mediumblob_data5', 'longblob_data5', repeat('d', 65535), b'00000011');
+
+--let $i=8
+--let $insert_stmt = INSERT INTO t1(col1, col2, col3, col4, col5) SELECT col1, col2, col3, col4, col5 FROM t1
+--source $MYSQL_TMP_DIR/insert_and_check.inc
+
+
+--echo #
+--echo # 6. BLOB2
+--echo #
+CREATE TABLE t1 (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  col1 VARCHAR(255),
+  col2 BOOLEAN,
+  col3 DECIMAL(10,2),
+  col4 ENUM('small', 'medium', 'large'),
+  col5 SET('red', 'green', 'blue'),
+  col6 VARCHAR(255),
+  col7 VARCHAR(255),
+  col8 VARCHAR(255),
+  col9 JSON ,
+  col10 TEXT,
+  col11 DECIMAL(20,6)
+) ENGINE = InnoDB;
+
+INSERT INTO t1(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11) VALUES
+  (NULL, TRUE, 123.45, 'small', 'red,green', 'sample_string', 'var_string_sample', 'varchar_sample','{"name": "Alice", "age": 30}', 'This is a sample text.', 123456.789012),
+  ('another_value', FALSE, 678.90, 'medium', 'blue', 'another_string', 'another_var_string', NULL, NULL, NULL, 345678.901234),
+  ('test_value', TRUE, 50.25, 'large', NULL, 'test_string', 'var_string_test', 'varchar_test', '{"city": "Beijing", "population": 2154}', 'Some additional text content.', 987654.321098),
+  (NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,NULL),
+  (NULL, FALSE, 999.99, 'small', 'red', 'another test', 'var_string_another', 'varchar_another', '{"country": "USA", "states": 50}', 'More sample text data.', NULL),
+  ('final_value', TRUE, 100.00, 'medium', 'red,blue', 'final_string', 'var_string_final', 'varchar_final', '{"animal": "dog", "legs": 4}', 'End of this test text.', 778899.001122);
+
+--let $i=8
+--let $insert_stmt = INSERT INTO t1(col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11) SELECT col1, col2, col3, col4, col5, col6, col7, col8, col9, col10, col11 FROM t1
+--source $MYSQL_TMP_DIR/insert_and_check.inc
+
+
+--echo #
+--echo # 7. Special case: when NULL in fields with default value
+--echo #
+CREATE TABLE `t1` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+  col1 VARCHAR(20) NOT NULL,
+  col2 CHAR(10) DEFAULT 'duckdb',
+  col3 DECIMAL(5,2) DEFAULT NULL,
+  col4 DATETIME DEFAULT NULL,
+  col5 TIMESTAMP NULL DEFAULT NULL,
+  col6 BLOB
+) ENGINE = InnoDB;
+
+INSERT INTO t1 (col1, col2, col3, col4, col5, col6) VALUES ('abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+
+--let $i=10
+--let $insert_stmt = INSERT INTO t1 (col1, col2, col3, col4, col5, col6)  SELECT col1, col2, col3, col4, col5, col6 FROM t1
+--source $MYSQL_TMP_DIR/insert_and_check.inc
+
+
+--echo #
+--echo # 8. Partition
+--echo #
+CREATE TABLE `t1` (
+  `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+  col1 VARCHAR(20) NOT NULL,
+  col2 CHAR(10) DEFAULT 'duckdb',
+  col3 DECIMAL(5,2) DEFAULT NULL,
+  col4 DATETIME DEFAULT NULL,
+  col5 TIMESTAMP NULL DEFAULT NULL,
+  col6 BLOB
+) ENGINE = InnoDB;
+ALTER TABLE t1 PARTITION BY HASH (id) PARTITIONS 8;
+
+INSERT INTO t1 (col1, col2, col3, col4, col5, col6) VALUES ('abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+
+--let $i=10
+--let $insert_stmt = INSERT INTO t1 (col1, col2, col3, col4, col5, col6)  SELECT col1, col2, col3, col4, col5, col6 FROM t1
+--source $MYSQL_TMP_DIR/insert_and_check.inc
+
+--remove_file $MYSQL_TMP_DIR/insert_and_check.inc

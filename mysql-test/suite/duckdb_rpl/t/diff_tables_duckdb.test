@@ -1,0 +1,58 @@
+--source include/not_windows.inc
+--disable_query_log
+
+--connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK)
+--let $master_datadir= `SELECT @@datadir`
+CREATE TABLE t_diff_duckdb (id INT PRIMARY KEY, val VARCHAR(32), ignored INT)
+  ENGINE=InnoDB;
+INSERT INTO t_diff_duckdb VALUES (1, 'same', 10);
+
+--connect (slave,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK)
+--let $slave_datadir= `SELECT @@datadir`
+CREATE TABLE t_diff_duckdb (id INT PRIMARY KEY, val VARCHAR(32), ignored INT)
+  ENGINE=DuckDB;
+INSERT INTO t_diff_duckdb VALUES (1, 'same', 10);
+
+--let $check_file= $MYSQLTEST_VARDIR/tmp/diff_tables_duckdb_child.test
+--let $check_log= $MYSQLTEST_VARDIR/tmp/diff_tables_duckdb.log
+--write_file $check_file
+--connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK)
+--connect (slave,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK)
+--let $test_duckdb= 1
+--let $mask_column_list= $DT_TEST_MASK
+--let $diff_tables= master:t_diff_duckdb, slave:t_diff_duckdb
+--source include/diff_tables.inc
+EOF
+
+--let DT_TEST_MASK=
+--exec $MYSQL_TEST --test-file=$check_file --logdir=$MYSQLTEST_VARDIR/tmp > $check_log 2>&1
+--echo Equal tables match.
+
+UPDATE t_diff_duckdb SET ignored = 20;
+--let DT_TEST_MASK= ignored
+--exec $MYSQL_TEST --test-file=$check_file --logdir=$MYSQLTEST_VARDIR/tmp > $check_log 2>&1
+--echo Masked columns are ignored.
+
+UPDATE t_diff_duckdb SET val = 'changed';
+--error 1
+--exec $MYSQL_TEST --test-file=$check_file --logdir=$MYSQLTEST_VARDIR/tmp > $check_log 2>&1
+--let $assert_file= $check_log
+--let $assert_text= Different server data is detected
+--let $assert_select= Command "diff_files" failed with error 2
+--let $assert_count= 1
+--source include/assert_grep.inc
+
+--remove_file $master_datadir/diff_table-master-test-t_diff_duckdb
+--remove_file $slave_datadir/diff_table-slave-test-t_diff_duckdb
+--remove_file $check_file
+--remove_file $check_log
+--remove_file $MYSQLTEST_VARDIR/tmp/diff_tables_duckdb_child.log
+--let DT_TEST_MASK=
+
+DROP TABLE t_diff_duckdb;
+--connection master
+DROP TABLE t_diff_duckdb;
+--connection default
+--disconnect master
+--disconnect slave
+--enable_query_log

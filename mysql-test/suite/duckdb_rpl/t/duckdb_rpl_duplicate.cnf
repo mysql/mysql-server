@@ -1,0 +1,6 @@
+!include suite/duckdb_rpl/my.cnf
+[mysqld.1]
+duckdb-mode = on
+[mysqld.2]
+duckdb-mode = on
+replica_parallel_workers = 1

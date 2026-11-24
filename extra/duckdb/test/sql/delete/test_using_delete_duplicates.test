@@ -1,0 +1,130 @@
+# name: test/sql/delete/test_using_delete_duplicates.test
+# description: Test USING deletion with duplicates
+# group: [delete]
+
+statement ok
+create table integers as select * from generate_series(0, 9, 1);
+
+statement ok
+create table integers2 as select * from generate_series(0, 9, 1);
+
+query I
+DELETE FROM integers USING integers2;
+----
+10
+
+query I
+SELECT COUNT(*) FROM integers
+----
+0
+
+# the same but with transaction local storage
+statement ok
+DROP TABLE integers
+
+statement ok
+DROP TABLE integers2
+
+statement ok
+BEGIN transaction
+
+statement ok
+create table integers as select * from generate_series(0, 9, 1);
+
+statement ok
+create table integers2 as select * from generate_series(0, 9, 1);
+
+query I
+DELETE FROM integers USING integers2;
+----
+10
+
+query I
+SELECT COUNT(*) FROM integers
+----
+0
+
+statement ok
+COMMIT
+
+query I
+SELECT COUNT(*) FROM integers
+----
+0
+
+statement ok
+CREATE or replace TABLE integers AS FROM range(10);
+
+statement ok
+create table integers_copy as select * from integers;
+
+query I nosort delete_result_1
+DELETE FROM integers USING range(100) RETURNING *;
+----
+
+query I nosort delte_result_1
+select * from integers_copy;
+
+
+statement ok
+create or replace table t1 as select range%10 a from range(1000);
+
+statement ok
+create or replace table t2 as select range b from range(10);
+
+statement ok
+create or replace table t2_copy as select * from t2;
+
+query I nosort delete_result_small
+delete from t2 using t1 where a=b returning *;
+----
+
+query I nosort delete_result_small
+select * from t2_copy;
+----
+
+
+statement ok
+create or replace table t1 as select range%10 a from range(100);
+
+statement ok
+create or replace table t2 as select range b from range(10);
+
+statement ok
+insert into t2 select 12 from range(5);
+
+statement ok
+insert into t1 select 12 from range(10);
+
+statement ok
+create or replace table t2_copy as select * from t2;
+
+query I nosort delete_result_small_2
+delete from t2 using t1 where a=b returning *;
+----
+
+query I nosort delete_result_small_2
+select * from t2_copy
+----
+
+
+statement ok
+create or replace table t1 as select range%1000 a from range(100_000);
+
+statement ok
+create or replace table t2 as select range b from range(100);
+
+statement ok
+insert into t2 select 100_050 from range(50);
+
+statement ok
+insert into t1 select 100_050 from range(50);
+
+statement ok
+create or replace table t2_copy as select * from t2;
+
+query I nosort delete_result
+delete from t2 using t1 where a=b returning *;
+
+query I nosort delete_result;
+select * from t2_copy;

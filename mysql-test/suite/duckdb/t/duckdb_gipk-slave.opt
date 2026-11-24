@@ -1,0 +1,11 @@
+--duckdb_convert_all_at_startup=ON
+--duckdb_convert_all_at_startup_ignore_error=ON
+--duckdb_convert_all_at_startup_threads=4
+--duckdb_convert_all_skip_mtr_db=ON
+--force_innodb_to_duckdb=ON
+--duckdb_copy_ddl_in_batch=ON
+--duckdb_dml_in_batch=OFF
+--duckdb_force_no_collation=OFF
+--duckdb_mode=ON
+--duckdb_require_primary_key=OFF
+--duckdb_update_modified_column_only=ON

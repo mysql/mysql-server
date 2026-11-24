@@ -1,0 +1,101 @@
+--let $duckdb_keyring_rpl= 1
+--source suite/duckdb/include/keyring_setup.inc
+--source include/rpl/init_source_replica.inc
+
+--echo #
+--echo # create tables in master
+--echo #
+--disable_warnings
+DROP DATABASE IF EXISTS encryption_test;
+--enable_warnings
+CREATE DATABASE encryption_test;
+USE encryption_test;
+CREATE TABLE string_table (
+  id INT PRIMARY KEY,
+  bool_field BOOLEAN DEFAULT TRUE,
+  decimal_field DECIMAL(10,2) DEFAULT 1.11,
+  enum_field ENUM('small', 'medium', 'large') DEFAULT 'medium',
+  set_field SET('red', 'green', 'blue'),
+  varchar_field VARCHAR(255) DEFAULT 'ABC',
+  json_field JSON,
+  text_field TEXT,
+  new_decimal_field DECIMAL(20,6)
+) ENGINE=InnoDB;
+INSERT INTO string_table VALUES (1, TRUE, 123.45, 'small', 'red,green', 'varchar_sample','{"name": "Alice", "age": 30}', 'This is a sample text.', 123456.789012);
+INSERT INTO string_table VALUES (2, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+
+--echo #
+--echo # check initial table info
+--echo #
+SHOW CREATE TABLE encryption_test.string_table;
+CHECKSUM TABLE encryption_test.string_table;
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE encryption_test.string_table;
+CHECKSUM TABLE encryption_test.string_table;
+
+--echo #
+--echo # test: alter encryption options and recheck table info, check data comcistency 
+--echo #
+--source include/rpl/connection_source.inc
+ALTER TABLE encryption_test.string_table ENCRYPTION='Y';
+INSERT INTO string_table VALUES (3, FALSE, 678.90, 'medium', 'blue',  NULL, NULL, NULL, 345678.901234);
+SHOW CREATE TABLE encryption_test.string_table;
+CHECKSUM TABLE encryption_test.string_table;
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE encryption_test.string_table;
+CHECKSUM TABLE encryption_test.string_table;
+
+--source include/rpl/connection_source.inc
+ALTER TABLE encryption_test.string_table ENCRYPTION='N';
+INSERT INTO string_table VALUES (4, FALSE, 381.90, 'large', 'blue',  'varchar_a', '{"name": "Mike", "age": 30}', NULL, 0.901234);
+SHOW CREATE TABLE encryption_test.string_table;
+CHECKSUM TABLE encryption_test.string_table;
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE encryption_test.string_table;
+CHECKSUM TABLE encryption_test.string_table;
+
+--source include/rpl/connection_source.inc
+ALTER TABLE encryption_test.string_table ENCRYPTION='Y';
+INSERT INTO string_table VALUES (5, TRUE, 111.50, NULL, 'red',  'varchar_bbb', '{"name": "Kitty", "age": 10}', NULL, 0.901234);
+SHOW CREATE TABLE encryption_test.string_table;
+CHECKSUM TABLE encryption_test.string_table;
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE encryption_test.string_table;
+CHECKSUM TABLE encryption_test.string_table;
+
+--echo #
+--echo # test: create table with encryption option 
+--echo #
+--source include/rpl/connection_source.inc
+CREATE TABLE encryption_test.date_table(
+  id INT PRIMARY KEY, 
+  date_field DATE DEFAULT '2009-12-30',
+  datetime_field DATETIME DEFAULT '2023-03-01 11:00:00',
+  timestamp_field TIMESTAMP DEFAULT '2023-01-01 12:00:00',
+  time_field TIME DEFAULT '12:00:00'
+) ENCRYPTION='Y';
+INSERT INTO date_table VALUES 
+(1, '2023-01-01', '2023-01-01 12:00:00', '2023-01-01 12:00:00', '12:00:00'),
+(2, '1999-12-31', '1999-12-31 23:59:59', '1999-12-31 23:59:59', NULL),
+(3, NULL, NULL, NULL, '00:00:00');
+
+SHOW CREATE TABLE encryption_test.date_table;
+CHECKSUM TABLE encryption_test.date_table;
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE encryption_test.date_table;
+CHECKSUM TABLE encryption_test.date_table;
+
+--echo #
+--echo # CLEANUP
+--echo #
+--source include/rpl/connection_source.inc
+DROP DATABASE IF EXISTS encryption_test;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc
+
+--source suite/duckdb/include/keyring_cleanup.inc

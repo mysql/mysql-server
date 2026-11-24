@@ -31,6 +31,10 @@
 #include <string>
 #include <utility>
 
+#include "sql/mysqld.h"
+
+#include "my_config.h"              // WORDS_BIGENDIAN
+#include "mysql/strings/m_ctype.h"  // CHARSET_INFO.
 #include "sql/current_thd.h"
 #include "sql/regexp/errors.h"
 #include "sql/sql_class.h"  // THD
@@ -85,7 +89,7 @@ class Regexp_engine {
     ICU API docs for the definition of time limit.
   */
   Regexp_engine(const std::u16string &pattern, uint flags, int stack_limit,
-                int time_limit) {
+                int time_limit, bool caller_is_duckdb = false) {
     UParseError error;
     auto upattern = pattern.data();
     int length = pattern.size();
@@ -93,13 +97,20 @@ class Regexp_engine {
                        &error, &m_error_code);
     uregex_setStackLimit(m_re, stack_limit, &m_error_code);
     uregex_setTimeLimit(m_re, time_limit, &m_error_code);
-    uregex_setMatchCallback(m_re, QueryNotKilled, current_thd, &m_error_code);
-    check_icu_status(m_error_code, &error);
+    /**
+     If the caller is duckdb, we do not set callBack function, which means that
+     even if the query is killed, the function will not stop executing.
+     */
+    if (!caller_is_duckdb) {
+      uregex_setMatchCallback(m_re, QueryNotKilled, current_thd, &m_error_code);
+    }
+    m_caller_is_duckdb = caller_is_duckdb;
+    check_icu_status(m_error_code, &error, m_caller_is_duckdb);
   }
 
   uint flags() {
     uint flags = uregex_flags(m_re, &m_error_code);
-    check_icu_status(m_error_code);
+    check_icu_status(m_error_code, nullptr, m_caller_is_duckdb);
     return flags;
   }
 
@@ -169,7 +180,9 @@ class Regexp_engine {
     return U_SUCCESS(m_error_code) && m_error_code != U_ZERO_ERROR;
   }
   bool IsError() const { return U_FAILURE(m_error_code); }
-  bool CheckError() const { return check_icu_status(m_error_code); }
+  bool CheckError() const {
+    return check_icu_status(m_error_code, nullptr, m_caller_is_duckdb);
+  }
 
   virtual ~Regexp_engine() { uregex_close(m_re); }
 
@@ -178,6 +191,9 @@ class Regexp_engine {
     beyond this size, and an error will be thrown if the limit is reached.
   */
   size_t HardLimit() {
+    if (m_caller_is_duckdb) {
+      return global_system_variables.max_allowed_packet / sizeof(UChar);
+    }
     return current_thd->variables.max_allowed_packet / sizeof(UChar);
   }
 
@@ -248,6 +264,8 @@ class Regexp_engine {
     data.
   */
   int m_replace_buffer_pos = 0;
+
+  bool m_caller_is_duckdb = false;
 };
 
 }  // namespace regexp

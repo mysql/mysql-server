@@ -1,0 +1,229 @@
+include/rpl/init.inc [topology=1->2->3]
+###########################################################################
+# 0. Prepare, InnoDB (server_1) -> DuckDB (server_2) -> DuckDB (server_3)
+###########################################################################
+[connection server_1]
+SET autocommit = 1;
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+c0 VARCHAR(20) NOT NULL,
+PRIMARY KEY(id)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection server_2]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection server_3]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# 1. Test for setting duckdb_multi_trx_in_batch=on on server_3
+###########################################################################
+[connection server_2]
+STOP REPLICA;
+[connection server_3]
+STOP REPLICA;
+[connection server_1]
+# Trx1 and Trx2
+INSERT INTO t1 (id, c0) VALUES (1, 'abc'), (1+1, 'efg'), (1+2, 'xyz');
+DELETE FROM t1 WHERE id =1+2;
+FLUSH LOGS;
+# Trx3 and Trx4
+UPDATE t1 SET id=1+2, c0='AliSQL' WHERE id=1;
+INSERT INTO t1 (id, c0) VALUES (1, 'xyz');
+[connection server_2]
+# Will put Trx1 and Trx2 in one batch, put Trx3 and Trx4 in one batch 
+START REPLICA;
+include/rpl/sync.inc
+[connection server_3]
+# Will put Trx1, Trx2, Trx3 and Trx4 in one batch when duckdb_multi_trx_in_batch=on
+# Same as server_2 when duckdb_multi_trx_in_batch=off
+START REPLICA;
+include/rpl/sync.inc
+include/rpl/diff.inc
+[connection server_2]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'UUID:3'
+#	#	Query	#	#	BEGIN
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Delete_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Transaction_context	#	#	server_uuid=UUID	THREAD_ID	snapshot_version=UUID:2
+#	#	Xid	#	#	COMMIT /* XID */
+#	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'UUID:5'
+#	#	Query	#	#	BEGIN
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Update_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Transaction_context	#	#	server_uuid=UUID	THREAD_ID	snapshot_version=UUID:4
+#	#	Xid	#	#	COMMIT /* XID */
+[connection server_3]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'UUID:5'
+#	#	Query	#	#	BEGIN
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Delete_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Update_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Transaction_context	#	#	server_uuid=UUID	THREAD_ID	snapshot_version=UUID:2-4
+#	#	Xid	#	#	COMMIT /* XID */
+###########################################################################
+# 2. Test for setting duckdb_multi_trx_in_batch=off on server_3
+###########################################################################
+[connection server_3]
+include/rpl/stop_replica.inc
+SET GLOBAL duckdb_multi_trx_in_batch=off;
+include/rpl/start_replica.inc
+[connection server_2]
+STOP REPLICA;
+[connection server_3]
+STOP REPLICA;
+[connection server_1]
+# Trx1 and Trx2
+INSERT INTO t1 (id, c0) VALUES (4, 'abc'), (4+1, 'efg'), (4+2, 'xyz');
+DELETE FROM t1 WHERE id =4+2;
+FLUSH LOGS;
+# Trx3 and Trx4
+UPDATE t1 SET id=4+2, c0='AliSQL' WHERE id=4;
+INSERT INTO t1 (id, c0) VALUES (4, 'xyz');
+[connection server_2]
+# Will put Trx1 and Trx2 in one batch, put Trx3 and Trx4 in one batch 
+START REPLICA;
+include/rpl/sync.inc
+[connection server_3]
+# Will put Trx1, Trx2, Trx3 and Trx4 in one batch when duckdb_multi_trx_in_batch=on
+# Same as server_2 when duckdb_multi_trx_in_batch=off
+START REPLICA;
+include/rpl/sync.inc
+include/rpl/diff.inc
+[connection server_2]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'UUID:7'
+#	#	Query	#	#	BEGIN
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Delete_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Transaction_context	#	#	server_uuid=UUID	THREAD_ID	snapshot_version=UUID:6
+#	#	Xid	#	#	COMMIT /* XID */
+#	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'UUID:9'
+#	#	Query	#	#	BEGIN
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Update_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Transaction_context	#	#	server_uuid=UUID	THREAD_ID	snapshot_version=UUID:8
+#	#	Xid	#	#	COMMIT /* XID */
+[connection server_3]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'UUID:7'
+#	#	Query	#	#	BEGIN
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Delete_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Transaction_context	#	#	server_uuid=UUID	THREAD_ID	snapshot_version=UUID:6
+#	#	Xid	#	#	COMMIT /* XID */
+#	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'UUID:9'
+#	#	Query	#	#	BEGIN
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Update_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Transaction_context	#	#	server_uuid=UUID	THREAD_ID	snapshot_version=UUID:8
+#	#	Xid	#	#	COMMIT /* XID */
+###########################################################################
+# 3. Test for setting log_replica_updates=off on server_3
+###########################################################################
+[connection server_3]
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=3 parameters: --log-replica-updates=0 --duckdb_multi_trx_in_batch=on]
+include/rpl/start_replica.inc
+[connection server_2]
+STOP REPLICA;
+[connection server_3]
+STOP REPLICA;
+[connection server_1]
+# Trx1 and Trx2
+INSERT INTO t1 (id, c0) VALUES (7, 'abc'), (7+1, 'efg'), (7+2, 'xyz');
+DELETE FROM t1 WHERE id =7+2;
+FLUSH LOGS;
+# Trx3 and Trx4
+UPDATE t1 SET id=7+2, c0='AliSQL' WHERE id=7;
+INSERT INTO t1 (id, c0) VALUES (7, 'xyz');
+[connection server_2]
+# Will put Trx1 and Trx2 in one batch, put Trx3 and Trx4 in one batch 
+START REPLICA;
+include/rpl/sync.inc
+[connection server_3]
+# Will put Trx1, Trx2, Trx3 and Trx4 in one batch when duckdb_multi_trx_in_batch=on
+# Same as server_2 when duckdb_multi_trx_in_batch=off
+START REPLICA;
+include/rpl/sync.inc
+include/rpl/diff.inc
+[connection server_2]
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+#	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'UUID:11'
+#	#	Query	#	#	BEGIN
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Delete_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Transaction_context	#	#	server_uuid=UUID	THREAD_ID	snapshot_version=UUID:10
+#	#	Xid	#	#	COMMIT /* XID */
+#	#	Gtid	#	#	SET @@SESSION.GTID_NEXT= 'UUID:13'
+#	#	Query	#	#	BEGIN
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Update_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Table_map	#	#	table_id: # (test.t1)
+#	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+#	#	Transaction_context	#	#	server_uuid=UUID	THREAD_ID	snapshot_version=UUID:12
+#	#	Xid	#	#	COMMIT /* XID */
+[connection server_3]
+include/rpl/deprecated/show_binlog_events.inc
+[connection server_3]
+include/rpl/stop_replica.inc
+include/rpl/restart_server.inc [server_number=3 parameters: --log-replica-updates=1]
+include/rpl/start_replica.inc
+###########################################################################
+# 4. Check server_3's Slave Status
+###########################################################################
+[connection server_3]
+Retrieved_Gtid_Set = 'SERVER1_UUID:1-5:7:9:11:13'
+Executed_Gtid_Set = 'SERVER1_UUID:1-13'
+###########################################################################
+# Cleanup
+###########################################################################
+[connection server_1]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

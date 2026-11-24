@@ -1,0 +1,19 @@
+# name: benchmark/tpch/topn/lineitem_date_topn_small_payload.benchmark
+# description: Top-N over lineitem (over a single date)
+# group: [topn]
+
+include benchmark/tpch/tpch_load.benchmark.in
+
+name Lineitem Top N
+group topn
+subgroup tpch
+
+run
+SELECT l_shipdate, l_orderkey FROM lineitem ORDER BY l_shipdate, l_orderkey LIMIT 5;
+
+result II sf=1
+1992-01-02	721220
+1992-01-02	842980
+1992-01-02	904677
+1992-01-02	990147
+1992-01-02	1054181

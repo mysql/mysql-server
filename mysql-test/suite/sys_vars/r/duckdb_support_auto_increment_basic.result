@@ -1,0 +1,26 @@
+SET @saved = @@global.duckdb_support_auto_increment;
+SELECT @@global.duckdb_support_auto_increment;
+@@global.duckdb_support_auto_increment
+0
+SHOW GLOBAL VARIABLES LIKE 'duckdb_support_auto_increment';
+Variable_name	Value
+duckdb_support_auto_increment	OFF
+SELECT @@session.duckdb_support_auto_increment;
+ERROR HY000: Variable 'duckdb_support_auto_increment' is a GLOBAL variable
+SET SESSION duckdb_support_auto_increment = ON;
+ERROR HY000: Variable 'duckdb_support_auto_increment' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL duckdb_support_auto_increment = 2;
+ERROR 42000: Variable 'duckdb_support_auto_increment' can't be set to the value of '2'
+SET GLOBAL duckdb_support_auto_increment = 'invalid';
+ERROR 42000: Variable 'duckdb_support_auto_increment' can't be set to the value of 'invalid'
+SET GLOBAL duckdb_support_auto_increment = NULL;
+ERROR 42000: Variable 'duckdb_support_auto_increment' can't be set to the value of 'NULL'
+SET GLOBAL duckdb_support_auto_increment = ON;
+SELECT @@global.duckdb_support_auto_increment;
+@@global.duckdb_support_auto_increment
+1
+SET GLOBAL duckdb_support_auto_increment = DEFAULT;
+SELECT @@global.duckdb_support_auto_increment;
+@@global.duckdb_support_auto_increment
+0
+SET GLOBAL duckdb_support_auto_increment = @saved;

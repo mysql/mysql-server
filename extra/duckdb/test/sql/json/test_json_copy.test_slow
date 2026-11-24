@@ -1,0 +1,282 @@
+# name: test/sql/json/test_json_copy.test_slow
+# description: Test JSON COPY
+# group: [json]
+
+require json
+
+require parquet
+
+require no_extension_autoloading "FIXME: Autoloading on zstd compression (parquet) not yet there"
+
+# test automatic detection even with .gz
+statement ok
+create table integers as select 42 i
+
+statement ok
+copy integers to '{TEMP_DIR}/integers.json.gz' (FORMAT JSON, COMPRESSION GZIP)
+
+statement ok
+delete from integers
+
+query I
+copy integers from '{TEMP_DIR}/integers.json.gz'
+----
+1
+
+query T
+select i from integers
+----
+42
+
+# test writing all types to file
+statement ok
+create type small_enum as enum ('DUCK_DUCK_ENUM', 'GOOSE');
+
+query I nosort q0
+select * exclude (varchar, blob, bit, medium_enum, large_enum, hugeint, uhugeint, bignum)
+         replace (dec_18_6::DOUBLE as dec_18_6, dec38_10::DOUBLE as dec38_10)
+from test_all_types()
+----
+
+statement ok
+copy (
+select * exclude (varchar, blob, bit, medium_enum, large_enum, hugeint, uhugeint, bignum)
+         replace (dec_18_6::DOUBLE as dec_18_6, dec38_10::DOUBLE as dec38_10)
+from test_all_types()
+) to '{TEMP_DIR}/all_types.ndjson'
+
+statement ok
+create table roundtrip as
+select * exclude (varchar, blob, bit, medium_enum, large_enum, hugeint, uhugeint, bignum)
+         replace (dec_18_6::DOUBLE as dec_18_6, dec38_10::DOUBLE as dec38_10)
+from test_all_types()
+limit 0
+
+statement ok
+copy roundtrip from '{TEMP_DIR}/all_types.ndjson'
+
+query I nosort q0
+select * from roundtrip
+----
+
+statement ok
+delete from roundtrip
+
+statement ok
+copy (
+select * exclude (varchar, blob, bit, medium_enum, large_enum, hugeint, uhugeint, bignum)
+         replace (dec_18_6::DOUBLE as dec_18_6, dec38_10::DOUBLE as dec38_10)
+from test_all_types()
+) to '{TEMP_DIR}/all_types.json' (array true)
+
+statement ok
+copy roundtrip from '{TEMP_DIR}/all_types.json' (array true)
+
+query I nosort q0
+select * from roundtrip
+----
+
+
+# test issue 18816
+statement ok
+copy (select 42 i)
+to '{TEMP_DIR}/json_batch'
+(format json, per_thread_output true, overwrite true);
+
+statement ok
+copy (select 42 i)
+to '{TEMP_DIR}/json_batch'
+(format json, per_thread_output true, append true);
+
+# test issue #6305
+statement ok
+copy (
+    select * from values
+    (uuid(), 10),
+    (uuid(), 10),
+    (uuid(), 15),
+    (uuid(), 5)
+    v (order_id, revenue)
+) to '{TEMP_DIR}/query.json' (format json)
+
+query II
+select typeof(order_id), revenue from '{TEMP_DIR}/query.json'
+----
+UUID	10
+UUID	10
+UUID	15
+UUID	5
+
+# struct star expression should work too
+statement ok
+copy (
+    select v.* from values
+    ({order_id: uuid(), revenue: 10}),
+    ({order_id: uuid(), revenue: 10}),
+    ({order_id: uuid(), revenue: 15}),
+    ({order_id: uuid(), revenue: 5}),
+    t (v)
+) to '{TEMP_DIR}/query.json' (format json)
+
+query II
+select typeof(order_id), revenue from '{TEMP_DIR}/query.json'
+----
+UUID	10
+UUID	10
+UUID	15
+UUID	5
+
+# exclude
+statement ok
+copy (
+    select order_id, * exclude (order_id) from values
+    (uuid(), 10),
+    (uuid(), 10),
+    (uuid(), 15),
+    (uuid(), 5)
+    v (order_id, revenue)
+) to '{TEMP_DIR}/query.json' (format json)
+
+query II
+select typeof(order_id), revenue from '{TEMP_DIR}/query.json'
+----
+UUID	10
+UUID	10
+UUID	15
+UUID	5
+
+# and finally, replace
+statement ok
+copy (
+    select * replace (revenue + 1 as revenue) from values
+    (uuid(), 10),
+    (uuid(), 10),
+    (uuid(), 15),
+    (uuid(), 5)
+    v (order_id, revenue)
+) to '{TEMP_DIR}/query.json' (format json)
+
+query II
+select typeof(order_id), revenue from '{TEMP_DIR}/query.json'
+----
+UUID	11
+UUID	11
+UUID	16
+UUID	6
+
+statement ok
+copy (select 42 as a, a + 1) to '{TEMP_DIR}/out.json' (format json);
+
+query II
+select * from '{TEMP_DIR}/out.json'
+----
+42	43
+
+# test issue #20739
+statement ok
+copy (
+    select * from values (1) t1(key)
+) to '{TEMP_DIR}/jsonl_files' (
+    format json,
+    file_size_bytes 100,
+    file_extension 'jsonl'
+);
+
+# the copy statement should have generated files with the 'jsonl' extension
+query I
+select key from '{TEMP_DIR}/jsonl_files/data_0.jsonl';
+----
+1
+
+statement ok
+create table conclusions (conclusion varchar)
+
+# works because we auto-detect by default
+statement ok
+copy conclusions from '{DATA_DIR}/json/top_level_array.json'
+
+# doesn't work if we disable auto-detection
+statement error
+copy conclusions from '{DATA_DIR}/json/top_level_array.json' (AUTO_DETECT FALSE)
+----
+Invalid Input Error
+
+statement ok
+delete from conclusions;
+
+# and also if we say it's an array
+statement ok
+copy conclusions from '{DATA_DIR}/json/top_level_array.json' (ARRAY TRUE)
+
+query I
+select * from conclusions
+----
+cancelled
+cancelled
+
+# same with ARRAY FALSE
+statement error
+copy conclusions from '{DATA_DIR}/json/top_level_array.json' (ARRAY FALSE)
+----
+Invalid Input Error
+
+# we can also write JSON arrays instead of newline-delimited
+statement ok
+copy (select range as i from range(10)) to '{TEMP_DIR}/my.json' (ARRAY TRUE)
+
+query T
+select * from read_json_auto('{TEMP_DIR}/my.json', format='array')
+----
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+# compression stuff (cannot be empty)
+statement error
+copy (select range as i from range(10)) to '{TEMP_DIR}/my.json' (COMPRESSION)
+----
+Invalid Input Error
+
+statement ok
+copy (select range as i from range(10)) to '{TEMP_DIR}/my.json.gz' (COMPRESSION GZIP)
+
+statement ok
+create table my_range (i bigint)
+
+statement ok
+copy my_range from '{TEMP_DIR}/my.json.gz' (COMPRESSION GZIP)
+
+# we can auto-detect even though we have compressed
+statement ok
+select * from '{TEMP_DIR}/my.json.gz'
+
+# works with zstd too, but we skip this test for now
+# it works in CLI, but not in unittest for some reason (ZSTD is not in VirtualFileSystem::compressed_fs)
+require parquet
+
+statement ok
+copy (select range as i from range(10)) to '{TEMP_DIR}/my.json.zst' (COMPRESSION ZSTD)
+
+statement ok
+select * from '{TEMP_DIR}/my.json.zst'
+
+query I
+select * from my_range
+----
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9

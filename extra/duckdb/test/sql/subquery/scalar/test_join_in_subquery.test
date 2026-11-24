@@ -1,0 +1,19 @@
+# name: test/sql/subquery/scalar/test_join_in_subquery.test
+# description: Joins in subqueries
+# group: [scalar]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+CREATE TABLE test AS FROM VALUES (1, 22), (1, 21), (2, 22) v(id, test_value);
+
+statement ok
+CREATE TABLE test2 AS FROM VALUES (1, 44), (2, 42) v(id, test2_value);
+
+query IIII rowsort
+SELECT * FROM test, test2 WHERE test.id=test2.id AND test_value*test2_value=(SELECT MIN(test_value*test2_value) FROM test AS a, test2 WHERE a.id=test.id AND a.id=test2.id)
+----
+1	21	1	44
+2	22	2	42
+

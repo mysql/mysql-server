@@ -1,0 +1,28 @@
+# name: test/sql/alter/rename_col/test_rename_col_dependencies.test
+# description: Test ALTER TABLE RENAME COLUMN and dependencies
+# group: [rename_col]
+
+statement ok
+CREATE TABLE test(i INTEGER, j INTEGER)
+
+# create two prepared statements
+# one uses specific columns (i, j)
+# the other uses select *
+statement ok
+PREPARE v1 AS SELECT i, j FROM test
+
+statement ok
+PREPARE v2 AS SELECT * FROM test
+
+# now rename "i" to "k"
+statement ok
+ALTER TABLE test RENAME COLUMN i TO k
+
+# v1 does not work anymore: "i" does not exist
+statement error
+EXECUTE v1
+----
+
+# v2 still works
+statement ok
+EXECUTE v2

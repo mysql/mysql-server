@@ -1,0 +1,163 @@
+# name: test/sql/catalog/test_temporary.test
+# description: Test temporary catalog entry creation
+# group: [catalog]
+
+# basic temp table creation works
+statement ok
+CREATE TEMPORARY TABLE integers(i INTEGER) ON COMMIT PRESERVE ROWS
+
+# we can (but never are required to) prefix temp tables with "temp" schema
+statement ok
+CREATE TEMPORARY TABLE integersx(i INTEGER)
+
+# we don't support temporary schemas (yet?)
+#statement error
+#CREATE TEMPORARY SCHEMA asdf
+
+# we can prefix temp tables with a schema that is not "temp"
+statement ok
+CREATE TEMPORARY TABLE main.integersy(i INTEGER)
+
+statement ok
+CREATE TEMPORARY TABLE s1 AS SELECT 42
+
+query I
+SELECT * FROM temp.s1
+----
+42
+
+query I
+SELECT * FROM s1
+----
+42
+
+statement error
+CREATE TABLE temp.integersy(i INTEGER)
+----
+<REGEX>:.*Parser Error.*Only TEMPORARY.*
+
+statement ok
+CREATE SCHEMA temp
+
+statement error
+CREATE TABLE temp.integersy(i INTEGER)
+----
+<REGEX>:.*Binder Error.*Ambiguous reference.*
+
+statement ok
+CREATE TABLE memory.temp.integersy(i INTEGER)
+
+statement ok
+DROP SCHEMA temp CASCADE
+
+statement error
+DROP TABLE memory.main.integersx
+----
+<REGEX>:.*Catalog Error.*does not exist.*
+
+statement ok
+DROP TABLE integersx
+
+statement ok
+CREATE TEMPORARY TABLE temp.integersx(i INTEGER)
+
+statement ok
+DROP TABLE temp.integersx
+
+# unsupported
+statement error
+CREATE TEMPORARY TABLE integers2(i INTEGER) ON COMMIT DELETE ROWS
+----
+<REGEX>:.*Not implemented Error: Only ON COMMIT.*
+
+# temp table already exists
+statement error
+CREATE TEMPORARY TABLE integers(i INTEGER)
+----
+<REGEX>:.*Catalog Error.*already exists.*
+
+statement ok
+INSERT INTO integers VALUES (42)
+
+query I
+SELECT i from integers
+----
+42
+
+# temp table survives commit
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+CREATE TEMPORARY TABLE integers2(i INTEGER)
+
+statement ok
+CREATE TEMPORARY SEQUENCE seq
+
+statement ok
+CREATE TEMPORARY VIEW v1 AS SELECT 42
+
+statement ok
+INSERT INTO integers2 VALUES (42)
+
+query I
+SELECT i from integers2
+----
+42
+
+query I
+SELECT nextval('seq')
+----
+1
+
+query I
+SELECT * from v1
+----
+42
+
+statement ok
+COMMIT
+
+query I
+SELECT i from integers2
+----
+42
+
+query I
+SELECT nextval('seq')
+----
+2
+
+query I
+SELECT * from v1
+----
+42
+
+# temp table does not survive rollback
+statement ok
+BEGIN TRANSACTION
+
+statement ok
+CREATE TEMPORARY TABLE integers3(i INTEGER)
+
+statement ok
+INSERT INTO integers3 VALUES (42)
+
+query I
+SELECT i from integers3
+----
+42
+
+statement ok
+ROLLBACK
+
+statement error
+SELECT i from integers3
+----
+<REGEX>:.*Catalog Error.*does not exist.*
+
+# table is not visible to other cons
+statement error con2
+INSERT INTO integers VALUES (42)
+----
+<REGEX>:.*Catalog Error.*does not exist.*

@@ -497,6 +497,8 @@ class Item_func : public Item_result_field {
 
   Item_func(const POS &pos, PT_item_list *opt_list);
 
+  Item_func(const POS &pos, PT_item_list *opt_list, MEM_ROOT *mem_root);
+
   // Constructor used for Item_cond_and/or (see Item comment)
   Item_func(THD *thd, const Item_func *item);
 
@@ -555,6 +557,8 @@ class Item_func : public Item_result_field {
     @return true on OOM, false otherwise
   */
   bool set_arguments(mem_root_deque<Item *> *list, bool context_free);
+  bool set_arguments(mem_root_deque<Item *> *list, bool context_free,
+                     MEM_ROOT *mem_root);
   bool split_sum_func(THD *thd, Ref_item_array ref_item_array,
                       mem_root_deque<Item *> *fields) override;
   void print(const THD *thd, String *str,
@@ -1463,6 +1467,8 @@ class Item_func_atan final : public Item_dec_func {
   double val_real() override;
   const char *func_name() const override { return "atan"; }
   enum Functype functype() const override { return ATAN_FUNC; }
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_cos final : public Item_dec_func {
@@ -1959,6 +1965,8 @@ class Item_func_field final : public Item_int_func {
   longlong val_int() override;
   const char *func_name() const override { return "field"; }
   bool resolve_type(THD *thd) override;
+  void print(const THD *thd, String *str,
+             enum_query_type query_type) const override;
 };
 
 class Item_func_ascii final : public Item_int_func {

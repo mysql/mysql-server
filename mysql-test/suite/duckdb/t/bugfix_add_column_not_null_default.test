@@ -1,0 +1,199 @@
+# ===========================================================
+# Test: bugfix_add_column_not_null_default
+# Description:
+#   ADD COLUMN ... NOT NULL DEFAULT <func> on a DuckDB table with existing
+#   rows used to fail because the NOT NULL constraint verification
+#   (VerifyNewConstraint) could not see the default values written by
+#   ADD COLUMN within the same internal transaction.
+#
+#   The fix uses a transaction-aware scan in VerifyNewConstraint
+#   so that uncommitted updates (e.g. default values from ADD COLUMN)
+#   are visible during NOT NULL validation.
+#
+#   NOTE: The default must be a function (e.g. now(), CURRENT_TIMESTAMP)
+#   rather than a literal, because literal defaults use the INSTANT
+#   path which does not generate row-level UPDATEs, and therefore
+#   does not trigger VerifyNewConstraint at all.
+#
+# Related: Aone#81367066
+# ===========================================================
+
+--echo #
+--echo # 1) ADD COLUMN NOT NULL DEFAULT now() on table with many rows (main bug scenario)
+--echo #
+
+CREATE TABLE t1 (id INT PRIMARY KEY, val INT) ENGINE=DuckDB;
+
+--disable_query_log
+--let $i = 1
+while ($i <= 20) {
+  eval INSERT INTO t1 VALUES ($i, $i * 10);
+  --inc $i
+}
+--enable_query_log
+
+SELECT COUNT(*) FROM t1;
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2001-01-01 00:00:00');
+ALTER TABLE t1 ADD COLUMN col1 DATETIME NOT NULL DEFAULT now();
+
+SELECT COUNT(*) FROM t1 WHERE col1 = '2001-01-01 00:00:00';
+SELECT COUNT(*) FROM t1 WHERE col1 IS NULL;
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t1 VALUES (9999, 10, NULL);
+
+DROP TABLE t1;
+
+--echo #
+--echo # 2) ADD COLUMN NOT NULL DEFAULT with multiple function-default columns
+--echo #
+
+CREATE TABLE t2 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+--disable_query_log
+--let $i = 1
+while ($i <= 10) {
+  eval INSERT INTO t2 VALUES ($i);
+  --inc $i
+}
+--enable_query_log
+
+SELECT COUNT(*) FROM t2;
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2002-02-02 00:00:00');
+ALTER TABLE t2 ADD COLUMN a DATETIME NOT NULL DEFAULT now(),
+               ADD COLUMN b DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+               ADD COLUMN c TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP;
+
+SELECT COUNT(*) FROM t2 WHERE a = '2002-02-02 00:00:00';
+SELECT COUNT(*) FROM t2 WHERE b = '2002-02-02 00:00:00';
+SELECT COUNT(*) FROM t2 WHERE c = '2002-02-02 00:00:00';
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2 VALUES (9999, NULL, '2002-02-02 00:00:00', '2002-02-02 00:00:00');
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2 VALUES (9999, '2002-02-02 00:00:00', NULL, '2002-02-02 00:00:00');
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t2 VALUES (9999, '2002-02-02 00:00:00', '2002-02-02 00:00:00', NULL);
+
+DROP TABLE t2;
+
+--echo #
+--echo # 3) ADD COLUMN without DEFAULT then MODIFY to NOT NULL should fail (NULLs exist)
+--echo #
+
+CREATE TABLE t3 (id INT PRIMARY KEY, val INT) ENGINE=DuckDB;
+INSERT INTO t3 VALUES (1, 10), (2, 20), (3, 30);
+
+ALTER TABLE t3 ADD COLUMN col1 INT;
+
+SELECT COUNT(*) FROM t3 WHERE col1 IS NULL;
+
+--error ER_DUCKDB_QUERY_ERROR
+ALTER TABLE t3 MODIFY COLUMN col1 INT NOT NULL;
+
+DROP TABLE t3;
+
+--echo #
+--echo # 4) ADD COLUMN NOT NULL DEFAULT now() with different algorithms
+--echo #
+
+CREATE TABLE t4 (id INT PRIMARY KEY, val INT) ENGINE=DuckDB;
+
+--disable_query_log
+--let $i = 1
+while ($i <= 10) {
+  eval INSERT INTO t4 VALUES ($i, $i);
+  --inc $i
+}
+--enable_query_log
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2003-03-03 00:00:00');
+ALTER TABLE t4 ADD COLUMN a DATETIME NOT NULL DEFAULT now(), ALGORITHM=INSTANT;
+SELECT COUNT(*) FROM t4 WHERE a = '2003-03-03 00:00:00';
+
+ALTER TABLE t4 ADD COLUMN b DATETIME NOT NULL DEFAULT now(), ALGORITHM=INPLACE;
+SELECT COUNT(*) FROM t4 WHERE b = '2003-03-03 00:00:00';
+
+ALTER TABLE t4 ADD COLUMN c DATETIME NOT NULL DEFAULT now(), ALGORITHM=COPY;
+SELECT COUNT(*) FROM t4 WHERE c = '2003-03-03 00:00:00';
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t4 VALUES (9999, 1, NULL, '2003-03-03', '2003-03-03');
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t4 VALUES (9999, 1, '2003-03-03', NULL, '2003-03-03');
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t4 VALUES (9999, 1, '2003-03-03', '2003-03-03', NULL);
+
+DROP TABLE t4;
+
+--echo #
+--echo # 5) ADD COLUMN NOT NULL DEFAULT now() on empty table (should always succeed)
+--echo #
+
+CREATE TABLE t5 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2004-04-04 00:00:00');
+ALTER TABLE t5 ADD COLUMN col1 DATETIME NOT NULL DEFAULT now();
+
+INSERT INTO t5 VALUES (1, '2004-04-04 00:00:00');
+--error ER_BAD_NULL_ERROR
+INSERT INTO t5 VALUES (2, NULL);
+
+SELECT * FROM t5;
+
+DROP TABLE t5;
+
+--echo #
+--echo # 6) ADD COLUMN NOT NULL DEFAULT now() combined with other ALTER operations
+--echo #
+
+CREATE TABLE t6 (id INT PRIMARY KEY, a INT DEFAULT 1, b INT DEFAULT 2) ENGINE=DuckDB;
+
+--disable_query_log
+--let $i = 1
+while ($i <= 10) {
+  eval INSERT INTO t6 VALUES ($i, $i, $i);
+  --inc $i
+}
+--enable_query_log
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2005-05-05 00:00:00');
+ALTER TABLE t6 ADD COLUMN c DATETIME NOT NULL DEFAULT now(),
+               RENAME COLUMN a TO a_new,
+               ALTER COLUMN b SET DEFAULT 200;
+
+SELECT COUNT(*) FROM t6 WHERE c = '2005-05-05 00:00:00';
+INSERT INTO t6 (id, a_new) VALUES (9999, 1);
+SELECT c, b FROM t6 WHERE id = 9999;
+
+DROP TABLE t6;
+
+--echo #
+--echo # 7) ADD COLUMN NOT NULL DEFAULT with large row count
+--echo #
+
+CREATE TABLE t7 (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+--disable_query_log
+--let $i = 1
+while ($i <= 100) {
+  eval INSERT INTO t7 VALUES ($i);
+  --inc $i
+}
+--enable_query_log
+
+SELECT COUNT(*) FROM t7;
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2006-06-06 00:00:00');
+ALTER TABLE t7 ADD COLUMN col1 DATETIME NOT NULL DEFAULT now();
+
+SELECT COUNT(*) FROM t7 WHERE col1 = '2006-06-06 00:00:00';
+SELECT COUNT(*) FROM t7 WHERE col1 IS NULL;
+
+DROP TABLE t7;

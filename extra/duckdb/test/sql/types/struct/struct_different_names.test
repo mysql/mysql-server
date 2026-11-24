@@ -1,0 +1,95 @@
+# name: test/sql/types/struct/struct_different_names.test
+# description: Test inserting structs with different names and unnamed structs
+# group: [struct]
+
+statement ok
+PRAGMA enable_verification
+
+statement error
+CREATE TABLE wrong AS FROM (VALUES (ROW(3)));
+----
+<REGEX>:Invalid Input Error.*A table cannot be created from an unnamed struct.*
+
+statement ok
+CREATE TABLE t1 (s STRUCT(v VARCHAR)); 
+
+statement ok
+INSERT INTO t1 VALUES (ROW(NULL));
+
+statement error
+INSERT INTO t1 VALUES ({c: 34});
+----
+<REGEX>:Binder Error.*STRUCT to STRUCT cast must have at least one matching member.*
+
+query I
+SELECT s FROM t1 ORDER BY ALL;
+----
+{'v': NULL}
+
+statement ok
+CREATE TABLE foo (bar struct(pip int));
+
+statement error
+INSERT INTO foo VALUES ({'ignoreme': 3});
+----
+<REGEX>:Binder Error.*STRUCT to STRUCT cast must have at least one matching member.*
+
+statement ok
+INSERT INTO foo VALUES (ROW(42));
+
+query I
+SELECT bar FROM foo ORDER BY ALL;
+----
+{'pip': 42}
+
+statement ok
+CREATE OR REPLACE TABLE T AS SELECT [{'a': 'A', 'b':'B'}] AS x, [{'b':'BB','a':'AA'}] AS y;
+
+query III
+SELECT x, y, ARRAY_CONCAT(x, y) FROM T;
+----
+[{'a': A, 'b': B}]	[{'b': BB, 'a': AA}]	[{'a': A, 'b': B}, {'a': AA, 'b': BB}]
+
+statement ok
+CREATE OR REPLACE TABLE T (s STRUCT(a INT, b INT));
+
+statement error
+INSERT INTO T VALUES ({l: 1, m: 2}), ({x: 3, y: 4});
+----
+<REGEX>:Binder Error.*STRUCT to STRUCT cast must have at least one matching member.*
+
+query I
+SELECT s FROM T ORDER BY ALL;
+----
+
+# Can insert an unnamed STRUCT into a named STRUCT.
+
+statement ok
+CREATE TABLE tbl (a STRUCT(a INT, b VARCHAR));
+
+statement ok
+INSERT INTO tbl VALUES (ROW(5, 'hello'));
+
+statement error
+CREATE TABLE tbl2 AS SELECT ROW(42, 'world') a;
+----
+<REGEX>:Invalid Input Error.*A table cannot be created from an unnamed struct.*
+
+query I
+SELECT [{'foo': True}, {'bar': False}, {'foobar': NULL}];
+----
+[{'foo': true, 'bar': NULL, 'foobar': NULL}, {'foo': NULL, 'bar': false, 'foobar': NULL}, {'foo': NULL, 'bar': NULL, 'foobar': NULL}]
+
+query I
+select [(13, 24), {'a': 42, 'b': 84}, (43, 85), {'b': 10, 'a': 123123}] AS res;
+----
+[{'a': 13, 'b': 24}, {'a': 42, 'b': 84}, {'a': 43, 'b': 85}, {'a': 123123, 'b': 10}]
+
+statement ok
+PREPARE v1 AS SELECT ROW(?);
+
+statement ok
+EXECUTE v1(42);
+
+statement ok
+CREATE VIEW v1 AS SELECT ROW(42);

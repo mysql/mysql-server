@@ -1,0 +1,109 @@
+# name: test/sql/alter/default/test_set_default.test
+# description: Test ALTER TABLE SET DEFAULT
+# group: [default]
+
+statement ok
+CREATE TABLE test(i INTEGER, j INTEGER)
+
+statement ok
+INSERT INTO test VALUES (1, 1), (2, 2)
+
+statement ok
+ALTER TABLE test ALTER j SET DEFAULT 3
+
+statement ok
+INSERT INTO test (i) VALUES (3)
+
+query II
+SELECT * FROM test
+----
+1
+1
+2
+2
+3
+3
+
+statement ok
+ALTER TABLE test ALTER COLUMN j DROP DEFAULT
+
+statement ok
+INSERT INTO test (i) VALUES (4)
+
+query II
+SELECT * FROM test
+----
+1
+1
+2
+2
+3
+3
+4
+NULL
+
+statement ok
+CREATE SEQUENCE seq
+
+statement ok
+ALTER TABLE test ALTER j SET DEFAULT nextval('seq')
+
+statement ok
+INSERT INTO test (i) VALUES (5), (6)
+
+query II
+SELECT * FROM test
+----
+1
+1
+2
+2
+3
+3
+4
+NULL
+5
+1
+6
+2
+
+# set default on a table with constraints
+statement ok
+CREATE TABLE constrainty(i INTEGER PRIMARY KEY, j INTEGER);
+
+statement ok
+ALTER TABLE constrainty ALTER j SET DEFAULT 3
+
+statement ok
+INSERT INTO constrainty (i) VALUES (2)
+
+query II
+SELECT * FROM constrainty
+----
+2	3
+
+# fail when column does not exist
+statement error
+ALTER TABLE test ALTER blabla SET DEFAULT 3
+----
+
+statement error
+ALTER TABLE test ALTER blabla DROP DEFAULT
+----
+
+# test that SET DEFAULT preserves temporary flag
+statement ok
+CREATE TEMPORARY TABLE temp_default_test(x INTEGER DEFAULT 1)
+
+query TTI
+SELECT table_name, database_name, temporary FROM duckdb_tables() WHERE table_name='temp_default_test'
+----
+temp_default_test	temp	true
+
+statement ok
+ALTER TABLE temp_default_test ALTER x SET DEFAULT 5
+
+query TTI
+SELECT table_name, database_name, temporary FROM duckdb_tables() WHERE table_name='temp_default_test'
+----
+temp_default_test	temp	true

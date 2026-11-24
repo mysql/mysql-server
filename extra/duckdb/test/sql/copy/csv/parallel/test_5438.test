@@ -1,0 +1,18 @@
+# name: test/sql/copy/csv/parallel/test_5438.test
+# description: Test parallel read CSV function on issue #5438
+# group: [parallel]
+
+require json
+
+statement ok
+PRAGMA enable_verification
+
+# force parallelism of the queries
+statement ok
+PRAGMA verify_parallelism
+
+query I
+SELECT j->>'duck' FROM read_csv_auto('{DATA_DIR}/csv/test/5438.csv', delim='', columns={'j': 'JSON'}, auto_detect = false)
+----
+1
+2

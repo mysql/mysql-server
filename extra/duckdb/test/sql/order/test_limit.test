@@ -1,0 +1,306 @@
+# name: test/sql/order/test_limit.test
+# description: Test LIMIT keyword
+# group: [order]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+CREATE TABLE test (a INTEGER, b INTEGER);
+
+statement ok
+INSERT INTO test VALUES (11, 22), (12, 21), (13, 22)
+
+# constant limit
+query I
+SELECT a FROM test LIMIT 1
+----
+11
+
+# decimal limit
+query I
+SELECT a FROM test LIMIT 1.25
+----
+11
+
+# LIMIT with operation
+query I
+SELECT a FROM test LIMIT 2-1
+----
+11
+
+# LIMIT with non-scalar should fail
+statement error
+SELECT a FROM test LIMIT a
+----
+<REGEX>:Binder Error:.*Referenced column.*not found.*
+
+# LIMIT with non-scalar operation should also fail
+statement error
+SELECT a FROM test LIMIT a+1
+----
+<REGEX>:Binder Error:.*Referenced column.*not found.*
+
+# aggregate in limit
+statement error
+SELECT a FROM test LIMIT SUM(42)
+----
+<REGEX>:Binder Error:.*Aggregate functions are not supported.*
+
+# window function in limit
+statement error
+SELECT a FROM test LIMIT row_number() OVER ()
+----
+<REGEX>:Not implemented Error:.*expression class.*
+
+# LIMIT Bug #321 Crazy Result
+statement ok
+CREATE TABLE test2 (a STRING);
+
+statement ok
+INSERT INTO test2 VALUES ('Hello World')
+
+statement ok
+PREPARE v1 AS SELECT * FROM test2 LIMIT 3
+
+query I
+EXECUTE v1
+----
+Hello World
+
+# can only limit by integers
+statement error
+select 1 limit date '1992-01-01';
+----
+<REGEX>:Conversion Error.*Unimplemented type for cast.*
+
+# Test limits with no constants
+statement ok
+CREATE TABLE integers(i INTEGER);
+
+statement ok
+INSERT INTO integers VALUES (1), (2), (3), (4), (5);
+
+statement ok
+CREATE SEQUENCE seq START 3;
+
+statement ok
+PRAGMA disable_verification;
+
+statement ok
+PRAGMA disable_verify_fetch_row;
+
+query I
+SELECT * FROM integers LIMIT nextval('seq');
+----
+1
+2
+3
+
+query I
+SELECT * FROM integers LIMIT nextval('seq');
+----
+1
+2
+3
+4
+
+
+# non-foldable expression in limit
+statement ok
+SELECT * FROM integers LIMIT RANDOM();
+
+# subquery in limit
+query I
+SELECT * FROM integers as int LIMIT (SELECT MIN(integers.i) FROM integers);
+----
+1
+
+statement ok
+CREATE SEQUENCE of_seq START 1;
+
+query I
+SELECT * FROM integers OFFSET nextval('of_seq');
+----
+2
+3
+4
+5
+
+query I
+SELECT * FROM integers OFFSET nextval('of_seq');
+----
+3
+4
+5
+
+# non-foldable expression in limit
+statement ok
+SELECT * FROM integers OFFSET RANDOM();
+
+# subquery in limit
+query I
+SELECT * FROM integers as int OFFSET (SELECT MIN(integers.i) FROM integers);
+----
+2
+3
+4
+5
+
+#Both LIMIT and OFFSET together with subqueries
+query I
+SELECT * FROM integers as int LIMIT (SELECT MAX(integers.i) FROM integers) OFFSET (SELECT MIN(integers.i) FROM integers);
+----
+2
+3
+4
+5
+
+#Subqueries that return zero rows = Same as ommiting limit clause
+query I
+SELECT * FROM integers as int LIMIT (SELECT max(integers.i) FROM integers where i > 5)
+----
+1
+2
+3
+4
+5
+
+#Limit of NULL, offset of NULL
+query I
+SELECT * FROM integers as int LIMIT (SELECT max(integers.i) FROM integers where i > 5)
+----
+1
+2
+3
+4
+5
+
+#Subqueries that return NULL
+query I
+SELECT * FROM integers as int LIMIT (SELECT NULL)
+----
+1
+2
+3
+4
+5
+
+
+#Subqueries that return negative values
+statement error
+SELECT * FROM integers as int LIMIT (SELECT -1);
+----
+<REGEX>:Invalid Input Error.*INT32.*out of range for.*UINT64.*
+
+#Subqueries that return strings that can't be converted to integers
+statement error
+SELECT * FROM integers as int LIMIT (SELECT 'ab');
+----
+<REGEX>:Invalid Input Error.*Could not convert string.*
+
+# Test use subquery in limit and offset
+statement ok
+CREATE OR REPLACE TABLE t AS SELECT range x FROM range(10);
+
+statement ok
+PRAGMA enable_verification;
+
+query I
+SELECT * FROM t ORDER BY x;
+----
+0
+1
+2
+3
+4
+5
+6
+7
+8
+9
+
+query I
+SELECT * FROM t ORDER BY x OFFSET 5;
+----
+5
+6
+7
+8
+9
+
+# scalar subquery in offset
+query I
+SELECT * FROM t ORDER BY x OFFSET (SELECT 5);
+----
+5
+6
+7
+8
+9
+
+# scalar subquery in limit
+query I
+SELECT * FROM t ORDER BY x LIMIT (SELECT 5);
+----
+0
+1
+2
+3
+4
+
+# scalar subquery both in limit and offset
+query I
+SELECT * FROM t ORDER BY x LIMIT (SELECT 3) OFFSET (SELECT 3);
+----
+3
+4
+5
+
+# scalar subquery in offset
+query I
+SELECT * FROM t ORDER BY x LIMIT 3 OFFSET (SELECT 3);
+----
+3
+4
+5
+
+# scalar subquery in limit
+query I
+SELECT * FROM t ORDER BY x LIMIT (SELECT 3) OFFSET 3;
+----
+3
+4
+5
+
+# negeive number in the limit
+statement error
+SELECT * FROM t ORDER BY x LIMIT (SELECT -1);
+----
+<REGEX>:Invalid Input Error.*INT32.*out of range for.*UINT64.*
+
+# negeive number in the offset
+statement error
+SELECT * FROM t ORDER BY x OFFSET (SELECT -1);
+----
+<REGEX>:Invalid Input Error.*INT32.*out of range for.*UINT64.*
+
+statement ok
+create table t0(c0 int);
+
+statement ok
+insert into t0 values (1), (2), (3), (4), (5), (6), (7);
+
+# some complex expression in the offset clause
+statement error
+SELECT * FROM t0 ORDER BY ALL OFFSET (SELECT DISTINCT 6.5 FROM (SELECT 1) t1(c0) UNION ALL SELECT 3);
+----
+More than one row returned by a subquery
+
+statement ok
+SET scalar_subquery_error_on_multiple_rows=false
+
+query I
+SELECT * FROM t0 ORDER BY ALL OFFSET (SELECT DISTINCT 6.5 FROM (SELECT 1) t1(c0) UNION ALL SELECT 3);
+----
+7

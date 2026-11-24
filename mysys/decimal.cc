@@ -204,6 +204,10 @@ static inline dec1 div_by_pow10(dec1 x, int p) {
   }
 }
 
+decimal_digit_t decimal_div_by_pow10(decimal_digit_t x, int p) {
+  return div_by_pow10(x, p);
+}
+
 static inline dec1 mod_by_pow10(dec1 x, int p) {
   // See div_by_pow10 for rationale.
   assert(x >= 0);
@@ -503,6 +507,51 @@ int decimal_actual_fraction(const decimal_t *from) {
                                   *buf0);
   }
   return frac;
+}
+
+/*
+  Returns the actual integer part size of a decimal value.
+  For example, if we have 12.04, the decimal_t->intg would be 9 (because
+  MySQL stores 9 digits per group), but the actual integer part size is 2.
+
+  SYNOPSIS
+    decimal_actual_intg()
+      from  - decimal value
+
+  RETURN
+    the actual number of digits before the decimal point
+*/
+int decimal_actual_intg(const decimal_t *from) {
+  int intg = from->intg;
+  const dec1 *buf = from->buf;
+
+  if (intg == 0) return 0;
+
+  // Calculate how the integer part is organized in groups
+  int complete_groups = ROUND_UP(intg);
+
+  // Start from the first group
+  int i = 0;
+  // Skip leading zero groups
+  while (i < complete_groups && buf[i] == 0) {
+    i++;
+  }
+
+  // All groups are zero
+  if (i >= complete_groups) {
+    return 0;
+  }
+
+  // Count the actual digits in the first non-zero group
+  int digits_in_first_nonzero_group = 0;
+  dec1 temp = buf[i];
+  while (temp > 0) {
+    temp /= 10;
+    digits_in_first_nonzero_group++;
+  }
+
+  return digits_in_first_nonzero_group +
+         (complete_groups - i - 1) * DIG_PER_DEC1;
 }
 
 /*

@@ -1,0 +1,45 @@
+--source include/have_debug.inc
+--source include/have_binlog_format_mixed.inc
+--source include/rpl/init_source_replica.inc
+--let $rpl_connection_name = default
+--source include/connection.inc
+
+CALL mtr.add_suppression("Binary logging not possible");
+CALL mtr.add_suppression("Attempting backtrace.");
+
+--echo #
+--echo # Verify the server will crash if duckdb_binlog_rotate() function returns
+--echo # error.
+--echo #
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+
+SET debug = "d,simulate_duckdb_binlog_roate_error";
+--source include/expect_crash.inc
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+FLUSH BINARY LOGS;
+
+--let $rpl_server_number = 1
+--source include/rpl/start_server.inc
+
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+
+--echo #
+--echo # Test the server Crash during rotate binlog
+--echo #
+SET debug = "d,crash_during_duckdb_binlog_rotate";
+--source include/expect_crash.inc
+--error 2013
+FLUSH BINARY LOGS;
+
+--let $rpl_server_number = 1
+--source include/rpl/start_server.inc
+
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+
+--source include/rpl/connection_replica.inc
+--disable_warnings
+--let $rpl_allow_error = 1
+--source include/rpl/start_receiver.inc
+--enable_warnings
+
+--source include/rpl/deinit.inc

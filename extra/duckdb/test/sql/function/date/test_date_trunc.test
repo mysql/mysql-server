@@ -1,0 +1,325 @@
+# name: test/sql/function/date/test_date_trunc.test
+# description: Test date truncate functionality
+# group: [date]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+CREATE TABLE dates(d DATE, s VARCHAR);
+
+statement ok
+CREATE TABLE timestamps(d TIMESTAMP, s VARCHAR);
+
+statement ok
+INSERT INTO dates VALUES
+	('1992-12-02', 'year'),
+	('1993-03-03', 'month'),
+	('1994-05-05', 'day'),
+	('2022-01-01', 'isoyear')
+;
+
+statement ok
+INSERT INTO timestamps VALUES
+	('-infinity', 'year'),
+	('1992-02-02 02:02:03', 'millennium'),
+	('1992-02-02 02:02:03', 'century'),
+	('1992-02-02 02:02:03', 'decade'),
+	('1992-02-02 02:02:03', 'year'),
+	('1992-02-02 02:02:03', 'quarter'),
+	('1992-02-02 02:02:03', 'month'),
+	('1992-02-02 02:02:03', 'week'),
+	('1992-02-02 02:02:03', 'day'),
+	('1992-02-02 02:02:03', 'hour'),
+	('1992-02-02 02:02:03', 'minute'),
+	('1992-02-02 02:02:03', 'second'),
+	('1992-02-02 02:02:03', 'milliseconds'),
+	('1992-02-02 02:02:03', 'microseconds'),
+	('infinity', 'month'),
+;
+
+# test date_trunc with different combinations of constant/non-constant columns on both dates and timestamps
+query T
+SELECT date_trunc(NULL::VARCHAR, NULL::TIMESTAMP) FROM dates;
+----
+NULL
+NULL
+NULL
+NULL
+
+query T
+SELECT date_trunc(s, NULL::TIMESTAMP) FROM dates;
+----
+NULL
+NULL
+NULL
+NULL
+
+query T
+SELECT date_trunc(NULL, d) FROM dates;
+----
+NULL
+NULL
+NULL
+NULL
+
+query T
+SELECT date_trunc(NULL::VARCHAR, NULL::TIMESTAMP) FROM timestamps LIMIT 3;
+----
+NULL
+NULL
+NULL
+
+query T
+SELECT date_trunc(s, NULL::TIMESTAMP) FROM timestamps LIMIT 3;
+----
+NULL
+NULL
+NULL
+
+query T
+SELECT date_trunc(NULL, d) FROM timestamps LIMIT 3;
+----
+NULL
+NULL
+NULL
+
+# dates should be cast to timestamp
+query T
+SELECT date_trunc('month', DATE '1992-02-02') FROM dates LIMIT 1;
+----
+1992-02-01 00:00:00
+
+query T
+SELECT date_trunc(s, d) FROM dates;
+----
+1992-01-01 00:00:00
+1993-03-01 00:00:00
+1994-05-05 00:00:00
+2021-01-04 00:00:00
+
+# Issue #4388: Verify DATE results for all timestamp types
+foreach temporal TIMESTAMP TIMESTAMP_MS TIMESTAMP_NS TIMESTAMP_S
+
+foreach datepart day doy dow isodow julian
+
+query I
+select date_trunc('${datepart}', '2022-08-15 07:52:55'::${temporal});
+----
+2022-08-15 00:00:00
+
+endloop
+
+query I
+select date_trunc('hour', '2022-08-15 07:52:55'::${temporal});
+----
+2022-08-15 07:00:00
+
+endloop
+
+# Timestamps should return timestamp type
+query T
+SELECT date_trunc('minute', TIMESTAMP '1992-02-02 04:03:02') FROM timestamps LIMIT 1;
+----
+1992-02-02 04:03:00
+
+# Test all truncate operators on timestamps
+query T
+SELECT date_trunc(s, d) FROM timestamps;
+----
+-infinity
+1000-01-01 00:00:00
+1900-01-01 00:00:00
+1990-01-01 00:00:00
+1992-01-01 00:00:00
+1992-01-01 00:00:00
+1992-02-01 00:00:00
+1992-01-27 00:00:00
+1992-02-02 00:00:00
+1992-02-02 02:00:00
+1992-02-02 02:02:00
+1992-02-02 02:02:03
+1992-02-02 02:02:03
+1992-02-02 02:02:03
+infinity
+
+# Redo previous test but with casting to date first
+query T
+SELECT date_trunc(s, CAST(d as DATE)) FROM timestamps;
+----
+-infinity
+1000-01-01 00:00:00
+1900-01-01 00:00:00
+1990-01-01 00:00:00
+1992-01-01 00:00:00
+1992-01-01 00:00:00
+1992-02-01 00:00:00
+1992-01-27 00:00:00
+1992-02-02 00:00:00
+1992-02-02 00:00:00
+1992-02-02 00:00:00
+1992-02-02 00:00:00
+1992-02-02 00:00:00
+1992-02-02 00:00:00
+infinity
+
+# Test week operator special cases
+query T
+SELECT date_trunc('week', TIMESTAMP '2020-01-01 04:03:02') FROM timestamps LIMIT 1;
+----
+2019-12-30 00:00:00
+
+query T
+SELECT date_trunc('week', TIMESTAMP '2019-01-06 04:03:02') FROM timestamps LIMIT 1;
+----
+2018-12-31 00:00:00
+
+query T
+SELECT date_trunc('yearweek', TIMESTAMP '2020-01-01 04:03:02') FROM timestamps LIMIT 1;
+----
+2019-12-30 00:00:00
+
+query T
+SELECT date_trunc('yearweek', TIMESTAMP '2019-01-06 04:03:02') FROM timestamps LIMIT 1;
+----
+2018-12-31 00:00:00
+
+# Test quarter operator more thoroughly
+query T
+SELECT date_trunc('quarter', TIMESTAMP '2020-12-02 04:03:02') FROM timestamps LIMIT 1;
+----
+2020-10-01 00:00:00
+
+query T
+SELECT date_trunc('quarter', TIMESTAMP '2019-01-06 04:03:02') FROM timestamps LIMIT 1;
+----
+2019-01-01 00:00:00
+
+query T
+SELECT date_trunc('millennium', TIMESTAMP '1996-01-06 04:03:02') FROM timestamps LIMIT 1;
+----
+1000-01-01 00:00:00
+
+query T
+SELECT date_trunc('century', TIMESTAMP '2019-01-06 04:03:02') FROM timestamps LIMIT 1;
+----
+2000-01-01 00:00:00
+
+query T
+SELECT date_trunc('decade', TIMESTAMP '2019-01-06 04:03:02') FROM timestamps LIMIT 1;
+----
+2010-01-01 00:00:00
+
+query T
+SELECT date_trunc('year', TIMESTAMP '2019-01-06 04:03:02') FROM timestamps LIMIT 1;
+----
+2019-01-01 00:00:00
+
+query T
+SELECT date_trunc('day', TIMESTAMP '2019-01-06 04:03:02') FROM timestamps LIMIT 1;
+----
+2019-01-06 00:00:00
+
+query T
+SELECT date_trunc('hour', TIMESTAMP '2019-01-06 04:03:02') FROM timestamps LIMIT 1;
+----
+2019-01-06 04:00:00
+
+query T
+SELECT date_trunc('milliseconds', TIMESTAMP '2019-01-06 04:03:02.123456') FROM timestamps LIMIT 1;
+----
+2019-01-06 04:03:02.123
+
+query T
+SELECT date_trunc('microseconds', TIMESTAMP '2019-01-06 04:03:02.123456');
+----
+2019-01-06 04:03:02.123456
+
+# Synonym for second
+query T
+SELECT date_trunc('epoch', TIMESTAMP '2019-01-06 04:03:02.5') FROM timestamps LIMIT 1;
+----
+2019-01-06 04:03:02
+
+query II
+SELECT d::DATE, DATE_TRUNC('isoyear', d)::DATE
+FROM generate_series('2000-01-01'::TIMESTAMP, '2023-01-01'::TIMESTAMP, INTERVAL 1 YEAR) tbl(d);
+----
+2000-01-01	1999-01-04
+2001-01-01	2001-01-01
+2002-01-01	2001-12-31
+2003-01-01	2002-12-30
+2004-01-01	2003-12-29
+2005-01-01	2003-12-29
+2006-01-01	2005-01-03
+2007-01-01	2007-01-01
+2008-01-01	2007-12-31
+2009-01-01	2008-12-29
+2010-01-01	2008-12-29
+2011-01-01	2010-01-04
+2012-01-01	2011-01-03
+2013-01-01	2012-12-31
+2014-01-01	2013-12-30
+2015-01-01	2014-12-29
+2016-01-01	2014-12-29
+2017-01-01	2016-01-04
+2018-01-01	2018-01-01
+2019-01-01	2018-12-31
+2020-01-01	2019-12-30
+2021-01-01	2019-12-30
+2022-01-01	2021-01-04
+2023-01-01	2022-01-03
+
+# Unknown specifier should fail
+statement error
+SELECT date_trunc('duck', TIMESTAMP '2019-01-06 04:03:02') FROM timestamps LIMIT 1;
+----
+
+# Statistics should propagate
+
+statement ok
+PRAGMA disable_verification
+
+query I
+SELECT stats(date_trunc('year', d)) FROM dates LIMIT 1;
+----
+[Min: 1992-01-01 00:00:00, Max: 2022-01-01 00:00:00][Has Null: false, Has No Null: true]
+
+query I
+SELECT stats(date_trunc('quarter', d)) FROM dates LIMIT 1;
+----
+[Min: 1992-10-01 00:00:00, Max: 2022-01-01 00:00:00][Has Null: false, Has No Null: true]
+
+query I
+SELECT stats(date_trunc('month', d)) FROM dates LIMIT 1;
+----
+[Min: 1992-12-01 00:00:00, Max: 2022-01-01 00:00:00][Has Null: false, Has No Null: true]
+
+query I
+SELECT stats(date_trunc('day', d)) FROM dates LIMIT 1;
+----
+[Min: 1992-12-02 00:00:00, Max: 2022-01-01 00:00:00][Has Null: false, Has No Null: true]
+
+foreach daypart millennium century decade year quarter month week day
+
+query I
+SELECT stats(date_trunc('${daypart}', d)) FROM timestamps LIMIT 1;
+----
+[Min: -infinity, Max: infinity][Has Null: false, Has No Null: true]
+
+endloop
+
+query T
+WITH cte AS (
+    SELECT NULL::VARCHAR part
+    FROM range(1)
+)
+SELECT date_trunc(part, TIMESTAMP '2019-01-06 04:03:02')
+FROM cte
+----
+NULL
+
+query I
+from values ('2024-01-15 15:30:00'::timestamp) as a(t)
+where date_trunc('day', t) = '2024-01-15 12:30:00';
+----

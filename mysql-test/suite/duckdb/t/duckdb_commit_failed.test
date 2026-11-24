@@ -1,0 +1,55 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # Failed to commit in COPY DDL, crash.
+--echo #
+CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `name` varchar(100),
+  PRIMARY KEY (`id`) ) ENGINE=InnoDB;
+INSERT INTO t1 (id, name) VALUES (1, 'abc');
+
+# Normal COPY DDL
+SET SESSION duckdb_copy_ddl_threads = 0;
+SET SESSION DEBUG = '+d, simulate_duckdb_commit_failed';
+--source include/expect_crash.inc
+--error 2013
+ALTER TABLE t1 ENGINE = DuckDB;
+
+--source include/start_mysqld.inc
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+# Parallel COPY DDL
+SET SESSION duckdb_copy_ddl_threads = 4;
+SET SESSION DEBUG = '+d, simulate_duckdb_commit_failed';
+--source include/expect_crash.inc
+--error 2013
+ALTER TABLE t1 ENGINE = DuckDB;
+
+--source include/start_mysqld.inc
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+
+--echo #
+--echo # Failed to commit but not in COPY DDL, not crash
+--echo #
+ALTER TABLE t1 ENGINE = DuckDB;
+--let $gtid_1 = `SELECT @@GLOBAL.gtid_executed`
+SET SESSION DEBUG = '+d, simulate_duckdb_commit_failed';
+BEGIN;
+INSERT INTO t1 (id, name) VALUES (2, 'abc');
+INSERT INTO t1 (id, name) VALUES (3, 'abc');
+--error ER_DUCKDB_COMMIT_ERROR
+COMMIT;
+SET SESSION DEBUG = '-d, simulate_duckdb_commit_failed';
+SELECT * FROM t1;
+--let $gtid_2 = `SELECT @@GLOBAL.gtid_executed`
+--let $assert_cond= "$gtid_2" = "$gtid_1"
+--let $assert_text= GITD 2 is same with GTID 1.
+--source include/assert.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+DROP TABLE t1;

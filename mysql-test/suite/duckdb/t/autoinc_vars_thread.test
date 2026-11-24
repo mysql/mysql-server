@@ -1,0 +1,60 @@
+--source include/have_debug_sync.inc
+
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = ON;
+--enable_query_log
+
+--echo #---------------------------
+--echo # two threads inserting simultaneously with increment > 1
+--echo # Issue #390
+--echo #---------------------------
+
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY) ENGINE=DuckDB;
+
+# Set up connections
+connect (con1, localhost, root,,);
+SET auto_increment_increment = 2;
+SET auto_increment_offset = 1;
+# Insert one row to set up the conditions that caused the original failure
+INSERT INTO t1 VALUES(NULL);
+
+connect (con2, localhost, root,,);
+SET auto_increment_increment = 2;
+SET auto_increment_offset = 1;
+
+# Start each thread on an insert that will block waiting for a signal
+connection con1;
+SET debug_sync='duckdb_get_auto_inc_val SIGNAL parked1 WAIT_FOR go NO_CLEAR_EVENT';
+send INSERT INTO t1 VALUES(NULL);
+
+connection con2;
+SET debug_sync='duckdb_get_auto_inc_val SIGNAL parked2 WAIT_FOR go NO_CLEAR_EVENT';
+send INSERT INTO t1 VALUES(NULL);
+
+# Wait for both threads to be at debug_sync point
+connection default;
+SET debug_sync='now WAIT_FOR parked1';
+SET debug_sync='now WAIT_FOR parked2';
+
+# Signal both threads to continue
+SET debug_sync='now SIGNAL go';
+
+connection con1;
+reap;
+
+connection con2;
+reap;
+
+connection default;
+SET debug_sync='RESET';
+
+disconnect con1;
+disconnect con2;
+
+--sorted_result
+SELECT * FROM t1;
+DROP TABLE t1;
+
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = default;
+--enable_query_log

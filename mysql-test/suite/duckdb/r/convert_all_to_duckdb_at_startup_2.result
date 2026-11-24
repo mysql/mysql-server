@@ -1,0 +1,107 @@
+#
+# 1) Prepare
+#
+#
+# 2) RESTART WITH duckdb_convert_all_at_startup=ON, DuckDB schemas will not be created because of they already exist.
+#
+Create table done.
+SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name LIKE 'db%';
+COUNT(*)
+10
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name LIKE 'db%'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+10
+
+
+SELECT COUNT(*) FROM information_schema.tables WHERE ENGINE = 'DuckDB';
+COUNT(*)
+0
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema LIKE 'db%'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+0
+
+
+# restart: --duckdb_convert_all_at_startup=ON
+SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name LIKE 'db%';
+COUNT(*)
+10
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name LIKE 'db%'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+10
+
+
+SELECT COUNT(*) FROM information_schema.tables WHERE ENGINE = 'DuckDB';
+COUNT(*)
+500
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema LIKE 'db%'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+500
+
+
+Drop database done.
+#
+# 3) RESTART WITH duckdb_convert_all_at_startup=ON, we drop all DuckDB schemas and they will be created.
+#
+Create table done.
+Drop DuckDB schema done.
+SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name LIKE 'db%';
+COUNT(*)
+10
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name LIKE 'db%'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+0
+
+
+SELECT COUNT(*) FROM information_schema.tables WHERE ENGINE = 'DuckDB';
+COUNT(*)
+0
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema LIKE 'db%'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+0
+
+
+# restart: --duckdb_convert_all_at_startup=ON
+SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name LIKE 'db%';
+COUNT(*)
+10
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name LIKE 'db%'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+10
+
+
+SELECT COUNT(*) FROM information_schema.tables WHERE ENGINE = 'DuckDB';
+COUNT(*)
+500
+CALL dbms_duckdb.query("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema LIKE 'db%'");
+RESULT
+count_star()	
+BIGINT	
+[ Rows: 1]
+500
+
+
+Drop database done.
+#
+# 4) CLEANUP
+#

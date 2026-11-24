@@ -1,0 +1,121 @@
+--source include/have_binlog_format_mixed.inc
+--let $rpl_topology = 1->2->3
+--source include/rpl/init.inc
+
+--echo #
+--echo # Init
+--echo #
+SET binlog_format = row;
+CREATE TABLE t1(c1 INT PRIMARY KEY, c2 VARCHAR(100)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES(1, "1"), (2, "2"), (3, "3"), (4, "4");
+
+--source include/rpl/sync.inc
+--let $rpl_connection_name = server_2
+--source include/connection.inc
+SHOW CREATE TABLE t1;
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+
+--echo #
+--echo # START REPLICA server with DuckDB mode enabled, t1 will be convert to
+--echo # DuckDB engine and mysql.duckdb_binlog_position should
+--echo # be created automatically.
+--echo #
+--source include/rpl/stop_replica.inc
+--let $rpl_server_number = 2
+--let $rpl_server_parameters = --duckdb-mode=on --duckdb-dml-in-batch=off --duckdb_convert_all_at_startup=on --duckdb_convert_all_skip_mtr_db
+--source include/rpl/restart_server.inc
+
+--let $wait_condition= SELECT VARIABLE_VALUE = "FINISHED" FROM performance_schema.global_status WHERE VARIABLE_NAME = 'DuckDB_convert_stage_at_startup'
+--source include/wait_condition.inc
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+--source include/rpl/start_replica.inc
+
+--sleep 10
+--let $rpl_connection_name = server_3
+--source include/connection.inc
+--let $slave_io_errno=2003
+--source include/rpl/stop_replica.inc
+--let $slave_io_errno=
+
+--let $rpl_server_number = 3
+--let $rpl_server_parameters = --duckdb-mode=on --duckdb-dml-in-batch=off --duckdb_convert_all_at_startup=on --duckdb_convert_all_skip_mtr_db
+--source include/rpl/restart_server.inc
+
+--let $wait_condition= SELECT VARIABLE_VALUE = "FINISHED" FROM performance_schema.global_status WHERE VARIABLE_NAME = 'DuckDB_convert_stage_at_startup'
+--source include/wait_condition.inc
+
+SHOW CREATE TABLE t1;
+SELECT * FROM t1;
+CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position");
+--source include/rpl/start_replica.inc
+
+--let $rpl_connection_name = server_1
+--source include/connection.inc
+INSERT INTO t1 VALUES(5, "5");
+UPDATE t1 SET c2 = "update";
+DELETE FROM t1 WHERE c1 > 4;
+
+# Check that duckdb_binlog_position has correct position.
+--let $rpl_diff_statement= SELECT * FROM t1 ORDER BY c1;
+--source include/rpl/diff.inc
+
+--let $rpl_connection_name = server_2
+--source include/connection.inc
+--source include/rpl/save_binlog_file_position.inc
+--let $assert_cond= $binlog_position > 0
+--let $assert_text= Current binary log position is available
+--source include/assert.inc
+eval CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position
+     WHERE file = '$binlog_file' AND position = $binlog_position");
+
+--let $rpl_connection_name = server_3
+--source include/connection.inc
+--source include/rpl/save_binlog_file_position.inc
+--let $assert_cond= $binlog_position > 0
+--let $assert_text= Current binary log position is available
+--source include/assert.inc
+eval CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position
+     WHERE file = '$binlog_file' AND position = $binlog_position");
+
+--let $rpl_connection_name = server_1
+--source include/connection.inc
+
+BEGIN;
+UPDATE t1 SET c2 = "multi stmt trx" WHERE c1 = 1;
+DELETE FROM t1 WHERE c1 = 1;
+INSERT INTO t1 VALUES(6, "6");
+COMMIT;
+
+--let $rpl_diff_statement= SELECT * FROM t1 ORDER BY c1
+--source include/rpl/diff.inc
+
+# Check that duckdb_binlog_position has correct position.
+--let $rpl_connection_name = server_2
+--source include/connection.inc
+--source include/rpl/save_binlog_file_position.inc
+--let $assert_cond= $binlog_position > 0
+--let $assert_text= Current binary log position is available
+--source include/assert.inc
+eval CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position
+     WHERE file = '$binlog_file' AND position = $binlog_position");
+
+--let $rpl_connection_name = server_3
+--source include/connection.inc
+--source include/rpl/save_binlog_file_position.inc
+--let $assert_cond= $binlog_position > 0
+--let $assert_text= Current binary log position is available
+--source include/assert.inc
+eval CALL dbms_duckdb.query("SELECT * FROM mysql.duckdb_binlog_position
+     WHERE file = '$binlog_file' AND position = $binlog_position");
+
+--echo #
+--echo # Cleanup
+--echo #
+--let $rpl_connection_name = server_1
+--source include/connection.inc
+DROP TABLE t1;
+SET binlog_format = mixed;
+--source include/rpl/deinit.inc

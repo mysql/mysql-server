@@ -591,7 +591,7 @@ class String {
     m_length += arg_length;
     return false;
   }
-  void print(String *print) const;
+  void print(String *print, bool duckdb_rewrite = false) const;
 
   /* Swap two string objects. Efficient way to exchange data without memcpy. */
   void swap(String &s) noexcept;

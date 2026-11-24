@@ -1,0 +1,94 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+
+--echo #
+--echo # Cross-schema RENAME TABLE on a DuckDB table is redirected to the
+--echo # copy-DDL path (mysql_alter_table) on whichever side runs DuckDB.
+--echo # Verify that:
+--echo #   - data ends up in the new schema on both master and slave;
+--echo #   - master writes the ORIGINAL RENAME TABLE text to its binlog
+--echo #     (not rewritten as ALTER TABLE) so the slave SQL thread replays
+--echo #     the same statement and goes through the same redirect.
+--echo #
+
+--source include/rpl/connection_source.inc
+CREATE DATABASE db1;
+CREATE DATABASE db2;
+
+--echo #
+--echo # 1) Scenario A: master InnoDB, slave DuckDB
+--echo #
+--source include/rpl/connection_source.inc
+FLUSH BINARY LOGS;
+CREATE TABLE db1.t1 (a INT PRIMARY KEY) ENGINE = InnoDB;
+INSERT INTO db1.t1 VALUES (1), (2), (3);
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+ALTER TABLE db1.t1 ENGINE = DuckDB;
+
+--source include/rpl/connection_source.inc
+RENAME TABLE db1.t1 TO db2.t1;
+
+--source include/rpl/sync.inc
+
+--echo Data lands in db2.t1 on both sides
+--let $rpl_diff_statement = SELECT a FROM db2.t1 ORDER BY a
+--source include/rpl/diff.inc
+
+--echo Slave's db2.t1 is still DuckDB after the redirect
+--source include/rpl/connection_replica.inc
+SELECT ENGINE FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'db2' AND TABLE_NAME = 't1';
+
+--echo Master's db2.t1 is InnoDB (native cross-schema rename, no redirect)
+--source include/rpl/connection_source.inc
+SELECT ENGINE FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'db2' AND TABLE_NAME = 't1';
+
+--echo Master binlog Info column carries the original RENAME TABLE text
+--let $binlog_file = LAST
+--source include/rpl/deprecated/show_binlog_events.inc
+
+DROP TABLE db2.t1;
+--source include/rpl/sync.inc
+
+--echo #
+--echo # 2) Scenario B: master DuckDB, slave DuckDB
+--echo #
+--source include/rpl/connection_source.inc
+FLUSH BINARY LOGS;
+CREATE TABLE db1.t1 (a INT PRIMARY KEY) ENGINE = DuckDB;
+INSERT INTO db1.t1 VALUES (10), (20), (30);
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_source.inc
+RENAME TABLE db1.t1 TO db2.t1;
+
+--source include/rpl/sync.inc
+
+--echo Data lands in db2.t1 on both sides
+--let $rpl_diff_statement = SELECT a FROM db2.t1 ORDER BY a
+--source include/rpl/diff.inc
+
+--echo Both sides' db2.t1 are DuckDB
+--let $rpl_diff_statement = SELECT ENGINE FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = \'db2\' AND TABLE_NAME = \'t1\'
+--source include/rpl/diff.inc
+
+--echo Master binlog Info column carries the original RENAME TABLE text
+--echo (the mysql_alter_table redirect writes thd->query() verbatim, not a
+--echo synthesized ALTER TABLE)
+--let $binlog_file = LAST
+--source include/rpl/deprecated/show_binlog_events.inc
+
+DROP TABLE db2.t1;
+--source include/rpl/sync.inc
+
+--echo #
+--echo # 3) Cleanup
+--echo #
+--source include/rpl/connection_source.inc
+DROP DATABASE db1;
+DROP DATABASE db2;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

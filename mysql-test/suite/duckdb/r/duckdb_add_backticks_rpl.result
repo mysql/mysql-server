@@ -1,0 +1,113 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+#
+# Test: create tables with a name containing only digits.
+#
+DROP DATABASE IF EXISTS `001test_db`;
+CREATE DATABASE `001test_db`;
+USE  `001test_db`;
+CREATE TABLE t (`000000000000000000000` bigint NOT NULL DEFAULT '0' ) ENGINE=InnoDB
+DEFAULT CHARSET=utf8mb3;
+INSERT INTO t VALUES (1),(2),(3);
+SELECT schema_name FROM information_schema.schemata WHERE schema_name = '001test_db';
+SCHEMA_NAME
+001test_db
+SHOW CREATE TABLE `001test_db`.t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `000000000000000000000` bigint NOT NULL DEFAULT '0'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb3
+SELECT * FROM `001test_db`.t;
+000000000000000000000
+1
+2
+3
+include/rpl/sync.inc
+[connection slave]
+SELECT schema_name FROM information_schema.schemata WHERE schema_name = '001test_db';
+SCHEMA_NAME
+001test_db
+SHOW CREATE TABLE `001test_db`.t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `000000000000000000000` bigint NOT NULL DEFAULT '0'
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb3
+SELECT * FROM `001test_db`.t;
+000000000000000000000
+1
+2
+3
+#
+# Test: create tables with a name containing special characters.
+#
+[connection master]
+DROP DATABASE IF EXISTS mydb1;
+CREATE DATABASE mydb1;
+DROP TABLE IF EXISTS mydb1.t;
+DROP TABLE IF EXISTS mydb1.y;
+CREATE TABLE mydb1.t (i INT, d DECIMAL, f FLOAT);
+INSERT INTO mydb1.t VALUES(1,1,1),(2,2,2),(3,3,3);
+CREATE TABLE mydb1.y SELECT AVG(i), AVG(d), AVG(f) FROM mydb1.t;
+SHOW CREATE TABLE mydb1.y;
+Table	Create Table
+y	CREATE TABLE `y` (
+  `AVG(i)` decimal(14,4) DEFAULT NULL,
+  `AVG(d)` decimal(14,4) DEFAULT NULL,
+  `AVG(f)` double DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM mydb1.y;
+AVG(i)	AVG(d)	AVG(f)
+2.0000	2.0000	2
+include/rpl/sync.inc
+[connection slave]
+SHOW CREATE TABLE mydb1.y;
+Table	Create Table
+y	CREATE TABLE `y` (
+  `AVG(i)` decimal(14,4) DEFAULT NULL,
+  `AVG(d)` decimal(14,4) DEFAULT NULL,
+  `AVG(f)` double DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM mydb1.y;
+AVG(i)	AVG(d)	AVG(f)
+2.0000	2.0000	2
+[connection master]
+CREATE TABLE mydb1.t6 (a int);
+INSERT INTO mydb1.t6 VALUES (1), (2), (3), (4);
+CREATE VIEW mydb1.v11 AS SELECT a+1 FROM mydb1.t6;
+CREATE TABLE mydb1.t7 SELECT * FROM mydb1.v11;
+SHOW CREATE TABLE mydb1.t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `a+1` bigint DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM mydb1.t7;
+a+1
+2
+3
+4
+5
+include/rpl/sync.inc
+[connection slave]
+SHOW CREATE TABLE mydb1.t7;
+Table	Create Table
+t7	CREATE TABLE `t7` (
+  `a+1` bigint DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM mydb1.t7;
+a+1
+2
+3
+4
+5
+#
+# CLEANUP
+#
+[connection master]
+DROP DATABASE IF EXISTS `001test_db`;
+DROP DATABASE IF EXISTS mydb1;
+[connection master]
+include/rpl/sync.inc
+include/rpl/deinit.inc

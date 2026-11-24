@@ -1,0 +1,21 @@
+--echo # Binlog enabled, batching enabled.
+SET GLOBAL duckdb_dml_in_batch=ON;
+--source suite/duckdb/include/statement_rollback.inc
+
+--echo # Binlog enabled, batching disabled.
+SET GLOBAL duckdb_dml_in_batch=OFF;
+--source suite/duckdb/include/statement_rollback.inc
+
+--let $restart_parameters= restart: --skip-log-bin
+--source include/restart_mysqld.inc
+
+--echo # Binlog disabled, batching enabled.
+SET GLOBAL duckdb_dml_in_batch=ON;
+--source suite/duckdb/include/statement_rollback.inc
+
+--echo # Binlog disabled, batching disabled.
+SET GLOBAL duckdb_dml_in_batch=OFF;
+--source suite/duckdb/include/statement_rollback.inc
+
+--let $restart_parameters= restart:
+--source include/restart_mysqld.inc

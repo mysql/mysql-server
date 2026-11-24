@@ -72,6 +72,8 @@ class Transaction_ctx {
 
   void register_ha(enum_trx_scope scope, Ha_trx_info *ha_info, handlerton *ht);
 
+  void move_duckdb_to_first(enum_trx_scope scope);
+
  public:
   struct THD_TRANS {
     /* true is not all entries in the ht[] support 2pc */
@@ -449,6 +451,15 @@ class Ha_trx_info {
     }
 
     return;
+  }
+
+  void move_next_to_first(Transaction_ctx::THD_TRANS *trans) {
+    assert(m_next != nullptr);
+
+    auto cur_head = trans->m_ha_list;
+    trans->m_ha_list = m_next;
+    m_next = m_next->m_next;
+    trans->m_ha_list->m_next = cur_head;
   }
 
   /**

@@ -25,6 +25,7 @@
 #include "sql/table.h"
 
 #include "my_config.h"
+#include "sql/sql_table_ext.h"
 
 #include <errno.h>
 #include <fcntl.h>
@@ -83,7 +84,8 @@
 #include "sql/dd/types/view.h"   // dd::View
 #include "sql/debug_sync.h"      // DEBUG_SYNC
 #include "sql/derror.h"          // ER_THD
-#include "sql/error_handler.h"   // Strict_error_handler
+#include "sql/duckdb/duckdb_config.h"
+#include "sql/error_handler.h"  // Strict_error_handler
 #include "sql/field.h"
 #include "sql/filesort.h"  // filesort_free_buffers
 #include "sql/gis/srid.h"
@@ -2596,11 +2598,16 @@ void Value_generator::dup_expr_str(MEM_ROOT *root, const char *src,
   expr_str.length = len;
 }
 
-void Value_generator::print_expr(THD *thd, String *out) {
+void Value_generator::print_expr(THD *thd, String *out, bool duckdb_rewrite) {
   out->length(0);
   const Sql_mode_parse_guard parse_guard(thd);
   // Printing db and table name is useless
   auto flags = enum_query_type(QT_NO_DB | QT_NO_TABLE | QT_FORCE_INTRODUCERS);
+  if (duckdb_rewrite) {
+    flags = static_cast<enum_query_type>(flags | QT_DUCKDB_REWRITE);
+    flags = static_cast<enum_query_type>(flags & ~QT_FORCE_INTRODUCERS);
+    flags = static_cast<enum_query_type>(flags | QT_WITHOUT_INTRODUCERS);
+  }
   if (expr_item != nullptr) {
     expr_item->print(thd, out, flags);
   } else if (expr_str.str != nullptr && expr_str.length > 0) {
@@ -3067,7 +3074,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   */
 
   bitmap_size = share->column_bitmap_size;
-  bitmaps = root->ArrayAlloc<uchar>(bitmap_size * 8);
+  bitmaps = root->ArrayAlloc<uchar>(bitmap_size * 9);
   if (bitmaps == nullptr) goto err;
   bitmap_init(&outparam->def_read_set, (my_bitmap_map *)bitmaps, share->fields);
   bitmap_init(&outparam->def_write_set,
@@ -3084,6 +3091,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
               (my_bitmap_map *)(bitmaps + bitmap_size * 6), share->fields);
   bitmap_init(&outparam->read_set_internal,
               pointer_cast<my_bitmap_map *>(bitmaps + bitmap_size * 7),
+              share->fields);
+  bitmap_init(&outparam->duckdb_pk_set,
+              pointer_cast<my_bitmap_map *>(bitmaps + bitmap_size * 8),
               share->fields);
   outparam->default_column_bitmaps();
 
@@ -3761,6 +3771,14 @@ Ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
   char *name = org_name->str;
   const size_t name_length = org_name->length;
   Ident_name_check ident_check_status;
+
+  /** DuckDB not support database whose name consists ` */
+  if (myduck::global_mode_on() && strchr(name, '`')) {
+    std::stringstream ss;
+    ss << "Incorrect database name " << name << " for DuckDB.";
+    my_error(ER_DUCKDB_CLIENT, MYF(0), ss.str().c_str());
+    return Ident_name_check::WRONG;
+  }
 
   if (!name_length || name_length > NAME_LEN) {
     my_error(ER_WRONG_DB_NAME, MYF(0), org_name->str);
@@ -6525,6 +6543,19 @@ bool Table_ref::process_index_hints(const THD *thd, TABLE *tbl) {
           (!tbl->s->key_info[pos - 1].is_visible &&
            !thd->optimizer_switch_flag(
                OPTIMIZER_SWITCH_USE_INVISIBLE_INDEXES))) {
+        /*
+          In sentence like 'select ... force/ignore/use index/key', ignore
+          the index/key part and print an warning message when the index
+          does not exist.
+        */
+        if (ignore_index_hint_error || !thd->lex->optimizer_rewrite_enabled) {
+          push_warning_printf(const_cast<THD *>(thd), Sql_condition::SL_WARNING,
+                              ER_KEY_DOES_NOT_EXITS,
+                              ER_THD(thd, ER_KEY_DOES_NOT_EXITS),
+                              hint->key_name.str, alias);
+          continue;
+        }
+
         my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), hint->key_name.str, alias);
         return true;
       }

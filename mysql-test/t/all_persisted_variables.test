@@ -59,6 +59,10 @@ let $total_global_vars=`SELECT COUNT(*)
    AND variable_name NOT LIKE '%tls_kex%'`;
 
 let $total_persistent_vars=452;
+if (`SELECT COUNT(*) FROM information_schema.plugins WHERE plugin_name = 'duckdb'`)
+{
+  let $total_persistent_vars=492;
+}
 
 --echo ***************************************************************
 --echo * 0. Verify that variables present in performance_schema.global
@@ -172,7 +176,7 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --enable_warnings
 --enable_query_log
 --echo
---let $assert_text= Expect $total_persistent_vars persisted variables in the table.
+--let $assert_text= Expect the configured number of persisted variables in the table.
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $total_persistent_vars
 --source include/assert.inc
 
@@ -186,7 +190,7 @@ SET PERSIST innodb_monitor_reset_all="latch";
 --source include/wait_until_connected_again.inc
 
 --echo
---let $assert_text= Expect $total_persistent_vars persisted variables in persisted_variables table.
+--let $assert_text= Expect the configured number of persisted variables in persisted_variables table.
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.persisted_variables, count, 1] = $total_persistent_vars
 --source include/assert.inc
 
@@ -194,11 +198,11 @@ SET PERSIST innodb_monitor_reset_all="latch";
 # persisted as "mysql_static_variables" and during the start up of the server, the source is not updated properly. So, for the assert
 # conditions below, the count is reduced by 1 because the character_set_server variable has VARIABLE_SOURCE=COMPILED.
 # There is a bug filed (Bug #36221843) to migrate all the options from my_long_options[] to Sys_vars. Fixing this bug would fix this.
---let $assert_text= Expect $total_persistent_vars persisted variables shown as PERSISTED in variables_info table.
+--let $assert_text= Expect the configured number of persisted variables shown as PERSISTED in variables_info table.
 --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info WHERE variable_source="PERSISTED", count, 1] = $total_persistent_vars-1
 --source include/assert.inc
 
- --let $assert_text= Expect $total_persistent_vars persisted variables with matching peristed and global values.
+ --let $assert_text= Expect the configured number of persisted variables with matching peristed and global values.
  --let $assert_cond= [SELECT COUNT(*) as count FROM performance_schema.variables_info vi JOIN performance_schema.persisted_variables pv JOIN performance_schema.global_variables gv ON vi.variable_name=pv.variable_name AND vi.variable_name=gv.variable_name AND pv.variable_value=gv.variable_value WHERE vi.variable_source="PERSISTED", count, 1] = $total_persistent_vars-1
 --source include/assert.inc
 

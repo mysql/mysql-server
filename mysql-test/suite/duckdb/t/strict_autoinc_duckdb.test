@@ -1,0 +1,15 @@
+
+#
+# Bug#20573 Strict mode auto-increment
+#
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = ON;
+--enable_query_log
+let $type= 'DUCKDB' ;
+--source include/strict_autoinc.inc
+
+--disable_query_log
+SET GLOBAL duckdb_support_auto_increment = default;
+--enable_query_log
+
+# end of test

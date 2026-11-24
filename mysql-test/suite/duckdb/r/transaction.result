@@ -1,0 +1,290 @@
+# -----------------------------------------------------------------
+#
+# 1. binlog on, check basic transaction ability
+#
+#
+# Atomicity
+#
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+INSERT INTO t_duckdb(id, name) VALUES (1, '1');
+BEGIN;
+INSERT INTO t_duckdb(id, name) VALUES (2, '2');
+INSERT INTO t_duckdb(id, name) VALUES (3, '3');
+ROLLBACK;
+SELECT * FROM t_duckdb;
+id	name
+1	1
+#
+# Durability after instance restart
+#
+# restart
+SELECT * FROM t_duckdb;
+id	name
+1	1
+# Restart should rollback tranction
+BEGIN;
+INSERT INTO t_duckdb(id, name) VALUES (4, '4');
+INSERT INTO t_duckdb(id, name) VALUES (5, '5');
+# restart
+SELECT * FROM t_duckdb;
+id	name
+1	1
+#
+# Autocommit
+#
+SET autocommit = 1;
+INSERT INTO t_duckdb(id, name) VALUES (3, '3');
+# restart
+SELECT * FROM t_duckdb;
+id	name
+1	1
+3	3
+DROP TABLE t_duckdb;
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+#
+# Isolation
+#
+BEGIN;
+INSERT INTO t_duckdb(id, name) VALUES (1, '1');
+# should be empty
+SELECT * FROM t_duckdb;
+id	name
+COMMIT;
+# should print 1
+SELECT * FROM t_duckdb;
+id	name
+1	1
+DROP TABLE t_duckdb;
+#
+# Test trans atomicity when consit of innodb and duckdb
+#
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+CREATE TABLE t_innodb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=innodb;
+# Atomicity
+INSERT INTO t_duckdb(id, name) VALUES (1, '1');
+INSERT INTO t_innodb(id, name) VALUES (1, '1');
+BEGIN;
+INSERT INTO t_duckdb(id, name) VALUES (2, '2');
+INSERT INTO t_innodb(id, name) VALUES (2, '2');
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.t_innodb and the DUCKDB table test.t_duckdb.
+ROLLBACK;
+SELECT * FROM t_duckdb;
+id	name
+1	1
+SELECT * FROM t_innodb;
+id	name
+1	1
+# Isolation
+DROP TABLE t_duckdb;
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+DROP TABLE t_innodb;
+CREATE TABLE t_innodb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+BEGIN;
+INSERT INTO t_duckdb(id, name) VALUES (3, '3');
+INSERT INTO t_innodb(id, name) VALUES (3, '3');
+SELECT * FROM t_duckdb;
+id	name
+SELECT * FROM t_innodb;
+id	name
+COMMIT;
+SELECT * FROM t_duckdb;
+id	name
+3	3
+SELECT * FROM t_innodb;
+id	name
+3	3
+# Durability after instance restart
+INSERT INTO t_duckdb(id, name) VALUES (4, '4');
+INSERT INTO t_innodb(id, name) VALUES (4, '4');
+# restart
+SELECT * FROM t_duckdb;
+id	name
+3	3
+4	4
+SELECT * FROM t_innodb;
+id	name
+3	3
+4	4
+DROP TABLE t_duckdb;
+DROP TABLE t_innodb;
+# -----------------------------------------------------------------
+#
+# 2. binlog off, check basic transaction ability
+#
+# restart: --skip-log-bin
+#
+# Atomicity
+#
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+INSERT INTO t_duckdb(id, name) VALUES (1, '1');
+BEGIN;
+INSERT INTO t_duckdb(id, name) VALUES (2, '2');
+INSERT INTO t_duckdb(id, name) VALUES (3, '3');
+ROLLBACK;
+SELECT * FROM t_duckdb;
+id	name
+1	1
+#
+# Durability after instance restart
+#
+# restart: --skip-log-bin
+SELECT * FROM t_duckdb;
+id	name
+1	1
+# Restart should rollback tranction
+BEGIN;
+INSERT INTO t_duckdb(id, name) VALUES (4, '4');
+INSERT INTO t_duckdb(id, name) VALUES (5, '5');
+# restart: --skip-log-bin
+SELECT * FROM t_duckdb;
+id	name
+1	1
+#
+# Autocommit
+#
+SET autocommit = 1;
+INSERT INTO t_duckdb(id, name) VALUES (3, '3');
+# restart: --skip-log-bin
+SELECT * FROM t_duckdb;
+id	name
+1	1
+3	3
+DROP TABLE t_duckdb;
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+#
+# Isolation
+#
+BEGIN;
+INSERT INTO t_duckdb(id, name) VALUES (1, '1');
+# should be empty
+SELECT * FROM t_duckdb;
+id	name
+COMMIT;
+# should print 1
+SELECT * FROM t_duckdb;
+id	name
+1	1
+DROP TABLE t_duckdb;
+#
+# Test trans atomicity when consit of innodb and duckdb
+#
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+CREATE TABLE t_innodb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=innodb;
+# Atomicity
+INSERT INTO t_duckdb(id, name) VALUES (1, '1');
+INSERT INTO t_innodb(id, name) VALUES (1, '1');
+BEGIN;
+INSERT INTO t_duckdb(id, name) VALUES (2, '2');
+INSERT INTO t_innodb(id, name) VALUES (2, '2');
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.t_innodb and the DUCKDB table test.t_duckdb.
+ROLLBACK;
+SELECT * FROM t_duckdb;
+id	name
+1	1
+SELECT * FROM t_innodb;
+id	name
+1	1
+# Isolation
+DROP TABLE t_duckdb;
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+DROP TABLE t_innodb;
+CREATE TABLE t_innodb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+BEGIN;
+INSERT INTO t_duckdb(id, name) VALUES (3, '3');
+INSERT INTO t_innodb(id, name) VALUES (3, '3');
+SELECT * FROM t_duckdb;
+id	name
+SELECT * FROM t_innodb;
+id	name
+COMMIT;
+SELECT * FROM t_duckdb;
+id	name
+3	3
+SELECT * FROM t_innodb;
+id	name
+3	3
+# Durability after instance restart
+INSERT INTO t_duckdb(id, name) VALUES (4, '4');
+INSERT INTO t_innodb(id, name) VALUES (4, '4');
+# restart: --skip-log-bin
+SELECT * FROM t_duckdb;
+id	name
+3	3
+4	4
+SELECT * FROM t_innodb;
+id	name
+3	3
+4	4
+DROP TABLE t_duckdb;
+DROP TABLE t_innodb;
+# -----------------------------------------------------------------
+#
+# 3. binlog off, check gtid_executed is persisted
+#
+# restart: --skip-log-bin --gtid-mode=ON --enforce-gtid-consistency=ON
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+CREATE TABLE t_innodb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=innodb;
+# Test gtid_executed of duckdb transaction
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:1';
+BEGIN;
+INSERT INTO t_duckdb VALUES (1, "duckdb");
+COMMIT;
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table mysql.gtid_executed and the DUCKDB table test.t_duckdb.
+include/assert.inc ["[SELECT @@GLOBAL.GTID_EXECUTED] ERROR."]
+SET GTID_NEXT = 'AUTOMATIC';
+# restart: --skip-log-bin --gtid-mode=ON --enforce-gtid-consistency=ON
+include/assert.inc ["[SELECT @@GLOBAL.GTID_EXECUTED] ERROR."]
+# Test gtid_executed of duckdb and innodb mix transaction
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:2';
+BEGIN;
+INSERT INTO t_duckdb VALUES (2, "duckdb");
+INSERT INTO t_innodb VALUES (1, "innodb");
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.t_innodb and the DUCKDB table test.t_duckdb.
+COMMIT;
+include/assert.inc ["[SELECT @@GLOBAL.GTID_EXECUTED] ERROR."]
+SET GTID_NEXT = 'AUTOMATIC';
+# restart: --skip-log-bin --gtid-mode=ON --enforce-gtid-consistency=ON
+include/assert.inc ["[SELECT @@GLOBAL.GTID_EXECUTED] ERROR."]
+SET GTID_NEXT = 'AUTOMATIC';
+DROP TABLE t_duckdb;
+DROP TABLE t_innodb;
+RESET BINARY LOGS AND GTIDS;
+# -----------------------------------------------------------------
+#
+# 4 binlog on, check gtid_executed is persisted
+#
+# restart: --gtid-mode=ON --enforce-gtid-consistency=ON
+CREATE TABLE t_duckdb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=duckdb;
+CREATE TABLE t_innodb (id int default 1 PRIMARY KEY, name varchar(10) default "NAME") ENGINE=innodb;
+# Test gtid_executed of duckdb transaction
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:1';
+BEGIN;
+INSERT INTO t_duckdb VALUES (1, "duckdb");
+COMMIT;
+include/assert.inc ["[SELECT @@GLOBAL.GTID_EXECUTED] ERROR."]
+SET GTID_NEXT = 'AUTOMATIC';
+# restart: --gtid-mode=ON --enforce-gtid-consistency=ON
+include/assert.inc ["[SELECT @@GLOBAL.GTID_EXECUTED] ERROR."]
+# Test gtid_executed of duckdb and innodb mix transaction
+SET GTID_NEXT = 'cccccccc-cccc-cccc-cccc-cccccccccccc:2';
+BEGIN;
+INSERT INTO t_duckdb VALUES (2, "duckdb");
+INSERT INTO t_innodb VALUES (1, "innodb");
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.t_innodb and the DUCKDB table test.t_duckdb.
+COMMIT;
+include/assert.inc ["[SELECT @@GLOBAL.GTID_EXECUTED] ERROR."]
+SET GTID_NEXT = 'AUTOMATIC';
+# restart: --gtid-mode=ON --enforce-gtid-consistency=ON
+include/assert.inc ["[SELECT @@GLOBAL.GTID_EXECUTED] ERROR."]
+SET GTID_NEXT = 'AUTOMATIC';
+DROP TABLE t_duckdb;
+DROP TABLE t_innodb;
+RESET BINARY LOGS AND GTIDS;
+# -----------------------------------------------------------------
+# Cleanup
+# restart:

@@ -1,0 +1,3174 @@
+SET GLOBAL force_innodb_to_duckdb = ON;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+drop table if exists t1,t2,t3,t4,t5;
+drop database if exists mysqltest;
+drop view if exists v1;
+create table t1 (b char(0));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1 values (""),(null);
+select * from t1;
+b
+
+NULL
+drop table if exists t1;
+create table t1 (b char(0) not null);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table if not exists t1 (b char(0) not null);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Note	1050	Table 't1' already exists
+insert into t1 values (""),(null);
+Warnings:
+Warning	1048	Column 'b' cannot be null
+select * from t1;
+b
+
+
+drop table t1;
+create table t1 (a int not null auto_increment,primary key (a)) engine=heap;
+drop table t1;
+create table t2 engine=heap select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table t2 select auto+1 from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+Note	1051	Unknown table 'test.t2'
+create table t1 (b char(0) not null, index(b));
+ERROR 42000: The used storage engine can't index column 'b'
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+create table t1 (a int not null,b text) engine=heap;
+ERROR 42000: The used table type doesn't support BLOB/TEXT columns
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+create table t1 (ordid int(8) not null auto_increment, ord  varchar(50) not null, primary key (ord,ordid)) engine=heap;
+ERROR 42000: Incorrect table definition; there can be only one auto column and it must be defined as a key
+create table not_existing_database.test (a int);
+ERROR 42000: Unknown database 'not_existing_database'
+create temporary table not_existing_database.test (a int);
+ERROR 42000: Unknown database 'not_existing_database'
+create table `a/a` (a int);
+show create table `a/a`;
+Table	Create Table
+a/a	CREATE TABLE `a/a` (
+  `a` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+create table t1 like `a/a`;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+drop table `a/a`;
+drop table `t1`;
+create table `aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` (aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa int);
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+create table a (`aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa` int);
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+create table t1 (a int default 100 auto_increment);
+ERROR 42000: Invalid default value for 'a'
+create table t1 (a tinyint default 1000);
+ERROR 42000: Invalid default value for 'a'
+create table t1 (a varchar(5) default 'abcdef');
+ERROR 42000: Invalid default value for 'a'
+create table t1 (a varchar(5) default 'abcde');
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1 values();
+select * from t1;
+a
+abcde
+alter table t1 alter column a set default 'abcdef';
+ERROR 42000: Invalid default value for 'a'
+drop table t1;
+create table 1ea10 (1a20 int,1e int);
+insert into 1ea10 values(1,1);
+select 1ea10.1a20,1e+ 1e+10 from 1ea10;
+1a20	1e+ 1e+10
+1	10000000001
+drop table 1ea10;
+create table t1 (`index` int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+drop table t1;
+drop database if exists mysqltest;
+Warnings:
+Note	1008	Can't drop database 'mysqltest'; database doesn't exist
+create database mysqltest;
+create table mysqltest.`$test1` (a$1 int, `$b` int, c$ int);
+insert into mysqltest.`$test1` values (1,2,3);
+select a$1, `$b`, c$ from mysqltest.`$test1`;
+a$1	$b	c$
+1	2	3
+create table mysqltest.test2$ (a int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+drop table mysqltest.test2$;
+drop database mysqltest;
+create table `` (a int);
+ERROR 42000: Incorrect table name ''
+drop table if exists ``;
+ERROR 42000: Incorrect table name ''
+create table t1 (`` int);
+ERROR 42000: Incorrect column name ''
+create table t1 (i int, index `` (i));
+ERROR 42000: Incorrect index name ''
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+create table t1 (i int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+lock tables t1 read;
+create table t2 (j int);
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+create temporary table t2 (j int);
+drop temporary table t2;
+unlock tables;
+drop table t1;
+create table t1 (a int auto_increment not null primary key, B CHAR(20));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	7583	[DuckDB] AUTO_INCREMENT of field 'a' is removed.
+insert into t1 (a, b) values (0, "hello"),(1, "my"),(2, "world");
+create table t2 (key (b)) select * from t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+select * from t2 where b='world';
+a	B
+drop table t1,t2;
+create table t1(x varchar(50) );
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table t2 select x from t1 where 1=2;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+describe t1;
+Field	Type	Null	Key	Default	Extra
+x	varchar(50)	YES		NULL	
+describe t2;
+Field	Type	Null	Key	Default	Extra
+x	varchar(50)	YES		NULL	
+drop table t2;
+create table t2 select now() as a , curtime() as b, curdate() as c , 1+1 as d , 1.0 + 1 as e , 33333333333333333 + 3 as f;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+describe t2;
+Field	Type	Null	Key	Default	Extra
+a	datetime	NO		0000-00-00 00:00:00	
+b	time	NO		00:00:00	
+c	date	NO		0000-00-00	
+d	int	NO		0	
+e	decimal(3,1)	NO		0.0	
+f	bigint	NO		0	
+drop table t2;
+create table t2 select CAST("2001-12-29" AS DATE) as d, CAST("20:45:11" AS TIME) as t, CAST("2001-12-29  20:45:11" AS DATETIME) as dt;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	4096	Delimiter ' ' in position 11 in datetime value '2001-12-29  20:45:11' at row 1 is superfluous and is deprecated. Please remove.
+describe t2;
+Field	Type	Null	Key	Default	Extra
+d	date	YES		NULL	
+t	time	YES		NULL	
+dt	datetime	YES		NULL	
+drop table t1,t2;
+create table t1 (a tinyint);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table t2 (a int) select * from t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+describe t1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint	YES		NULL	
+describe t2;
+Field	Type	Null	Key	Default	Extra
+a	int	YES		NULL	
+drop table if exists t2;
+create table t2 (a int, a float) select * from t1;
+ERROR 42S21: Duplicate column name 'a'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 'test.t2'
+create table t2 (a int) select a as b, a+1 as b from t1;
+ERROR 42S21: Duplicate column name 'b'
+drop table if exists t2;
+Warnings:
+Note	1051	Unknown table 'test.t2'
+create table t2 (b int) select a as b, a+1 as b from t1;
+ERROR 42S21: Duplicate column name 'b'
+drop table if exists t1,t2;
+Warnings:
+Note	1051	Unknown table 'test.t2'
+create table t1 (a int not null, b int, primary key(a), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	1831	Duplicate index 'b_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_3' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_4' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_5' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_6' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_7' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_8' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_9' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_10' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_11' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_12' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_13' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_14' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_15' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_16' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_17' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_18' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_19' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_20' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_21' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_22' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_23' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_24' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_25' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_26' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_27' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_28' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_29' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_30' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_31' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `b` (`b`),
+  KEY `b_2` (`b`),
+  KEY `b_3` (`b`),
+  KEY `b_4` (`b`),
+  KEY `b_5` (`b`),
+  KEY `b_6` (`b`),
+  KEY `b_7` (`b`),
+  KEY `b_8` (`b`),
+  KEY `b_9` (`b`),
+  KEY `b_10` (`b`),
+  KEY `b_11` (`b`),
+  KEY `b_12` (`b`),
+  KEY `b_13` (`b`),
+  KEY `b_14` (`b`),
+  KEY `b_15` (`b`),
+  KEY `b_16` (`b`),
+  KEY `b_17` (`b`),
+  KEY `b_18` (`b`),
+  KEY `b_19` (`b`),
+  KEY `b_20` (`b`),
+  KEY `b_21` (`b`),
+  KEY `b_22` (`b`),
+  KEY `b_23` (`b`),
+  KEY `b_24` (`b`),
+  KEY `b_25` (`b`),
+  KEY `b_26` (`b`),
+  KEY `b_27` (`b`),
+  KEY `b_28` (`b`),
+  KEY `b_29` (`b`),
+  KEY `b_30` (`b`),
+  KEY `b_31` (`b`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+drop table t1;
+create table t1 select if(1,'1','0'), month("2002-08-02");
+drop table t1;
+create table t1 select if('2002'='2002','Y','N');
+select * from t1;
+if('2002'='2002','Y','N')
+Y
+drop table if exists t1;
+SET SESSION default_storage_engine="heap";
+SELECT @@default_storage_engine;
+@@default_storage_engine
+MEMORY
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+SET SESSION default_storage_engine="gemini";
+ERROR 42000: Unknown storage engine 'gemini'
+SELECT @@default_storage_engine;
+@@default_storage_engine
+MEMORY
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION default_storage_engine=default;
+drop table t1;
+create table t1 ( k1 varchar(2), k2 int, primary key(k1,k2));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1 values ("a", 1), ("b", 2);
+insert into t1 values ("c", NULL);
+ERROR 23000: Column 'k2' cannot be null
+insert into t1 values (NULL, 3);
+ERROR 23000: Column 'k1' cannot be null
+insert into t1 values (NULL, NULL);
+ERROR 23000: Column 'k1' cannot be null
+drop table t1;
+create table t1 select x'4132';
+drop table t1;
+create table t1 select 1,2,3;
+create table if not exists t1 select 1,2;
+Warnings:
+Note	1050	Table 't1' already exists
+create table if not exists t1 select 1,2,3,4;
+Warnings:
+Note	1050	Table 't1' already exists
+create table if not exists t1 select 1;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+1	2	3
+1	2	3
+drop table t1;
+flush status;
+create table t1 (a int not null, b int, primary key (a));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1 values (1,1);
+create table if not exists t1 select 2;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a	b
+1	1
+create table if not exists t1 select 3 as 'a',4 as 'b';
+Warnings:
+Note	1050	Table 't1' already exists
+show warnings;
+Level	Code	Message
+Note	1050	Table 't1' already exists
+show status like "Opened_tables";
+Variable_name	Value
+Opened_tables	1
+select * from t1;
+a	b
+1	1
+drop table t1;
+create table `t1 `(a int);
+ERROR 42000: Incorrect table name 't1 '
+create database `db1 `;
+ERROR 42000: Incorrect database name 'db1 '
+create table t1(`a ` int);
+ERROR 42000: Incorrect column name 'a '
+create table t1 (a int,);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+create table t1 (a int,,b int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',b int)' at line 1
+create table t1 (,b int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ',b int)' at line 1
+create table t1 (a int, key(a));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table t2 (b int, foreign key(b) references t1(a), key(b));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+drop table if exists t2,t1;
+create table t1(id int not null, name char(20));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1 values(10,'mysql'),(20,'monty- the creator');
+create table t2(id int not null);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t2 values(10),(20);
+create table t3 like t1;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int NOT NULL,
+  `name` char(20) DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+select * from t3;
+id	name
+create table if not exists t3 like t1;
+Warnings:
+Note	1050	Table 't3' already exists
+select @@warning_count;
+@@warning_count
+1
+create temporary table t3 like t2;
+show create table t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `id` int NOT NULL
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+select * from t3;
+id
+drop table t3;
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `id` int NOT NULL,
+  `name` char(20) DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+select * from t3;
+id	name
+drop table t2, t3;
+create database mysqltest;
+create table mysqltest.t3 like t1;
+create temporary table t3 like mysqltest.t3;
+show create table t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `id` int NOT NULL,
+  `name` char(20) DEFAULT NULL
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+create table t2 like t3;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `id` int NOT NULL,
+  `name` char(20) DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+select * from t2;
+id	name
+create table t3 like t1;
+create table t3 like mysqltest.t3;
+ERROR 42S01: Table 't3' already exists
+create table non_existing_database.t1 like t1;
+ERROR 42000: Unknown database 'non_existing_database'
+create table t3 like non_existing_table;
+ERROR 42S02: Table 'test.non_existing_table' doesn't exist
+create temporary table t3 like t1;
+ERROR 42S01: Table 't3' already exists
+drop table t1, t2, t3;
+drop table t3;
+drop database mysqltest;
+create table t1 (i int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table t2 (j int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+lock tables t1 read;
+create table t3 like t1;
+ERROR HY000: Table 't3' was not locked with LOCK TABLES
+create temporary table t3 like t1;
+drop temporary table t3;
+create temporary table t3 like t2;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+unlock tables;
+drop tables t1, t2;
+SET SESSION default_storage_engine="heap";
+SELECT @@default_storage_engine;
+@@default_storage_engine
+MEMORY
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+SET SESSION default_storage_engine="gemini";
+ERROR 42000: Unknown storage engine 'gemini'
+SELECT @@default_storage_engine;
+@@default_storage_engine
+MEMORY
+CREATE TABLE t1 (a int not null);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int NOT NULL
+) ENGINE=MEMORY DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SET SESSION default_storage_engine=default;
+drop table t1;
+create table t1(a int,b int,c int unsigned,d date,e char,f datetime,g time,h blob);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1(a)values(1);
+insert into t1(a,b,c,d,e,f,g,h)
+values(2,-2,2,'1825-12-14','a','2003-1-1 3:2:1','4:3:2','binary data');
+create table t2
+select
+a, 
+ifnull(b,cast(-7                        as signed))   as b,
+ifnull(c,cast(7                         as unsigned)) as c,
+ifnull(d,cast('2000-01-01'              as date))     as d,
+ifnull(e,cast('b'                       as char))     as e,
+ifnull(f,cast('2000-01-01'              as datetime)) as f,
+ifnull(g,cast('5:4:3'                   as time))     as g,
+ifnull(h,cast('yet another binary data' as binary))   as h,
+addtime(cast('1:0:0' as time),cast('1:0:0' as time))  as dd
+from t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+explain t2;
+Field	Type	Null	Key	Default	Extra
+a	int	YES		NULL	
+b	bigint	NO		0	
+c	bigint unsigned	NO		0	
+d	date	YES		NULL	
+e	varchar(1)	NO			
+f	datetime	YES		NULL	
+g	time	YES		NULL	
+h	longblob	NO		NULL	
+dd	time	YES		NULL	
+select * from t2;
+a	b	c	d	e	f	g	h	dd
+drop table t1, t2;
+create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+create table t2 select ifnull(a,a), ifnull(b,b), ifnull(c,c), ifnull(d,d), ifnull(e,e), ifnull(f,f), ifnull(g,g), ifnull(h,h), ifnull(i,i), ifnull(j,j), ifnull(k,k), ifnull(l,l), ifnull(m,m), ifnull(n,n), ifnull(o,o) from t1;
+Warnings:
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+Warning	1681	Specifying number of digits for floating point data types is deprecated and will be removed in a future release.
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `ifnull(a,a)` tinyint DEFAULT NULL,
+  `ifnull(b,b)` smallint DEFAULT NULL,
+  `ifnull(c,c)` mediumint DEFAULT NULL,
+  `ifnull(d,d)` int DEFAULT NULL,
+  `ifnull(e,e)` bigint DEFAULT NULL,
+  `ifnull(f,f)` float(3,2) DEFAULT NULL,
+  `ifnull(g,g)` double(4,3) DEFAULT NULL,
+  `ifnull(h,h)` decimal(5,4) DEFAULT NULL,
+  `ifnull(i,i)` year DEFAULT NULL,
+  `ifnull(j,j)` date DEFAULT NULL,
+  `ifnull(k,k)` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `ifnull(l,l)` datetime DEFAULT NULL,
+  `ifnull(m,m)` varchar(1) DEFAULT NULL,
+  `ifnull(n,n)` varchar(3) DEFAULT NULL,
+  `ifnull(o,o)` varchar(10) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1,t2;
+create table t1(str varchar(10) default 'def',strnull varchar(10),intg int default '10',rel double default '3.14');
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1 values ('','',0,0.0);
+describe t1;
+Field	Type	Null	Key	Default	Extra
+str	varchar(10)	YES		def	
+strnull	varchar(10)	YES		NULL	
+intg	int	YES		10	
+rel	double	YES		3.14	
+create table t2 select default(str) as str, default(strnull) as strnull, default(intg) as intg, default(rel) as rel from t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+describe t2;
+Field	Type	Null	Key	Default	Extra
+str	varchar(10)	YES		NULL	
+strnull	varchar(10)	YES		NULL	
+intg	int	YES		NULL	
+rel	double	YES		NULL	
+drop table t1, t2;
+create table t1(name varchar(10), age smallint default -1);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+describe t1;
+Field	Type	Null	Key	Default	Extra
+name	varchar(10)	YES		NULL	
+age	smallint	YES		-1	
+create table t2(name varchar(10), age smallint default - 1);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+describe t2;
+Field	Type	Null	Key	Default	Extra
+name	varchar(10)	YES		NULL	
+age	smallint	YES		-1	
+drop table t1, t2;
+create table t1(cenum enum('a'), cset set('b'));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table t2(cenum enum('a','a'), cset set('b','b'));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Note	1291	Column 'cenum' has duplicated value 'a' in ENUM
+Note	1291	Column 'cset' has duplicated value 'b' in SET
+create table t3(cenum enum('a','A','a','c','c'), cset set('b','B','b','d','d'));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Note	1291	Column 'cenum' has duplicated value 'a' in ENUM
+Note	1291	Column 'cenum' has duplicated value 'A' in ENUM
+Note	1291	Column 'cenum' has duplicated value 'c' in ENUM
+Note	1291	Column 'cset' has duplicated value 'b' in SET
+Note	1291	Column 'cset' has duplicated value 'B' in SET
+Note	1291	Column 'cset' has duplicated value 'd' in SET
+drop table t1, t2, t3;
+create database mysqltest;
+use mysqltest;
+select database();
+database()
+mysqltest
+drop database mysqltest;
+select database();
+database()
+NULL
+create user mysqltest_1;
+select database(), user();
+database()	user()
+NULL	mysqltest_1@localhost
+drop user mysqltest_1;
+use test;
+create table t1 (a int, index `primary` (a));
+ERROR 42000: Incorrect index name 'primary'
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+create table t1 (a int, index `PRIMARY` (a));
+ERROR 42000: Incorrect index name 'PRIMARY'
+drop table if exists t1;
+Warnings:
+Note	1051	Unknown table 'test.t1'
+create table t1 (`primary` int, index(`primary`));
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `primary` int DEFAULT NULL,
+  KEY `primary_2` (`primary`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+create table t2 (`PRIMARY` int, index(`PRIMARY`));
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `PRIMARY` int DEFAULT NULL,
+  KEY `PRIMARY_2` (`PRIMARY`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+create table t3 (a int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+alter table t3 add index `primary` (a);
+ERROR 42000: Incorrect index name 'primary'
+alter table t3 add index `PRIMARY` (a);
+ERROR 42000: Incorrect index name 'PRIMARY'
+create table t4 (`primary` int);
+alter table t4 add index(`primary`);
+show create table t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `primary` int DEFAULT NULL,
+  KEY `primary_2` (`primary`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+create table t5 (`PRIMARY` int);
+alter table t5 add index(`PRIMARY`);
+show create table t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `PRIMARY` int DEFAULT NULL,
+  KEY `PRIMARY_2` (`PRIMARY`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1, t2, t3, t4, t5;
+CREATE TABLE t1(id varchar(10) NOT NULL PRIMARY KEY, dsc longtext);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+INSERT INTO t1 VALUES ('5000000001', NULL),('5000000003', 'Test'),('5000000004', NULL);
+CREATE TABLE t2(id varchar(15) NOT NULL, proc varchar(100) NOT NULL, runID varchar(16) NOT NULL, start datetime NOT NULL, PRIMARY KEY  (id,proc,runID,start));
+INSERT INTO t2 VALUES ('5000000001', 'proc01', '20031029090650', '2003-10-29 13:38:40'),('5000000001', 'proc02', '20031029090650', '2003-10-29 13:38:51'),('5000000001', 'proc03', '20031029090650', '2003-10-29 13:38:11'),('5000000002', 'proc09', '20031024013310', '2003-10-24 01:33:11'),('5000000002', 'proc09', '20031024153537', '2003-10-24 15:36:04'),('5000000004', 'proc01', '20031024013641', '2003-10-24 01:37:29'),('5000000004', 'proc02', '20031024013641', '2003-10-24 01:37:39');
+CREATE TABLE t3  SELECT t1.dsc,COUNT(DISTINCT t2.id) AS countOfRuns  FROM t1 LEFT JOIN t2 ON (t1.id=t2.id) GROUP BY t1.id;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SELECT * FROM t3;
+dsc	countOfRuns
+drop table t1, t2, t3;
+create table t1 (b bool not null default false);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table t2 (b bool not null default true);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1 values ();
+insert into t2 values ();
+select * from t1;
+b
+0
+select * from t2;
+b
+1
+drop table t1,t2;
+create table t1 (a int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table t1 select * from t1;
+ERROR 42S01: Table 't1' already exists
+create table t2 union = (t1) select * from t1;
+ERROR HY000: 'test.t2' is not BASE TABLE
+flush tables with read lock;
+unlock tables;
+drop table t1;
+create table t1(column.name int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.name int)' at line 1
+create table t1(test.column.name int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.column.name int)' at line 1
+create table t1(xyz.t1.name int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.t1.name int)' at line 1
+create table t1(t1.name int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.name int)' at line 1
+create table t2(test.t2.name int);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '.t2.name int)' at line 1
+CREATE TABLE t1 (f1 VARCHAR(255) CHARACTER SET utf8);
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 AS SELECT LEFT(f1,171) AS f2 FROM t1 UNION SELECT LEFT(f1,171) AS f2 FROM t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DESC t2;
+Field	Type	Null	Key	Default	Extra
+f2	varchar(171)	YES		NULL	
+DROP TABLE t1,t2;
+CREATE TABLE t12913 (f1 ENUM ('a','b')) AS SELECT 'a' AS f1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SELECT * FROM t12913;
+f1
+a
+DROP TABLE t12913;
+create database mysqltest;
+use mysqltest;
+drop database mysqltest;
+create table test.t1 like x;
+ERROR 3D000: No database selected
+drop table if exists test.t1;
+create database mysqltest;
+use mysqltest;
+create view v1 as select 'foo' from dual;
+create table t1 like v1;
+ERROR HY000: 'mysqltest.v1' is not BASE TABLE
+drop view v1;
+drop database mysqltest;
+create database mysqltest;
+create database if not exists mysqltest character set latin2;
+Warnings:
+Note	1007	Can't create database 'mysqltest'; database exists
+show create database mysqltest;
+Database	Create Database
+mysqltest	CREATE DATABASE `mysqltest` /*!40100 DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci */ /*!80016 DEFAULT ENCRYPTION='N' */
+drop database mysqltest;
+use test;
+create table t1 (a int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table if not exists t1 (a int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Note	1050	Table 't1' already exists
+drop table t1;
+create table t1 (
+a varchar(112) charset utf8 collate utf8_bin not null,
+primary key (a)
+) select 'test' as a ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(112) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+CREATE TABLE t2 (
+a int(11) default NULL
+);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t2 values(111);
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null, 
+b int not null, primary key (a)
+) select a, 1 as b from t2 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(12) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+drop table t1;
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null, 
+b int not null, primary key (a)
+) select a, 1 as c from t2 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	1364	Field 'b' doesn't have a default value
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` int NOT NULL,
+  `a` varchar(12) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
+  `c` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+drop table t1;
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null, 
+b int null, primary key (a)
+) select a, 1 as c from t2 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `b` int DEFAULT NULL,
+  `a` varchar(12) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
+  `c` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`a`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+drop table t1;
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin not null,
+b int not null, primary key (a)
+) select 'a' as a , 1 as b from t2 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(12) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+drop table t1;
+create table t1 ( 
+a varchar(12) charset utf8 collate utf8_bin,
+b int not null, primary key (a)
+) select 'a' as a , 1 as b from t2 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` varchar(12) CHARACTER SET utf8mb3 COLLATE utf8mb3_bin NOT NULL,
+  `b` int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+drop table t1, t2;
+create table t1 ( 
+a1 int not null,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1 values (1,1,1, 1,1,1, 1,1,1);
+create table t2 ( 
+a1 varchar(12) charset utf8 collate utf8_bin not null,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
+primary key (a1)
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+drop table t2;
+create table t2 ( 
+a1 varchar(12) charset utf8 collate utf8_bin,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+drop table t1, t2;
+create table t1 ( 
+a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int
+);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1 values (1,1,1, 1,1,1, 1,1,1);
+create table t2 ( 
+a1 varchar(12) charset utf8 collate utf8_bin not null,
+a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int,
+primary key (a1)
+) select a1,a2,a3,a4,a5,a6,a7,a8,a9 from t1 ;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_bin' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+drop table t2;
+create table t2 ( a int default 3, b int default 3)
+select a1,a2 from t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int DEFAULT '3',
+  `b` int DEFAULT '3',
+  `a1` int DEFAULT NULL,
+  `a2` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+drop table t1, t2;
+create table t1(a set("a,b","c,d") not null);
+ERROR 22007: Illegal set 'a,b' value found during parsing
+create table t1 select * from t2;
+ERROR 42S02: Table 'test.t2' doesn't exist
+create table t1 select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'coalesce'
+create table t1 (primary key(a)) select "b" as b;
+ERROR 42000: Key column 'a' doesn't exist in table
+create table t1 (a int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table if not exists t1 select 1 as a, 2 as b;
+Warnings:
+Note	1050	Table 't1' already exists
+drop table t1;
+create table t1 (primary key (a)) (select 1 as a) union all (select 1 as a);
+ERROR 23000: Duplicate entry '1' for key 't1.PRIMARY'
+create table t1 (i int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table t1 select 1 as i;
+ERROR 42S01: Table 't1' already exists
+create table if not exists t1 select 1 as i;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+i
+create table if not exists t1 select * from t1;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+i
+drop table t1;
+create table t1 select coalesce(_latin1 'a' collate latin1_swedish_ci,_latin1 'b' collate latin1_bin);
+ERROR HY000: Illegal mix of collations (latin1_swedish_ci,EXPLICIT) and (latin1_bin,EXPLICIT) for operation 'coalesce'
+create temporary table t1 (j int);
+create table if not exists t1 select 1;
+select * from t1;
+j
+drop temporary table t1;
+select * from t1;
+1
+1
+drop table t1;
+create table t1 (i int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1 values (1), (2);
+lock tables t1 read;
+create table t2 select * from t1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+create table if not exists t2 select * from t1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+unlock tables;
+create table t2 (j int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+lock tables t1 read;
+create table t2 select * from t1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+create table if not exists t2 select * from t1;
+ERROR HY000: Table 't2' was not locked with LOCK TABLES
+unlock tables;
+lock table t1 read, t2 read;
+create table t2 select * from t1;
+ERROR 42S01: Table 't2' already exists
+create table if not exists t2 select * from t1;
+Warnings:
+Note	1050	Table 't2' already exists
+unlock tables;
+lock table t1 read, t2 write;
+create table t2 select * from t1;
+ERROR 42S01: Table 't2' already exists
+create table if not exists t2 select * from t1;
+Warnings:
+Note	1050	Table 't2' already exists
+select * from t1;
+i
+1
+2
+unlock tables;
+drop table t2;
+lock tables t1 read;
+create temporary table t2 select * from t1;
+create temporary table if not exists t2 select * from t1;
+Warnings:
+Note	1050	Table 't2' already exists
+select * from t2;
+i
+unlock tables;
+drop table t1, t2;
+create table t1 (upgrade int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+drop table t1;
+
+Bug #26104 Bug on foreign key class constructor
+
+Check that ref_columns is initalized correctly in the constructor
+and semantic checks in mysql_prepare_table work.
+
+We do not need a storage engine that supports foreign keys
+for this test, as the checks are purely syntax-based, and the
+syntax is supported for all engines.
+
+drop table if exists t1,t2;
+create table t1(a int not null, b int not null, primary key (a, b));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table t2(a int not null, b int not null, c int not null, primary key (a),
+constraint fk_bug26104 foreign key (b,c) references t1(a));
+ERROR 42000: Incorrect foreign key definition for 'fk_bug26104': Key reference and table reference don't match
+drop table if exists t1, t2;
+Warnings:
+Note	1051	Unknown table 'test.t2'
+create table t1(f1 int,f2 int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+insert into t1 value(1,1),(1,2),(1,3),(2,1),(2,2),(2,3);
+flush status;
+create table t2 select sql_big_result f1,count(f2) from t1 group by f1;
+show status like 'handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	24
+Handler_read_last	0
+Handler_read_next	0
+Handler_read_prev	0
+Handler_read_rnd	0
+Handler_read_rnd_next	0
+drop table t1,t2;
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(33), KEY (c1) USING BTREE);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING BTREE (c1) USING HASH) ENGINE=MEMORY;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	c1	1	c1	NULL	0	NULL	NULL	YES	HASH			YES	NULL
+DROP TABLE t1;
+CREATE TABLE t1(c1 VARCHAR(33), KEY USING HASH (c1) USING BTREE) ENGINE=MEMORY;
+SHOW INDEX FROM t1;
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+t1	1	c1	1	c1	A	NULL	NULL	NULL	YES	BTREE			YES	NULL
+DROP TABLE t1;
+create user mysqltest_1@'test@test';
+ERROR HY000: Malformed hostname (illegal symbol: '@')
+#
+# BUG#46384 - mysqld segfault when trying to create table with same 
+#             name as existing view
+#
+CREATE TABLE t1 (a INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 (a INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+INSERT INTO t1 VALUES (1),(2),(3);
+INSERT INTO t2 VALUES (1),(2),(3);
+CREATE VIEW v1 AS SELECT t1.a FROM t1, t2;
+CREATE TABLE v1 AS SELECT * FROM t1;
+ERROR 42S01: Table 'v1' already exists
+DROP VIEW v1;
+DROP TABLE t1,t2;
+End of 5.0 tests
+CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+DROP DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+USE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+SHOW CREATE DATABASE aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa;
+ERROR 42000: Identifier name 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' is too long
+set names utf8;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+create database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+use имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+select database();
+database()
+имя_базы_в_кодировке_утф8_длиной_больше_чем_45
+use test;
+select SCHEMA_NAME from information_schema.schemata
+where schema_name='имя_базы_в_кодировке_утф8_длиной_больше_чем_45';
+SCHEMA_NAME
+имя_базы_в_кодировке_утф8_длиной_больше_чем_45
+drop database имя_базы_в_кодировке_утф8_длиной_больше_чем_45;
+create table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48
+(
+имя_поля_в_кодировке_утф8_длиной_больше_чем_45 int,
+index имя_индекса_в_кодировке_утф8_длиной_больше_чем_48 (имя_поля_в_кодировке_утф8_длиной_больше_чем_45)
+);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create view имя_вью_кодировке_утф8_длиной_больше_чем_42 as
+select имя_поля_в_кодировке_утф8_длиной_больше_чем_45
+from имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
+select * from имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
+имя_поля_в_кодировке_утф8_длиной_больше_чем_45
+select TABLE_NAME from information_schema.tables where
+table_schema='test' order by TABLE_NAME;
+TABLE_NAME
+имя_вью_кодировке_утф8_длиной_больше_чем_42
+имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48
+select COLUMN_NAME from information_schema.columns where
+table_schema='test' order by COLUMN_NAME;
+COLUMN_NAME
+имя_поля_в_кодировке_утф8_длиной_больше_чем_45
+имя_поля_в_кодировке_утф8_длиной_больше_чем_45
+select INDEX_NAME from information_schema.statistics where
+table_schema='test' order by INDEX_NAME;
+INDEX_NAME
+имя_индекса_в_кодировке_утф8_длиной_больше_чем_48
+select TABLE_NAME from information_schema.views where
+table_schema='test' order by TABLE_NAME;
+TABLE_NAME
+имя_вью_кодировке_утф8_длиной_больше_чем_42
+show create table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
+Table	Create Table
+имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48	CREATE TABLE `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48` (
+  `имя_поля_в_кодировке_утф8_длиной_больше_чем_45` int DEFAULT NULL,
+  KEY `имя_индекса_в_кодировке_утф8_длиной_больше_чем_48` (`имя_поля_в_кодировке_утф8_длиной_больше_чем_45`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+show create view имя_вью_кодировке_утф8_длиной_больше_чем_42;
+View	Create View	character_set_client	collation_connection
+имя_вью_кодировке_утф8_длиной_больше_чем_42	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `имя_вью_кодировке_утф8_длиной_больше_чем_42` AS select `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`.`имя_поля_в_кодировке_утф8_длиной_больше_чем_45` AS `имя_поля_в_кодировке_утф8_длиной_больше_чем_45` from `имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48`	utf8mb3	utf8mb3_general_ci
+create trigger имя_триггера_в_кодировке_утф8_длиной_больше_чем_49
+before insert on имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48 for each row set @a:=1;
+select TRIGGER_NAME from information_schema.triggers where
+trigger_schema='test';
+TRIGGER_NAME
+имя_триггера_в_кодировке_утф8_длиной_больше_чем_49
+drop trigger имя_триггера_в_кодировке_утф8_длиной_больше_чем_49;
+create trigger
+очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66
+before insert on имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48 for each row set @a:=1;
+ERROR 42000: Identifier name 'очень_очень_очень_очень_очень_очень_очень_очень_длинна' is too long
+drop trigger очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66;
+ERROR 42000: Identifier name 'очень_очень_очень_очень_очень_очень_очень_очень_длинна' is too long
+create procedure имя_процедуры_в_кодировке_утф8_длиной_больше_чем_50()
+begin
+end;
+select ROUTINE_NAME from information_schema.routines where
+routine_schema='test';
+ROUTINE_NAME
+имя_процедуры_в_кодировке_утф8_длиной_больше_чем_50
+drop procedure имя_процедуры_в_кодировке_утф8_длиной_больше_чем_50;
+create procedure очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66()
+begin
+end;
+ERROR 42000: Identifier name 'очень_очень_очень_очень_очень_очень_очень_очень_длинна' is too long
+create function имя_функции_в_кодировке_утф8_длиной_больше_чем_49()
+returns int
+return 0;
+select ROUTINE_NAME from information_schema.routines where
+routine_schema='test';
+ROUTINE_NAME
+имя_функции_в_кодировке_утф8_длиной_больше_чем_49
+drop function имя_функции_в_кодировке_утф8_длиной_больше_чем_49;
+create function очень_очень_очень_очень_очень_очень_очень_очень_длинная_строка_66()
+returns int
+return 0;
+ERROR 42000: Identifier name 'очень_очень_очень_очень_очень_очень_очень_очень_длинна' is too long
+drop view имя_вью_кодировке_утф8_длиной_больше_чем_42;
+drop table имя_таблицы_в_кодировке_утф8_длиной_больше_чем_48;
+set names default;
+drop table if exists t1,t2,t3;
+drop function if exists f1;
+create function f1() returns int
+begin
+declare res int;
+create temporary table t3 select 1 i;
+set res:= (select count(*) from t1);
+drop temporary table t3;
+return res;
+end|
+create table t1 as select 1;
+create table t2 as select f1() from t1;
+drop table t1,t2;
+drop function f1;
+create table t1 like information_schema.processlist;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `ID` bigint unsigned NOT NULL DEFAULT '0',
+  `USER` varchar(32) NOT NULL DEFAULT '',
+  `HOST` varchar(261) NOT NULL DEFAULT '',
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) NOT NULL DEFAULT '',
+  `TIME` int NOT NULL DEFAULT '0',
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb3 ROW_FORMAT=DYNAMIC
+drop table t1;
+create temporary table t1 like information_schema.processlist;
+show create table t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `ID` bigint unsigned NOT NULL DEFAULT '0',
+  `USER` varchar(32) NOT NULL DEFAULT '',
+  `HOST` varchar(261) NOT NULL DEFAULT '',
+  `DB` varchar(64) DEFAULT NULL,
+  `COMMAND` varchar(16) NOT NULL DEFAULT '',
+  `TIME` int NOT NULL DEFAULT '0',
+  `STATE` varchar(64) DEFAULT NULL,
+  `INFO` longtext
+) ENGINE=TMP_TABLE_ENGINE DEFAULT CHARSET=utf8mb3
+drop table t1;
+create table t1 as select * from information_schema.character_sets;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `CHARACTER_SET_NAME` varchar(64) CHARACTER SET utf8mb3 NOT NULL,
+  `DEFAULT_COLLATE_NAME` varchar(64) CHARACTER SET utf8mb3 NOT NULL,
+  `DESCRIPTION` varchar(2048) CHARACTER SET utf8mb3 NOT NULL,
+  `MAXLEN` int unsigned NOT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+drop table t1;
+
+# --
+# -- Bug#21380: DEFAULT definition not always transfered by CREATE
+# -- TABLE/SELECT to the new table.
+# --
+
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+
+CREATE TABLE t1(
+c1 INT DEFAULT 12 COMMENT 'column1',
+c2 INT NULL COMMENT 'column2',
+c3 INT NOT NULL COMMENT 'column3',
+c4 VARCHAR(255) CHARACTER SET utf8 NOT NULL DEFAULT 'a',
+c5 VARCHAR(255) COLLATE utf8_unicode_ci NULL DEFAULT 'b',
+c6 VARCHAR(255))
+COLLATE latin1_bin;
+Warnings:
+Warning	3719	'utf8' is currently an alias for the character set UTF8MB3, but will be an alias for UTF8MB4 in a future release. Please consider using UTF8MB4 in order to be unambiguous.
+Warning	3778	'utf8mb3_unicode_ci' is a collation of the deprecated character set UTF8MB3. Please consider using UTF8MB4 with an appropriate collation instead.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` int DEFAULT '12' COMMENT 'column1',
+  `c2` int DEFAULT NULL COMMENT 'column2',
+  `c3` int NOT NULL COMMENT 'column3',
+  `c4` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL DEFAULT 'a',
+  `c5` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT 'b',
+  `c6` varchar(255) COLLATE latin1_bin DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=latin1 COLLATE=latin1_bin ROW_FORMAT=DYNAMIC
+
+CREATE TABLE t2 AS SELECT * FROM t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `c1` int DEFAULT '12' COMMENT 'column1',
+  `c2` int DEFAULT NULL COMMENT 'column2',
+  `c3` int NOT NULL COMMENT 'column3',
+  `c4` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_general_ci NOT NULL DEFAULT 'a',
+  `c5` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_unicode_ci DEFAULT 'b',
+  `c6` varchar(255) CHARACTER SET latin1 COLLATE latin1_bin DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+# -- End of test case for Bug#21380.
+
+# --
+# -- Bug#18834: ALTER TABLE ADD INDEX on table with two timestamp fields
+# --
+
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+DROP TABLE IF EXISTS t3;
+
+CREATE TABLE t1(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c2 TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00');
+
+SET sql_mode = 'NO_ZERO_DATE';
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+
+CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP DEFAULT 0);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	1264	Out of range value for column 'c2' at row 1
+DROP TABLE t2;
+
+# -- Check that NULL column still can be created.
+CREATE TABLE t2(c1 TIMESTAMP NULL);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+
+# -- Check ALTER TABLE.
+ALTER TABLE t1 ADD INDEX(c1);
+Warnings:
+Warning	1264	Out of range value for column 'c2' at row 1
+
+# -- Check DATETIME.
+SET sql_mode = '';
+
+# -- Cleanup.
+SET sql_mode = '';
+DROP TABLE t1;
+DROP TABLE t2;
+
+# -- End of Bug#18834.
+
+# --
+# -- Bug#34274: Invalid handling of 'DEFAULT 0' for YEAR data type.
+# --
+
+DROP TABLE IF EXISTS t1;
+
+CREATE TABLE t1(c1 YEAR DEFAULT 2008, c2 YEAR DEFAULT 0);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` year DEFAULT '2008',
+  `c2` year DEFAULT '0000'
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+
+INSERT INTO t1 VALUES();
+
+SELECT * FROM t1;
+c1	c2
+2008	0
+
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `c1` year DEFAULT '2008',
+  `c2` year DEFAULT '0000'
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+
+INSERT INTO t1 VALUES();
+
+SELECT * FROM t1;
+c1	c2
+2008	0
+2008	0
+
+DROP TABLE t1;
+
+# -- End of Bug#34274
+create table `me:i`(id int);
+drop table `me:i`;
+
+# --
+# -- Bug#45829: CREATE TABLE TRANSACTIONAL PAGE_CHECKSUM ROW_FORMAT=PAGE accepted, does nothing
+# --
+
+drop table if exists t1,t2,t3;
+create table t1 (a int) transactional=0;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'transactional=0' at line 1
+create table t2 (a int) page_checksum=1;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'page_checksum=1' at line 1
+create table t3 (a int) row_format=page;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'page' at line 1
+
+# -- End of Bug#45829
+
+End of 5.1 tests
+
+# --
+# -- Bug #43054 	Assertion `!table->auto_increment_field_not_null' 
+# --       failed when redefining trigger
+
+CREATE TABLE B (
+pk INTEGER AUTO_INCREMENT,
+int_key INTEGER NOT NULL,
+PRIMARY KEY (pk),
+KEY (int_key)
+);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	7583	[DuckDB] AUTO_INCREMENT of field 'pk' is removed.
+INSERT IGNORE INTO B VALUES ('9', '9');
+CREATE TABLE IF NOT EXISTS t1 ( 
+`pk` INTEGER NOT NULL AUTO_INCREMENT , 
+`int` INTEGER ,
+PRIMARY KEY ( `pk` ) 
+) SELECT `pk` , `int_key` FROM B ;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	7583	[DuckDB] AUTO_INCREMENT of field 'pk' is removed.
+CREATE TRIGGER f BEFORE INSERT ON t1 FOR EACH ROW 
+BEGIN 
+INSERT INTO t1 ( `int` ) VALUES (4 ),( 8 ),( 2 ) ; 
+END ; |
+DROP TABLE t1;
+DROP TABLE B;
+#
+# Bug #47107 assert in notify_shared_lock on incorrect 
+#            CREATE TABLE , HANDLER
+#
+#
+# Bug #48800 CREATE TABLE t...SELECT fails if t is a 
+#            temporary table
+#
+CREATE TEMPORARY TABLE t1 (a INT);
+CREATE TABLE t1 (a INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TEMPORARY TABLE t2 (a INT);
+CREATE VIEW t2 AS SELECT 1;
+CREATE TABLE t3 (a INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TEMPORARY TABLE t3 SELECT 1;
+CREATE TEMPORARY TABLE t4 (a INT);
+CREATE TABLE t4 AS SELECT 1;
+DROP TEMPORARY TABLE t1, t2, t3, t4;
+DROP TABLE t1, t3, t4;
+DROP VIEW t2;
+#
+# Bug #49193 CREATE TABLE reacts differently depending 
+#            on whether data is selected or not
+#
+CREATE TEMPORARY TABLE t2 (ID INT);
+INSERT INTO t2 VALUES (1),(2),(3);
+CREATE TEMPORARY TABLE t1 (ID INT);
+CREATE TABLE IF NOT EXISTS t1 (ID INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+INSERT INTO t1 SELECT * FROM t2;
+SELECT * FROM t1;
+ID
+1
+2
+3
+DROP TEMPORARY TABLE t1;
+SELECT * FROM t1;
+ID
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1 (ID INT);
+CREATE TABLE IF NOT EXISTS t1 SELECT * FROM t2;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SELECT * FROM t1;
+ID
+DROP TEMPORARY TABLE t1;
+SELECT * FROM t1;
+ID
+1
+2
+3
+DROP TABLE t1;
+CREATE TEMPORARY TABLE t1 (ID INT);
+CREATE TABLE t1 SELECT * FROM t2;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SELECT * FROM t1;
+ID
+DROP TEMPORARY TABLE t1;
+SELECT * FROM t1;
+ID
+1
+2
+3
+DROP TABLE t1;
+DROP TEMPORARY TABLE t2;
+# 
+# Bug #22909 "Using CREATE ... LIKE is possible to create field
+#             with invalid default value"
+#
+# Altough original bug report suggests to use older version of MySQL
+# for producing .FRM with invalid defaults we use sql_mode to achieve
+# the same effect.
+drop tables if exists t1, t2;
+# Attempt to create table with invalid default should fail in normal mode
+create table t1 (dt datetime default '2008-02-31 00:00:00');
+ERROR 42000: Invalid default value for 'dt'
+set @old_mode= @@sql_mode;
+set @@sql_mode='ALLOW_INVALID_DATES';
+# The same should be possible in relaxed mode
+create table t1 (dt datetime default '2008-02-31 00:00:00');
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+set @@sql_mode= @old_mode;
+# In normal mode attempt to create copy of table with invalid
+# default should fail
+create table t2 like t1;
+ERROR 42000: Invalid default value for 'dt'
+set @@sql_mode='ALLOW_INVALID_DATES';
+# But should work in relaxed mode
+create table t2 like t1;
+# Check that table definitions match
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `dt` datetime DEFAULT '2008-02-31 00:00:00'
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `dt` datetime DEFAULT '2008-02-31 00:00:00'
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+set @@sql_mode= @old_mode;
+drop tables t1, t2;
+CREATE TABLE t1 (id int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 (id int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+INSERT INTO t1 VALUES (1), (1);
+INSERT INTO t2 VALUES (2), (2);
+CREATE VIEW v1 AS SELECT id FROM t2;
+CREATE TABLE IF NOT EXISTS v1(a int, b int) SELECT id, id FROM t1;
+Warnings:
+Note	1050	Table 'v1' already exists
+SHOW CREATE TABLE v1;
+View	Create View	character_set_client	collation_connection
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t2`.`id` AS `id` from `t2`	utf8mb4	utf8mb4_0900_ai_ci
+SELECT * FROM t2;
+id
+2
+2
+DROP VIEW v1;
+CREATE TEMPORARY TABLE tt1 AS SELECT id FROM t2;
+CREATE TEMPORARY TABLE IF NOT EXISTS tt1(a int, b int) SELECT id, id FROM t1;
+Warnings:
+Note	1050	Table 'tt1' already exists
+SELECT * FROM t2;
+id
+2
+2
+SELECT * FROM tt1;
+id
+DROP TEMPORARY TABLE tt1;
+DROP TABLE t1, t2;
+#
+# WL#5370 "Changing 'CREATE TABLE IF NOT EXISTS ... SELECT'
+# behaviour.
+# 
+#
+# 1. Basic case: a base table.
+# 
+create table if not exists t1 (a int) select 1 as a;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+select * from t1;
+a
+1
+create table t1 (a int) select 2 as a;
+ERROR 42S01: Table 't1' already exists
+select * from t1;
+a
+1
+# Produces an essential warning ER_TABLE_EXISTS.
+create table if not exists t1 (a int) select 2 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+# No new data in t1.
+select * from t1;
+a
+1
+drop table t1;
+# 
+# 2. A temporary table.
+#
+create temporary table if not exists t1 (a int) select 1 as a;
+select * from t1;
+a
+1
+create temporary table t1 (a int) select 2 as a;
+ERROR 42S01: Table 't1' already exists
+select * from t1;
+a
+1
+# An essential warning.
+create temporary table if not exists t1 (a int) select 2 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+# No new data in t1.
+select * from t1;
+a
+1
+drop temporary table t1;
+# 
+# 3. Creating a base table in presence of a temporary table.
+#
+create table t1 (a int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+# Create a view for convenience of querying t1 shadowed by a temp.
+create view v1 as select a from t1;
+drop table t1;
+create temporary table t1 (a int) select 1 as a;
+create table if not exists t1 (a int) select 2 as a;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+select * from t1;
+a
+1
+# Note: an essential warning.
+create table if not exists t1 (a int) select 3 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+1
+drop temporary table t1;
+select * from t1;
+a
+2
+drop view v1;
+drop table t1;
+# 
+# 4. Creating a temporary table in presence of a base table.
+#
+create table t1 (a int) select 1 as a;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create temporary table if not exists t1 select 2 as a;
+select * from t1;
+a
+2
+# Note: an essential warning.
+create temporary table if not exists t1 select 3 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+2
+drop temporary table t1;
+select * from t1;
+a
+1
+drop table t1;
+#
+# 5. Creating a base table in presence of an updatable view.
+# 
+create table t2 (a int unique);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create view t1 as select a from t2;
+insert into t1 (a) values (1);
+create table t1 (a int);
+ERROR 42S01: Table 't1' already exists
+# Note: an essential warning.
+create table if not exists t1 (a int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Note	1050	Table 't1' already exists
+create table t1 (a int) select 2 as a;
+ERROR 42S01: Table 't1' already exists
+# Note: an essential warning.
+create table if not exists t1 (a int) select 2 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t2;
+a
+1
+create temporary table if not exists t1 (a int) select 3 as a;
+select * from t1;
+a
+3
+select * from t2;
+a
+1
+# Note: an essential warning.
+create temporary table if not exists t1 (a int) select 4 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+3
+select * from t2;
+a
+1
+drop temporary table t1;
+#
+# Repeating the test with a non-updatable view.
+#
+drop view t1;
+create view t1 as select a + 5 as a from t2;
+insert into t1 (a) values (1);
+ERROR HY000: Column 'a' is not updatable
+update t1 set a=3 where a=2;
+ERROR HY000: Column 'a' is not updatable
+create table t1 (a int);
+ERROR 42S01: Table 't1' already exists
+# Note: an essential warning.
+create table if not exists t1 (a int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Note	1050	Table 't1' already exists
+create table t1 (a int) select 2 as a;
+ERROR 42S01: Table 't1' already exists
+# Note: an essential warning.
+create table if not exists t1 (a int) select 2 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t2;
+a
+1
+create temporary table if not exists t1 (a int) select 3 as a;
+select * from t1;
+a
+3
+select * from t2;
+a
+1
+# Note: an essential warning.
+create temporary table if not exists t1 (a int) select 4 as a;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t2;
+a
+1
+drop temporary table t1;
+drop view t1;
+drop table t2;
+#
+# 6. Test of unique_table().
+#
+create table t1 (a int) select 1 as a;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create temporary table if not exists t1 (a int) select * from t1;
+create temporary table if not exists t1 (a int) select * from t1;
+ERROR HY000: Can't reopen table: 't1'
+select * from t1;
+a
+drop temporary table t1;
+select * from t1;
+a
+1
+drop table t1;
+create temporary table t1 (a int) select 1 as a;
+create table if not exists t1 (a int) select * from t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table if not exists t1 (a int) select * from t1;
+Warnings:
+Note	1050	Table 't1' already exists
+select * from t1;
+a
+1
+drop temporary table t1;
+select * from t1;
+a
+1
+drop table t1;
+create table if not exists t1 (a int) select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+#
+# 7. Test of non-matching columns, REPLACE and IGNORE.
+#
+create table t1 (a int) select 1 as b, 2 as c;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+select * from t1;
+a	b	c
+NULL	1	2
+drop table t1;
+create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'c' at row 1
+select * from t1;
+a	b	c
+NULL	0000-00-00	0000-00-00
+drop table t1;
+set @@session.sql_mode=default;
+create table if not exists t1 (a int, b date, c date) select 1 as b, 2 as c;
+ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table if not exists t1 (a int, b date, c date) 
+replace select 1 as b, 2 as c;
+ERROR 22007: Incorrect date value: '1' for column 'b' at row 1
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+create table if not exists t1 (a int, b date, c date) 
+ignore select 1 as b, 2 as c;
+Warnings:
+Warning	1265	Data truncated for column 'b' at row 1
+Warning	1265	Data truncated for column 'c' at row 1
+select * from t1;
+a	b	c
+NULL	0000-00-00	0000-00-00
+drop table t1;
+create table if not exists t1 (a int unique, b int)
+replace select 1 as a, 1 as b union select 1 as a, 2 as b;
+select * from t1;
+a	b
+1	2
+drop table t1;
+create table if not exists t1 (a int unique, b int)
+ignore select 1 as a, 1 as b union select 1 as a, 2 as b;
+Warnings:
+Warning	1062	Duplicate entry '1' for key 't1.a'
+select * from t1;
+a	b
+1	1
+drop table t1;
+#
+#
+# WL#5576 Prohibit CREATE TABLE ... SELECT to modify other tables
+#
+create function f()
+returns int
+begin
+insert into t2 values(1);
+return 1;
+end|
+#
+# 1. The function updates a base table
+#
+create table t2(c1 int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+create temporary table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+drop table t2;
+#
+# 2. The function updates a view which derives from a base table
+#
+create table t3(c1 int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create view t2 as select c1 from t3;
+create table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+create temporary table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+drop view t2;
+#
+# 3. The function updates a view which derives from two base tables
+#
+create table t4(c1 int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+create view t2 as select t3.c1 as c1 from t3, t4;
+create table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+create temporary table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+drop view t2;
+drop tables t3, t4;
+#
+# 4. The function updates a view which selects a constant number
+#
+create view t2 as select 1;
+create table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+create temporary table t1 select f();
+ERROR HY000: Can't update table 't2' while 't1' is being created.
+drop view t2;
+drop function f;
+#
+# BUG#11762377 - 54963: ENHANCE THE ERROR MESSAGE TO 
+#                       REDUCE USER CONFUSION 
+#
+CREATE TABLE t1 (v varchar(65535) CHARACTER SET latin1);
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 65535. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+#
+# Bug#11746295 - 25168: "INCORRECT TABLE NAME" INSTEAD OF "IDENTIFIER TOO
+#                       LONG" IF TABLE NAME > 64 CHARACTERS
+#
+CREATE TABLE t01234567890123456789012345678901234567890123456789012345678901234567890123456789(a int);
+ERROR 42000: Identifier name 't01234567890123456789012345678901234567890123456789012345678901234567890123456789' is too long
+CREATE DATABASE t01234567890123456789012345678901234567890123456789012345678901234567890123456789;
+ERROR 42000: Identifier name 't01234567890123456789012345678901234567890123456789012345678901234567890123456789' is too long
+#
+# Bug #20573701 DROP DATABASE ASSERT ON DEBUG WHEN OTHER FILES PRESENT IN
+#               DB FOLDER.
+#
+CREATE DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
+DROP DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
+ERROR HY000: Error dropping database (can't rmdir './db_with_no_tables_and_an_unrelated_file_in_data_directory/', errno: ## - ...)
+DROP DATABASE db_with_no_tables_and_an_unrelated_file_in_data_directory;
+CREATE DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
+DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
+ERROR HY000: Error dropping database (can't rmdir './db_with_tables_and_an_unrelated_file_in_data_directory/', errno: ## - ...)
+DROP DATABASE db_with_tables_and_an_unrelated_file_in_data_directory;
+DROP DATABASE db_created_with_mkdir_and_an_unrelated_file_in_data_directory;
+ERROR HY000: Schema 'db_created_with_mkdir_and_an_unrelated_file_in_data_directory' does not exist, but schema directory './db_created_with_mkdir_and_an_unrelated_file_in_data_directory/' was found. This must be resolved manually (e.g. by moving the schema directory to another location).
+#
+# Bug#20857556: IMPROPER ERROR DURING CREATE TABLE
+#
+# Without the patch ER_WRONG_TABLE_NAME was getting reported.
+CREATE TABLE t1 (id INT) INDEX DIRECTORY = 'a#######################################################b#######################################################################################b#####################################################################################b######################################################################################b######################################################################################b#############################################################################################################';
+ERROR HY000: The path specified for INDEX DIRECTORY is too long.
+CREATE TABLE t2 (id INT NOT NULL, name VARCHAR(30))
+ENGINE = InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'a#######################################################b#######################################################################################b#####################################################################################b######################################################################################b######################################################################################b#############################################################################################################'
+);
+ERROR HY000: The path specified for INDEX DIRECTORY is too long.
+CREATE TABLE t3 (id INT) INDEX DIRECTORY = 'test';
+ERROR HY000: Incorrect path value: 'test'
+CREATE TABLE t4 (id INT NOT NULL, name VARCHAR(30))
+ENGINE = InnoDB
+PARTITION BY RANGE (id) (
+PARTITION p0 VALUES LESS THAN (10) INDEX DIRECTORY = 'test'
+);
+ERROR HY000: Incorrect path value: 'test'
+#
+# BUG 27516741 - MYSQL SERVER DOES NOT WRITE INNODB ROW_TYPE
+#                TO .FRM FILE WHEN DEFAULT USED
+# Set up.
+SET @saved_innodb_default_row_format= @@global.innodb_default_row_format;
+SET @saved_show_create_table_verbosity= @@session.show_create_table_verbosity;
+# Current InnoDB default row format and 'show_create_table_verbosity'
+# values respectively.
+SELECT @@global.innodb_default_row_format;
+@@global.innodb_default_row_format
+dynamic
+SELECT @@session.show_create_table_verbosity;
+@@session.show_create_table_verbosity
+0
+CREATE TABLE t1(fld1 INT) ENGINE= InnoDB;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2(fld1 INT) ENGINE= InnoDB, ROW_FORMAT= DEFAULT;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SET GLOBAL innodb_default_row_format= 'COMPACT';
+CREATE TABLE t3(fld1 INT) ENGINE= InnoDB;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t4(fl1 INT) ENGINE= InnoDB, ROW_FORMAT= COMPRESSED;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+# Test without show_create_table_verbosity enabled.
+# Row format used is not displayed for all tables
+# except t4 where it is explicitly specified.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fld1` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `fld1` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `fl1` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+# Test with show_create_table_verbosity enabled.
+# Row format used is displayed for all tables.
+SET SESSION show_create_table_verbosity= ON;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `fld1` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fld1` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `fld1` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `fl1` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SET GLOBAL innodb_default_row_format= 'DYNAMIC';
+SET SESSION show_create_table_verbosity= OFF;
+# Test with corresponding temporary tables.
+CREATE TEMPORARY TABLE t1(fld1 INT) ENGINE= InnoDB;
+CREATE TEMPORARY TABLE t2(fld1 INT) ENGINE= InnoDB, ROW_FORMAT= DEFAULT;
+SET GLOBAL innodb_default_row_format= 'COMPACT';
+CREATE TEMPORARY TABLE t3(fld1 INT) ENGINE= InnoDB;
+CREATE TEMPORARY TABLE t4(fl1 INT) ENGINE= InnoDB, ROW_FORMAT= REDUNDANT;
+# Test without show_create_table_verbosity enabled.
+# Row format used is not displayed for all tables
+# except t4 where it is explicitly specified.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `fld1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `fld1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `fld1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TEMPORARY TABLE `t4` (
+  `fl1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+# Test with show_create_table_verbosity enabled.
+# Row format used is displayed for all tables.
+SET SESSION show_create_table_verbosity= ON;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TEMPORARY TABLE `t1` (
+  `fld1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `fld1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TEMPORARY TABLE `t3` (
+  `fld1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=COMPACT
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TEMPORARY TABLE `t4` (
+  `fl1` int DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=REDUNDANT
+# Clean up.
+DROP TABLE t1, t2, t3, t4;
+DROP TABLE t1, t2, t3, t4;
+SET GLOBAL innodb_default_row_format= @saved_innodb_default_row_format;
+SET SESSION show_create_table_verbosity= @saved_show_create_table_verbosity;
+#
+# Bug#27592803: ASSERTION FAILED: RC == TYPE_OK,
+#
+# Make sure that it is possible to create enums using binary string
+# values that are not valid utf8
+CREATE TABLE t0(a ENUM('aaa', 'bbb', 'ccc') BYTE);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SHOW CREATE TABLE t0;
+Table	Create Table
+t0	CREATE TABLE `t0` (
+  `a` enum('aaa','bbb','ccc') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW COLUMNS FROM t0;
+Field	Type	Null	Key	Default	Extra
+a	enum('aaa','bbb','ccc')	YES		NULL	
+# Tables t1 and t2 uses a binary value that is legal as utf8, so they
+# would not trigger an assert.
+CREATE TABLE t1(a ENUM( b'1001001'));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` enum('I') DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW COLUMNS FROM t1;
+Field	Type	Null	Key	Default	Extra
+a	enum('I')	YES		NULL	
+CREATE TABLE t2(a ENUM( b'1001001') BYTE);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` enum('I') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW COLUMNS FROM t2;
+Field	Type	Null	Key	Default	Extra
+a	enum('I')	YES		NULL	
+# Tables t3 - t6 contains binary values that are not valid utf8
+# which would previously result in assert. With the fix we get the hex
+# representation of the binary value instead.
+CREATE TABLE t3(a ENUM( b'10010010') BYTE);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `a` enum(x'92') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW COLUMNS FROM t3;
+Field	Type	Null	Key	Default	Extra
+a	enum(x'92')	YES		NULL	
+CREATE TABLE t4(a ENUM( b'1001001101101111') BYTE);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `a` enum(x'936f') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW COLUMNS FROM t4;
+Field	Type	Null	Key	Default	Extra
+a	enum(x'936f')	YES		NULL	
+CREATE TABLE t5(a ENUM( b'10010011011011111111011000011') BYTE);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SHOW CREATE TABLE t5;
+Table	Create Table
+t5	CREATE TABLE `t5` (
+  `a` enum(x'126dfec3') CHARACTER SET binary COLLATE binary DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW COLUMNS FROM t5;
+Field	Type	Null	Key	Default	Extra
+a	enum(x'126dfec3')	YES		NULL	
+CREATE TABLE t6 (a INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SHOW CREATE TABLE t6;
+Table	Create Table
+t6	CREATE TABLE `t6` (
+  `a` int DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW COLUMNS FROM t6;
+Field	Type	Null	Key	Default	Extra
+a	int	YES		NULL	
+DROP TABLE t6;
+DROP TABLE t5;
+DROP TABLE t4;
+DROP TABLE t3;
+DROP TABLE t2;
+DROP TABLE t1;
+DROP TABLE t0;
+# Bug#17468242/Wl#11807: Provide an option to prevent creation of tables
+# without a unique/pk
+#
+SET GLOBAL sql_require_primary_key= ON;
+SELECT @@global.sql_require_primary_key;
+@@global.sql_require_primary_key
+1
+# Checking variable at session level
+# Should not affect this session
+SELECT @@session.sql_require_primary_key;
+@@session.sql_require_primary_key
+0
+CREATE TABLE t1(i INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2(i INT PRIMARY KEY, j INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t2;
+DROP TABLE t1;
+# Create new connection which will inherit global setting
+SELECT @@session.sql_require_primary_key;
+@@session.sql_require_primary_key
+1
+CREATE TABLE t1(i INT);
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+CREATE TABLE t1(i INT PRIMARY KEY, j INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1;
+# Overdide inherited global setting locally
+SET SESSION sql_require_primary_key= OFF;
+SELECT @@session.sql_require_primary_key;
+@@session.sql_require_primary_key
+0
+CREATE TABLE t1(i INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2(i INT PRIMARY KEY, j INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t2;
+DROP TABLE t1;
+# Verify CREATE LIKE
+CREATE TABLE t1(i INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SET SESSION sql_require_primary_key= ON;
+CREATE TABLE t2 LIKE t1;
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# Verify CREATE AS SELECT ...
+CREATE TABLE t3 (I INT PRIMARY KEY);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t4 AS SELECT 1;
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+CREATE TABLE t4 AS SELECT * FROM t1;
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# PK attribute is not propagated by CREATE AS
+CREATE TABLE t4 AS SELECT * FROM t3;
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# PK attribute specified explicitly is ok
+CREATE TABLE t4(i INT PRIMARY KEY) AS SELECT * FROM t3;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `I` int NOT NULL,
+  PRIMARY KEY (`I`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+# Drop and add PK in same ALTER statement should be ok
+CREATE TABLE t5(i INT PRIMARY KEY, j INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+# Restriction also applies to temporary tables
+CREATE TEMPORARY TABLE t6(i INT);
+ERROR HY000: Unable to create or change a table without a primary key, when the system variable 'sql_require_primary_key' is set. Add a primary key to the table or unset this variable to avoid this message. Note that tables without a primary key can cause performance problems in row-based replication, so please consult your DBA before changing this setting.
+# Cleanup
+DROP TABLE t5;
+DROP TABLE t4;
+DROP TABLE t3;
+DROP TABLE t1;
+# Create user without SUPER privilege.
+CREATE USER subuser@localhost;
+REVOKE SUPER ON *.* FROM subuser@localhost;
+Warnings:
+Warning	1287	The SUPER privilege identifier is deprecated
+# Connect as user subuser@localhost;
+SET SESSION sql_require_primary_key= OFF;
+ERROR 42000: Access denied; you need (at least one of) the SUPER, SYSTEM_VARIABLES_ADMIN or SESSION_VARIABLES_ADMIN privilege(s) for this operation
+SET GLOBAL sql_require_primary_key= OFF;
+ERROR 42000: Access denied; you need (at least one of) the SUPER or SYSTEM_VARIABLES_ADMIN privilege(s) for this operation
+DROP USER subuser@localhost;
+SET GLOBAL sql_require_primary_key= OFF;
+#
+# Bug#28022129: NOW() DOESN?T HONOR NO_ZERO_DATE SQL_MODE
+#
+SET @saved_mode= @@sql_mode;
+CREATE TABLE t1(fld1 int);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+# NO_ZERO_DATE and STRICT SQL mode.
+CREATE TABLE t2 SELECT fld1, CURDATE() fld2 FROM t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t3 AS SELECT now();
+# With patch, zero date is not generated as default.
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fld1` int DEFAULT NULL,
+  `fld2` date NOT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `now()` datetime NOT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t2, t3;
+SET SQL_MODE= "NO_ZERO_DATE";
+Warnings:
+Warning	3135	'NO_ZERO_DATE', 'NO_ZERO_IN_DATE' and 'ERROR_FOR_DIVISION_BY_ZERO' sql modes should be used with strict mode. They will be merged with strict mode in a future release.
+# NO_ZERO_DATE SQL mode.
+CREATE TABLE t2 SELECT fld1, CURDATE() fld2 FROM t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t3 AS SELECT now();
+# Zero date is generated as default in non strict mode.
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fld1` int DEFAULT NULL,
+  `fld2` date NOT NULL DEFAULT '0000-00-00'
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SHOW CREATE TABLE t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `now()` datetime NOT NULL DEFAULT '0000-00-00 00:00:00'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2, t3;
+SET SQL_MODE= DEFAULT;
+# Test cases added for coverage.
+CREATE TABLE t1(fld1 DATETIME NOT NULL DEFAULT '1111:11:11');
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	4095	Delimiter ':' in position 4 in datetime value '1111:11:11' at row 1 is deprecated. Prefer the standard '-'.
+# CREATE TABLE..SELECT using fields of another table.
+CREATE TABLE t2 AS SELECT * FROM t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+# Default value is copied from the source table column.
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `fld1` datetime NOT NULL DEFAULT '1111-11-11 00:00:00'
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+DROP TABLE t1, t2;
+# CREATE TABLE..SELECT based on trigger fields.
+CREATE TABLE t1 (fld1 INT, fld2 DATETIME DEFAULT '1211:1:1');
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	4095	Delimiter ':' in position 4 in datetime value '1211:1:1' at row 1 is deprecated. Prefer the standard '-'.
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+CREATE TEMPORARY TABLE t2 AS SELECT NEW.fld1, NEW.fld2;
+END
+|
+INSERT INTO t1 VALUES (1, '1111:11:11');
+Warnings:
+Warning	4095	Delimiter ':' in position 4 in datetime value '1111:11:11' at row 1 is deprecated. Prefer the standard '-'.
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TEMPORARY TABLE `t2` (
+  `fld1` int DEFAULT NULL,
+  `fld2` datetime DEFAULT '1211-01-01 00:00:00'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1;
+DROP TEMPORARY TABLE t2;
+SET SQL_MODE= @saved_mode;
+#
+# Bug #29283055: CREATE TABLE IF NOT EXISTS .. SHOULD NOT ALWAYS
+# FAIL ON SQL_REQUIRE_PRIMARY_KEY
+#
+# Create table without PK
+CREATE TABLE t1(i INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SET SESSION sql_require_primary_key=1;
+# This must not fail when t1 already exists, even if it does not have
+# a pk
+CREATE TABLE IF NOT EXISTS t1(i INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Note	1050	Table 't1' already exists
+# Cleanup
+SET SESSION sql_require_primary_key=DEFAULT;
+DROP TABLE t1;
+#
+# WL#13127: Deprecate integer display width and ZEROFILL option
+#
+CREATE TABLE types(id INT PRIMARY KEY AUTO_INCREMENT, name VARCHAR(100));
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	7583	[DuckDB] AUTO_INCREMENT of field 'id' is removed.
+INSERT INTO types(id, name) VALUES
+(1, 'TINYINT'), (2, 'SMALLINT'), (3, 'MEDIUMINT'), (4, 'INT'), (5, 'BIGINT'),
+(6, 'TINYINT(10)'), (7, 'SMALLINT(10)'), (8, 'MEDIUMINT(10)'), (9, 'INT(10)'), (10, 'BIGINT(10)'),
+(11, 'DOUBLE'), (12, 'FLOAT'), (13, 'DECIMAL(5, 2)'), (14, 'YEAR');
+CREATE TABLE t1(col TINYINT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x TINYINT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS TINYINT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x TINYINT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col SMALLINT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x SMALLINT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS SMALLINT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x SMALLINT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col MEDIUMINT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x MEDIUMINT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS MEDIUMINT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x MEDIUMINT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col INT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x INT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS INT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x INT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col BIGINT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x BIGINT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS BIGINT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x BIGINT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col TINYINT(10) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x TINYINT(10) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f2(x INT) RETURNS TINYINT(10) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x TINYINT(10) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col SMALLINT(10) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x SMALLINT(10) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f2(x INT) RETURNS SMALLINT(10) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x SMALLINT(10) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col MEDIUMINT(10) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x MEDIUMINT(10) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f2(x INT) RETURNS MEDIUMINT(10) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x MEDIUMINT(10) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col INT(10) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x INT(10) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f2(x INT) RETURNS INT(10) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x INT(10) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col BIGINT(10) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x BIGINT(10) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f2(x INT) RETURNS BIGINT(10) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x BIGINT(10) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col DOUBLE ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x DOUBLE ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS DOUBLE ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x DOUBLE ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col FLOAT ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x FLOAT ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS FLOAT ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x FLOAT ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col DECIMAL(5, 2) ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1681	UNSIGNED for decimal and floating point data types is deprecated and support for it will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x DECIMAL(5, 2) ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS DECIMAL(5, 2) ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x DECIMAL(5, 2) ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+CREATE TABLE t1(col YEAR ZEROFILL);
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+CREATE TABLE t2 LIKE t1;
+CREATE TABLE t3 AS SELECT * FROM t1;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+DROP TABLE t1, t2, t3;
+CREATE FUNCTION f1(x YEAR ZEROFILL) RETURNS INT DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f2(x INT) RETURNS YEAR ZEROFILL DETERMINISTIC RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+CREATE FUNCTION f3() RETURNS INT DETERMINISTIC
+BEGIN
+DECLARE x YEAR ZEROFILL DEFAULT 1;
+RETURN x;
+END//
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+DROP FUNCTION f3;
+DROP TABLE types;
+#
+# WL#13528: Remove integer display width from SHOW CREATE output
+#
+CREATE TABLE t1(
+a TINYINT,
+b SMALLINT,
+c MEDIUMINT,
+d INT,
+e BIGINT,
+f TINYINT(1),
+g SMALLINT(1),
+h MEDIUMINT(1),
+i INT(1),
+j BIGINT(1),
+k TINYINT ZEROFILL,
+l SMALLINT ZEROFILL,
+m MEDIUMINT ZEROFILL,
+n INT ZEROFILL,
+o BIGINT ZEROFILL
+);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` tinyint DEFAULT NULL,
+  `b` smallint DEFAULT NULL,
+  `c` mediumint DEFAULT NULL,
+  `d` int DEFAULT NULL,
+  `e` bigint DEFAULT NULL,
+  `f` tinyint(1) DEFAULT NULL,
+  `g` smallint DEFAULT NULL,
+  `h` mediumint DEFAULT NULL,
+  `i` int DEFAULT NULL,
+  `j` bigint DEFAULT NULL,
+  `k` tinyint(3) unsigned zerofill DEFAULT NULL,
+  `l` smallint(5) unsigned zerofill DEFAULT NULL,
+  `m` mediumint(8) unsigned zerofill DEFAULT NULL,
+  `n` int(10) unsigned zerofill DEFAULT NULL,
+  `o` bigint(20) unsigned zerofill DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
+COLUMN_TYPE
+bigint
+bigint
+bigint(20) unsigned zerofill
+int
+int
+int(10) unsigned zerofill
+mediumint
+mediumint
+mediumint(8) unsigned zerofill
+smallint
+smallint
+smallint(5) unsigned zerofill
+tinyint
+tinyint(1)
+tinyint(3) unsigned zerofill
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint	YES		NULL	
+b	smallint	YES		NULL	
+c	mediumint	YES		NULL	
+d	int	YES		NULL	
+e	bigint	YES		NULL	
+f	tinyint(1)	YES		NULL	
+g	smallint	YES		NULL	
+h	mediumint	YES		NULL	
+i	int	YES		NULL	
+j	bigint	YES		NULL	
+k	tinyint(3) unsigned zerofill	YES		NULL	
+l	smallint(5) unsigned zerofill	YES		NULL	
+m	mediumint(8) unsigned zerofill	YES		NULL	
+n	int(10) unsigned zerofill	YES		NULL	
+o	bigint(20) unsigned zerofill	YES		NULL	
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
+COLUMN_TYPE
+bigint
+bigint
+bigint(20) unsigned zerofill
+int
+int
+int(10) unsigned zerofill
+mediumint
+mediumint
+mediumint(8) unsigned zerofill
+smallint
+smallint
+smallint(5) unsigned zerofill
+tinyint
+tinyint(1)
+tinyint(3) unsigned zerofill
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint	YES		NULL	
+b	smallint	YES		NULL	
+c	mediumint	YES		NULL	
+d	int	YES		NULL	
+e	bigint	YES		NULL	
+f	tinyint(1)	YES		NULL	
+g	smallint	YES		NULL	
+h	mediumint	YES		NULL	
+i	int	YES		NULL	
+j	bigint	YES		NULL	
+k	tinyint(3) unsigned zerofill	YES		NULL	
+l	smallint(5) unsigned zerofill	YES		NULL	
+m	mediumint(8) unsigned zerofill	YES		NULL	
+n	int(10) unsigned zerofill	YES		NULL	
+o	bigint(20) unsigned zerofill	YES		NULL	
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE FUNCTION f1(a INT) RETURNS INT RETURN 1;
+CREATE FUNCTION f2(a INT ZEROFILL) RETURNS INT ZEROFILL RETURN 1;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`(a INT) RETURNS int
+RETURN 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SHOW CREATE FUNCTION f2;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f2	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f2`(a INT ZEROFILL) RETURNS int(10) unsigned zerofill
+RETURN 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
+DTD_IDENTIFIER
+int
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f2';
+DTD_IDENTIFIER
+int(10) unsigned zerofill
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
+DTD_IDENTIFIER
+int
+int
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f2';
+DTD_IDENTIFIER
+int(10) unsigned zerofill
+int(10) unsigned zerofill
+DROP FUNCTION f1;
+DROP FUNCTION f2;
+CREATE PROCEDURE p1(a INT, b INT ZEROFILL) BEGIN END;
+Warnings:
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a INT, b INT ZEROFILL)
+BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
+DTD_IDENTIFIER
+int
+int(10) unsigned zerofill
+DROP PROCEDURE p1;
+#
+# Bug#30556657: REVERT I_S/SHOW CREATE CHANGES REGARDING TINYINT(1)
+#
+CREATE TABLE t1(a BOOLEAN, b TINYINT(1), c TINYINT(1) UNSIGNED, d TINYINT(1) ZEROFILL);
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` tinyint(1) DEFAULT NULL,
+  `b` tinyint(1) DEFAULT NULL,
+  `c` tinyint unsigned DEFAULT NULL,
+  `d` tinyint(1) unsigned zerofill DEFAULT NULL
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci ROW_FORMAT=DYNAMIC
+SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 't1';
+TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT	GENERATION_EXPRESSION	SRS_ID
+def	test	t1	a	1	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references			NULL
+def	test	t1	b	2	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1)			select,insert,update,references			NULL
+def	test	t1	c	3	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint unsigned			select,insert,update,references			NULL
+def	test	t1	d	4	NULL	YES	tinyint	NULL	NULL	3	0	NULL	NULL	NULL	tinyint(1) unsigned zerofill			select,insert,update,references			NULL
+DESCRIBE t1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint(1)	YES		NULL	
+b	tinyint(1)	YES		NULL	
+c	tinyint unsigned	YES		NULL	
+d	tinyint(1) unsigned zerofill	YES		NULL	
+CREATE VIEW v1 AS SELECT * FROM t1;
+SELECT COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'v1';
+COLUMN_TYPE
+tinyint unsigned
+tinyint(1)
+tinyint(1)
+tinyint(1) unsigned zerofill
+DESCRIBE v1;
+Field	Type	Null	Key	Default	Extra
+a	tinyint(1)	YES		NULL	
+b	tinyint(1)	YES		NULL	
+c	tinyint unsigned	YES		NULL	
+d	tinyint(1) unsigned zerofill	YES		NULL	
+DROP VIEW v1;
+DROP TABLE t1;
+CREATE FUNCTION f1(a BOOLEAN, b TINYINT(1), c TINYINT(1) UNSIGNED,
+d TINYINT(1) ZEROFILL) RETURNS BOOLEAN RETURN 1;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+SHOW CREATE FUNCTION f1;
+Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
+f1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `f1`(a BOOLEAN, b TINYINT(1), c TINYINT(1) UNSIGNED,
+d TINYINT(1) ZEROFILL) RETURNS tinyint(1)
+RETURN 1	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.ROUTINES WHERE ROUTINE_NAME = 'f1';
+DTD_IDENTIFIER
+tinyint(1)
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'f1';
+DTD_IDENTIFIER
+tinyint unsigned
+tinyint(1)
+tinyint(1)
+tinyint(1)
+tinyint(1) unsigned zerofill
+DROP FUNCTION f1;
+CREATE PROCEDURE p1(a BOOLEAN, b TINYINT(1), c TINYINT(1) UNSIGNED,
+d TINYINT(1) ZEROFILL) BEGIN END;
+Warnings:
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+Warning	1681	The ZEROFILL attribute is deprecated and will be removed in a future release. Use the LPAD function to zero-pad numbers, or store the formatted numbers in a CHAR column.
+Warning	1681	Integer display width is deprecated and will be removed in a future release.
+SHOW CREATE PROCEDURE p1;
+Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
+p1	ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `p1`(a BOOLEAN, b TINYINT(1), c TINYINT(1) UNSIGNED,
+d TINYINT(1) ZEROFILL)
+BEGIN END	utf8mb4	utf8mb4_0900_ai_ci	utf8mb4_0900_ai_ci
+SELECT DTD_IDENTIFIER FROM INFORMATION_SCHEMA.PARAMETERS WHERE SPECIFIC_NAME = 'p1';
+DTD_IDENTIFIER
+tinyint unsigned
+tinyint(1)
+tinyint(1)
+tinyint(1) unsigned zerofill
+DROP PROCEDURE p1;
+#
+# Bug#32227101: CREATE TABLE PRODUCES CORE
+#
+# Bug#33114368: 'SHOW TABLE STATUS' WITH HUGE AVG_ROW_LENGTH:
+# DD::PROPERTIES::GET: ASSERTION `FALSE' FAILED.
+#
+# These issues are related and arise from insufficient input checking
+# of numeric table options.
+# From bug#33114368 we see that even if no overflow occurs on CREATE,
+# there can be a risk of overflow when the option value is used
+# elsewhere.
+# The safest thing to do is to constrain values to the largest
+# value permitted by the frm-file format (unless the range of the option
+# value has been explicitly changed in 8.0).
+#
+# key_block_size, parser type: signed_num (int)
+# std::uint32_t HA_CREATE_INFO::key_block_size
+# 2 bytes in frm
+# Only settable for myisam, but also used in Innodb
+# key_block_size = 2^31-1 - rejected by explicit check 
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483647;
+ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '2147483647' at line 1
+# key_block_size = -(2^31)+1 - rejected by parser (parser switched
+# back to using ulong_num now that there is an explicit check).
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483647;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2147483647' at line 1
+# key_block_size = 2^31 - rejected by explicit check
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 2147483648;
+ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '2147483648' at line 1
+# key_block_size = -2^31 - rejected by parser (parser switched
+# back to using ulong_num now that there is an explicit check).
+CREATE TABLE t1(i INT PRIMARY KEY) KEY_BLOCK_SIZE = -2147483648;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2147483648' at line 1
+# key_block_size = 2^32-1 - rejected by explicit check
+CREATE TABLE t2(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967295;
+ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '4294967295' at line 1
+# key_block_size = 2^32 - rejected by explicit check
+CREATE TABLE t3(i INT PRIMARY KEY) KEY_BLOCK_SIZE = 4294967296;
+ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '4294967296' at line 1
+# key_block_size = 3927749503218772669 - now rejected by parser
+CREATE TABLE t4(
+c0 DECIMAL ZEROFILL  UNIQUE KEY STORAGE MEMORY,
+c1 DECIMAL ZEROFILL  PRIMARY KEY COLUMN_FORMAT DYNAMIC UNIQUE KEY STORAGE MEMORY NOT NULL,
+c2 FLOAT ZEROFILL  COMMENT 'asdf'  COLUMN_FORMAT FIXED NULL STORAGE MEMORY,
+c3 TINYINT(120) ZEROFILL   STORAGE DISK UNIQUE KEY NULL COMMENT 'asdf'
+) CHECKSUM = 1, AUTO_INCREMENT = 1093400439, KEY_BLOCK_SIZE = 3927749503218772669, COMPRESSION = 'NONE';
+ERROR 42000: The valid range for key_block_size is [0,65535]. Error near '3927749503218772669, COMPRESSION = 'NONE'' at line 6
+# Only values which will fit in the two bytes allocated in the frm file
+# format are accepted.
+CREATE TABLE t1(a INT) ENGINE=myisam key_block_size=65535;
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	MyISAM	10	Fixed	0	0	0	1970324836974591	1024	0	1	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	KEY_BLOCK_SIZE=65535	
+DROP TABLE t1;
+#
+# Bug #33114368	'SHOW TABLE STATUS' WITH HUGE AVG_ROW_LENGTH:
+# DD::PROPERTIES::GET: ASSERTION `FALSE' FAILED.
+#
+# avg_row_length, parser type: ulong_num (ulong) 
+# ulong HA_CREATE_INFO::avg_row_length
+# 4 bytes in frm
+CREATE TABLE t1(a INT) avg_row_length=18446744073709551615;
+ERROR 42000: The valid range for avg_row_length is [0,4294967295]. Error near '18446744073709551615' at line 1
+CREATE TABLE t1(a INT) avg_row_length=4294967296;
+ERROR 42000: The valid range for avg_row_length is [0,4294967295]. Error near '4294967296' at line 1
+# Only values which will fit in the four bytes allocated in the frm file
+# format are accepted.
+CREATE TABLE t1(a INT) avg_row_length=4294967295;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	DUCKDB	10	Dynamic	0	0	0	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	avg_row_length=4294967295 row_format=DYNAMIC	
+DROP TABLE t1;
+# max_rows, parser type: ulonglong_num (ulonglong)
+# ulonglong HA_CREATE_INFO::max_rows
+# 4 bytes in frm
+# max_rows is capped and a warning produced
+CREATE TABLE t1(a INT) max_rows=18446744073709551615;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	4074	max_rows=18446744073709551615 is outside the valid range [0,4294967295]. 4294967295 will be used.
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	DUCKDB	10	Dynamic	0	0	0	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	max_rows=4294967295 row_format=DYNAMIC	
+DROP TABLE t1;
+# min_rows, parser type: ulonglong_num (ulonglong)
+# ulonglong HA_CREATE_INFO::min_rows
+# 4 bytes in frm
+# min_rows is capped and a warning produced
+CREATE TABLE t1(a INT) min_rows=18446744073709551615;
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+Warning	4074	min_rows=18446744073709551615 is outside the valid range [0,4294967295]. 4294967295 will be used.
+SHOW TABLE STATUS LIKE 't1';
+Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
+t1	DUCKDB	10	Dynamic	0	0	0	0	0	0	NULL	@ts@	@ts@	NULL	utf8mb4_0900_ai_ci	NULL	min_rows=4294967295 row_format=DYNAMIC	
+DROP TABLE t1;
+# Bug#34523475: Inconsequent type derivation when using @variable
+CREATE TABLE t1 AS SELECT @max_error_count UNION SELECT 'a';
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `@max_error_count` text
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CREATE TABLE t2 AS SELECT @max_error_count UNION SELECT 'a';
+SHOW CREATE TABLE t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `@max_error_count` longtext
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t1, t2;
+#
+# Bug#34861841: Assertion: `false' in CostingReceiver::ProposeAccessPath
+#
+CREATE TABLE t1 (x INT);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+INSERT INTO t1 VALUES (1), (2), (3);
+CREATE TABLE t2 (pk INT PRIMARY KEY);
+Warnings:
+Warning	1266	Storage engine converted from INNODB to DUCKDB.
+INSERT INTO t2 VALUES (1), (2), (3);
+CREATE TABLE t3 AS
+SELECT 1 FROM t1 LEFT JOIN t2
+ON t1.x IN (SELECT it1.pk FROM t2 AS it1, t2 AS it2);
+SELECT COUNT(*) FROM t3;
+COUNT(*)
+0
+DROP TABLE t1, t2, t3;
+SET GLOBAL force_innodb_to_duckdb = default;

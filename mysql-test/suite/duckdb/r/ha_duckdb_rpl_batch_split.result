@@ -1,0 +1,84 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+###########################################################################
+# 0. Prepare
+###########################################################################
+[connection master]
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+c0 VARCHAR(20) NOT NULL,
+c1 CHAR(10) DEFAULT 'duckdb',
+c2 DECIMAL(5,2),
+PRIMARY KEY(id)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  `c2` decimal(5,2) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  `c2` decimal(5,2) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# 1. Test Insert
+###########################################################################
+[connection master]
+INSERT INTO t1 (id, c0, c1, c2) VALUES
+(1, 'abc', NULL, 1.23),
+(2, 'd', NULL, 3.8),
+(3, 'efg', 'RSA', 5.2),
+(4, 'hijk', NULL, 6),
+(5, 'lmn', 'RSA', 10.5);
+include/rpl/sync.inc
+include/rpl/diff.inc
+include/assert_grep.inc [Check there are 1 (5 / 3) TRUNCATE SQL]
+###########################################################################
+# 2. Test Update
+###########################################################################
+[connection master]
+UPDATE t1 SET c2 = c2 + 3;
+include/rpl/sync.inc
+include/rpl/diff.inc
+include/assert_grep.inc [Check there are 3 (5 * 2 / 3) TRUNCATE SQL]
+###########################################################################
+# 3. Test Mix Transaction
+###########################################################################
+[connection master]
+BEGIN;
+DELETE FROM t1 WHERE id=3;
+UPDATE t1 SET c1='zzzzzz' WHERE id=1;
+INSERT INTO t1 (id, c0) VALUES (7, 'hhhhh');
+COMMIT;
+include/rpl/sync.inc
+include/rpl/diff.inc
+include/assert_grep.inc [Check there are 1 ((1 + 2 + 1) / 3) TRUNCATE SQL]
+###########################################################################
+# 4. Test Delete
+###########################################################################
+[connection master]
+DELETE FROM t1;
+include/rpl/sync.inc
+include/rpl/diff.inc
+include/assert_grep.inc [Check there are 1 (5 / 3) TRUNCATE SQL]
+###########################################################################
+# Cleanup
+###########################################################################
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

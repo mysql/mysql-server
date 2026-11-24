@@ -1,0 +1,34 @@
+# name: test/sql/pragma/test_pragma_database_size.test
+# description: Test PRAGMA database_size
+# group: [pragma]
+
+statement ok
+PRAGMA database_size;
+
+statement ok
+ATTACH '__TEST_DIR__/db_size.db' AS db1
+
+statement ok
+CREATE TABLE db1.integers AS FROM range(1000000);
+
+statement ok
+DROP TABLE db1.integers
+
+statement ok
+CHECKPOINT db1
+
+query I
+SELECT case when used_blocks <= 3 then NULL else t end  FROM pragma_database_size() t WHERE database_name='db1';
+----
+NULL
+
+statement ok
+DETACH db1
+
+statement ok
+ATTACH '__TEST_DIR__/db_size.db' AS db1 (READ_ONLY)
+
+query I
+SELECT case when used_blocks <= 3 then NULL else t end FROM pragma_database_size() t WHERE database_name='db1';
+----
+NULL

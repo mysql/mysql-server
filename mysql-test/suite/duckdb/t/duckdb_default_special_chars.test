@@ -1,0 +1,98 @@
+# ===========================================================
+# Test: duckdb_default_special_chars
+# Description:
+#   Verifies that DuckDB tables correctly handle column
+#   default values containing special characters such as
+#   single quotes, backslashes, newlines, and tabs.
+#   Ensures the DDL translation produces valid DuckDB SQL
+#   and data is consistent with InnoDB.
+#
+# Tested feature: DuckDB DDL default value escaping
+# Related source: storage/duckdb/ddl_convertor.cc
+# ===========================================================
+
+--echo # === Setup ===
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+SET GLOBAL duckdb_log_options = 'DUCKDB_MULTI_TRX_BATCH_COMMIT,DUCKDB_MULTI_TRX_BATCH_DETAIL,DUCKDB_QUERY,DUCKDB_QUERY_RESULT';
+--enable_warnings
+
+--echo # === Create InnoDB table with special defaults ===
+# c1: single quote '
+# c2: empty string
+# c3: two single quotes ''
+# c4: backslash \.
+# c5: two backslashes \\.
+# c6: newline
+# c7: tab
+# c8: double quote "
+# c9: mixed string containing quote: it's
+# c10: backtick characters
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  c1 VARCHAR(32) DEFAULT '''',
+  c2 VARCHAR(32) DEFAULT '',
+  c3 VARCHAR(32) DEFAULT '''''',
+  c4 VARCHAR(32) DEFAULT '\\',
+  c5 VARCHAR(32) DEFAULT '\\\\',
+  c6 VARCHAR(32) DEFAULT '\n',
+  c7 VARCHAR(32) DEFAULT '\t',
+  c8 VARCHAR(32) DEFAULT '"',
+  c9 VARCHAR(32) DEFAULT 'it''s',
+  c10 VARCHAR(32) DEFAULT '`backtick`'
+) ENGINE=InnoDB;
+
+--echo # === Create identical DuckDB table ===
+CREATE TABLE t2 (
+  id INT PRIMARY KEY,
+  c1 VARCHAR(32) DEFAULT '''',
+  c2 VARCHAR(32) DEFAULT '',
+  c3 VARCHAR(32) DEFAULT '''''',
+  c4 VARCHAR(32) DEFAULT '\\',
+  c5 VARCHAR(32) DEFAULT '\\\\',
+  c6 VARCHAR(32) DEFAULT '\n',
+  c7 VARCHAR(32) DEFAULT '\t',
+  c8 VARCHAR(32) DEFAULT '"',
+  c9 VARCHAR(32) DEFAULT 'it''s',
+  c10 VARCHAR(32) DEFAULT '`backtick`'
+) ENGINE=DuckDB;
+
+--echo # === Insert rows relying on defaults ===
+INSERT INTO t1 (id) VALUES (1);
+INSERT INTO t2 (id) VALUES (1);
+
+--echo # === Verify defaults via HEX (InnoDB) ===
+SELECT HEX(c1) AS c1, HEX(c2) AS c2,
+       HEX(c3) AS c3, HEX(c4) AS c4,
+       HEX(c5) AS c5, HEX(c6) AS c6,
+       HEX(c7) AS c7, HEX(c8) AS c8,
+       HEX(c9) AS c9, HEX(c10) AS c10
+FROM t1;
+
+--echo # === Verify defaults via HEX (DuckDB) ===
+SELECT HEX(c1) AS c1, HEX(c2) AS c2,
+       HEX(c3) AS c3, HEX(c4) AS c4,
+       HEX(c5) AS c5, HEX(c6) AS c6,
+       HEX(c7) AS c7, HEX(c8) AS c8,
+       HEX(c9) AS c9, HEX(c10) AS c10
+FROM t2;
+
+--echo # === Verify CHECKSUM parity ===
+--disable_query_log
+--let $cs_innodb = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+--let $cs_duckdb = query_get_value(CHECKSUM TABLE t2, Checksum, 1)
+--enable_query_log
+
+if ($cs_innodb == $cs_duckdb) {
+  --echo # PASS: Checksums match between InnoDB and DuckDB
+}
+if ($cs_innodb != $cs_duckdb) {
+  --echo # FAIL: Checksum mismatch
+  --eval SELECT $cs_innodb AS innodb, $cs_duckdb AS duckdb
+}
+
+--echo # === Cleanup ===
+--disable_warnings
+DROP TABLE IF EXISTS t1, t2;
+SET GLOBAL duckdb_log_options = default;
+--enable_warnings

@@ -1,0 +1,13 @@
+create table duck_1(id bigint, v varchar(4) not null, index ind_v(v), unique index uk(v), primary key(id)) engine=duckdb;
+Warnings:
+Warning	7505	[DuckDB] Index 'ind_v' is removed.
+Warning	7505	[DuckDB] Index 'uk' is removed.
+set global duckdb_dml_in_batch = off;
+insert into duck_1 values(1,1);
+insert into duck_1 values(1,1);
+select * from test.duck_1;
+id	v
+1	1
+1	1
+drop table duck_1;
+set global duckdb_dml_in_batch = default;

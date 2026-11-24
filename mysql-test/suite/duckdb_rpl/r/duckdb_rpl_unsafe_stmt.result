@@ -1,0 +1,121 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+CREATE TABLE t_duckdb1 (c1 INT PRIMARY KEY, c2 FLOAT) ENGINE = DuckDB;
+CREATE TABLE t_duckdb2 (c1 INT PRIMARY KEY, c2 FLOAT) ENGINE = DuckDB;
+CREATE TABLE t_innodb1 (c1 INT PRIMARY KEY, c2 FLOAT) ENGINE = InnoDB;
+CREATE TABLE t_innodb2 (c1 INT PRIMARY KEY, c2 FLOAT) ENGINE = InnoDB;
+INSERT INTO t_duckdb1 VALUES(1, 0.1), (2, 0.1), (3, 0.1);
+INSERT INTO t_duckdb2 VALUES(1, 0.1), (2, 0.1), (3, 0.1);
+INSERT INTO t_innodb1 VALUES(1, 0.1), (2, 0.1), (3, 0.1);
+INSERT INTO t_innodb2 VALUES(1, 0.1), (2, 0.1), (3, 0.1);
+#
+# Unsafe INSERT should be binlogged in row format
+#
+INSERT INTO t_duckdb1 VALUES(4, rand());
+INSERT INTO t_innodb1 VALUES(4, rand());
+REPLACE INTO t_duckdb1 VALUES(5, rand());
+ERROR HY000: [DuckDB] Does not support duckdb engine in REPLACE statement. The table `t_duckdb1` is a duckdb table.
+REPLACE INTO t_innodb1 VALUES(5, rand());
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t_duckdb1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t_innodb1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t_innodb1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/rpl/diff.inc
+#
+# Unsafe INSERT ... SELECT should not be binlogged in row format
+#
+INSERT INTO t_duckdb1 SELECT 6, c2 FROM t_duckdb1 WHERE c1 = 1 LIMIT 1;
+INSERT INTO t_innodb1 SELECT 6, c2 FROM t_innodb1 WHERE c1 = 1 LIMIT 1;
+INSERT INTO t_duckdb1 SELECT 7, c2 FROM t_innodb1 WHERE c1 = 1 LIMIT 1;
+INSERT INTO t_innodb1 SELECT * FROM t_duckdb1 WHERE c1 = 1 LIMIT 1;
+ERROR HY000: [DuckDB] Does not support SELECT from duckdb table and insert into other engines.
+REPLACE INTO t_duckdb1 SELECT 8, c2 FROM t_duckdb1 WHERE c1 = 1 LIMIT 1;
+ERROR HY000: [DuckDB] Does not support duckdb engine in REPLACE statement. The table `t_duckdb1` is a duckdb table.
+REPLACE INTO t_innodb1 SELECT 8, c2 FROM t_innodb1 WHERE c1 = 1 LIMIT 1;
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_duckdb1 SELECT 6, c2 FROM t_duckdb1 WHERE c1 = 1 LIMIT 1
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t_innodb1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t_duckdb1 SELECT 7, c2 FROM t_innodb1 WHERE c1 = 1 LIMIT 1
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t_innodb1)
+master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/rpl/diff.inc
+#
+# Unsafe statment of UPDATE should not be changed to row format
+#
+UPDATE t_duckdb1 SET c2 = 0.2 WHERE c1 = (SELECT 1 LIMIT 1);
+UPDATE t_innodb1 SET c2 = 0.2 WHERE c1 = (SELECT 1 LIMIT 1);
+UPDATE t_duckdb1, t_duckdb2 SET t_duckdb1.c2 = 0.2, t_duckdb2.c2 = 0.2
+WHERE t_duckdb1.c1 = (SELECT 2 LIMIT 1) AND t_duckdb2.c1 = 2;
+ERROR HY000: [DuckDB] Does not support duckdb engine in multi-table UPDATE/DELETE statement. The table `t_duckdb2` is a duckdb table.
+UPDATE t_innodb1, t_innodb2 SET t_innodb1.c2 = 0.2, t_innodb2.c2 = 0.2
+WHERE t_innodb1.c1 = (SELECT 2 LIMIT 1) AND t_innodb2.c1 = 2;
+UPDATE t_duckdb1, t_innodb1 SET t_duckdb1.c2 = 0.2, t_innodb1.c2 = 0.2
+WHERE t_duckdb1.c1 = (SELECT 3 LIMIT 1) AND t_innodb1.c1 = 3;
+ERROR HY000: [DuckDB] Does not support duckdb engine in multi-table UPDATE/DELETE statement. The table `t_duckdb1` is a duckdb table.
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; UPDATE t_duckdb1 SET c2 = 0.2 WHERE c1 = (SELECT 1 LIMIT 1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t_innodb1)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t_innodb1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t_innodb2)
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Update_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/rpl/diff.inc
+#
+# Unsafe statment of DELETE should not be changed to row format
+#
+DELETE FROM t_duckdb1 WHERE c1 = (SELECT 1 LIMIT 1);
+DELETE FROM t_innodb1 WHERE c1 = (SELECT 1 LIMIT 1);
+DELETE t_duckdb1, t_duckdb2 FROM t_duckdb1, t_duckdb2
+WHERE t_duckdb1.c1 = 2 AND t_duckdb2.c1 = (SELECT 2 LIMIT 1);
+ERROR HY000: [DuckDB] Does not support duckdb engine in multi-table UPDATE/DELETE statement. The table `t_duckdb2` is a duckdb table.
+DELETE t_innodb1, t_innodb2 FROM t_innodb1, t_innodb2
+WHERE t_innodb1.c1 = 2 AND t_innodb2.c1 = (SELECT 2 LIMIT 1);
+include/rpl/deprecated/show_binlog_events.inc
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Query	#	#	use `test`; DELETE FROM t_duckdb1 WHERE c1 = (SELECT 1 LIMIT 1)
+master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t_innodb1)
+master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t_innodb1)
+master-bin.000001	#	Table_map	#	#	table_id: # (test.t_innodb2)
+master-bin.000001	#	Delete_rows	#	#	table_id: # flags: USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Delete_rows	#	#	table_id: # flags: STMT_END_F USE_SQL_FOREIGN_KEY_F
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+include/rpl/diff.inc
+DROP TABLE t_duckdb1, t_innodb1, t_duckdb2, t_innodb2;
+include/rpl/deinit.inc

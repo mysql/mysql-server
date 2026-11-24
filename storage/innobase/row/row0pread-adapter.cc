@@ -160,7 +160,17 @@ dberr_t Parallel_reader_adapter::send_batch(
 
   dberr_t err{DB_SUCCESS};
 
-  if (m_load_fn(m_thread_ctxs[thread_id], n_recs, rec_loc, partition_id)) {
+  std::shared_ptr<mem_heap_t> heap(reader_thread_ctx->m_blob_heap,
+                                   [](mem_heap_t *p) {
+                                     if (p) mem_heap_free(p);
+                                   });
+  if (reader_thread_ctx->m_blob_heap != nullptr) {
+    reader_thread_ctx->m_blob_heap = nullptr;
+    reader_thread_ctx->create_blob_heap();
+  }
+
+  if (m_load_fn(m_thread_ctxs[thread_id], n_recs, rec_loc, partition_id,
+                &heap)) {
     err = DB_INTERRUPTED;
     m_parallel_reader.set_error_state(DB_INTERRUPTED);
   }
@@ -192,12 +202,14 @@ dberr_t Parallel_reader_adapter::process_rows(
         return (err);
       }
 
-      /* Empty the heap for the next batch */
-      if (blob_heap != nullptr) {
-        mem_heap_empty(blob_heap);
-      }
+      /*
+        By now, we use shared_ptr to control blob_heap. So we do not need to
+        Empty the heap for the next batch
+      */
     }
   }
+  /* blob_heap refers to the newest heap. */
+  blob_heap = reader_thread_ctx->m_blob_heap;
 
   mem_heap_t *heap{};
   ulint offsets_[REC_OFFS_NORMAL_SIZE];

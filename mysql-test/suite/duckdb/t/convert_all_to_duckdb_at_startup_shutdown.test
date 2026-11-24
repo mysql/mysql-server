@@ -1,0 +1,139 @@
+--source include/have_debug.inc
+
+--echo #
+--echo # 1) CREATE TABLES
+--echo #
+CREATE TABLE customers (
+    customer_id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE
+) ENGINE=InnoDB;
+
+CREATE TABLE orders (
+    order_id INT PRIMARY KEY AUTO_INCREMENT,
+    order_date DATE NOT NULL,
+    customer_id INT,
+    total_amount DECIMAL(10, 2),
+    FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+        ON DELETE CASCADE
+        ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+--echo #
+--echo # 2) RESTART WITH duckdb_convert_all_at_startup=ON, shutdown during different stages.
+--echo #
+# Stage 1: before checking schema
+# duckdb_convert_sleep_0
+# [Note] [MY-025128] [Server] [DuckDB] Checking 'test' schema.
+
+# Stage 2: before checking table
+# duckdb_convert_sleep_1
+# [Note] [MY-025129] [Server] [DuckDB] Checking table:   'customers'
+# duckdb_convert_sleep_2
+# [Note] [MY-025129] [Server] [DuckDB] Checking table:   'orders'
+
+# Stage 3: before creating duckdb schema
+# duckdb_convert_sleep_3
+
+# Stage 4: before droping foreign key
+# duckdb_convert_sleep_4
+
+# Stage 5: before converting the first table
+# [Note] [MY-025126] [Server] [DuckDB] Converting '`test`.`customers`' table.
+# duckdb_convert_sleep_5
+
+# Stage 6: after converting the first table
+# [Note] [MY-025126] [Server] [DuckDB] Converting '`test`.`orders`' table.
+# duckdb_convert_sleep_6
+
+--let $shutdown_counter = 0
+while ($shutdown_counter < 7) {
+  --let $error_log_file = $MYSQLTEST_VARDIR/log/shutdown_$shutdown_counter.log
+  --let restart_parameters="restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON --log-error=$error_log_file --debug='+d,duckdb_convert_sleep_$shutdown_counter' --duckdb_convert_all_at_startup_threads=1"
+  --replace_result $error_log_file MYSQLD_ERROR_LOG
+  --source include/restart_mysqld.inc
+
+  # Ensure that the server has started and is running
+  --sleep 3
+
+  --source include/shutdown_mysqld.inc
+  --let restart_parameters="restart:"
+  --source include/start_mysqld.inc
+
+  --disable_query_log
+  --echo # Drop and recreate tables
+  DROP TABLE customers, orders;
+
+  CREATE TABLE customers (
+      customer_id INT PRIMARY KEY AUTO_INCREMENT,
+      name VARCHAR(100) NOT NULL,
+      email VARCHAR(100) UNIQUE
+  ) ENGINE=InnoDB;
+
+  CREATE TABLE orders (
+      order_id INT PRIMARY KEY AUTO_INCREMENT,
+      order_date DATE NOT NULL,
+      customer_id INT,
+      total_amount DECIMAL(10, 2),
+      FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+          ON DELETE CASCADE
+          ON UPDATE CASCADE
+  ) ENGINE=InnoDB;
+  --enable_query_log
+
+  --let $assert_file = $error_log_file
+  --let $assert_count = 1
+
+  --let $assert_text = Found 1 duckdb_convert_sleep_$shutdown_counter
+  --let $assert_select = duckdb_convert_sleep_$shutdown_counter
+  --source include/assert_grep.inc
+
+  --let $assert_text = Found DuckDB convert thread exit
+  --let $assert_select =  DuckDB convert thread exit due to shutdown
+  --source include/assert_grep.inc
+
+  --inc $shutdown_counter
+}
+
+# Shutdown during parallel alter
+DROP TABLE customers, orders;
+
+CREATE TABLE t1(a INT AUTO_INCREMENT KEY, b int) ENGINE = InnoDB;
+INSERT INTO t1(b) VALUES(1), (2);
+--let $n = 0
+while ($n < 10)
+{
+  INSERT INTO t1(b) SELECT b FROM t1;
+  --inc $n
+}
+CREATE TABLE t2 LIKE t1;
+INSERT INTO t2 SELECT * FROM t1;
+CREATE TABLE t3 LIKE t1;
+INSERT INTO t3 SELECT * FROM t1;
+CREATE TABLE t4 LIKE t1;
+INSERT INTO t4 SELECT * FROM t1;
+
+--let $error_log_file = $MYSQLTEST_VARDIR/log/shutdown_during_parallel_alter.log
+--let restart_parameters="restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON --log-error=$error_log_file --debug='+d,duckdb_convert_sleep_during_parallel_alter' --duckdb_convert_all_at_startup_threads=2"
+--replace_result $error_log_file MYSQLD_ERROR_LOG
+--source include/restart_mysqld.inc
+
+--source include/shutdown_mysqld.inc
+--let restart_parameters="restart:"
+--source include/start_mysqld.inc
+
+--let $assert_file = $error_log_file
+--let $assert_text = Found duckdb_convert_sleep_during_parallel_alter
+--let $assert_select = duckdb_convert_sleep_during_parallel_alter
+--let $assert_match = duckdb_convert_sleep_during_parallel_alter
+--let $assert_count =
+--source include/assert_grep.inc
+
+# Not all tables are converted
+SELECT COUNT(*) > 0 FROM information_schema.tables WHERE ENGINE = 'InnoDB' AND TABLE_SCHEMA = 'test';
+
+
+--echo #
+--echo # 3) CLEANUP
+--echo #
+DROP TABLE t1, t2, t3, t4;

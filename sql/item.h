@@ -1489,6 +1489,27 @@ class Item : public Parse_tree_node {
   }
 
   /**
+    Check whether this Item can be treated as a string type in DuckDB context.
+    Returns true for string types whose character set is not binary.
+  */
+  bool is_duckdb_string_type() const {
+    const enum_field_types dt = data_type();
+    switch (dt) {
+      case MYSQL_TYPE_VAR_STRING:
+      case MYSQL_TYPE_STRING:
+      case MYSQL_TYPE_VARCHAR:
+      case MYSQL_TYPE_JSON:
+      case MYSQL_TYPE_BLOB:
+      case MYSQL_TYPE_TINY_BLOB:
+      case MYSQL_TYPE_MEDIUM_BLOB:
+      case MYSQL_TYPE_LONG_BLOB:
+        return collation.collation != &my_charset_bin;
+      default:
+        return false;
+    }
+  }
+
+  /**
     Retrieve actual data type for an item. Equal to data_type() for
     all items, except parameters.
   */
@@ -7551,8 +7572,12 @@ extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
 extern bool is_null_on_empty_table(THD *thd, Item_field *i);
 
 extern const String my_null_string;
+/**
+ For cases where single quotes appear in a string, DuckDB is incompatible with
+ '\'', so it must be rewritten as ''''.
+ */
 void convert_and_print(const String *from_str, String *to_str,
-                       const CHARSET_INFO *to_cs);
+                       const CHARSET_INFO *to_cs, bool duckdb_rewrite = false);
 
 std::string ItemToString(const Item *item, enum_query_type q_type);
 std::string ItemToString(const Item *item);

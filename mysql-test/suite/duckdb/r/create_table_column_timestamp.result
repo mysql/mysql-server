@@ -1,0 +1,1304 @@
+#
+# datetime type, test insert and SELECT unchanged
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	datetime	YES		NULL	
+b	datetime	YES		NULL	
+c	datetime	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	datetime	YES		NULL	
+b	datetime	YES		NULL	
+c	datetime	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_datetime begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_datetime ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 3]
+a	1	TIMESTAMP	NULL
+b	2	TIMESTAMP	NULL
+c	3	TIMESTAMP	NULL
+
+
+# ② Print CONSTRAINTs of t_datetime ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_datetime ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_datetime ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_datetime end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_datetime
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_datetime
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_datetime' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_DATETIME2	1	0	0	0	
+b	MYSQL_TYPE_DATETIME2	1	0	0	0	
+c	MYSQL_TYPE_DATETIME2	1	0	0	0	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+duckdb_result_1: 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+duckdb_result_2: 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+innotoduck_result: 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+ducktoinno_result: 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+ducktoinnotoduck_result: 2020-01-01 12:00:00	1969-01-01 12:00:00	2020-01-01 12:00:00
+innodb_checksum: .	2724791001
+duckdb_checksum  : .	2724791001
+duckdb_batch_insert_checksum: .	2724791001
+innotoduck_checksum: .	2724791001
+ducktoinno_checksum: .	2724791001
+# cleanup
+#
+# timestamp，test insert and SELECT unchanged
+#
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp	YES		NULL	
+c	timestamp	YES		NULL	
+d	timestamp	YES		NULL	
+e	timestamp	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp	YES		NULL	
+c	timestamp	YES		NULL	
+d	timestamp	YES		NULL	
+e	timestamp	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_timestamp begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_timestamp ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP WITH TIME ZONE	NULL
+c	3	TIMESTAMP WITH TIME ZONE	NULL
+d	4	TIMESTAMP WITH TIME ZONE	NULL
+e	5	TIMESTAMP WITH TIME ZONE	NULL
+
+
+# ② Print CONSTRAINTs of t_timestamp ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_timestamp ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_timestamp ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_timestamp end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_timestamp
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_timestamp
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_timestamp' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+c	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+d	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+e	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 12:00:00	1970-01-01 12:00:00	1970-01-01 12:00:00	2025-02-21 05:51:01	2025-02-21 05:51:01
+duckdb_result_1: 2020-01-01 12:00:00	1970-01-01 12:00:00	1970-01-01 12:00:00	2025-02-21 05:51:01	2025-02-21 05:51:01
+duckdb_result_2: 2020-01-01 12:00:00	1970-01-01 12:00:00	1970-01-01 12:00:00	2025-02-21 05:51:01	2025-02-21 05:51:01
+innotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00	1970-01-01 12:00:00	2025-02-21 05:51:01	2025-02-21 05:51:01
+ducktoinno_result: 2020-01-01 12:00:00	1970-01-01 12:00:00	1970-01-01 12:00:00	2025-02-21 05:51:01	2025-02-21 05:51:01
+ducktoinnotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00	1970-01-01 12:00:00	2025-02-21 05:51:01	2025-02-21 05:51:01
+innodb_checksum: .	1669652304
+duckdb_checksum  : .	1669652304
+duckdb_batch_insert_checksum: .	1669652304
+innotoduck_checksum: .	1669652304
+ducktoinno_checksum: .	1669652304
+# cleanup
+#
+# Under system timezone, test linux `date` command and mysql `SELECT now()` get the same result
+#
+# restart
+SET TIME_ZONE = system;
+SELECT sleep(1);
+sleep(1)
+0
+CREATE TABLE t(a timestamp) ENGINE=duckdb;
+INSERT INTO t VALUES (now());
+DROP TABLE t;
+#
+# For unsupported timezone
+#
+CREATE TABLE t_time_zone_unsupported (a timestamp) ENGINE=duckdb;
+INSERT INTO t_time_zone_unsupported VALUES (from_unixtime(1740117061));
+SET time_zone = '+02:00';
+SELECT a FROM t_time_zone_unsupported;
+a
+2025-02-21 07:51:01
+SET time_zone = '+02:30';
+SELECT a FROM t_time_zone_unsupported;
+a
+2025-02-21 08:21:01
+Warnings:
+Warning	7508	[DuckDB] Exception when setting duckdb session variables. Can't find corresponding duckdb time_zone, using Etc/GMT.
+SET time_zone = '+03:00';
+SELECT a FROM t_time_zone_unsupported;
+a
+2025-02-21 08:51:01
+DROP TABLE t_time_zone_unsupported;
+#
+# Insert and Select under the same timezone, check duckdb and innodb are the same
+#
+SET time_zone = 'UTC';
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_zone begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_zone ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP WITH TIME ZONE	NULL
+c	3	TIMESTAMP	NULL
+d	4	TIMESTAMP	NULL
+e	5	TIMESTAMP WITH TIME ZONE	NULL
+
+
+# ② Print CONSTRAINTs of t_time_zone ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_zone ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_zone ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_zone end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_zone
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_zone
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_zone' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+c	MYSQL_TYPE_DATETIME2	1	0	0	0	
+d	MYSQL_TYPE_DATETIME2	1	0	0	6	
+e	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+duckdb_result_1: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+duckdb_result_2: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+innotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+ducktoinno_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+ducktoinnotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+innodb_checksum: .	3346791475
+duckdb_checksum  : .	3346791475
+duckdb_batch_insert_checksum: .	3346791475
+innotoduck_checksum: .	3346791475
+ducktoinno_checksum: .	3346791475
+# cleanup
+SET time_zone = 'Europe/Moscow';
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_zone begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_zone ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP WITH TIME ZONE	NULL
+c	3	TIMESTAMP	NULL
+d	4	TIMESTAMP	NULL
+e	5	TIMESTAMP WITH TIME ZONE	NULL
+
+
+# ② Print CONSTRAINTs of t_time_zone ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_zone ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_zone ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_zone end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_zone
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_zone
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_zone' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+c	MYSQL_TYPE_DATETIME2	1	0	0	0	
+d	MYSQL_TYPE_DATETIME2	1	0	0	6	
+e	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+duckdb_result_1: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+duckdb_result_2: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+innotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+ducktoinno_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+ducktoinnotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 08:51:01.000000	2025-02-21 08:51:01.123400
+innodb_checksum: .	501294496
+duckdb_checksum  : .	501294496
+duckdb_batch_insert_checksum: .	501294496
+innotoduck_checksum: .	501294496
+ducktoinno_checksum: .	501294496
+# cleanup
+SET time_zone = system;
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_zone begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_zone ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP WITH TIME ZONE	NULL
+c	3	TIMESTAMP	NULL
+d	4	TIMESTAMP	NULL
+e	5	TIMESTAMP WITH TIME ZONE	NULL
+
+
+# ② Print CONSTRAINTs of t_time_zone ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_zone ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_zone ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_zone end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_zone
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_zone
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_zone' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+c	MYSQL_TYPE_DATETIME2	1	0	0	0	
+d	MYSQL_TYPE_DATETIME2	1	0	0	6	
+e	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+duckdb_result_1: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+duckdb_result_2: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+innotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+ducktoinno_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+ducktoinnotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 05:51:01.123400
+innodb_checksum: .	3346791475
+duckdb_checksum  : .	3346791475
+duckdb_batch_insert_checksum: .	3346791475
+innotoduck_checksum: .	3346791475
+ducktoinno_checksum: .	3346791475
+# cleanup
+SET time_zone = '+10:00';
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_zone begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_zone ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP WITH TIME ZONE	NULL
+c	3	TIMESTAMP	NULL
+d	4	TIMESTAMP	NULL
+e	5	TIMESTAMP WITH TIME ZONE	NULL
+
+
+# ② Print CONSTRAINTs of t_time_zone ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_zone ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_zone ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_zone end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_zone
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_zone
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_zone' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+c	MYSQL_TYPE_DATETIME2	1	0	0	0	
+d	MYSQL_TYPE_DATETIME2	1	0	0	6	
+e	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 15:51:01.123400
+duckdb_result_1: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 15:51:01.123400
+duckdb_result_2: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 15:51:01.123400
+innotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 15:51:01.123400
+ducktoinno_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 15:51:01.123400
+ducktoinnotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 15:51:01.123400
+innodb_checksum: .	3514541412
+duckdb_checksum  : .	3514541412
+duckdb_batch_insert_checksum: .	3514541412
+innotoduck_checksum: .	3514541412
+ducktoinno_checksum: .	3514541412
+# cleanup
+#
+# Timezone changed between Insert and Select, check duckdb and innodb are the same
+#
+# Time zone changed from '+10:00' to '+09:00'
+SET time_zone = '+10:00';
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_zone begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_zone ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP WITH TIME ZONE	NULL
+c	3	TIMESTAMP	NULL
+d	4	TIMESTAMP	NULL
+e	5	TIMESTAMP WITH TIME ZONE	NULL
+
+
+# ② Print CONSTRAINTs of t_time_zone ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_zone ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_zone ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_zone end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_zone
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_zone
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_zone' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+c	MYSQL_TYPE_DATETIME2	1	0	0	0	
+d	MYSQL_TYPE_DATETIME2	1	0	0	6	
+e	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 11:00:00	1970-01-01 11:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 14:51:01.123400
+duckdb_result_1: 2020-01-01 11:00:00	1970-01-01 11:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 14:51:01.123400
+duckdb_result_2: 2020-01-01 11:00:00	1970-01-01 11:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 14:51:01.123400
+innotoduck_result: 2020-01-01 11:00:00	1970-01-01 11:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 14:51:01.123400
+ducktoinno_result: 2020-01-01 11:00:00	1970-01-01 11:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 14:51:01.123400
+ducktoinnotoduck_result: 2020-01-01 11:00:00	1970-01-01 11:00:00.000000	1969-01-01 12:00:00	2025-02-21 15:51:01.000000	2025-02-21 14:51:01.123400
+innodb_checksum: .	3514541412
+duckdb_checksum  : .	3514541412
+duckdb_batch_insert_checksum: .	3514541412
+innotoduck_checksum: .	3514541412
+ducktoinno_checksum: .	3514541412
+# cleanup
+# Time zone changed from SYSTEM to 'Europe/Moscow'
+SET time_zone = SYSTEM;
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_zone begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_zone ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP WITH TIME ZONE	NULL
+c	3	TIMESTAMP	NULL
+d	4	TIMESTAMP	NULL
+e	5	TIMESTAMP WITH TIME ZONE	NULL
+
+
+# ② Print CONSTRAINTs of t_time_zone ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_zone ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_zone ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_zone end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_zone
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_zone
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_zone' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+c	MYSQL_TYPE_DATETIME2	1	0	0	0	
+d	MYSQL_TYPE_DATETIME2	1	0	0	6	
+e	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 15:00:00	1970-01-01 15:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 08:51:01.123400
+duckdb_result_1: 2020-01-01 15:00:00	1970-01-01 15:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 08:51:01.123400
+duckdb_result_2: 2020-01-01 15:00:00	1970-01-01 15:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 08:51:01.123400
+innotoduck_result: 2020-01-01 15:00:00	1970-01-01 15:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 08:51:01.123400
+ducktoinno_result: 2020-01-01 15:00:00	1970-01-01 15:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 08:51:01.123400
+ducktoinnotoduck_result: 2020-01-01 15:00:00	1970-01-01 15:00:00.000000	1969-01-01 12:00:00	2025-02-21 05:51:01.000000	2025-02-21 08:51:01.123400
+innodb_checksum: .	3346791475
+duckdb_checksum  : .	3346791475
+duckdb_batch_insert_checksum: .	3346791475
+innotoduck_checksum: .	3346791475
+ducktoinno_checksum: .	3346791475
+# cleanup
+# Time zone changed from  '+02:00' to Japan
+SET time_zone = '+02:00';
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	timestamp(6)	YES		NULL	
+c	datetime	YES		NULL	
+d	datetime(6)	YES		NULL	
+e	timestamp(6)	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_zone begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_zone ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 5]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP WITH TIME ZONE	NULL
+c	3	TIMESTAMP	NULL
+d	4	TIMESTAMP	NULL
+e	5	TIMESTAMP WITH TIME ZONE	NULL
+
+
+# ② Print CONSTRAINTs of t_time_zone ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_zone ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_zone ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_zone end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_zone
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_zone
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_zone' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+c	MYSQL_TYPE_DATETIME2	1	0	0	0	
+d	MYSQL_TYPE_DATETIME2	1	0	0	6	
+e	MYSQL_TYPE_TIMESTAMP2	1	0	0	6	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 19:00:00	1970-01-01 19:00:00.000000	1969-01-01 12:00:00	2025-02-21 07:51:01.000000	2025-02-21 14:51:01.123400
+duckdb_result_1: 2020-01-01 19:00:00	1970-01-01 19:00:00.000000	1969-01-01 12:00:00	2025-02-21 07:51:01.000000	2025-02-21 14:51:01.123400
+duckdb_result_2: 2020-01-01 19:00:00	1970-01-01 19:00:00.000000	1969-01-01 12:00:00	2025-02-21 07:51:01.000000	2025-02-21 14:51:01.123400
+innotoduck_result: 2020-01-01 19:00:00	1970-01-01 19:00:00.000000	1969-01-01 12:00:00	2025-02-21 07:51:01.000000	2025-02-21 14:51:01.123400
+ducktoinno_result: 2020-01-01 19:00:00	1970-01-01 19:00:00.000000	1969-01-01 12:00:00	2025-02-21 07:51:01.000000	2025-02-21 14:51:01.123400
+ducktoinnotoduck_result: 2020-01-01 19:00:00	1970-01-01 19:00:00.000000	1969-01-01 12:00:00	2025-02-21 07:51:01.000000	2025-02-21 14:51:01.123400
+innodb_checksum: .	223280672
+duckdb_checksum  : .	223280672
+duckdb_batch_insert_checksum: .	223280672
+innotoduck_checksum: .	223280672
+ducktoinno_checksum: .	223280672
+# cleanup
+#
+# Use time colum to do compare with string, check duckdb and innodb are the same
+# It test the timezone setting of duckdb connection is the consistent with mysql thd
+#
+# test1
+SET time_zone = '+08:00';
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	datetime	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	datetime	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_zone begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_zone ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 2]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP	NULL
+
+
+# ② Print CONSTRAINTs of t_time_zone ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_zone ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_zone ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_zone end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_zone
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_zone
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_zone' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_DATETIME2	1	0	0	0	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 12:00:00	1970-01-01 12:00:00
+duckdb_result_1: 2020-01-01 12:00:00	1970-01-01 12:00:00
+duckdb_result_2: 2020-01-01 12:00:00	1970-01-01 12:00:00
+innotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00
+ducktoinno_result: 2020-01-01 12:00:00	1970-01-01 12:00:00
+ducktoinnotoduck_result: 2020-01-01 12:00:00	1970-01-01 12:00:00
+innodb_checksum: .	809274229
+duckdb_checksum  : .	809274229
+duckdb_batch_insert_checksum: .	809274229
+innotoduck_checksum: .	809274229
+ducktoinno_checksum: .	809274229
+# cleanup
+# test2
+SET time_zone = '+08:00';
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	datetime	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	datetime	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_zone begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_zone ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 2]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP	NULL
+
+
+# ② Print CONSTRAINTs of t_time_zone ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_zone ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_zone ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_zone end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_zone
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_zone
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_zone' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_DATETIME2	1	0	0	0	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 04:00:00	1970-01-01 12:00:00
+duckdb_result_1: 2020-01-01 04:00:00	1970-01-01 12:00:00
+duckdb_result_2: 2020-01-01 04:00:00	1970-01-01 12:00:00
+innotoduck_result: 2020-01-01 04:00:00	1970-01-01 12:00:00
+ducktoinno_result: 2020-01-01 04:00:00	1970-01-01 12:00:00
+ducktoinnotoduck_result: 2020-01-01 04:00:00	1970-01-01 12:00:00
+innodb_checksum: .	809274229
+duckdb_checksum  : .	809274229
+duckdb_batch_insert_checksum: .	809274229
+innotoduck_checksum: .	809274229
+ducktoinno_checksum: .	809274229
+# cleanup
+# test3
+SET time_zone = '+07:00';
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	datetime	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	datetime	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_zone begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_zone ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 2]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP	NULL
+
+
+# ② Print CONSTRAINTs of t_time_zone ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_zone ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_zone ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_zone end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_zone
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_zone
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_zone' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_DATETIME2	1	0	0	0	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 06:00:00	1970-01-01 12:00:00
+duckdb_result_1: 2020-01-01 06:00:00	1970-01-01 12:00:00
+duckdb_result_2: 2020-01-01 06:00:00	1970-01-01 12:00:00
+innotoduck_result: 2020-01-01 06:00:00	1970-01-01 12:00:00
+ducktoinno_result: 2020-01-01 06:00:00	1970-01-01 12:00:00
+ducktoinnotoduck_result: 2020-01-01 06:00:00	1970-01-01 12:00:00
+innodb_checksum: .	3417724897
+duckdb_checksum  : .	3417724897
+duckdb_batch_insert_checksum: .	3417724897
+innotoduck_checksum: .	3417724897
+ducktoinno_checksum: .	3417724897
+# cleanup
+# test4
+SET time_zone = 'MET';
+# display innodb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	datetime	YES		NULL	
+# display duckdb table structure.
+Field	Type	Null	Key	Default	Extra
+a	timestamp	YES		NULL	
+b	datetime	YES		NULL	
+------------------------------------------------------------------------
+## ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ Print t_time_zone begin ↓↓↓↓↓↓↓↓↓↓↓↓↓↓↓ ##
+# ① Print columns of t_time_zone ##
+RESULT
+column_name	column_index	data_type	numeric_precision	
+VARCHAR	INTEGER	VARCHAR	INTEGER	
+[ Rows: 2]
+a	1	TIMESTAMP WITH TIME ZONE	NULL
+b	2	TIMESTAMP	NULL
+
+
+# ② Print CONSTRAINTs of t_time_zone ##
+RESULT
+table_name	constraint_type	constraint_text	
+VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 0]
+
+
+# ③ Print INDEXs of t_time_zone ##
+RESULT
+index_name	comment	tags	is_unique	is_primary	expressions	
+VARCHAR	VARCHAR	MAP(VARCHAR, VARCHAR)	BOOLEAN	BOOLEAN	VARCHAR	
+[ Rows: 0]
+
+
+# ④ Print SEQUENCE of t_time_zone ##
+RESULT
+sequence_name	min_value	increment_by	last_value	
+VARCHAR	BIGINT	BIGINT	BIGINT	
+[ Rows: 0]
+
+
+## ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ Print table t_time_zone end ↑↑↑↑↑↑↑↑↑↑↑↑↑↑ ##
+------------------------------------------------------------------------
+SET DEBUG='+d,skip_dd_table_access_check';
+#
+# =======================================================================
+# Show mysql dd structure of duckdb_db.t_time_zone
+# =======================================================================
+#
+include/assert.inc [table is not duckdb, which is DUCKDB]
+include/assert.inc [duckdb not support partition_expression, which is ]
+# Show colunmn info of t_time_zone
+SELECT c.name, c.type, c.is_nullable, c.is_zerofill, c.is_unsigned, c.datetime_precision, c.comment FROM mysql.columns c, mysql.tables t, mysql.schemata s WHERE s.name='duckdb_db' and s.id = t.schema_id and c.table_id = t.id and t.name = 't_time_zone' ORDER BY t.schema_id, t.name, c.name;
+name	type	is_nullable	is_zerofill	is_unsigned	datetime_precision	comment
+a	MYSQL_TYPE_TIMESTAMP2	1	0	0	0	
+b	MYSQL_TYPE_DATETIME2	1	0	0	0	
+include/assert.inc [duckdb do not support auto increment]
+include/assert.inc [duckdb do not support virtual column, but is_virtual is 0]
+include/assert.inc [duckdb do not support virtual column, but generation_expression is ]
+include/assert.inc [duckdb do not support se_private_data, but it is ]
+SET DEBUG='-d,skip_dd_table_access_check';
+# check inserted data
+innodb_result  : 2020-01-01 18:00:00	1970-01-01 12:00:00
+duckdb_result_1: 2020-01-01 18:00:00	1970-01-01 12:00:00
+duckdb_result_2: 2020-01-01 18:00:00	1970-01-01 12:00:00
+innotoduck_result: 2020-01-01 18:00:00	1970-01-01 12:00:00
+ducktoinno_result: 2020-01-01 18:00:00	1970-01-01 12:00:00
+ducktoinnotoduck_result: 2020-01-01 18:00:00	1970-01-01 12:00:00
+innodb_checksum: .	965201824
+duckdb_checksum  : .	965201824
+duckdb_batch_insert_checksum: .	965201824
+innotoduck_checksum: .	965201824
+ducktoinno_checksum: .	965201824
+# cleanup
+SET time_zone='+00:00';
+CREATE TABLE t_duckdb (a timestamp, b datetime) ENGINE=duckdb;
+CREATE TABLE t_innodb (a timestamp, b datetime) ENGINE=innodb;
+INSERT INTO t_duckdb VALUES ('2020-01-01 00:00:00', '1970-01-01 00:00:00');
+INSERT INTO t_innodb VALUES ('2020-01-01 00:00:00', '1970-01-01 00:00:00');
+SET time_zone='-11:00';
+SELECT * FROM t_innodb WHERE a < '2019-12-31 13:00:01' and a > '2019-12-31 12:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 13:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2019-12-31 13:00:01' and a > '2019-12-31 12:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 13:00:00	1970-01-01 00:00:00
+SET time_zone='-10:00';
+SELECT * FROM t_innodb WHERE a < '2019-12-31 14:00:01' and a > '2019-12-31 13:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 14:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2019-12-31 14:00:01' and a > '2019-12-31 13:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 14:00:00	1970-01-01 00:00:00
+SET time_zone='-09:00';
+SELECT * FROM t_innodb WHERE a < '2019-12-31 15:00:01' and a > '2019-12-31 14:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 15:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2019-12-31 15:00:01' and a > '2019-12-31 14:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 15:00:00	1970-01-01 00:00:00
+SET time_zone='-08:00';
+SELECT * FROM t_innodb WHERE a < '2019-12-31 16:00:01' and a > '2019-12-31 15:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 16:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2019-12-31 16:00:01' and a > '2019-12-31 15:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 16:00:00	1970-01-01 00:00:00
+SET time_zone='-07:00';
+SELECT * FROM t_innodb WHERE a < '2019-12-31 17:00:01' and a > '2019-12-31 16:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 17:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2019-12-31 17:00:01' and a > '2019-12-31 16:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 17:00:00	1970-01-01 00:00:00
+SET time_zone='-06:00';
+SELECT * FROM t_innodb WHERE a < '2019-12-31 18:00:01' and a > '2019-12-31 17:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 18:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2019-12-31 18:00:01' and a > '2019-12-31 17:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 18:00:00	1970-01-01 00:00:00
+SET time_zone='-05:00';
+SELECT * FROM t_innodb WHERE a < '2019-12-31 19:00:01' and a > '2019-12-31 18:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 19:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2019-12-31 19:00:01' and a > '2019-12-31 18:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 19:00:00	1970-01-01 00:00:00
+SET time_zone='-04:00';
+SELECT * FROM t_innodb WHERE a < '2019-12-31 20:00:01' and a > '2019-12-31 19:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 20:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2019-12-31 20:00:01' and a > '2019-12-31 19:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 20:00:00	1970-01-01 00:00:00
+SET time_zone='-03:00';
+SELECT * FROM t_innodb WHERE a < '2019-12-31 21:00:01' and a > '2019-12-31 20:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 21:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2019-12-31 21:00:01' and a > '2019-12-31 20:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 21:00:00	1970-01-01 00:00:00
+SET time_zone='-02:00';
+SELECT * FROM t_innodb WHERE a < '2019-12-31 22:00:01' and a > '2019-12-31 21:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 22:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2019-12-31 22:00:01' and a > '2019-12-31 21:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 22:00:00	1970-01-01 00:00:00
+SET time_zone='-01:00';
+SELECT * FROM t_innodb WHERE a < '2019-12-31 23:00:01' and a > '2019-12-31 22:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 23:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2019-12-31 23:00:01' and a > '2019-12-31 22:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2019-12-31 23:00:00	1970-01-01 00:00:00
+SET time_zone='+00:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 00:00:01' and a > '2019-12-31 23:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 00:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 00:00:01' and a > '2019-12-31 23:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 00:00:00	1970-01-01 00:00:00
+SET time_zone='+01:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 01:00:01' and a > '2020-01-01 00:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 01:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 01:00:01' and a > '2020-01-01 00:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 01:00:00	1970-01-01 00:00:00
+SET time_zone='+02:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 02:00:01' and a > '2020-01-01 01:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 02:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 02:00:01' and a > '2020-01-01 01:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 02:00:00	1970-01-01 00:00:00
+SET time_zone='+03:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 03:00:01' and a > '2020-01-01 02:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 03:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 03:00:01' and a > '2020-01-01 02:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 03:00:00	1970-01-01 00:00:00
+SET time_zone='+04:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 04:00:01' and a > '2020-01-01 03:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 04:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 04:00:01' and a > '2020-01-01 03:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 04:00:00	1970-01-01 00:00:00
+SET time_zone='+05:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 05:00:01' and a > '2020-01-01 04:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 05:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 05:00:01' and a > '2020-01-01 04:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 05:00:00	1970-01-01 00:00:00
+SET time_zone='+06:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 06:00:01' and a > '2020-01-01 05:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 06:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 06:00:01' and a > '2020-01-01 05:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 06:00:00	1970-01-01 00:00:00
+SET time_zone='+07:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 07:00:01' and a > '2020-01-01 06:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 07:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 07:00:01' and a > '2020-01-01 06:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 07:00:00	1970-01-01 00:00:00
+SET time_zone='+08:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 08:00:01' and a > '2020-01-01 07:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 08:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 08:00:01' and a > '2020-01-01 07:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 08:00:00	1970-01-01 00:00:00
+SET time_zone='+09:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 09:00:01' and a > '2020-01-01 08:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 09:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 09:00:01' and a > '2020-01-01 08:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 09:00:00	1970-01-01 00:00:00
+SET time_zone='+10:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 10:00:01' and a > '2020-01-01 09:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 10:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 10:00:01' and a > '2020-01-01 09:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 10:00:00	1970-01-01 00:00:00
+SET time_zone='+11:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 11:00:01' and a > '2020-01-01 10:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 11:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 11:00:01' and a > '2020-01-01 10:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 11:00:00	1970-01-01 00:00:00
+SET time_zone='+12:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 12:00:01' and a > '2020-01-01 11:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 12:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 12:00:01' and a > '2020-01-01 11:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 12:00:00	1970-01-01 00:00:00
+SET time_zone='+13:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 13:00:01' and a > '2020-01-01 12:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 13:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 13:00:01' and a > '2020-01-01 12:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 13:00:00	1970-01-01 00:00:00
+SET time_zone='+14:00';
+SELECT * FROM t_innodb WHERE a < '2020-01-01 14:00:01' and a > '2020-01-01 13:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 14:00:00	1970-01-01 00:00:00
+SELECT * FROM t_duckdb WHERE a < '2020-01-01 14:00:01' and a > '2020-01-01 13:59:59' and b < '1970-01-01 12:00:01' and b > '1969-12-31 23:59:00';
+a	b
+2020-01-01 14:00:00	1970-01-01 00:00:00
+DROP TABLE t_innodb;
+DROP TABLE t_duckdb;
+SET time_zone=default;

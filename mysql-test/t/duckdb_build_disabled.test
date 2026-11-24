@@ -1,0 +1,23 @@
+if (`SELECT COUNT(*) FROM information_schema.plugins WHERE plugin_name = 'duckdb'`)
+{
+  --skip Requires WITH_DUCKDB_STORAGE_ENGINE=OFF
+}
+
+SELECT COUNT(*) AS duckdb_plugins
+  FROM information_schema.plugins WHERE plugin_name = 'duckdb';
+SHOW GLOBAL VARIABLES WHERE Variable_name LIKE '%duckdb%' OR Variable_name = 'ignore_index_hint_error';
+
+--error ER_UNKNOWN_STORAGE_ENGINE
+CREATE TABLE t1 (id INT PRIMARY KEY) ENGINE=DuckDB;
+--error ER_SP_DOES_NOT_EXIST
+CALL dbms_duckdb.query('SELECT 42');
+
+CREATE TABLE t1 (id INT PRIMARY KEY, value VARCHAR(20)) ENGINE=InnoDB;
+BEGIN;
+INSERT INTO t1 VALUES (1, 'native');
+COMMIT;
+PREPARE native_select FROM 'SELECT id, value FROM t1 WHERE id = ?';
+SET @id= 1;
+EXECUTE native_select USING @id;
+DEALLOCATE PREPARE native_select;
+DROP TABLE t1;

@@ -1,0 +1,80 @@
+# name: test/sql/aggregate/aggregates/test_bit_or.test
+# description: Test BIT_OR operator
+# group: [aggregates]
+
+# test on scalar values
+query II
+SELECT BIT_OR(3), BIT_OR(NULL)
+----
+3
+NULL
+
+# test on a sequence
+statement ok
+CREATE SEQUENCE seq;
+
+query I
+SELECT BIT_OR(nextval('seq'))
+----
+1
+
+query I
+SELECT BIT_OR(nextval('seq'))
+----
+2
+
+# test on a set of integers
+statement ok
+CREATE TABLE integers(i INTEGER);
+
+statement ok
+INSERT INTO integers VALUES (3), (7), (15), (31), (3), (15)
+
+query IIII
+SELECT BIT_OR(i), BIT_OR(1), BIT_OR(DISTINCT i), BIT_OR(NULL) FROM integers
+----
+31
+1
+31
+NULL
+
+# # test on an empty set
+query I
+SELECT BIT_OR(i) FROM integers WHERE i > 100
+----
+NULL
+
+# test incorrect usage
+statement error
+SELECT BIT_OR()
+----
+
+statement error
+SELECT BIT_OR(1, 2, 3)
+----
+
+statement error
+SELECT BIT_OR(BIT_AND(1))
+----
+
+#test on bit types
+statement ok
+CREATE TABLE bits(b BIT);
+
+statement ok
+INSERT INTO bits VALUES ('1010101001'), ('0011010101'), ('0001011101'), ('1011111101'), ('0000010001'), ('1000110001')
+
+query I
+SELECT BIT_OR(b) FROM bits
+----
+1011111101
+
+query I
+SELECT BIT_OR(b) FROM bits WHERE get_bit(b, 3) = 0;
+----
+1010111001
+
+query I
+SELECT BIT_OR('111010'::BIT)
+----
+111010

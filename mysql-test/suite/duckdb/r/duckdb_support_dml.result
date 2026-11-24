@@ -1,0 +1,472 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+[connection master]
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 INT) ENGINE=DuckDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, col1 INT) ENGINE=InnoDB;
+CREATE TABLE t3 (id INT PRIMARY KEY, col1 INT) ENGINE=DuckDB;
+INSERT INTO t2 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t3 VALUES (3, 3);
+SET @deault_duckdb_dml_in_batch = @@global.duckdb_dml_in_batch;
+SET GLOBAL duckdb_dml_in_batch = 0;
+[connection slave]
+SET @deault_duckdb_dml_in_batch = @@global.duckdb_dml_in_batch;
+SET GLOBAL duckdb_dml_in_batch = 0;
+
+1. Insert Statement
+
+[connection master]
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t1 VALUES (2, 2), (3, 3);
+SELECT * FROM t1;
+id	col1
+1	1
+2	2
+3	3
+
+2. Update Single Table Statement
+
+[connection master]
+UPDATE t1 SET col1 = col1 + 1 WHERE id = 1;
+SELECT * FROM t1;
+id	col1
+1	2
+2	2
+3	3
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+1	2
+2	2
+3	3
+[connection master]
+UPDATE t1 SET col1 = 10 WHERE col1 = 6;
+SELECT * FROM t1;
+id	col1
+1	2
+2	2
+3	3
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+1	2
+2	2
+3	3
+[connection master]
+UPDATE t1 SET col1 = col1 + 10;
+SELECT * FROM t1;
+id	col1
+1	12
+2	12
+3	13
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+1	12
+2	12
+3	13
+[connection master]
+UPDATE t1 SET col1 = (SELECT max(col1) FROM t3) WHERE id = 1;
+SELECT * FROM t1;
+id	col1
+1	3
+2	12
+3	13
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+1	3
+2	12
+3	13
+[connection master]
+UPDATE t1 SET col1 = (SELECT max(col1) FROM t2) WHERE id = 1;
+ERROR HY000: [DuckDB] Does not support mixed queries of duckdb engine and other engines in UPDATE Statement. The table `t1` is a duckdb table. The table `t2` is not a duckdb table.
+UPDATE t2 SET col1 = (SELECT max(col1) FROM t1) WHERE id = 1;
+ERROR HY000: [DuckDB] Does not support mixed queries of duckdb engine and other engines in UPDATE Statement. The table `t1` is a duckdb table. The table `t2` is not a duckdb table.
+
+3. Delete Single Table Statement
+
+[connection master]
+DELETE FROM t1 WHERE id = 1;
+SELECT * FROM t1;
+id	col1
+2	12
+3	13
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+2	12
+3	13
+[connection master]
+DELETE FROM t1 WHERE col1 < 13;
+SELECT * FROM t1;
+id	col1
+3	13
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+3	13
+[connection master]
+DELETE FROM t1 WHERE id = (SELECT max(col1) FROM t3);
+SELECT * FROM t1;
+id	col1
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+[connection master]
+DELETE FROM t1 WHERE col1 = (SELECT min(col1) FROM t2);
+ERROR HY000: [DuckDB] Does not support mixed queries of duckdb engine and other engines in DELETE Statement. The table `t1` is a duckdb table. The table `t2` is not a duckdb table.
+DELETE FROM t2 WHERE col1 = (SELECT min(col1) FROM t1);
+ERROR HY000: [DuckDB] Does not support mixed queries of duckdb engine and other engines in DELETE Statement. The table `t1` is a duckdb table. The table `t2` is not a duckdb table.
+[connection master]
+DELETE FROM t1;
+SELECT * FROM t1;
+id	col1
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+
+4. INSERT ... SELECT ... Table Statement
+
+[connection master]
+INSERT INTO t1 SELECT * FROM t2;
+SELECT * FROM t1;
+id	col1
+1	1
+2	2
+3	3
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+1	1
+2	2
+3	3
+[connection master]
+INSERT INTO t1 SELECT id + 3, col1 + 3 FROM t1;
+SELECT * FROM t1;
+id	col1
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+1	1
+2	2
+3	3
+4	4
+5	5
+6	6
+[connection master]
+INSERT INTO t2 SELECT * FROM t1;
+ERROR HY000: [DuckDB] Does not support SELECT from duckdb table and insert into other engines.
+INSERT INTO t1 SELECT d2.* FROM t1 d1, t2 d2 WHERE d1.id = d2.id;
+ERROR HY000: [DuckDB] Does not support mixed queries of duckdb engine and other engines in SELECT statement.
+DELETE FROM t1;
+
+5. Update Multi Table Statement
+
+[connection master]
+INSERT INTO t1 VALUES (1, 1), (2, 2), (3, 3);
+INSERT INTO t3 VALUES (1, 1);
+UPDATE t1, t2 SET t1.col1 =1 WHERE t1.id = t2.id;
+ERROR HY000: [DuckDB] Does not support duckdb engine in multi-table UPDATE/DELETE statement. The table `t1` is a duckdb table.
+UPDATE t1, t3 SET t1.col1 =1 WHERE t1.id = t3.id;
+ERROR HY000: [DuckDB] Does not support duckdb engine in multi-table UPDATE/DELETE statement. The table `t3` is a duckdb table.
+UPDATE t1 SET col1 = 1 WHERE id in (SELECT id FROM t2);
+ERROR HY000: [DuckDB] Does not support mixed queries of duckdb engine and other engines in UPDATE Statement. The table `t1` is a duckdb table. The table `t2` is not a duckdb table.
+UPDATE t2 SET col1 = 1 WHERE id in (SELECT id FROM t1);
+ERROR HY000: [DuckDB] Does not support mixed queries of duckdb engine and other engines in UPDATE Statement. The table `t1` is a duckdb table. The table `t2` is not a duckdb table.
+UPDATE t1 SET col1 = 10 WHERE id in (SELECT id FROM t3);
+SELECT * FROM t1;
+id	col1
+1	10
+2	2
+3	10
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+1	10
+2	2
+3	10
+
+6. Delete Multi Table Statement
+
+[connection master]
+DELETE t1, t2 FROM t1, t2 WHERE t1.id = t2.id;
+ERROR HY000: [DuckDB] Does not support duckdb engine in multi-table UPDATE/DELETE statement. The table `t1` is a duckdb table.
+DELETE t1, t3 FROM t1, t3 WHERE t1.id = t3.id;
+ERROR HY000: [DuckDB] Does not support duckdb engine in multi-table UPDATE/DELETE statement. The table `t3` is a duckdb table.
+DELETE t1 FROM t1 INNER JOIN t2 ON t1.id = t2.id;
+ERROR HY000: [DuckDB] Does not support duckdb engine in multi-table UPDATE/DELETE statement. The table `t1` is a duckdb table.
+DELETE t1 FROM t1 INNER JOIN t3 ON t1.id = t3.id;
+ERROR HY000: [DuckDB] Does not support duckdb engine in multi-table UPDATE/DELETE statement. The table `t3` is a duckdb table.
+DELETE FROM t1 WHERE id in (SELECT id FROM t2);
+ERROR HY000: [DuckDB] Does not support mixed queries of duckdb engine and other engines in DELETE Statement. The table `t1` is a duckdb table. The table `t2` is not a duckdb table.
+DELETE FROM t2 WHERE id in (SELECT id FROM t1);
+ERROR HY000: [DuckDB] Does not support mixed queries of duckdb engine and other engines in DELETE Statement. The table `t1` is a duckdb table. The table `t2` is not a duckdb table.
+DELETE FROM t1 WHERE id in (SELECT id FROM t3);
+SELECT * FROM t1;
+id	col1
+2	2
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+2	2
+
+7. INSERT/DELETE/UPDATE in a transaction
+
+[connection master]
+BEGIN;
+DELETE FROM t1;
+INSERT INTO t1 VALUES (3, 3), (4, 4);
+UPDATE t1 SET col1 = col1 + 10;
+DELETE FROM t1 WHERE id = 4;
+INSERT INTO t2 VALUES (4, 4);
+Warnings:
+Warning	6414	Combining the storage engines InnoDB and DUCKDB is deprecated, but the statement or transaction updates both the InnoDB table test.t2 and the DUCKDB table test.t1.
+INSERT INTO t1 SELECT id * 10, col1 * 10 FROM t1;
+INSERT INTO t1 VALUES (4, 4);
+COMMIT;
+SELECT * FROM t1;
+id	col1
+3	13
+30	130
+4	4
+SELECT * FROM t2;
+id	col1
+1	1
+2	2
+3	3
+4	4
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+3	13
+30	130
+4	4
+SELECT * FROM t2;
+id	col1
+1	1
+2	2
+3	3
+4	4
+
+8. Transaction Atomicity
+
+[connection master]
+BEGIN;
+DELETE FROM t1 WHERE id = 3;
+DELETE FROM t1 WHERE id = 4;
+ROLLBACK;
+SELECT * FROM t1;
+id	col1
+3	13
+30	130
+4	4
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+3	13
+30	130
+4	4
+[connection master]
+BEGIN;
+DELETE FROM t1 WHERE id = 3;
+DELETE FROM t1 WHERE id = 4;
+COMMIT;
+SELECT * FROM t1;
+id	col1
+30	130
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+30	130
+[connection master]
+BEGIN;
+UPDATE t1 SET col1 = 3 WHERE id = 30;
+UPDATE t1 SET id = 3 WHERE id = 30;
+ROLLBACK;
+SELECT * FROM t1;
+id	col1
+30	130
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+30	130
+[connection master]
+BEGIN;
+UPDATE t1 SET col1 = 3 WHERE id = 30;
+UPDATE t1 SET id = 3 WHERE id = 30;
+COMMIT;
+SELECT * FROM t1;
+id	col1
+3	3
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+3	3
+
+9. Explain
+
+[connection master]
+DELETE FROM t1;
+DELETE FROM t2;
+DELETE FROM t3;
+EXPLAIN INSERT INTO t1 VALUES (1, 1);
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` values (1,1)
+EXPLAIN ANALYZE INSERT INTO t1 VALUES (1, 1);
+EXPLAIN
+-> Insert into t1
+    -> Rows fetched before execution
+
+SELECT * FROM t1;
+id	col1
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+[connection master]
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (1, 1);
+EXPLAIN INSERT INTO t1 SELECT id + 1, col1 + 1 FROM t1;
+EXPLAIN ANALYZE INSERT INTO t1 SELECT id + 1, col1 + 1 FROM t1;
+ERROR HY000: [DuckDB] Does not support EXPLAIN ANALYZE INSERT ... SELECT ... statement.
+EXPLAIN INSERT INTO t1 SELECT id + 1, col1 + 1 FROM t2;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	INSERT	t1	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	insert into `test`.`t1` /* select#1 */ select (`test`.`t2`.`id` + 1) AS `id + 1`,(`test`.`t2`.`col1` + 1) AS `col1 + 1` from `test`.`t2`
+EXPLAIN ANALYZE INSERT INTO t1 SELECT id + 1, col1 + 1 FROM t2;
+SELECT * FROM t1;
+id	col1
+1	1
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+1	1
+[connection master]
+EXPLAIN UPDATE t1 SET col1 = 10 WHERE id = 1;
+EXPLAIN FROM DUCKDB
+physical_plan
+┌───────────────────────────┐
+│           UPDATE          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│         PROJECTION        │
+│    ────────────────────   │
+│             10            │
+│           rowid           │
+│                           │
+│          ~3 rows          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│          SEQ_SCAN         │
+│    ────────────────────   │
+│   Table: duckdb.test.t1   │
+│   Type: Sequential Scan   │
+│       Filters: id=1       │
+│                           │
+│          ~3 rows          │
+└───────────────────────────┘
+
+EXPLAIN ANALYZE UPDATE t1 SET col1 = 10 WHERE id = 1;
+ERROR HY000: [DuckDB] Does not support EXPLAIN ANALYZE UPDATE/DELETE statement.
+SELECT * FROM t1;
+id	col1
+1	1
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+1	1
+[connection master]
+EXPLAIN DELETE FROM t1 WHERE id = 1;
+EXPLAIN FROM DUCKDB
+physical_plan
+┌───────────────────────────┐
+│           DELETE          │
+└─────────────┬─────────────┘
+┌─────────────┴─────────────┐
+│          SEQ_SCAN         │
+│    ────────────────────   │
+│   Table: duckdb.test.t1   │
+│   Type: Sequential Scan   │
+│       Filters: id=1       │
+│                           │
+│          ~3 rows          │
+└───────────────────────────┘
+
+EXPLAIN ANALYZE DELETE FROM t1 WHERE id = 1;
+ERROR HY000: [DuckDB] Does not support EXPLAIN ANALYZE UPDATE/DELETE statement.
+SELECT * FROM t1;
+id	col1
+1	1
+include/rpl/sync.inc
+[connection slave]
+SELECT * FROM t1;
+id	col1
+1	1
+
+10. Replace
+
+REPLACE INTO t1 VALUES (1, 1);
+ERROR HY000: [DuckDB] Does not support duckdb engine in REPLACE statement. The table `t1` is a duckdb table.
+REPLACE INTO t1 SELECT * FROM t2;
+ERROR HY000: [DuckDB] Does not support duckdb engine in REPLACE statement. The table `t1` is a duckdb table.
+REPLACE INTO t1 SELECT * FROM t3;
+ERROR HY000: [DuckDB] Does not support duckdb engine in REPLACE statement. The table `t3` is a duckdb table.
+REPLACE INTO t2 SELECT * FROM t1;
+ERROR HY000: [DuckDB] Does not support duckdb engine in REPLACE statement. The table `t1` is a duckdb table.
+
+11. CREATE TABLE AS SELECT
+
+CREATE TABLE t4 ENGINE=DuckDB SELECT * FROM t1;
+ERROR HY000: [DuckDB] Does not support duckdb engine in CREATE TABLE ... SELECT satement.
+CREATE TABLE t4 ENGINE=InnoDB SELECT * FROM t1;
+ERROR HY000: [DuckDB] Does not support duckdb engine in CREATE TABLE ... SELECT satement.
+CREATE TABLE t4 ENGINE=DuckDB SELECT * FROM t1, t2;
+ERROR HY000: [DuckDB] Does not support duckdb engine in CREATE TABLE ... SELECT satement.
+CREATE TABLE t4 (id INT PRIMARY KEY) ENGINE=DuckDB SELECT id FROM t2;
+SHOW CREATE TABLE t4;
+Table	Create Table
+t4	CREATE TABLE `t4` (
+  `id` int NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+DROP TABLE t4;
+[connection master]
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;
+SET GLOBAL duckdb_dml_in_batch = @deault_duckdb_dml_in_batch;
+[connection slave]
+SET GLOBAL duckdb_dml_in_batch = @deault_duckdb_dml_in_batch;
+include/rpl/deinit.inc

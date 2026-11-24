@@ -1,0 +1,15 @@
+# name: test/sql/copy/csv/copy_disable_parallelism.test
+# description: Test copy statement
+# group: [csv]
+
+statement ok
+PRAGMA enable_verification
+
+
+statement ok
+CREATE TABLE test (a INTEGER, b INTEGER, c VARCHAR(10));
+
+query I
+COPY test FROM '{DATA_DIR}/csv/test/test.csv';
+----
+5000

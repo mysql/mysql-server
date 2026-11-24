@@ -1,0 +1,2629 @@
+####################
+# TEST FOR INSTANT #
+####################
+#
+# 1) ADD AND DROP
+#
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ADD COLUMN d INT NOT NULL DEFAULT 100 COMMENT "col d", 
+ADD COLUMN e INT NULL DEFAULT 1000 COMMENT "",
+ADD COLUMN f INT, ALGORITHM = INSTANT;
+INSERT INTO t VALUES(3, 3, 3, 3, 3, 3, 3);
+INSERT INTO t(id, a, b, c) VALUES(4, 4, 4, 4);
+INSERT INTO t VALUES(5, 5, 5, 5, 5, NULL, NULL);
+INSERT INTO t VALUES(6, 6, 6, 6, NULL, NULL, NULL);
+ERROR 23000: Column 'd' cannot be null
+SELECT * FROM t;
+id	a	b	c	d	e	f
+1	1	1	1	100	1000	NULL
+2	NULL	NULL	NULL	100	1000	NULL
+3	3	3	3	3	3	3
+4	4	4	4	100	1000	NULL
+5	5	5	5	5	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 7]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+test	t	d	'100'	NO	INTEGER	NULL
+test	t	e	'1000'	YES	INTEGER	NULL
+test	t	f	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	d	100	NO	int	col d
+test	t	e	1000	YES	int	
+test	t	f	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t DROP COLUMN a, DROP COLUMN d, ALGORITHM = INSTANT;
+INSERT INTO t VALUES(6, 6, 6, 6, 6);
+INSERT INTO t(id, c) VALUES(7, 7);
+SELECT * FROM t;
+id	b	c	e	f
+1	1	1	1000	NULL
+2	NULL	NULL	1000	NULL
+3	3	3	3	3
+4	4	4	1000	NULL
+5	5	5	NULL	NULL
+6	6	6	6	6
+7	NULL	7	1000	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+test	t	e	'1000'	YES	INTEGER	NULL
+test	t	f	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	e	1000	YES	int	
+test	t	f	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+#
+# 3) SET AND DROP DEFAULT VALUE
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN b SET DEFAULT 100,
+ALTER COLUMN c SET DEFAULT 100, ALGORITHM = INSTANT;
+INSERT INTO t VALUES(3, 3, 3, 3);
+INSERT INTO t(id) VALUES(4);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+4	NULL	100	100
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	'100'	YES	INTEGER	NULL
+test	t	c	'100'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	100	YES	int	
+test	t	c	100	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN b DROP DEFAULT, 
+ALTER COLUMN c SET DEFAULT 1000, ALGORITHM = INSTANT;
+INSERT INTO t VALUES(5, 5, 5, 5);
+INSERT INTO t(id) VALUES(6);
+ERROR HY000: Field 'b' doesn't have a default value
+INSERT INTO t(id, b) VALUES(6, 6);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+4	NULL	100	100
+5	5	5	5
+6	NULL	6	1000
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	'1000'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	1000	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN b SET DEFAULT 10000, 
+ALTER COLUMN c DROP DEFAULT, ALGORITHM = INSTANT;
+INSERT INTO t VALUES(7, 7, 7, 7);
+INSERT INTO t(id) VALUES(8);
+ERROR HY000: Field 'c' doesn't have a default value
+INSERT INTO t(id, c) VALUES(8, 8);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+4	NULL	100	100
+5	5	5	5
+6	NULL	6	1000
+7	7	7	7
+8	NULL	10000	8
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	'10000'	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	10000	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+#
+# 3) RENAME, MODIFY AND CHANGE
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t RENAME COLUMN a TO a1, 
+RENAME COLUMN b TO b1,
+RENAME COLUMN c TO c1, ALGORITHM = INSTANT;
+INSERT INTO t(id, a1, b1, c1) VALUES(3, 3, 3, 3);
+SELECT * FROM t;
+id	a1	b1	c1
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	NULL	YES	INTEGER	NULL
+test	t	b1	NULL	YES	INTEGER	NULL
+test	t	c1	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	NULL	YES	int	
+test	t	b1	NULL	YES	int	
+test	t	c1	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+CALL dbms_duckdb.query("DELETE FROM test.t WHERE c1 IS NULL");
+ALTER TABLE t MODIFY COLUMN a1 BIGINT COMMENT "col a1",
+MODIFY COLUMN b1 BIGINT DEFAULT 100 COMMENT "",
+MODIFY COLUMN c1 BIGINT NOT NULL DEFAULT 100, ALGORITHM = INSTANT;
+INSERT INTO t VALUES(4, 4, 4, 4);
+INSERT INTO t(id) VALUES(5);
+INSERT INTO t VALUES(6, 6, NULL, 6);
+INSERT INTO t VALUES(7, 7, 7, NULL);
+ERROR 23000: Column 'c1' cannot be null
+SELECT * FROM t;
+id	a1	b1	c1
+1	1	1	1
+3	3	3	3
+4	4	4	4
+5	NULL	100	100
+6	6	NULL	6
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	NULL	YES	BIGINT	NULL
+test	t	b1	'100'	YES	BIGINT	NULL
+test	t	c1	'100'	NO	BIGINT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	NULL	YES	bigint	col a1
+test	t	b1	100	YES	bigint	
+test	t	c1	100	NO	bigint	
+test	t	id	NULL	NO	int	
+
+CALL dbms_duckdb.query("DELETE FROM test.t WHERE b1 IS NULL");
+ALTER TABLE t CHANGE a1 a INT COMMENT "col a",
+CHANGE b1 b INT NOT NULL DEFAULT 1000,
+CHANGE c1 c INT COMMENT "", ALGORITHM = INSTANT;
+INSERT INTO t VALUES(8, 8, 8, 8);
+INSERT INTO t(id) VALUES(9);
+INSERT INTO t VALUES(10, 10, 10, NULL);
+INSERT INTO t VALUES(11, 11, NULL, 11);
+ERROR 23000: Column 'b' cannot be null
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+3	3	3	3
+4	4	4	4
+5	NULL	100	100
+8	8	8	8
+9	NULL	1000	NULL
+10	10	10	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	'1000'	NO	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	col a
+test	t	b	1000	NO	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+CALL dbms_duckdb.query("DELETE FROM test.t WHERE c IS NULL");
+ALTER TABLE t RENAME COLUMN a TO a1,
+MODIFY COLUMN b BIGINT DEFAULT 10000 COMMENT "col b",
+CHANGE c c1 BIGINT NOT NULL DEFAULT 10000 COMMENT "col c1", ALGORITHM = INSTANT;
+INSERT INTO t VALUES(12, 12, 12, 12);
+INSERT INTO t(id) VALUES(13);
+INSERT INTO t VALUES(14, 14, NULL, 14);
+INSERT INTO t VALUES(15, 15, 15, NULL);
+ERROR 23000: Column 'c1' cannot be null
+SELECT * FROM t;
+id	a1	b	c1
+1	1	1	1
+3	3	3	3
+4	4	4	4
+5	NULL	100	100
+8	8	8	8
+12	12	12	12
+13	NULL	10000	10000
+14	14	NULL	14
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	NULL	YES	INTEGER	NULL
+test	t	b	'10000'	YES	BIGINT	NULL
+test	t	c1	'10000'	NO	BIGINT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	NULL	YES	int	col a
+test	t	b	10000	YES	bigint	col b
+test	t	c1	10000	NO	bigint	col c1
+test	t	id	NULL	NO	int	
+
+#
+# 4) DEFAULT NULL
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY,
+a INT DEFAULT 1 COMMENT 'col a',
+b INT DEFAULT 1 COMMENT 'col b',
+c INT DEFAULT 1 COMMENT 'col c',
+d INT DEFAULT 1 COMMENT 'col d') ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c	d
+1	1	1	1	1
+2	1	1	1	1
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	'1'	YES	INTEGER	NULL
+test	t	b	'1'	YES	INTEGER	NULL
+test	t	c	'1'	YES	INTEGER	NULL
+test	t	d	'1'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	1	YES	int	col a
+test	t	b	1	YES	int	col b
+test	t	c	1	YES	int	col c
+test	t	d	1	YES	int	col d
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN a SET DEFAULT NULL,
+ALTER COLUMN b DROP DEFAULT,
+ALTER COLUMN c SET DEFAULT 10,
+ALTER COLUMN d SET DEFAULT 10, ALGORITHM = INSTANT;
+INSERT INTO t(id, b) VALUES(3, 3);
+INSERT INTO t(id, b) VALUES(4, NULL);
+SELECT * FROM t;
+id	a	b	c	d
+1	1	1	1	1
+2	1	1	1	1
+3	NULL	3	10	10
+4	NULL	NULL	10	10
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	'10'	YES	INTEGER	NULL
+test	t	d	'10'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	col a
+test	t	b	NULL	YES	int	col b
+test	t	c	10	YES	int	col c
+test	t	d	10	YES	int	col d
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t MODIFY a BIGINT,
+CHANGE b b BIGINT DEFAULT NULL,
+MODIFY COLUMN c BIGINT,
+CHANGE d d BIGINT DEFAULT NULL, ALGORITHM = INSTANT;
+INSERT INTO t(id) VALUES(5);
+SELECT * FROM t;
+id	a	b	c	d
+1	1	1	1	1
+2	1	1	1	1
+3	NULL	3	10	10
+4	NULL	NULL	10	10
+5	NULL	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	BIGINT	NULL
+test	t	b	NULL	YES	BIGINT	NULL
+test	t	c	NULL	YES	BIGINT	NULL
+test	t	d	NULL	YES	BIGINT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	bigint	
+test	t	b	NULL	YES	bigint	
+test	t	c	NULL	YES	bigint	
+test	t	d	NULL	YES	bigint	
+test	t	id	NULL	NO	int	
+
+#
+# 5) DEFAULT TIMESTAMP
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY,
+a TIMESTAMP NOT NULL DEFAULT '1970-01-01 12:00:00',
+b TIMESTAMP NOT NULL DEFAULT '1970-01-01 12:00:00')  ENGINE = DuckDB;
+INSERT INTO t(id) VALUES(1);
+INSERT INTO t VALUES(2, '2020-01-01 12:00:00', '2020-01-01 12:00:00');
+ALTER TABLE t MODIFY COLUMN a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CHANGE COLUMN b b TIMESTAMP NOT NULL DEFAULT NOW(), ALGORITHM = INSTANT;
+SET TIMESTAMP = 1303197722.534231;
+INSERT INTO t(id) VALUES(3);
+SELECT * FROM t;
+id	a	b
+1	1970-01-01 12:00:00	1970-01-01 12:00:00
+2	2020-01-01 12:00:00	2020-01-01 12:00:00
+3	2011-04-19 10:22:02	2011-04-19 10:22:02
+DROP TABLE t;
+SET TIMESTAMP=UNIX_TIMESTAMP('2001-01-01 00:00:00');
+CREATE TABLE t(id INT PRIMARY KEY, a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, b TIMESTAMP DEFAULT NOW()) ENGINE = InnoDB;
+INSERT INTO t(id) VALUES (1);
+SELECT * FROM t;
+id	a	b
+1	2001-01-01 00:00:00	2001-01-01 00:00:00
+SET TIMESTAMP=UNIX_TIMESTAMP('2001-03-01 00:00:00');
+ALTER TABLE t MODIFY COLUMN b TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+INSERT INTO t(id) VALUES (3);
+SELECT * FROM t;
+id	a	b
+1	2001-01-01 00:00:00	2001-01-01 00:00:00
+3	2001-03-01 00:00:00	2001-03-01 00:00:00
+#
+# 6) DEFAULT VALUE EXPRESSION
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT DEFAULT (1+1), b VARCHAR(100) DEFAULT ('1+1'), c VARCHAR(100) DEFAULT (1+1)) ENGINE = DuckDB;
+INSERT INTO t(id) VALUES(1);
+CALL dbms_duckdb.query("INSERT INTO test.t(id) VALUES(2)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+ALTER TABLE t ADD COLUMN d INT DEFAULT (2+2),
+ADD COLUMN e VARCHAR(100) DEFAULT ('2+2'),
+ADD COLUMN f VARCHAR(100) DEFAULT (2+2), ALGORITHM = INSTANT;
+INSERT INTO t(id) VALUES(3);
+CALL dbms_duckdb.query("INSERT INTO test.t(id) VALUES(4)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+ALTER TABLE t MODIFY COLUMN a INT DEFAULT (3+3),
+MODIFY COLUMN b VARCHAR(100) DEFAULT ('3+3'),
+MODIFY COLUMN c VARCHAR(100) DEFAULT (3+3), ALGORITHM = INSTANT;
+INSERT INTO t(id) VALUES(5);
+CALL dbms_duckdb.query("INSERT INTO test.t(id) VALUES(6)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+SELECT * FROM t;
+id	a	b	c	d	e	f
+1	2	1+1	2	4	2+2	4
+2	2	1+1	2	4	2+2	4
+3	2	1+1	2	4	2+2	4
+4	2	1+1	2	4	2+2	4
+5	6	3+3	6	4	2+2	4
+6	6	3+3	6	4	2+2	4
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 7]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	(3 + 3)	YES	INTEGER	NULL
+test	t	b	'3+3'	YES	VARCHAR	NULL
+test	t	c	(3 + 3)	YES	VARCHAR	NULL
+test	t	d	(2 + 2)	YES	INTEGER	NULL
+test	t	e	'2+2'	YES	VARCHAR	NULL
+test	t	f	(2 + 2)	YES	VARCHAR	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	(3 + 3)	YES	int	
+test	t	b	_utf8mb4\'3+3\'	YES	varchar	
+test	t	c	(3 + 3)	YES	varchar	
+test	t	d	(2 + 2)	YES	int	
+test	t	e	_utf8mb4\'2+2\'	YES	varchar	
+test	t	f	(2 + 2)	YES	varchar	
+test	t	id	NULL	NO	int	
+
+#
+# 7) DEFAULT VALUE OF BIT
+#
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, B0 BIT(1) NOT NULL DEFAULT 0, B1 BIT(32) NOT NULL DEFAULT b'1111') ENGINE=DuckDB;
+INSERT INTO t(id) VALUES(1);
+CALL DBMS_DUCKDB.QUERY("INSERT INTO test.t(id) VALUES(2)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+ALTER TABLE t ADD COLUMN B2 BIT(64) NOT NULL DEFAULT b'11111',
+ALTER COLUMN B1 SET DEFAULT 3333, ALGORITHM = INSTANT;
+INSERT INTO t(id) VALUES(3);
+CALL DBMS_DUCKDB.QUERY("INSERT INTO test.t(id) VALUES(4)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+SELECT id, hex(B0), hex(B1), hex(B2) FROM t;
+id	hex(B0)	hex(B1)	hex(B2)
+1	0	F	1F
+2	0	F	1F
+3	0	D05	1F
+4	0	D05	1F
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	B0	CAST('\x00'::BLOB AS BLOB)	NO	BIT	NULL
+test	t	B1	CAST('\x00\x00\x0D\x05'::BLOB AS BLOB)	NO	BIT	NULL
+test	t	B2	CAST('\x00\x00\x00\x00\x00\x00\x00\x1F'::BLOB AS BLOB)	NO	BIT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	B0	b'0'	NO	bit	
+test	t	B1	b'110100000101'	NO	bit	
+test	t	B2	b'11111'	NO	bit	
+test	t	id	NULL	NO	int	
+
+#
+# 8) MULTIPLE DDL ABOUT COLUMNS
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY,
+a INT DEFAULT 1 COMMENT 'col a',
+b INT DEFAULT 1 COMMENT 'col b', 
+c INT DEFAULT 1 COMMENT 'col c',
+d INT DEFAULT 1 COMMENT 'col d',
+e INT DEFAULT 1 COMMENT 'col e',
+f INT DEFAULT 1 COMMENT 'col f',
+g INT DEFAULT 1 COMMENT 'col g') ENGINE = DuckDB;
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 8]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	'1'	YES	INTEGER	NULL
+test	t	b	'1'	YES	INTEGER	NULL
+test	t	c	'1'	YES	INTEGER	NULL
+test	t	d	'1'	YES	INTEGER	NULL
+test	t	e	'1'	YES	INTEGER	NULL
+test	t	f	'1'	YES	INTEGER	NULL
+test	t	g	'1'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	1	YES	int	col a
+test	t	b	1	YES	int	col b
+test	t	c	1	YES	int	col c
+test	t	d	1	YES	int	col d
+test	t	e	1	YES	int	col e
+test	t	f	1	YES	int	col f
+test	t	g	1	YES	int	col g
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ADD COLUMN h INT NOT NULL DEFAULT 2 COMMENT 'col h1',
+DROP COLUMN g,
+ALTER COLUMN f SET DEFAULT 2,
+ALTER COLUMN e SET DEFAULT NULL,
+ALTER COLUMN d DROP DEFAULT,
+RENAME COLUMN a TO a1,
+MODIFY COLUMN b BIGINT DEFAULT 2 COMMENT "col b1",
+CHANGE c c1 BIGINT NOT NULL DEFAULT 2 COMMENT "col c1", ALGORITHM = INSTANT;
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 8]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	'1'	YES	INTEGER	NULL
+test	t	b	'2'	YES	BIGINT	NULL
+test	t	c1	'2'	NO	BIGINT	NULL
+test	t	d	NULL	YES	INTEGER	NULL
+test	t	e	NULL	YES	INTEGER	NULL
+test	t	f	'2'	YES	INTEGER	NULL
+test	t	h	'2'	NO	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	1	YES	int	col a
+test	t	b	2	YES	bigint	col b1
+test	t	c1	2	NO	bigint	col c1
+test	t	d	NULL	YES	int	col d
+test	t	e	NULL	YES	int	col e
+test	t	f	2	YES	int	col f
+test	t	h	2	NO	int	col h1
+test	t	id	NULL	NO	int	
+
+#
+# 9) Not supported
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+CREATE TABLE t1(id INT PRIMARY KEY, a INT INVISIBLE) ENGINE = DuckDB;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: invisible column is not supported.
+ALTER TABLE t ADD COLUMN d INT INVISIBLE, ALGORITHM = INSTANT;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: invisible column is not supported.
+ALTER TABLE t MODIFY COLUMN c INT INVISIBLE, ALGORITHM = INSTANT;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: invisible column is not supported.
+ALTER TABLE t ALTER COLUMN b SET INVISIBLE, ALGORITHM = INSTANT;
+ERROR HY000: [DuckDB] SET COLUMN INVISIBLE is not supported for this operation.
+ALTER TABLE t MODIFY COLUMN c INT AUTO_INCREMENT KEY, ALGORITHM = INSTANT;
+ERROR 42000: Multiple primary key defined
+ALTER TABLE t ADD COLUMN d INT AUTO_INCREMENT, ALGORITHM = INSTANT;
+ERROR HY000: [DuckDB] ADD AUTO_INCREMENT COLUMN is not supported for this operation.
+CREATE TABLE t1(id INT PRIMARY KEY, a INT) ENGINE = DuckDB ENGINE_ATTRIBUTE='{"KEY":"VALUE"}';
+ERROR HY000: Storage engine 'DUCKDB' does not support ENGINE_ATTRIBUTE.
+ALTER TABLE t ADD COLUMN d INT ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = INSTANT;
+ERROR HY000: Storage engine 'DUCKDB' does not support ENGINE_ATTRIBUTE.
+ALTER TABLE t MODIFY COLUMN c INT ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = INSTANT;
+ERROR HY000: Storage engine 'DUCKDB' does not support ENGINE_ATTRIBUTE.
+ALTER TABLE t ADD COLUMN d INT AFTER a, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t ADD COLUMN d INT FIRST, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t CHANGE b b INT AFTER c, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t MODIFY COLUMN a INT FIRST, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+CREATE TABLE t1(id INT PRIMARY KEY, a INT, b INT GENERATED ALWAYS AS (a - 1) STORED) ENGINE = DuckDB;
+INSERT INTO t1(id, a) VALUES(1, 1);
+ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS (a + 1) STORED, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t1 ADD COLUMN d INT GENERATED ALWAYS AS (a * 5) VIRTUAL, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+ALTER TABLE t1 MODIFY COLUMN b INT GENERATED ALWAYS AS (2 * a + 1) STORED, ALGORITHM = INSTANT;
+ERROR 0A000: ALGORITHM=INSTANT is not supported for this operation. Try ALGORITHM=COPY/INPLACE.
+SELECT * FROM t1;
+id	a	b
+1	1	0
+DROP TABLE t1;
+#
+# 10) Ignore column format, secondary engine attribute, storage, they can be found in DD.
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+ALTER TABLE t ADD COLUMN d INT COLUMN_FORMAT FIXED STORAGE DISK SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}',
+ADD COLUMN e INT COLUMN_FORMAT DYNAMIC STORAGE MEMORY SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = INSTANT;
+ALTER TABLE t MODIFY COLUMN b INT COLUMN_FORMAT FIXED STORAGE DISK SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}',
+CHANGE c c INT COLUMN_FORMAT DYNAMIC STORAGE MEMORY SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = INSTANT;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int /*!50606 STORAGE DISK */ /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  `c` int /*!50606 STORAGE MEMORY */ /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  `d` int /*!50606 STORAGE DISK */ /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  `e` int /*!50606 STORAGE MEMORY */ /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 11) Drop primary key column which leads to drop primary key.
+#
+DROP TABLE t;
+CREATE TABLE t(a INT PRIMARY KEY, b INT, c INT) ENGINE = DuckDB;
+ALTER TABLE t DROP COLUMN a, ALGORITHM = INSTANT;
+ERROR 42000: This table type requires a primary key
+#
+# 12) BUG#117725
+#
+DROP TABLE t;
+CREATE TABLE t(a INT PRIMARY KEY, b INT, c INT) ENGINE = DuckDB;
+ALTER TABLE t MODIFY COLUMN a INT, MODIFY COLUMN a INT, ALGORITHM = INSTANT;
+ERROR 42S22: Unknown column 'a' in 't'
+ALTER TABLE t ALTER COLUMN a SET DEFAULT 10, ALTER COLUMN a DROP DEFAULT, ALGORITHM = INSTANT;
+ERROR 42S22: Unknown column 'a' in 't'
+ALTER TABLE t ALTER COLUMN a SET DEFAULT 10, RENAME COLUMN a to c, ALGORITHM = INSTANT;
+ERROR 42S22: Unknown column 'a' in 't'
+DROP TABLE t;
+#
+# 13) DROP COLUMN IN PRIMARY KEY
+#
+CREATE TABLE t(a INT, b INT, c INT, PRIMARY KEY(a, b, c)) ENGINE = DuckDB;
+ALTER TABLE t DROP COLUMN a, ALGORITHM = INSTANT;
+ALTER TABLE t DROP COLUMN c, ALGORITHM = INSTANT;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `b` int NOT NULL,
+  PRIMARY KEY (`b`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+test	t	b	NULL	NO	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	b	NULL	NO	int	
+
+DROP TABLE t;
+#
+# 14) DROP COLUMN BEFORE PRIMARY KEY
+#
+CREATE TABLE t(a INT, b INT, c INT, d INT, PRIMARY KEY(d, b)) ENGINE = DuckDB;
+ALTER TABLE t DROP COLUMN a, ALGORITHM = INSTANT;
+ALTER TABLE t DROP COLUMN c, ALGORITHM = INSTANT;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `b` int NOT NULL,
+  `d` int NOT NULL,
+  PRIMARY KEY (`d`,`b`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 2]
+test	t	b	NULL	NO	INTEGER	NULL
+test	t	d	NULL	NO	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	b	NULL	NO	int	
+test	t	d	NULL	NO	int	
+
+DROP TABLE t;
+#
+# 15) CHANGE COLUMN TYPE WITH INDEX
+#
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE = DuckDB;
+ALTER TABLE t MODIFY COLUMN a VARCHAR(10), ALGORITHM = INSTANT;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` varchar(10) NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 2]
+test	t	a	NULL	NO	VARCHAR	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	NO	varchar	
+test	t	b	NULL	YES	int	
+
+DROP TABLE t;
+#
+# 16) Cleanup
+#
+####################
+# TEST FOR INPLACE #
+####################
+#
+# 1) ADD AND DROP
+#
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ADD COLUMN d INT NOT NULL DEFAULT 100 COMMENT "col d", 
+ADD COLUMN e INT NULL DEFAULT 1000 COMMENT "",
+ADD COLUMN f INT, ALGORITHM = INPLACE;
+INSERT INTO t VALUES(3, 3, 3, 3, 3, 3, 3);
+INSERT INTO t(id, a, b, c) VALUES(4, 4, 4, 4);
+INSERT INTO t VALUES(5, 5, 5, 5, 5, NULL, NULL);
+INSERT INTO t VALUES(6, 6, 6, 6, NULL, NULL, NULL);
+ERROR 23000: Column 'd' cannot be null
+SELECT * FROM t;
+id	a	b	c	d	e	f
+1	1	1	1	100	1000	NULL
+2	NULL	NULL	NULL	100	1000	NULL
+3	3	3	3	3	3	3
+4	4	4	4	100	1000	NULL
+5	5	5	5	5	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 7]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+test	t	d	'100'	NO	INTEGER	NULL
+test	t	e	'1000'	YES	INTEGER	NULL
+test	t	f	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	d	100	NO	int	col d
+test	t	e	1000	YES	int	
+test	t	f	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t DROP COLUMN a, DROP COLUMN d, ALGORITHM = INPLACE;
+INSERT INTO t VALUES(6, 6, 6, 6, 6);
+INSERT INTO t(id, c) VALUES(7, 7);
+SELECT * FROM t;
+id	b	c	e	f
+1	1	1	1000	NULL
+2	NULL	NULL	1000	NULL
+3	3	3	3	3
+4	4	4	1000	NULL
+5	5	5	NULL	NULL
+6	6	6	6	6
+7	NULL	7	1000	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+test	t	e	'1000'	YES	INTEGER	NULL
+test	t	f	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	e	1000	YES	int	
+test	t	f	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+#
+# 3) SET AND DROP DEFAULT VALUE
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN b SET DEFAULT 100,
+ALTER COLUMN c SET DEFAULT 100, ALGORITHM = INPLACE;
+INSERT INTO t VALUES(3, 3, 3, 3);
+INSERT INTO t(id) VALUES(4);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+4	NULL	100	100
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	'100'	YES	INTEGER	NULL
+test	t	c	'100'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	100	YES	int	
+test	t	c	100	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN b DROP DEFAULT, 
+ALTER COLUMN c SET DEFAULT 1000, ALGORITHM = INPLACE;
+INSERT INTO t VALUES(5, 5, 5, 5);
+INSERT INTO t(id) VALUES(6);
+ERROR HY000: Field 'b' doesn't have a default value
+INSERT INTO t(id, b) VALUES(6, 6);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+4	NULL	100	100
+5	5	5	5
+6	NULL	6	1000
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	'1000'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	1000	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN b SET DEFAULT 10000, 
+ALTER COLUMN c DROP DEFAULT, ALGORITHM = INPLACE;
+INSERT INTO t VALUES(7, 7, 7, 7);
+INSERT INTO t(id) VALUES(8);
+ERROR HY000: Field 'c' doesn't have a default value
+INSERT INTO t(id, c) VALUES(8, 8);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+4	NULL	100	100
+5	5	5	5
+6	NULL	6	1000
+7	7	7	7
+8	NULL	10000	8
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	'10000'	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	10000	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+#
+# 3) RENAME, MODIFY AND CHANGE
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t RENAME COLUMN a TO a1, 
+RENAME COLUMN b TO b1,
+RENAME COLUMN c TO c1, ALGORITHM = INPLACE;
+INSERT INTO t(id, a1, b1, c1) VALUES(3, 3, 3, 3);
+SELECT * FROM t;
+id	a1	b1	c1
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	NULL	YES	INTEGER	NULL
+test	t	b1	NULL	YES	INTEGER	NULL
+test	t	c1	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	NULL	YES	int	
+test	t	b1	NULL	YES	int	
+test	t	c1	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+CALL dbms_duckdb.query("DELETE FROM test.t WHERE c1 IS NULL");
+ALTER TABLE t MODIFY COLUMN a1 BIGINT COMMENT "col a1",
+MODIFY COLUMN b1 BIGINT DEFAULT 100 COMMENT "",
+MODIFY COLUMN c1 BIGINT NOT NULL DEFAULT 100, ALGORITHM = INPLACE;
+INSERT INTO t VALUES(4, 4, 4, 4);
+INSERT INTO t(id) VALUES(5);
+INSERT INTO t VALUES(6, 6, NULL, 6);
+INSERT INTO t VALUES(7, 7, 7, NULL);
+ERROR 23000: Column 'c1' cannot be null
+SELECT * FROM t;
+id	a1	b1	c1
+1	1	1	1
+3	3	3	3
+4	4	4	4
+5	NULL	100	100
+6	6	NULL	6
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	NULL	YES	BIGINT	NULL
+test	t	b1	'100'	YES	BIGINT	NULL
+test	t	c1	'100'	NO	BIGINT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	NULL	YES	bigint	col a1
+test	t	b1	100	YES	bigint	
+test	t	c1	100	NO	bigint	
+test	t	id	NULL	NO	int	
+
+CALL dbms_duckdb.query("DELETE FROM test.t WHERE b1 IS NULL");
+ALTER TABLE t CHANGE a1 a INT COMMENT "col a",
+CHANGE b1 b INT NOT NULL DEFAULT 1000,
+CHANGE c1 c INT COMMENT "", ALGORITHM = INPLACE;
+INSERT INTO t VALUES(8, 8, 8, 8);
+INSERT INTO t(id) VALUES(9);
+INSERT INTO t VALUES(10, 10, 10, NULL);
+INSERT INTO t VALUES(11, 11, NULL, 11);
+ERROR 23000: Column 'b' cannot be null
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+3	3	3	3
+4	4	4	4
+5	NULL	100	100
+8	8	8	8
+9	NULL	1000	NULL
+10	10	10	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	'1000'	NO	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	col a
+test	t	b	1000	NO	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+CALL dbms_duckdb.query("DELETE FROM test.t WHERE c IS NULL");
+ALTER TABLE t RENAME COLUMN a TO a1,
+MODIFY COLUMN b BIGINT DEFAULT 10000 COMMENT "col b",
+CHANGE c c1 BIGINT NOT NULL DEFAULT 10000 COMMENT "col c1", ALGORITHM = INPLACE;
+INSERT INTO t VALUES(12, 12, 12, 12);
+INSERT INTO t(id) VALUES(13);
+INSERT INTO t VALUES(14, 14, NULL, 14);
+INSERT INTO t VALUES(15, 15, 15, NULL);
+ERROR 23000: Column 'c1' cannot be null
+SELECT * FROM t;
+id	a1	b	c1
+1	1	1	1
+3	3	3	3
+4	4	4	4
+5	NULL	100	100
+8	8	8	8
+12	12	12	12
+13	NULL	10000	10000
+14	14	NULL	14
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	NULL	YES	INTEGER	NULL
+test	t	b	'10000'	YES	BIGINT	NULL
+test	t	c1	'10000'	NO	BIGINT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	NULL	YES	int	col a
+test	t	b	10000	YES	bigint	col b
+test	t	c1	10000	NO	bigint	col c1
+test	t	id	NULL	NO	int	
+
+#
+# 4) DEFAULT NULL
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY,
+a INT DEFAULT 1 COMMENT 'col a',
+b INT DEFAULT 1 COMMENT 'col b',
+c INT DEFAULT 1 COMMENT 'col c',
+d INT DEFAULT 1 COMMENT 'col d') ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c	d
+1	1	1	1	1
+2	1	1	1	1
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	'1'	YES	INTEGER	NULL
+test	t	b	'1'	YES	INTEGER	NULL
+test	t	c	'1'	YES	INTEGER	NULL
+test	t	d	'1'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	1	YES	int	col a
+test	t	b	1	YES	int	col b
+test	t	c	1	YES	int	col c
+test	t	d	1	YES	int	col d
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN a SET DEFAULT NULL,
+ALTER COLUMN b DROP DEFAULT,
+ALTER COLUMN c SET DEFAULT 10,
+ALTER COLUMN d SET DEFAULT 10, ALGORITHM = INPLACE;
+INSERT INTO t(id, b) VALUES(3, 3);
+INSERT INTO t(id, b) VALUES(4, NULL);
+SELECT * FROM t;
+id	a	b	c	d
+1	1	1	1	1
+2	1	1	1	1
+3	NULL	3	10	10
+4	NULL	NULL	10	10
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	'10'	YES	INTEGER	NULL
+test	t	d	'10'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	col a
+test	t	b	NULL	YES	int	col b
+test	t	c	10	YES	int	col c
+test	t	d	10	YES	int	col d
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t MODIFY a BIGINT,
+CHANGE b b BIGINT DEFAULT NULL,
+MODIFY COLUMN c BIGINT,
+CHANGE d d BIGINT DEFAULT NULL, ALGORITHM = INPLACE;
+INSERT INTO t(id) VALUES(5);
+SELECT * FROM t;
+id	a	b	c	d
+1	1	1	1	1
+2	1	1	1	1
+3	NULL	3	10	10
+4	NULL	NULL	10	10
+5	NULL	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	BIGINT	NULL
+test	t	b	NULL	YES	BIGINT	NULL
+test	t	c	NULL	YES	BIGINT	NULL
+test	t	d	NULL	YES	BIGINT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	bigint	
+test	t	b	NULL	YES	bigint	
+test	t	c	NULL	YES	bigint	
+test	t	d	NULL	YES	bigint	
+test	t	id	NULL	NO	int	
+
+#
+# 5) DEFAULT TIMESTAMP
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY,
+a TIMESTAMP NOT NULL DEFAULT '1970-01-01 12:00:00',
+b TIMESTAMP NOT NULL DEFAULT '1970-01-01 12:00:00')  ENGINE = DuckDB;
+INSERT INTO t(id) VALUES(1);
+INSERT INTO t VALUES(2, '2020-01-01 12:00:00', '2020-01-01 12:00:00');
+ALTER TABLE t MODIFY COLUMN a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CHANGE COLUMN b b TIMESTAMP NOT NULL DEFAULT NOW(), ALGORITHM = INPLACE;
+SET TIMESTAMP = 1303197722.534231;
+INSERT INTO t(id) VALUES(3);
+SELECT * FROM t;
+id	a	b
+1	1970-01-01 12:00:00	1970-01-01 12:00:00
+2	2020-01-01 12:00:00	2020-01-01 12:00:00
+3	2011-04-19 10:22:02	2011-04-19 10:22:02
+DROP TABLE t;
+SET TIMESTAMP=UNIX_TIMESTAMP('2001-01-01 00:00:00');
+CREATE TABLE t(id INT PRIMARY KEY, a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, b TIMESTAMP DEFAULT NOW()) ENGINE = InnoDB;
+INSERT INTO t(id) VALUES (1);
+SELECT * FROM t;
+id	a	b
+1	2001-01-01 00:00:00	2001-01-01 00:00:00
+SET TIMESTAMP=UNIX_TIMESTAMP('2001-03-01 00:00:00');
+ALTER TABLE t MODIFY COLUMN b TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+INSERT INTO t(id) VALUES (3);
+SELECT * FROM t;
+id	a	b
+1	2001-01-01 00:00:00	2001-01-01 00:00:00
+3	2001-03-01 00:00:00	2001-03-01 00:00:00
+#
+# 6) DEFAULT VALUE EXPRESSION
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT DEFAULT (1+1), b VARCHAR(100) DEFAULT ('1+1'), c VARCHAR(100) DEFAULT (1+1)) ENGINE = DuckDB;
+INSERT INTO t(id) VALUES(1);
+CALL dbms_duckdb.query("INSERT INTO test.t(id) VALUES(2)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+ALTER TABLE t ADD COLUMN d INT DEFAULT (2+2),
+ADD COLUMN e VARCHAR(100) DEFAULT ('2+2'),
+ADD COLUMN f VARCHAR(100) DEFAULT (2+2), ALGORITHM = INPLACE;
+INSERT INTO t(id) VALUES(3);
+CALL dbms_duckdb.query("INSERT INTO test.t(id) VALUES(4)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+ALTER TABLE t MODIFY COLUMN a INT DEFAULT (3+3),
+MODIFY COLUMN b VARCHAR(100) DEFAULT ('3+3'),
+MODIFY COLUMN c VARCHAR(100) DEFAULT (3+3), ALGORITHM = INPLACE;
+INSERT INTO t(id) VALUES(5);
+CALL dbms_duckdb.query("INSERT INTO test.t(id) VALUES(6)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+SELECT * FROM t;
+id	a	b	c	d	e	f
+1	2	1+1	2	4	2+2	4
+2	2	1+1	2	4	2+2	4
+3	2	1+1	2	4	2+2	4
+4	2	1+1	2	4	2+2	4
+5	6	3+3	6	4	2+2	4
+6	6	3+3	6	4	2+2	4
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 7]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	(3 + 3)	YES	INTEGER	NULL
+test	t	b	'3+3'	YES	VARCHAR	NULL
+test	t	c	(3 + 3)	YES	VARCHAR	NULL
+test	t	d	(2 + 2)	YES	INTEGER	NULL
+test	t	e	'2+2'	YES	VARCHAR	NULL
+test	t	f	(2 + 2)	YES	VARCHAR	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	(3 + 3)	YES	int	
+test	t	b	_utf8mb4\'3+3\'	YES	varchar	
+test	t	c	(3 + 3)	YES	varchar	
+test	t	d	(2 + 2)	YES	int	
+test	t	e	_utf8mb4\'2+2\'	YES	varchar	
+test	t	f	(2 + 2)	YES	varchar	
+test	t	id	NULL	NO	int	
+
+#
+# 7) DEFAULT VALUE OF BIT
+#
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, B0 BIT(1) NOT NULL DEFAULT 0, B1 BIT(32) NOT NULL DEFAULT b'1111') ENGINE=DuckDB;
+INSERT INTO t(id) VALUES(1);
+CALL DBMS_DUCKDB.QUERY("INSERT INTO test.t(id) VALUES(2)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+ALTER TABLE t ADD COLUMN B2 BIT(64) NOT NULL DEFAULT b'11111',
+ALTER COLUMN B1 SET DEFAULT 3333, ALGORITHM = INPLACE;
+INSERT INTO t(id) VALUES(3);
+CALL DBMS_DUCKDB.QUERY("INSERT INTO test.t(id) VALUES(4)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+SELECT id, hex(B0), hex(B1), hex(B2) FROM t;
+id	hex(B0)	hex(B1)	hex(B2)
+1	0	F	1F
+2	0	F	1F
+3	0	D05	1F
+4	0	D05	1F
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	B0	CAST('\x00'::BLOB AS BLOB)	NO	BIT	NULL
+test	t	B1	CAST('\x00\x00\x0D\x05'::BLOB AS BLOB)	NO	BIT	NULL
+test	t	B2	CAST('\x00\x00\x00\x00\x00\x00\x00\x1F'::BLOB AS BLOB)	NO	BIT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	B0	b'0'	NO	bit	
+test	t	B1	b'110100000101'	NO	bit	
+test	t	B2	b'11111'	NO	bit	
+test	t	id	NULL	NO	int	
+
+#
+# 8) MULTIPLE DDL ABOUT COLUMNS
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY,
+a INT DEFAULT 1 COMMENT 'col a',
+b INT DEFAULT 1 COMMENT 'col b', 
+c INT DEFAULT 1 COMMENT 'col c',
+d INT DEFAULT 1 COMMENT 'col d',
+e INT DEFAULT 1 COMMENT 'col e',
+f INT DEFAULT 1 COMMENT 'col f',
+g INT DEFAULT 1 COMMENT 'col g') ENGINE = DuckDB;
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 8]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	'1'	YES	INTEGER	NULL
+test	t	b	'1'	YES	INTEGER	NULL
+test	t	c	'1'	YES	INTEGER	NULL
+test	t	d	'1'	YES	INTEGER	NULL
+test	t	e	'1'	YES	INTEGER	NULL
+test	t	f	'1'	YES	INTEGER	NULL
+test	t	g	'1'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	1	YES	int	col a
+test	t	b	1	YES	int	col b
+test	t	c	1	YES	int	col c
+test	t	d	1	YES	int	col d
+test	t	e	1	YES	int	col e
+test	t	f	1	YES	int	col f
+test	t	g	1	YES	int	col g
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ADD COLUMN h INT NOT NULL DEFAULT 2 COMMENT 'col h1',
+DROP COLUMN g,
+ALTER COLUMN f SET DEFAULT 2,
+ALTER COLUMN e SET DEFAULT NULL,
+ALTER COLUMN d DROP DEFAULT,
+RENAME COLUMN a TO a1,
+MODIFY COLUMN b BIGINT DEFAULT 2 COMMENT "col b1",
+CHANGE c c1 BIGINT NOT NULL DEFAULT 2 COMMENT "col c1", ALGORITHM = INPLACE;
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 8]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	'1'	YES	INTEGER	NULL
+test	t	b	'2'	YES	BIGINT	NULL
+test	t	c1	'2'	NO	BIGINT	NULL
+test	t	d	NULL	YES	INTEGER	NULL
+test	t	e	NULL	YES	INTEGER	NULL
+test	t	f	'2'	YES	INTEGER	NULL
+test	t	h	'2'	NO	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	1	YES	int	col a
+test	t	b	2	YES	bigint	col b1
+test	t	c1	2	NO	bigint	col c1
+test	t	d	NULL	YES	int	col d
+test	t	e	NULL	YES	int	col e
+test	t	f	2	YES	int	col f
+test	t	h	2	NO	int	col h1
+test	t	id	NULL	NO	int	
+
+#
+# 9) Not supported
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+CREATE TABLE t1(id INT PRIMARY KEY, a INT INVISIBLE) ENGINE = DuckDB;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: invisible column is not supported.
+ALTER TABLE t ADD COLUMN d INT INVISIBLE, ALGORITHM = INPLACE;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: invisible column is not supported.
+ALTER TABLE t MODIFY COLUMN c INT INVISIBLE, ALGORITHM = INPLACE;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: invisible column is not supported.
+ALTER TABLE t ALTER COLUMN b SET INVISIBLE, ALGORITHM = INPLACE;
+ERROR HY000: [DuckDB] SET COLUMN INVISIBLE is not supported for this operation.
+ALTER TABLE t MODIFY COLUMN c INT AUTO_INCREMENT KEY, ALGORITHM = INPLACE;
+ERROR 42000: Multiple primary key defined
+ALTER TABLE t ADD COLUMN d INT AUTO_INCREMENT, ALGORITHM = INPLACE;
+ERROR HY000: [DuckDB] ADD AUTO_INCREMENT COLUMN is not supported for this operation.
+CREATE TABLE t1(id INT PRIMARY KEY, a INT) ENGINE = DuckDB ENGINE_ATTRIBUTE='{"KEY":"VALUE"}';
+ERROR HY000: Storage engine 'DUCKDB' does not support ENGINE_ATTRIBUTE.
+ALTER TABLE t ADD COLUMN d INT ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = INPLACE;
+ERROR HY000: Storage engine 'DUCKDB' does not support ENGINE_ATTRIBUTE.
+ALTER TABLE t MODIFY COLUMN c INT ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = INPLACE;
+ERROR HY000: Storage engine 'DUCKDB' does not support ENGINE_ATTRIBUTE.
+ALTER TABLE t ADD COLUMN d INT AFTER a, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t ADD COLUMN d INT FIRST, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t CHANGE b b INT AFTER c, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t MODIFY COLUMN a INT FIRST, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+CREATE TABLE t1(id INT PRIMARY KEY, a INT, b INT GENERATED ALWAYS AS (a - 1) STORED) ENGINE = DuckDB;
+INSERT INTO t1(id, a) VALUES(1, 1);
+ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS (a + 1) STORED, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 ADD COLUMN d INT GENERATED ALWAYS AS (a * 5) VIRTUAL, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+ALTER TABLE t1 MODIFY COLUMN b INT GENERATED ALWAYS AS (2 * a + 1) STORED, ALGORITHM = INPLACE;
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
+SELECT * FROM t1;
+id	a	b
+1	1	0
+DROP TABLE t1;
+#
+# 10) Ignore column format, secondary engine attribute, storage, they can be found in DD.
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+ALTER TABLE t ADD COLUMN d INT COLUMN_FORMAT FIXED STORAGE DISK SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}',
+ADD COLUMN e INT COLUMN_FORMAT DYNAMIC STORAGE MEMORY SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = INPLACE;
+ALTER TABLE t MODIFY COLUMN b INT COLUMN_FORMAT FIXED STORAGE DISK SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}',
+CHANGE c c INT COLUMN_FORMAT DYNAMIC STORAGE MEMORY SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = INPLACE;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int /*!50606 STORAGE DISK */ /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  `c` int /*!50606 STORAGE MEMORY */ /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  `d` int /*!50606 STORAGE DISK */ /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  `e` int /*!50606 STORAGE MEMORY */ /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 11) Drop primary key column which leads to drop primary key.
+#
+DROP TABLE t;
+CREATE TABLE t(a INT PRIMARY KEY, b INT, c INT) ENGINE = DuckDB;
+ALTER TABLE t DROP COLUMN a, ALGORITHM = INPLACE;
+ERROR 42000: This table type requires a primary key
+#
+# 12) BUG#117725
+#
+DROP TABLE t;
+CREATE TABLE t(a INT PRIMARY KEY, b INT, c INT) ENGINE = DuckDB;
+ALTER TABLE t MODIFY COLUMN a INT, MODIFY COLUMN a INT, ALGORITHM = INPLACE;
+ERROR 42S22: Unknown column 'a' in 't'
+ALTER TABLE t ALTER COLUMN a SET DEFAULT 10, ALTER COLUMN a DROP DEFAULT, ALGORITHM = INPLACE;
+ERROR 42S22: Unknown column 'a' in 't'
+ALTER TABLE t ALTER COLUMN a SET DEFAULT 10, RENAME COLUMN a to c, ALGORITHM = INPLACE;
+ERROR 42S22: Unknown column 'a' in 't'
+DROP TABLE t;
+#
+# 13) DROP COLUMN IN PRIMARY KEY
+#
+CREATE TABLE t(a INT, b INT, c INT, PRIMARY KEY(a, b, c)) ENGINE = DuckDB;
+ALTER TABLE t DROP COLUMN a, ALGORITHM = INPLACE;
+ALTER TABLE t DROP COLUMN c, ALGORITHM = INPLACE;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `b` int NOT NULL,
+  PRIMARY KEY (`b`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+test	t	b	NULL	NO	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	b	NULL	NO	int	
+
+DROP TABLE t;
+#
+# 14) DROP COLUMN BEFORE PRIMARY KEY
+#
+CREATE TABLE t(a INT, b INT, c INT, d INT, PRIMARY KEY(d, b)) ENGINE = DuckDB;
+ALTER TABLE t DROP COLUMN a, ALGORITHM = INPLACE;
+ALTER TABLE t DROP COLUMN c, ALGORITHM = INPLACE;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `b` int NOT NULL,
+  `d` int NOT NULL,
+  PRIMARY KEY (`d`,`b`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 2]
+test	t	b	NULL	NO	INTEGER	NULL
+test	t	d	NULL	NO	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	b	NULL	NO	int	
+test	t	d	NULL	NO	int	
+
+DROP TABLE t;
+#
+# 15) CHANGE COLUMN TYPE WITH INDEX
+#
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE = DuckDB;
+ALTER TABLE t MODIFY COLUMN a VARCHAR(10), ALGORITHM = INPLACE;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` varchar(10) NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 2]
+test	t	a	NULL	NO	VARCHAR	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	NO	varchar	
+test	t	b	NULL	YES	int	
+
+DROP TABLE t;
+#
+# 16) Cleanup
+#
+#################
+# TEST FOR COPY #
+#################
+#
+# 1) ADD AND DROP
+#
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ADD COLUMN d INT NOT NULL DEFAULT 100 COMMENT "col d", 
+ADD COLUMN e INT NULL DEFAULT 1000 COMMENT "",
+ADD COLUMN f INT, ALGORITHM = COPY;
+INSERT INTO t VALUES(3, 3, 3, 3, 3, 3, 3);
+INSERT INTO t(id, a, b, c) VALUES(4, 4, 4, 4);
+INSERT INTO t VALUES(5, 5, 5, 5, 5, NULL, NULL);
+INSERT INTO t VALUES(6, 6, 6, 6, NULL, NULL, NULL);
+ERROR 23000: Column 'd' cannot be null
+SELECT * FROM t;
+id	a	b	c	d	e	f
+1	1	1	1	100	1000	NULL
+2	NULL	NULL	NULL	100	1000	NULL
+3	3	3	3	3	3	3
+4	4	4	4	100	1000	NULL
+5	5	5	5	5	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 7]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+test	t	d	'100'	NO	INTEGER	NULL
+test	t	e	'1000'	YES	INTEGER	NULL
+test	t	f	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	d	100	NO	int	col d
+test	t	e	1000	YES	int	
+test	t	f	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t DROP COLUMN a, DROP COLUMN d, ALGORITHM = COPY;
+INSERT INTO t VALUES(6, 6, 6, 6, 6);
+INSERT INTO t(id, c) VALUES(7, 7);
+SELECT * FROM t;
+id	b	c	e	f
+1	1	1	1000	NULL
+2	NULL	NULL	1000	NULL
+3	3	3	3	3
+4	4	4	1000	NULL
+5	5	5	NULL	NULL
+6	6	6	6	6
+7	NULL	7	1000	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+test	t	e	'1000'	YES	INTEGER	NULL
+test	t	f	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	e	1000	YES	int	
+test	t	f	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+#
+# 3) SET AND DROP DEFAULT VALUE
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN b SET DEFAULT 100,
+ALTER COLUMN c SET DEFAULT 100, ALGORITHM = COPY;
+INSERT INTO t VALUES(3, 3, 3, 3);
+INSERT INTO t(id) VALUES(4);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+4	NULL	100	100
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	'100'	YES	INTEGER	NULL
+test	t	c	'100'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	100	YES	int	
+test	t	c	100	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN b DROP DEFAULT, 
+ALTER COLUMN c SET DEFAULT 1000, ALGORITHM = COPY;
+INSERT INTO t VALUES(5, 5, 5, 5);
+INSERT INTO t(id) VALUES(6);
+ERROR HY000: Field 'b' doesn't have a default value
+INSERT INTO t(id, b) VALUES(6, 6);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+4	NULL	100	100
+5	5	5	5
+6	NULL	6	1000
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	'1000'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	1000	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN b SET DEFAULT 10000, 
+ALTER COLUMN c DROP DEFAULT, ALGORITHM = COPY;
+INSERT INTO t VALUES(7, 7, 7, 7);
+INSERT INTO t(id) VALUES(8);
+ERROR HY000: Field 'c' doesn't have a default value
+INSERT INTO t(id, c) VALUES(8, 8);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+4	NULL	100	100
+5	5	5	5
+6	NULL	6	1000
+7	7	7	7
+8	NULL	10000	8
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	'10000'	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	10000	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+#
+# 3) RENAME, MODIFY AND CHANGE
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+2	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	
+test	t	b	NULL	YES	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t RENAME COLUMN a TO a1, 
+RENAME COLUMN b TO b1,
+RENAME COLUMN c TO c1, ALGORITHM = COPY;
+INSERT INTO t(id, a1, b1, c1) VALUES(3, 3, 3, 3);
+SELECT * FROM t;
+id	a1	b1	c1
+1	1	1	1
+2	NULL	NULL	NULL
+3	3	3	3
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	NULL	YES	INTEGER	NULL
+test	t	b1	NULL	YES	INTEGER	NULL
+test	t	c1	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	NULL	YES	int	
+test	t	b1	NULL	YES	int	
+test	t	c1	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+CALL dbms_duckdb.query("DELETE FROM test.t WHERE c1 IS NULL");
+ALTER TABLE t MODIFY COLUMN a1 BIGINT COMMENT "col a1",
+MODIFY COLUMN b1 BIGINT DEFAULT 100 COMMENT "",
+MODIFY COLUMN c1 BIGINT NOT NULL DEFAULT 100, ALGORITHM = COPY;
+INSERT INTO t VALUES(4, 4, 4, 4);
+INSERT INTO t(id) VALUES(5);
+INSERT INTO t VALUES(6, 6, NULL, 6);
+INSERT INTO t VALUES(7, 7, 7, NULL);
+ERROR 23000: Column 'c1' cannot be null
+SELECT * FROM t;
+id	a1	b1	c1
+1	1	1	1
+3	3	3	3
+4	4	4	4
+5	NULL	100	100
+6	6	NULL	6
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	NULL	YES	BIGINT	NULL
+test	t	b1	'100'	YES	BIGINT	NULL
+test	t	c1	'100'	NO	BIGINT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	NULL	YES	bigint	col a1
+test	t	b1	100	YES	bigint	
+test	t	c1	100	NO	bigint	
+test	t	id	NULL	NO	int	
+
+CALL dbms_duckdb.query("DELETE FROM test.t WHERE b1 IS NULL");
+ALTER TABLE t CHANGE a1 a INT COMMENT "col a",
+CHANGE b1 b INT NOT NULL DEFAULT 1000,
+CHANGE c1 c INT COMMENT "", ALGORITHM = COPY;
+INSERT INTO t VALUES(8, 8, 8, 8);
+INSERT INTO t(id) VALUES(9);
+INSERT INTO t VALUES(10, 10, 10, NULL);
+INSERT INTO t VALUES(11, 11, NULL, 11);
+ERROR 23000: Column 'b' cannot be null
+SELECT * FROM t;
+id	a	b	c
+1	1	1	1
+3	3	3	3
+4	4	4	4
+5	NULL	100	100
+8	8	8	8
+9	NULL	1000	NULL
+10	10	10	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	'1000'	NO	INTEGER	NULL
+test	t	c	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	col a
+test	t	b	1000	NO	int	
+test	t	c	NULL	YES	int	
+test	t	id	NULL	NO	int	
+
+CALL dbms_duckdb.query("DELETE FROM test.t WHERE c IS NULL");
+ALTER TABLE t RENAME COLUMN a TO a1,
+MODIFY COLUMN b BIGINT DEFAULT 10000 COMMENT "col b",
+CHANGE c c1 BIGINT NOT NULL DEFAULT 10000 COMMENT "col c1", ALGORITHM = COPY;
+INSERT INTO t VALUES(12, 12, 12, 12);
+INSERT INTO t(id) VALUES(13);
+INSERT INTO t VALUES(14, 14, NULL, 14);
+INSERT INTO t VALUES(15, 15, 15, NULL);
+ERROR 23000: Column 'c1' cannot be null
+SELECT * FROM t;
+id	a1	b	c1
+1	1	1	1
+3	3	3	3
+4	4	4	4
+5	NULL	100	100
+8	8	8	8
+12	12	12	12
+13	NULL	10000	10000
+14	14	NULL	14
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	NULL	YES	INTEGER	NULL
+test	t	b	'10000'	YES	BIGINT	NULL
+test	t	c1	'10000'	NO	BIGINT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	NULL	YES	int	col a
+test	t	b	10000	YES	bigint	col b
+test	t	c1	10000	NO	bigint	col c1
+test	t	id	NULL	NO	int	
+
+#
+# 4) DEFAULT NULL
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY,
+a INT DEFAULT 1 COMMENT 'col a',
+b INT DEFAULT 1 COMMENT 'col b',
+c INT DEFAULT 1 COMMENT 'col c',
+d INT DEFAULT 1 COMMENT 'col d') ENGINE = DuckDB;
+INSERT INTO t VALUES(1, 1, 1, 1, 1);
+INSERT INTO t(id) VALUES(2);
+SELECT * FROM t;
+id	a	b	c	d
+1	1	1	1	1
+2	1	1	1	1
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	'1'	YES	INTEGER	NULL
+test	t	b	'1'	YES	INTEGER	NULL
+test	t	c	'1'	YES	INTEGER	NULL
+test	t	d	'1'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	1	YES	int	col a
+test	t	b	1	YES	int	col b
+test	t	c	1	YES	int	col c
+test	t	d	1	YES	int	col d
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ALTER COLUMN a SET DEFAULT NULL,
+ALTER COLUMN b DROP DEFAULT,
+ALTER COLUMN c SET DEFAULT 10,
+ALTER COLUMN d SET DEFAULT 10, ALGORITHM = COPY;
+INSERT INTO t(id, b) VALUES(3, 3);
+INSERT INTO t(id, b) VALUES(4, NULL);
+SELECT * FROM t;
+id	a	b	c	d
+1	1	1	1	1
+2	1	1	1	1
+3	NULL	3	10	10
+4	NULL	NULL	10	10
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	INTEGER	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+test	t	c	'10'	YES	INTEGER	NULL
+test	t	d	'10'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	int	col a
+test	t	b	NULL	YES	int	col b
+test	t	c	10	YES	int	col c
+test	t	d	10	YES	int	col d
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t MODIFY a BIGINT,
+CHANGE b b BIGINT DEFAULT NULL,
+MODIFY COLUMN c BIGINT,
+CHANGE d d BIGINT DEFAULT NULL, ALGORITHM = COPY;
+INSERT INTO t(id) VALUES(5);
+SELECT * FROM t;
+id	a	b	c	d
+1	1	1	1	1
+2	1	1	1	1
+3	NULL	3	10	10
+4	NULL	NULL	10	10
+5	NULL	NULL	NULL	NULL
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 5]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	NULL	YES	BIGINT	NULL
+test	t	b	NULL	YES	BIGINT	NULL
+test	t	c	NULL	YES	BIGINT	NULL
+test	t	d	NULL	YES	BIGINT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	YES	bigint	
+test	t	b	NULL	YES	bigint	
+test	t	c	NULL	YES	bigint	
+test	t	d	NULL	YES	bigint	
+test	t	id	NULL	NO	int	
+
+#
+# 5) DEFAULT TIMESTAMP
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY,
+a TIMESTAMP NOT NULL DEFAULT '1970-01-01 12:00:00',
+b TIMESTAMP NOT NULL DEFAULT '1970-01-01 12:00:00')  ENGINE = DuckDB;
+INSERT INTO t(id) VALUES(1);
+INSERT INTO t VALUES(2, '2020-01-01 12:00:00', '2020-01-01 12:00:00');
+ALTER TABLE t MODIFY COLUMN a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+CHANGE COLUMN b b TIMESTAMP NOT NULL DEFAULT NOW(), ALGORITHM = COPY;
+SET TIMESTAMP = 1303197722.534231;
+INSERT INTO t(id) VALUES(3);
+SELECT * FROM t;
+id	a	b
+1	1970-01-01 12:00:00	1970-01-01 12:00:00
+2	2020-01-01 12:00:00	2020-01-01 12:00:00
+3	2011-04-19 10:22:02	2011-04-19 10:22:02
+DROP TABLE t;
+SET TIMESTAMP=UNIX_TIMESTAMP('2001-01-01 00:00:00');
+CREATE TABLE t(id INT PRIMARY KEY, a TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, b TIMESTAMP DEFAULT NOW()) ENGINE = InnoDB;
+INSERT INTO t(id) VALUES (1);
+SELECT * FROM t;
+id	a	b
+1	2001-01-01 00:00:00	2001-01-01 00:00:00
+SET TIMESTAMP=UNIX_TIMESTAMP('2001-03-01 00:00:00');
+ALTER TABLE t MODIFY COLUMN b TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+INSERT INTO t(id) VALUES (3);
+SELECT * FROM t;
+id	a	b
+1	2001-01-01 00:00:00	2001-01-01 00:00:00
+3	2001-03-01 00:00:00	2001-03-01 00:00:00
+#
+# 6) DEFAULT VALUE EXPRESSION
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT DEFAULT (1+1), b VARCHAR(100) DEFAULT ('1+1'), c VARCHAR(100) DEFAULT (1+1)) ENGINE = DuckDB;
+INSERT INTO t(id) VALUES(1);
+CALL dbms_duckdb.query("INSERT INTO test.t(id) VALUES(2)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+ALTER TABLE t ADD COLUMN d INT DEFAULT (2+2),
+ADD COLUMN e VARCHAR(100) DEFAULT ('2+2'),
+ADD COLUMN f VARCHAR(100) DEFAULT (2+2), ALGORITHM = COPY;
+INSERT INTO t(id) VALUES(3);
+CALL dbms_duckdb.query("INSERT INTO test.t(id) VALUES(4)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+ALTER TABLE t MODIFY COLUMN a INT DEFAULT (3+3),
+MODIFY COLUMN b VARCHAR(100) DEFAULT ('3+3'),
+MODIFY COLUMN c VARCHAR(100) DEFAULT (3+3), ALGORITHM = COPY;
+INSERT INTO t(id) VALUES(5);
+CALL dbms_duckdb.query("INSERT INTO test.t(id) VALUES(6)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+SELECT * FROM t;
+id	a	b	c	d	e	f
+1	2	1+1	2	4	2+2	4
+2	2	1+1	2	4	2+2	4
+3	2	1+1	2	4	2+2	4
+4	2	1+1	2	4	2+2	4
+5	6	3+3	6	4	2+2	4
+6	6	3+3	6	4	2+2	4
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 7]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	(3 + 3)	YES	INTEGER	NULL
+test	t	b	'3+3'	YES	VARCHAR	NULL
+test	t	c	(3 + 3)	YES	VARCHAR	NULL
+test	t	d	(2 + 2)	YES	INTEGER	NULL
+test	t	e	'2+2'	YES	VARCHAR	NULL
+test	t	f	(2 + 2)	YES	VARCHAR	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	(3 + 3)	YES	int	
+test	t	b	_utf8mb4\'3+3\'	YES	varchar	
+test	t	c	(3 + 3)	YES	varchar	
+test	t	d	(2 + 2)	YES	int	
+test	t	e	_utf8mb4\'2+2\'	YES	varchar	
+test	t	f	(2 + 2)	YES	varchar	
+test	t	id	NULL	NO	int	
+
+#
+# 7) DEFAULT VALUE OF BIT
+#
+DROP TABLE t;
+CREATE TABLE t (id INT PRIMARY KEY, B0 BIT(1) NOT NULL DEFAULT 0, B1 BIT(32) NOT NULL DEFAULT b'1111') ENGINE=DuckDB;
+INSERT INTO t(id) VALUES(1);
+CALL DBMS_DUCKDB.QUERY("INSERT INTO test.t(id) VALUES(2)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+ALTER TABLE t ADD COLUMN B2 BIT(64) NOT NULL DEFAULT b'11111',
+ALTER COLUMN B1 SET DEFAULT 3333, ALGORITHM = COPY;
+INSERT INTO t(id) VALUES(3);
+CALL DBMS_DUCKDB.QUERY("INSERT INTO test.t(id) VALUES(4)");
+RESULT
+Count	
+BIGINT	
+[ Rows: 1]
+1
+
+
+SELECT id, hex(B0), hex(B1), hex(B2) FROM t;
+id	hex(B0)	hex(B1)	hex(B2)
+1	0	F	1F
+2	0	F	1F
+3	0	D05	1F
+4	0	D05	1F
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 4]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	B0	CAST('\x00'::BLOB AS BLOB)	NO	BIT	NULL
+test	t	B1	CAST('\x00\x00\x0D\x05'::BLOB AS BLOB)	NO	BIT	NULL
+test	t	B2	CAST('\x00\x00\x00\x00\x00\x00\x00\x1F'::BLOB AS BLOB)	NO	BIT	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	B0	b'0'	NO	bit	
+test	t	B1	b'110100000101'	NO	bit	
+test	t	B2	b'11111'	NO	bit	
+test	t	id	NULL	NO	int	
+
+#
+# 8) MULTIPLE DDL ABOUT COLUMNS
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY,
+a INT DEFAULT 1 COMMENT 'col a',
+b INT DEFAULT 1 COMMENT 'col b', 
+c INT DEFAULT 1 COMMENT 'col c',
+d INT DEFAULT 1 COMMENT 'col d',
+e INT DEFAULT 1 COMMENT 'col e',
+f INT DEFAULT 1 COMMENT 'col f',
+g INT DEFAULT 1 COMMENT 'col g') ENGINE = DuckDB;
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 8]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a	'1'	YES	INTEGER	NULL
+test	t	b	'1'	YES	INTEGER	NULL
+test	t	c	'1'	YES	INTEGER	NULL
+test	t	d	'1'	YES	INTEGER	NULL
+test	t	e	'1'	YES	INTEGER	NULL
+test	t	f	'1'	YES	INTEGER	NULL
+test	t	g	'1'	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	1	YES	int	col a
+test	t	b	1	YES	int	col b
+test	t	c	1	YES	int	col c
+test	t	d	1	YES	int	col d
+test	t	e	1	YES	int	col e
+test	t	f	1	YES	int	col f
+test	t	g	1	YES	int	col g
+test	t	id	NULL	NO	int	
+
+ALTER TABLE t ADD COLUMN h INT NOT NULL DEFAULT 2 COMMENT 'col h1',
+DROP COLUMN g,
+ALTER COLUMN f SET DEFAULT 2,
+ALTER COLUMN e SET DEFAULT NULL,
+ALTER COLUMN d DROP DEFAULT,
+RENAME COLUMN a TO a1,
+MODIFY COLUMN b BIGINT DEFAULT 2 COMMENT "col b1",
+CHANGE c c1 BIGINT NOT NULL DEFAULT 2 COMMENT "col c1", ALGORITHM = COPY;
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 8]
+test	t	id	NULL	NO	INTEGER	NULL
+test	t	a1	'1'	YES	INTEGER	NULL
+test	t	b	'2'	YES	BIGINT	NULL
+test	t	c1	'2'	NO	BIGINT	NULL
+test	t	d	NULL	YES	INTEGER	NULL
+test	t	e	NULL	YES	INTEGER	NULL
+test	t	f	'2'	YES	INTEGER	NULL
+test	t	h	'2'	NO	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a1	1	YES	int	col a
+test	t	b	2	YES	bigint	col b1
+test	t	c1	2	NO	bigint	col c1
+test	t	d	NULL	YES	int	col d
+test	t	e	NULL	YES	int	col e
+test	t	f	2	YES	int	col f
+test	t	h	2	NO	int	col h1
+test	t	id	NULL	NO	int	
+
+#
+# 9) Not supported
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+CREATE TABLE t1(id INT PRIMARY KEY, a INT INVISIBLE) ENGINE = DuckDB;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: invisible column is not supported.
+ALTER TABLE t ADD COLUMN d INT INVISIBLE, ALGORITHM = COPY;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: invisible column is not supported.
+ALTER TABLE t MODIFY COLUMN c INT INVISIBLE, ALGORITHM = COPY;
+ERROR HY000: [DuckDB] DuckDB table structure is invalid. Reason: invisible column is not supported.
+ALTER TABLE t ALTER COLUMN b SET INVISIBLE, ALGORITHM = COPY;
+ERROR HY000: [DuckDB] SET COLUMN INVISIBLE is not supported for this operation.
+ALTER TABLE t MODIFY COLUMN c INT AUTO_INCREMENT KEY, ALGORITHM = COPY;
+ERROR 42000: Multiple primary key defined
+ALTER TABLE t ADD COLUMN d INT AUTO_INCREMENT, ALGORITHM = COPY;
+ERROR HY000: [DuckDB] ADD AUTO_INCREMENT COLUMN is not supported for this operation.
+CREATE TABLE t1(id INT PRIMARY KEY, a INT) ENGINE = DuckDB ENGINE_ATTRIBUTE='{"KEY":"VALUE"}';
+ERROR HY000: Storage engine 'DUCKDB' does not support ENGINE_ATTRIBUTE.
+ALTER TABLE t ADD COLUMN d INT ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = COPY;
+ERROR HY000: Storage engine 'DUCKDB' does not support ENGINE_ATTRIBUTE.
+ALTER TABLE t MODIFY COLUMN c INT ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = COPY;
+ERROR HY000: Storage engine 'DUCKDB' does not support ENGINE_ATTRIBUTE.
+CREATE TABLE t1(id INT PRIMARY KEY, a INT, b INT GENERATED ALWAYS AS (a - 1) STORED) ENGINE = DuckDB;
+INSERT INTO t1(id, a) VALUES(1, 1);
+ALTER TABLE t1 ADD COLUMN c INT GENERATED ALWAYS AS (a + 1) STORED, ALGORITHM = COPY;
+INSERT INTO t1(id, a) VALUES(2, 2);
+SELECT * FROM t1;
+id	a	b	c
+1	1	0	2
+2	2	1	3
+ALTER TABLE t1 ADD COLUMN d INT GENERATED ALWAYS AS (a * 5) VIRTUAL, ALGORITHM = COPY;
+INSERT INTO t1(id, a) VALUES(3, 3);
+SELECT * FROM t1;
+id	a	b	c	d
+1	1	0	2	5
+2	2	1	3	10
+3	3	2	4	15
+ALTER TABLE t1 MODIFY COLUMN b INT GENERATED ALWAYS AS (2 * a + 1) STORED, ALGORITHM = COPY;
+INSERT INTO t1(id, a) VALUES(4, 4);
+SELECT * FROM t1;
+id	a	b	c	d
+1	1	3	2	5
+2	2	5	3	10
+3	3	7	4	15
+4	4	9	5	20
+DROP TABLE t1;
+#
+# 10) Ignore column format, secondary engine attribute, storage, they can be found in DD.
+#
+DROP TABLE t;
+CREATE TABLE t(id INT PRIMARY KEY, a INT, b INT, c INT) ENGINE = DuckDB;
+ALTER TABLE t ADD COLUMN d INT COLUMN_FORMAT FIXED STORAGE DISK SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}',
+ADD COLUMN e INT COLUMN_FORMAT DYNAMIC STORAGE MEMORY SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = COPY;
+ALTER TABLE t MODIFY COLUMN b INT COLUMN_FORMAT FIXED STORAGE DISK SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}',
+CHANGE c c INT COLUMN_FORMAT DYNAMIC STORAGE MEMORY SECONDARY_ENGINE_ATTRIBUTE='{"KEY":"VALUE"}', ALGORITHM = COPY;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `id` int NOT NULL,
+  `a` int DEFAULT NULL,
+  `b` int /*!50606 STORAGE DISK */ /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  `c` int /*!50606 STORAGE MEMORY */ /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  `d` int /*!50606 STORAGE DISK */ /*!50606 COLUMN_FORMAT FIXED */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  `e` int /*!50606 STORAGE MEMORY */ /*!50606 COLUMN_FORMAT DYNAMIC */ DEFAULT NULL /*!80021 SECONDARY_ENGINE_ATTRIBUTE '{"KEY": "VALUE"}' */,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+#
+# 11) Drop primary key column which leads to drop primary key.
+#
+DROP TABLE t;
+CREATE TABLE t(a INT PRIMARY KEY, b INT, c INT) ENGINE = DuckDB;
+ALTER TABLE t DROP COLUMN a, ALGORITHM = COPY;
+ERROR 42000: This table type requires a primary key
+#
+# 12) BUG#117725
+#
+DROP TABLE t;
+CREATE TABLE t(a INT PRIMARY KEY, b INT, c INT) ENGINE = DuckDB;
+ALTER TABLE t MODIFY COLUMN a INT, MODIFY COLUMN a INT, ALGORITHM = COPY;
+ERROR 42S22: Unknown column 'a' in 't'
+ALTER TABLE t ALTER COLUMN a SET DEFAULT 10, ALTER COLUMN a DROP DEFAULT, ALGORITHM = COPY;
+ERROR 42S22: Unknown column 'a' in 't'
+ALTER TABLE t ALTER COLUMN a SET DEFAULT 10, RENAME COLUMN a to c, ALGORITHM = COPY;
+ERROR 42S22: Unknown column 'a' in 't'
+DROP TABLE t;
+#
+# 13) DROP COLUMN IN PRIMARY KEY
+#
+CREATE TABLE t(a INT, b INT, c INT, PRIMARY KEY(a, b, c)) ENGINE = DuckDB;
+ALTER TABLE t DROP COLUMN a, ALGORITHM = COPY;
+ALTER TABLE t DROP COLUMN c, ALGORITHM = COPY;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `b` int NOT NULL,
+  PRIMARY KEY (`b`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 1]
+test	t	b	NULL	NO	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	b	NULL	NO	int	
+
+DROP TABLE t;
+#
+# 14) DROP COLUMN BEFORE PRIMARY KEY
+#
+CREATE TABLE t(a INT, b INT, c INT, d INT, PRIMARY KEY(d, b)) ENGINE = DuckDB;
+ALTER TABLE t DROP COLUMN a, ALGORITHM = COPY;
+ALTER TABLE t DROP COLUMN c, ALGORITHM = COPY;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `b` int NOT NULL,
+  `d` int NOT NULL,
+  PRIMARY KEY (`d`,`b`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 2]
+test	t	b	NULL	NO	INTEGER	NULL
+test	t	d	NULL	NO	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	b	NULL	NO	int	
+test	t	d	NULL	NO	int	
+
+DROP TABLE t;
+#
+# 15) CHANGE COLUMN TYPE WITH INDEX
+#
+CREATE TABLE t(a INT PRIMARY KEY, b INT) ENGINE = DuckDB;
+ALTER TABLE t MODIFY COLUMN a VARCHAR(10), ALGORITHM = COPY;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` varchar(10) NOT NULL,
+  `b` int DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CALL dbms_duckdb.query("SELECT table_schema, table_name, column_name, column_default, is_nullable, data_type, COLUMN_COMMENT FROM information_schema.columns WHERE table_name = 't'");
+RESULT
+table_schema	table_name	column_name	column_default	is_nullable	data_type	COLUMN_COMMENT	
+VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	VARCHAR	
+[ Rows: 2]
+test	t	a	NULL	NO	VARCHAR	NULL
+test	t	b	NULL	YES	INTEGER	NULL
+
+
+SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME, COLUMN_DEFAULT, IS_NULLABLE, DATA_TYPE, COLUMN_COMMENT FROM information_schema.columns WHERE TABLE_NAME = 't';
+TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	COLUMN_COMMENT
+test	t	a	NULL	NO	varchar	
+test	t	b	NULL	YES	int	
+
+DROP TABLE t;
+#
+# 16) Cleanup
+#

@@ -1,0 +1,81 @@
+# name: test/sql/catalog/dependencies/test_prepare_dependencies_transactions.test
+# description: Prepare dependencies and transactions
+# group: [dependencies]
+
+require skip_reload
+
+statement ok
+SET immediate_transaction_mode=true
+
+# case one: prepared statement is created outside of transaction and committed
+statement ok con1
+CREATE TABLE integers(i INTEGER)
+
+statement ok con1
+INSERT INTO integers VALUES (1), (2), (3), (4), (5)
+
+statement ok con2
+PREPARE v AS SELECT SUM(i) FROM integers
+
+# begin a transaction in con2
+statement ok con2
+BEGIN TRANSACTION
+
+# now drop the table in con, with a cascading drop
+statement ok con1
+DROP TABLE integers CASCADE
+
+# we can still execute v in con2
+statement ok con2
+EXECUTE v
+
+# if we try to drop integers we get a conflict though
+statement error con2
+DROP TABLE integers CASCADE
+----
+<REGEX>:.*TransactionContext Error: Catalog write-write conflict on alter.*
+
+# now we rollback
+statement ok con2
+ROLLBACK
+
+# now we can't use the prepared statement anymore
+statement error con2
+EXECUTE v
+----
+<REGEX>:.*Catalog Error.*does not exist.*
+
+# case two: prepared statement is created inside transaction
+statement ok con1
+CREATE TABLE integers(i INTEGER)
+
+statement ok con1
+INSERT INTO integers VALUES (1), (2), (3), (4), (5)
+
+# begin a transaction and create a prepared statement
+statement ok con2
+BEGIN TRANSACTION
+
+statement ok con2
+PREPARE v AS SELECT SUM(i) FROM integers
+
+# use the prepared statement
+statement ok con2
+EXECUTE v
+
+# integers has a prepared statement depending on it, but we can still drop it
+statement ok con1
+DROP TABLE integers
+
+# using the prepared statement after the table is still works: we are inside a transaction that uses an old version
+statement ok con2
+EXECUTE v
+
+statement ok con2
+COMMIT
+
+# after committing we can no longer use the prepared statement
+statement error con2
+EXECUTE v
+----
+<REGEX>:.*Catalog Error.*does not exist.*

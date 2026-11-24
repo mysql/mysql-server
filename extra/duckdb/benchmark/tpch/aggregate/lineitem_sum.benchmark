@@ -1,0 +1,15 @@
+# name: benchmark/tpch/aggregate/lineitem_sum.benchmark
+# description: Simple SUM aggregate over lineitem
+# group: [aggregate]
+
+include benchmark/tpch/tpch_load.benchmark.in
+
+name Lineitem Simple Sum
+group aggregate
+subgroup tpch
+
+run
+SELECT SUM(l_quantity) FROM lineitem
+
+result I sf=1
+153078795

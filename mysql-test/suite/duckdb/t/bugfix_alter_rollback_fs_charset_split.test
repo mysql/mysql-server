@@ -1,0 +1,265 @@
+# Test: bugfix_alter_rollback_fs_charset_split
+#
+# InnoDB FIL cache fs-charset vs system-charset split bug after
+# atomic-DDL rollback. Reproduced via ALTER ... FORCE, ALGORITHM=COPY:
+# the two mysql_rename_table calls (original->backup, new->original)
+# leave the FIL cache in a state where Log_DDL::post_ddl ->
+# fil_op_replay_rename's "rollback target file does NOT exist" branch
+# string-slices the .ibd path with no charset decoding and writes
+# space->name in fs charset (e.g. "schema@002dx/t1"). dd_load_tablespace's
+# repair reconciles cache vs DD via fil_space_update_name; the
+# `dd_load_tablespace_skip_fix` keyword gates the repair off so the
+# unfixed pre-fix symptom (ER 1812) can be reproduced.
+#
+# Single-rename DDL (plain RENAME TABLE / ALTER TABLE ... RENAME TO)
+# does NOT trigger the bug: with only one rename in the DDL log, the
+# replay hits fil_rename_validate's "already maps" branch instead of
+# the string-slice branch, so the FIL cache stays in system charset.
+#
+# Trunk canonicalizes FIL cache names with dict_name::convert_to_space().
+# Verify all name components remain readable after rollback, including with
+# the legacy defensive repair disabled; no divergence warning should occur.
+
+--source include/have_debug.inc
+
+--let $datadir = `SELECT @@datadir`
+
+
+--echo # === Case 1: schema name with '-' (COPY ALTER) ===
+
+CREATE DATABASE `mydb-x`;
+USE `mydb-x`;
+
+# Positive: fix engaged.
+CREATE TABLE t1 (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1, 'a'), (2, 'b'), (3, 'c');
+--file_exists $datadir/mydb@002dx/t1.ibd
+FLUSH TABLES t1;
+--let $checksum1_before = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+--error ER_LOCK_DEADLOCK
+ALTER TABLE t1 FORCE, ALGORITHM=COPY;
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+
+FLUSH TABLES t1;
+--sorted_result
+SELECT * FROM t1;
+
+--let $checksum1_after = query_get_value(CHECKSUM TABLE t1, Checksum, 1)
+--let $assert_cond = "$checksum1_before" = "$checksum1_after"
+--let $assert_text = case 1 positive: checksum stable
+--source include/assert.inc
+
+# Disable the legacy repair on a separate table; trunk must still preserve
+# the canonical cache name and keep the rolled-back table readable.
+CREATE TABLE t1n (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB;
+INSERT INTO t1n VALUES (1, 'a');
+FLUSH TABLES t1n;
+
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+--error ER_LOCK_DEADLOCK
+ALTER TABLE t1n FORCE, ALGORITHM=COPY;
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+
+SET SESSION debug = '+d,dd_load_tablespace_skip_fix';
+FLUSH TABLES t1n;
+--disable_warnings
+SELECT * FROM t1n;
+--enable_warnings
+SET SESSION debug = '-d,dd_load_tablespace_skip_fix';
+
+--let $assert_file = $MYSQLTEST_VARDIR/log/mysqld.1.err
+--let $assert_text = case 1: canonical FIL cache names preserved
+--let $assert_select = FIL cache name .* differs from data dictionary name
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+DROP TABLE t1, t1n;
+DROP DATABASE `mydb-x`;
+
+
+--echo # === Case 2: table name with '-' (COPY ALTER) ===
+
+CREATE DATABASE cleandb;
+USE cleandb;
+
+CREATE TABLE `t-name` (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB;
+INSERT INTO `t-name` VALUES (10, 'x'), (20, 'y'), (30, 'z');
+--file_exists $datadir/cleandb/t@002dname.ibd
+FLUSH TABLES `t-name`;
+--let $checksum2_before = query_get_value(CHECKSUM TABLE `t-name`, Checksum, 1)
+
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+--error ER_LOCK_DEADLOCK
+ALTER TABLE `t-name` FORCE, ALGORITHM=COPY;
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+
+FLUSH TABLES `t-name`;
+--sorted_result
+SELECT * FROM `t-name`;
+
+--let $checksum2_after = query_get_value(CHECKSUM TABLE `t-name`, Checksum, 1)
+--let $assert_cond = "$checksum2_before" = "$checksum2_after"
+--let $assert_text = case 2 positive: checksum stable
+--source include/assert.inc
+
+CREATE TABLE `t-namen` (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB;
+INSERT INTO `t-namen` VALUES (1, 'a');
+FLUSH TABLES `t-namen`;
+
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+--error ER_LOCK_DEADLOCK
+ALTER TABLE `t-namen` FORCE, ALGORITHM=COPY;
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+
+SET SESSION debug = '+d,dd_load_tablespace_skip_fix';
+FLUSH TABLES `t-namen`;
+--disable_warnings
+SELECT * FROM `t-namen`;
+--enable_warnings
+SET SESSION debug = '-d,dd_load_tablespace_skip_fix';
+
+--let $assert_text = case 2: canonical FIL cache names preserved
+--let $assert_select = FIL cache name .* differs from data dictionary name
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+DROP TABLE `t-name`, `t-namen`;
+
+
+--echo # === Case 3: partition name with '-' (COPY ALTER) ===
+
+CREATE TABLE pt (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+  PARTITION `p-low` VALUES LESS THAN (50),
+  PARTITION `p-high` VALUES LESS THAN (200)
+);
+INSERT INTO pt VALUES (1, 'a'), (49, 'b'), (100, 'c');
+--file_exists $datadir/cleandb/pt#p#p@002dlow.ibd
+FLUSH TABLES pt;
+--let $checksum3_before = query_get_value(CHECKSUM TABLE pt, Checksum, 1)
+
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+--error ER_LOCK_DEADLOCK
+ALTER TABLE pt FORCE, ALGORITHM=COPY;
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+
+FLUSH TABLES pt;
+--sorted_result
+SELECT * FROM pt;
+
+--let $checksum3_after = query_get_value(CHECKSUM TABLE pt, Checksum, 1)
+--let $assert_cond = "$checksum3_before" = "$checksum3_after"
+--let $assert_text = case 3 positive: checksum stable
+--source include/assert.inc
+
+CREATE TABLE ptn (id INT PRIMARY KEY, val VARCHAR(32)) ENGINE=InnoDB
+PARTITION BY RANGE (id) (
+  PARTITION `pn-low` VALUES LESS THAN (50),
+  PARTITION `pn-high` VALUES LESS THAN (200)
+);
+INSERT INTO ptn VALUES (1, 'a'), (49, 'b');
+FLUSH TABLES ptn;
+
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+--error ER_LOCK_DEADLOCK
+ALTER TABLE ptn FORCE, ALGORITHM=COPY;
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+
+SET SESSION debug = '+d,dd_load_tablespace_skip_fix';
+FLUSH TABLES ptn;
+--disable_warnings
+SELECT * FROM ptn;
+--enable_warnings
+SET SESSION debug = '-d,dd_load_tablespace_skip_fix';
+
+# pt has 2 partitions (positive), ptn has 2 partitions (negative); 4 warnings total.
+--let $assert_text = case 3: canonical FIL cache names preserved
+--let $assert_select = FIL cache name .* differs from data dictionary name
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+DROP TABLE pt, ptn;
+
+
+--echo # === Case 4: sub-partition name with '-' (COPY ALTER) ===
+
+CREATE TABLE st (id INT, val VARCHAR(32)) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id) (
+  PARTITION p1 VALUES LESS THAN (50) (
+    SUBPARTITION `sp-a`,
+    SUBPARTITION `sp-b`
+  ),
+  PARTITION p2 VALUES LESS THAN (200) (
+    SUBPARTITION `sp-c`,
+    SUBPARTITION `sp-d`
+  )
+);
+INSERT INTO st VALUES (1, 'a'), (49, 'b'), (100, 'c'), (150, 'd');
+--file_exists $datadir/cleandb/st#p#p1#sp#sp@002da.ibd
+FLUSH TABLES st;
+--let $checksum4_before = query_get_value(CHECKSUM TABLE st, Checksum, 1)
+
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+--error ER_LOCK_DEADLOCK
+ALTER TABLE st FORCE, ALGORITHM=COPY;
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+
+FLUSH TABLES st;
+--sorted_result
+SELECT * FROM st;
+
+--let $checksum4_after = query_get_value(CHECKSUM TABLE st, Checksum, 1)
+--let $assert_cond = "$checksum4_before" = "$checksum4_after"
+--let $assert_text = case 4 positive: checksum stable
+--source include/assert.inc
+
+CREATE TABLE stn (id INT, val VARCHAR(32)) ENGINE=InnoDB
+PARTITION BY RANGE (id)
+SUBPARTITION BY HASH(id) (
+  PARTITION p1 VALUES LESS THAN (50) (
+    SUBPARTITION `sn-a`,
+    SUBPARTITION `sn-b`
+  ),
+  PARTITION p2 VALUES LESS THAN (200) (
+    SUBPARTITION `sn-c`,
+    SUBPARTITION `sn-d`
+  )
+);
+INSERT INTO stn VALUES (1, 'a'), (100, 'c');
+FLUSH TABLES stn;
+
+SET SESSION debug = '+d,force_alter_rollback_after_rename';
+--error ER_LOCK_DEADLOCK
+ALTER TABLE stn FORCE, ALGORITHM=COPY;
+SET SESSION debug = '-d,force_alter_rollback_after_rename';
+
+SET SESSION debug = '+d,dd_load_tablespace_skip_fix';
+FLUSH TABLES stn;
+--disable_warnings
+SELECT * FROM stn;
+--enable_warnings
+SET SESSION debug = '-d,dd_load_tablespace_skip_fix';
+
+# st has 4 sub-partitions (positive), stn has 4 (negative); 8 warnings total.
+--let $assert_text = case 4: canonical FIL cache names preserved
+--let $assert_select = FIL cache name .* differs from data dictionary name
+--let $assert_count = 0
+--source include/assert_grep.inc
+
+DROP TABLE st, stn;
+
+
+--echo # === Cleanup ===
+
+DROP DATABASE cleandb;
+
+--disable_query_log
+CALL mtr.add_suppression("\\[ERROR\\] \\[MY-013140\\] \\[Server\\] .*");
+CALL mtr.add_suppression("\\[InnoDB\\] FIL cache name .* differs from data dictionary name");
+# Negative halves leave ibd_file_missing=true on the sub-table, which
+# emits the statistics warning on the failing SELECT.
+CALL mtr.add_suppression("\\[InnoDB\\] Cannot calculate statistics for table .* because the .ibd file is missing");
+--enable_query_log

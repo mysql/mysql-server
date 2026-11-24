@@ -1,0 +1,29 @@
+SET @saved = @@global.duckdb_enable_background_checkpoint;
+SELECT @@global.duckdb_enable_background_checkpoint;
+@@global.duckdb_enable_background_checkpoint
+0
+SHOW GLOBAL VARIABLES LIKE 'duckdb_enable_background_checkpoint';
+Variable_name	Value
+duckdb_enable_background_checkpoint	OFF
+SELECT @@session.duckdb_enable_background_checkpoint;
+ERROR HY000: Variable 'duckdb_enable_background_checkpoint' is a GLOBAL variable
+SET SESSION duckdb_enable_background_checkpoint = ON;
+ERROR HY000: Variable 'duckdb_enable_background_checkpoint' is a GLOBAL variable and should be set with SET GLOBAL
+SET GLOBAL duckdb_enable_background_checkpoint = 2;
+ERROR 42000: Variable 'duckdb_enable_background_checkpoint' can't be set to the value of '2'
+SET GLOBAL duckdb_enable_background_checkpoint = 'invalid';
+ERROR 42000: Variable 'duckdb_enable_background_checkpoint' can't be set to the value of 'invalid'
+SET GLOBAL duckdb_enable_background_checkpoint = ON;
+CALL dbms_duckdb.query("SELECT current_setting('enable_background_checkpoint') AS enabled");
+RESULT
+enabled	
+BOOLEAN	
+[ Rows: 1]
+true
+
+
+SET GLOBAL duckdb_enable_background_checkpoint = DEFAULT;
+SELECT @@global.duckdb_enable_background_checkpoint;
+@@global.duckdb_enable_background_checkpoint
+0
+SET GLOBAL duckdb_enable_background_checkpoint = @saved;

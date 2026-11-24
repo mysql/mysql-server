@@ -1,0 +1,186 @@
+--source include/have_binlog_format_mixed.inc
+--source include/rpl/init_source_replica.inc
+
+--write_file $MYSQL_TMP_DIR/check_src_rpl.inc
+  --source include/rpl/sync.inc
+  --source include/rpl/connection_replica.inc
+  --let $checksum_rpl = query_get_value(CHECKSUM TABLE $t, Checksum, 1)
+
+  --source include/rpl/connection_source.inc
+  --let $checksum_src = query_get_value(CHECKSUM TABLE $t, Checksum, 1)
+
+  --let $assert_cond = "$checksum_rpl" = "$checksum_src"
+  --let $assert_text= CHECKSUM is the same for $t
+  --source include/assert.inc
+EOF
+
+
+--echo #
+--echo # 1) CREATE TABLE
+--echo #
+--source include/rpl/connection_source.inc
+CREATE TABLE t1(id INT PRIMARY KEY, a INT, b INT,
+                c INT GENERATED ALWAYS AS (a + b) VIRTUAL,
+                d VARCHAR(1000) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED,
+                e VARCHAR(1000) GENERATED ALWAYS AS ('str') VIRTUAL,
+                j_val1 INT GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val1')) STORED,
+                content text CHARACTER SET utf8mb4,
+                j_val2 VARCHAR(100) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val2')) VIRTUAL,
+                j_val3 decimal(38,20) GENERATED ALWAYS AS (JSON_EXTRACT(`content`,_utf8mb4'$.val3')) STORED
+                ) ENGINE = InnoDB;
+
+CREATE TABLE t2(id INT PRIMARY KEY, 
+                created_at DATETIME NOT NULL DEFAULT '2025-02-01 00:00:00',
+                created_date DATE GENERATED ALWAYS AS (DATE(created_at)) STORED,
+                created_month INT  GENERATED ALWAYS AS (MONTH(created_at)) STORED,
+                created_year SMALLINT GENERATED ALWAYS AS (YEAR(created_at)) VIRTUAL,
+                created_unix_ts BIGINT GENERATED ALWAYS AS (TIMESTAMPDIFF(SECOND, '1970-01-01 00:00:00', created_at)) STORED,
+                days_from_today INT GENERATED ALWAYS AS (DATEDIFF(DATE(created_at), '2025-01-01 00:00:00')) VIRTUAL,
+                created_plus_1h DATETIME GENERATED ALWAYS AS (ADDTIME(created_at, '01:00:00')) STORED,
+                created_minus_30m DATETIME GENERATED ALWAYS AS (SUBTIME(created_at, '00:30:00')) STORED
+                ) ENGINE = DuckDB;
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE t1;
+SHOW CREATE TABLE t2;
+
+
+--echo #
+--echo # 2) DML
+--echo #
+--source include/rpl/connection_source.inc
+INSERT INTO t1(id, a, b, content) VALUES (1, 2, 4, '{"val1":1,"val2":"name_001","val3":1.01}');
+INSERT INTO t1(id, a, b, content) VALUES (2, 4, 6, '{"val1":2,"val2":"name_002","val3":2.02}');
+INSERT INTO t1(id, a, b, content) VALUES (3, 6, 9, '{"val1":3,"val2":"name_003","val3":3.03}');
+INSERT INTO t2(id, created_at) VALUES (1, '2025-01-01 00:00:00');
+INSERT INTO t2(id, created_at) VALUES (2, '2025-02-02 00:00:00');
+INSERT INTO t2(id, created_at) VALUES (3, '2025-03-03 00:00:00');
+--let $t = t1
+--source $MYSQL_TMP_DIR/check_src_rpl.inc
+--let $t = t2
+--source $MYSQL_TMP_DIR/check_src_rpl.inc
+
+UPDATE t1 SET a = 10 WHERE id = 1;
+UPDATE t1 SET b = 20 WHERE id = 2;
+UPDATE t1 SET content = '{"val1":4,"val2":"name_004","val3":4.04}' WHERE id = 3;
+UPDATE t2 SET created_at = '2025-04-04 00:00:00' WHERE id = 1;
+UPDATE t2 SET id = 20, created_at = '2025-05-05 00:00:00' WHERE id = 2;
+--let $t = t1
+--source $MYSQL_TMP_DIR/check_src_rpl.inc
+--let $t = t2
+--source $MYSQL_TMP_DIR/check_src_rpl.inc
+
+DELETE FROM t1 WHERE id = 3;
+DELETE FROM t2 WHERE id = 3;
+--let $t = t1
+--source $MYSQL_TMP_DIR/check_src_rpl.inc
+--let $t = t2
+--source $MYSQL_TMP_DIR/check_src_rpl.inc
+
+
+--echo #
+--echo # 3) TEST DUCKDB UDF
+--echo #
+DROP TABLE t1;
+CREATE TABLE t1 (
+  id BIGINT PRIMARY KEY,
+  expr       VARCHAR(255) NOT NULL,
+  pat        VARCHAR(255) NOT NULL,
+  repl       VARCHAR(255) NOT NULL DEFAULT '#',
+  pos        INT NOT NULL DEFAULT 1,
+  occurrence INT NOT NULL DEFAULT 1,
+  return_opt INT NOT NULL DEFAULT 0,
+  match_type VARCHAR(16) NOT NULL DEFAULT 'c',
+
+  j1 JSON NOT NULL,
+  j2 JSON NOT NULL,
+
+  -- JSON
+  g_json_overlaps BOOLEAN GENERATED ALWAYS AS (
+    JSON_OVERLAPS(j1, j2)
+  ) STORED,
+
+  g_json_depth INT GENERATED ALWAYS AS (
+    JSON_DEPTH(j1)
+  ) STORED,
+
+  g_json_unquote VARCHAR(255) GENERATED ALWAYS AS (
+    JSON_UNQUOTE(JSON_EXTRACT(j1, '$.s'))
+  ) STORED,
+
+  -- REGEXP
+  g_rlike BOOLEAN GENERATED ALWAYS AS (
+    REGEXP_LIKE(expr, pat, match_type)
+  ) STORED,
+
+  -- REGEXP_INSTR cause mysql-server crash if more than 4 parameters.
+  g_rinstr INT GENERATED ALWAYS AS (
+    -- REGEXP_INSTR(expr, pat, pos, occurrence, return_opt, match_type)
+    REGEXP_INSTR(expr, pat, pos, occurrence)
+  ) STORED,
+
+  g_rsubs VARCHAR(255) GENERATED ALWAYS AS (
+    REGEXP_SUBSTR(expr, pat, pos, occurrence, match_type)
+  ) STORED,
+
+  g_rrepl VARCHAR(255) GENERATED ALWAYS AS (
+    REGEXP_REPLACE(expr, pat, repl, pos, occurrence, match_type)
+  ) STORED
+);
+
+INSERT INTO t1 (id, expr, pat, repl, pos, occurrence, return_opt, match_type, j1, j2) VALUES
+(1, 'abc123xyz456', '[0-9]+', '<N>', 1, 1, 0, 'c',
+ JSON_OBJECT('s','"hello"', 'a', JSON_ARRAY(1,2,3)),
+ JSON_OBJECT('a', JSON_ARRAY(2), 'k', 1)
+),
+(2, 'foo11bar22baz33', '[0-9]+', '#', 4, 2, 0, 'c',
+ JSON_OBJECT('s','world', 'x', JSON_OBJECT('y',1)),
+ JSON_OBJECT('x', JSON_OBJECT('y',1))
+),
+(3, 'abcxxaBCyy', 'abc', '*', 1, 1, 0, 'i',
+ JSON_OBJECT('s','no_quotes', 'k', JSON_ARRAY(JSON_OBJECT('z',1))),
+ JSON_OBJECT('k', JSON_ARRAY(JSON_OBJECT('z',2)))
+);
+
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE t1;
+
+--let $t = t1
+--source $MYSQL_TMP_DIR/check_src_rpl.inc
+
+
+--echo #
+--echo # 4) Bug Aone#79544278 and Aone#79544326
+--echo #
+DROP TABLE t1;
+# CREATE TABLE WITH GENERATED COLUMN FIRST
+CREATE TABLE t1(c VARCHAR(255) GENERATED ALWAYS AS (CONCAT(`a`, `b`)) STORED, a INT KEY, b INT);
+INSERT INTO t1(a, b) VALUES (1, 1), (2, 2), (3, 3);
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE t1;
+
+--let $t = t1
+--source $MYSQL_TMP_DIR/check_src_rpl.inc
+
+# ALTER GENERATED COLUMN TO NON-GENERATED COLUMN
+ALTER TABLE t1 MODIFY COLUMN c VARCHAR(10);
+INSERT INTO t1(a, b, c) VALUES (4, 4, 'c4'), (5, 5, 'c5'), (6, 6, 'c6');
+--let $t = t1
+--source $MYSQL_TMP_DIR/check_src_rpl.inc
+
+ALTER TABLE t1 MODIFY COLUMN c INT GENERATED ALWAYS AS (`a` + `b`) STORED;
+INSERT INTO t1(a, b) VALUES (7, 7), (8, 8), (9, 9);
+--let $t = t1
+--source $MYSQL_TMP_DIR/check_src_rpl.inc
+
+
+--echo #
+--echo # 5) CLEANUP
+--echo #
+DROP TABLE t1, t2;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc
+--remove_file $MYSQL_TMP_DIR/check_src_rpl.inc

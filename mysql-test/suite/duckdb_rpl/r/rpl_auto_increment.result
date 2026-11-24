@@ -1,0 +1,367 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+create table t1 (a int not null auto_increment,b int, primary key (a)) engine=myisam auto_increment=3;
+insert into t1 values (NULL,1),(NULL,2),(NULL,3);
+select * from t1;
+a	b
+12	1
+22	2
+32	3
+include/rpl/sync_to_replica.inc
+select * from t1;
+a	b
+12	1
+22	2
+32	3
+drop table t1;
+create table t1 (a int not null auto_increment,b int, primary key (a)) engine=myisam;
+insert into t1 values (1,1),(NULL,2),(3,3),(NULL,4);
+delete from t1 where b=4;
+insert into t1 values (NULL,5),(NULL,6);
+select * from t1;
+a	b
+1	1
+2	2
+22	5
+3	3
+32	6
+include/rpl/sync_to_replica.inc
+select * from t1;
+a	b
+1	1
+2	2
+22	5
+3	3
+32	6
+drop table t1;
+set @@session.auto_increment_increment=100, @@session.auto_increment_offset=10;
+show variables like "%auto_inc%";
+Variable_name	Value
+auto_increment_increment	100
+auto_increment_offset	10
+duckdb_support_auto_increment	ON
+create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+insert into t1 values (NULL),(5),(NULL);
+insert into t1 values (250),(NULL);
+select * from t1;
+a
+10
+110
+250
+310
+5
+insert into t1 values (1000);
+set @@insert_id=400;
+insert into t1 values(NULL),(NULL);
+select * from t1;
+a
+10
+1000
+110
+250
+310
+400
+410
+5
+include/rpl/sync_to_replica.inc
+select * from t1;
+a
+10
+1000
+110
+250
+310
+400
+410
+5
+drop table t1;
+create table t1 (a int not null auto_increment, primary key (a)) engine=DuckDB;
+insert into t1 values (NULL),(5),(NULL);
+insert into t1 values (250),(NULL);
+select * from t1;
+a
+10
+110
+250
+310
+5
+insert into t1 values (1000);
+set @@insert_id=400;
+insert into t1 values(NULL),(NULL);
+select * from t1;
+a
+10
+1000
+110
+250
+310
+400
+410
+5
+include/rpl/sync_to_replica.inc
+select * from t1;
+a
+10
+1000
+110
+250
+310
+400
+410
+5
+drop table t1;
+set @@session.auto_increment_increment=1, @@session.auto_increment_offset=1;
+create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+insert into t1 values (NULL),(5),(NULL),(NULL);
+insert into t1 values (500),(NULL),(502),(NULL),(NULL);
+select * from t1;
+a
+1
+5
+500
+501
+502
+503
+504
+6
+7
+set @@insert_id=600;
+insert into t1 values(600),(NULL),(NULL);
+ERROR 23000: Duplicate entry '600' for key 't1.PRIMARY'
+set @@insert_id=600;
+insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
+Warnings:
+Warning	1062	Duplicate entry '600' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '600' for key 't1.PRIMARY'
+Warning	1062	Duplicate entry '600' for key 't1.PRIMARY'
+select * from t1;
+a
+1
+5
+500
+501
+502
+503
+504
+6
+600
+610
+611
+7
+include/rpl/sync_to_replica.inc
+select * from t1;
+a
+1
+5
+500
+501
+502
+503
+504
+6
+600
+610
+611
+7
+drop table t1;
+set @@session.auto_increment_increment=10, @@session.auto_increment_offset=1;
+create table t1 (a int not null auto_increment, primary key (a)) engine=myisam;
+include/rpl/sync_to_replica.inc
+insert into t1 values(2),(12),(22),(32),(42);
+insert into t1 values (NULL),(NULL);
+insert into t1 values (3),(NULL),(NULL);
+select * from t1;
+a
+1
+11
+21
+3
+31
+include/rpl/sync_to_replica.inc
+select * from t1;
+a
+1
+11
+12
+2
+21
+22
+3
+31
+32
+42
+drop table t1;
+SET sql_mode = 'NO_ENGINE_SUBSTITUTION';
+create table t1 (a tinyint not null auto_increment primary key) engine=myisam;
+insert into t1 values(103);
+set auto_increment_increment=11;
+set auto_increment_offset=4;
+insert into t1 values(null);
+insert into t1 values(null);
+insert into t1 values(null);
+ERROR 23000: Duplicate entry '125' for key 't1.PRIMARY'
+select a, mod(a-@@auto_increment_offset,@@auto_increment_increment) from t1 order by a;
+a	mod(a-@@auto_increment_offset,@@auto_increment_increment)
+103	0
+114	0
+125	0
+create table t2 (a tinyint unsigned not null auto_increment primary key) engine=myisam;
+set auto_increment_increment=10;
+set auto_increment_offset=1;
+set insert_id=1000;
+insert into t2 values(null);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select a, mod(a-@@auto_increment_offset,@@auto_increment_increment) from t2 order by a;
+a	mod(a-@@auto_increment_offset,@@auto_increment_increment)
+251	0
+create table t3 like t1;
+set auto_increment_increment=1000;
+set auto_increment_offset=700;
+insert into t3 values(null);
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+select * from t3 order by a;
+a
+127
+include/rpl/sync_to_replica.inc
+select * from t1 order by a;
+a
+103
+114
+125
+select * from t2 order by a;
+a
+251
+select * from t3 order by a;
+a
+127
+drop table t1,t2,t3;
+SET sql_mode = default;
+include/rpl/sync_to_replica.inc
+set auto_increment_increment=1;
+set auto_increment_offset=1;
+CREATE TABLE t1 (id MEDIUMINT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (NULL), (NULL), (NULL);
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync_to_replica.inc
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` mediumint NOT NULL AUTO_INCREMENT,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+drop table t1;
+include/rpl/reset.inc
+DROP TABLE IF EXISTS t1;
+DROP TABLE IF EXISTS t2;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=DuckDB;
+CREATE TABLE t2 (id INT NOT NULL AUTO_INCREMENT PRIMARY KEY) ENGINE=myisam;
+SET SQL_MODE='';
+INSERT INTO t1 VALUES(NULL);
+INSERT INTO t2 VALUES(NULL);
+select * from t1;
+id
+1
+SELECT * FROM t2;
+id
+1
+INSERT INTO t1 VALUES();
+INSERT INTO t2 VALUES();
+select * from t1;
+id
+1
+2
+SELECT * FROM t2;
+id
+1
+2
+INSERT INTO t1 VALUES(0);
+INSERT INTO t2 VALUES(0);
+select * from t1;
+id
+1
+2
+3
+SELECT * FROM t2;
+id
+1
+2
+3
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+INSERT INTO t1 VALUES(0);
+INSERT INTO t2 VALUES(0);
+select * from t1;
+id
+0
+1
+2
+3
+SELECT * FROM t2;
+id
+0
+1
+2
+3
+INSERT INTO t1 VALUES(4);
+INSERT INTO t2 VALUES(4);
+FLUSH LOGS;
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+DROP TABLE t1;
+DROP TABLE t2;
+include/rpl/sync_to_replica.inc
+include/rpl/stop_replica.inc
+RESET REPLICA;
+RESET BINARY LOGS AND GTIDS;
+RESET BINARY LOGS AND GTIDS;
+FLUSH LOGS;
+include/rpl/start_replica.inc
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:t1, slave:t1]
+include/diff_tables.inc [master:t2, slave:t2]
+DROP TABLE t1;
+DROP TABLE t2;
+SET SQL_MODE='';
+include/rpl/sync_to_replica.inc
+CREATE TABLE t1 (id SMALLINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, data INT) ENGINE=DuckDB;
+BEGIN;
+# Set sql_mode with NO_AUTO_VALUE_ON_ZERO for allowing
+# zero to fill the auto_increment field.
+SET SQL_MODE=NO_AUTO_VALUE_ON_ZERO;
+INSERT INTO t1(id,data) VALUES(0,2);
+# Resetting sql_mode without NO_AUTO_VALUE_ON_ZERO to
+# affect the execution of the transaction on slave.
+SET SQL_MODE=0;
+COMMIT;
+select * from t1;
+id	data
+0	2
+include/rpl/sync_to_replica.inc
+select * from t1;
+id	data
+0	2
+DROP TABLE t1;
+include/rpl/sync_to_replica.inc
+create table t1(a int auto_increment primary key) engine=DuckDB;
+insert into t1 values (null),(null),(1025),(null);
+include/rpl/sync_to_replica.inc
+select * from t1;
+a
+1
+1025
+1026
+2
+include/diff_tables.inc [master:t1, slave:t1]
+drop table t1;
+include/rpl/sync_to_replica.inc
+include/rpl/deinit.inc

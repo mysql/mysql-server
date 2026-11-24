@@ -1,0 +1,20 @@
+--source include/have_debug.inc
+--source include/have_binlog_format_row.inc
+
+--echo # -----------------------------------------------------------------
+--echo #
+--echo # 1. binlog on, check 2pc
+--echo #
+--source suite/duckdb/include/transaction_2pc_debug.inc
+
+
+--echo # -----------------------------------------------------------------
+--echo #
+--echo # 2. binlog off, check 2pc
+--echo #
+
+--let $restart_parameters = "restart: --skip-log-bin"
+--source include/restart_mysqld.inc
+
+--source suite/duckdb/include/transaction_2pc_debug_no_binlog.inc
+

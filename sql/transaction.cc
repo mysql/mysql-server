@@ -334,10 +334,14 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock) {
     /* Safety if one did "drop table" on locked tables */
     if (!thd->locked_tables_mode)
       thd->variables.option_bits &= ~OPTION_TABLE_LOCK;
+    res = ha_commit_trans(thd, true, ignore_global_read_lock);
+
+    /* When duckdb_mode and binlog are both enabled, duckdb may register
+    transactions during commit. Therefore, we move thd->server_status &=
+    after ha_commit_trans. */
     thd->server_status &=
         ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
     DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
-    res = ha_commit_trans(thd, true, ignore_global_read_lock);
   } else if (tc_log)
     res = tc_log->commit(thd, true);
 

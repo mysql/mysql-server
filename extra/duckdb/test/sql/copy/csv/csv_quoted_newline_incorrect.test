@@ -1,0 +1,15 @@
+# name: test/sql/copy/csv/csv_quoted_newline_incorrect.test
+# description: Read a CSV with an incorrect quoted newline, is expected that the csv reader manages to skip dirty lines
+# group: [csv]
+
+statement ok
+PRAGMA enable_verification
+
+# force parallelism of the queries
+statement ok
+PRAGMA verify_parallelism
+
+# CSV reader skips malformed lines
+statement ok
+from '{DATA_DIR}/csv/csv_quoted_newline_odd.csv';
+

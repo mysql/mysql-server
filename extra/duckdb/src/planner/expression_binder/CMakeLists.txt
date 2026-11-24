@@ -1,0 +1,28 @@
+add_library_unity(
+  duckdb_expression_binders
+  OBJECT
+  aggregate_binder.cpp
+  alter_binder.cpp
+  base_select_binder.cpp
+  check_binder.cpp
+  column_alias_binder.cpp
+  constant_binder.cpp
+  group_binder.cpp
+  having_binder.cpp
+  lateral_binder.cpp
+  qualify_binder.cpp
+  index_binder.cpp
+  insert_binder.cpp
+  order_binder.cpp
+  try_operator_binder.cpp
+  projection_binder.cpp
+  relation_binder.cpp
+  returning_binder.cpp
+  select_binder.cpp
+  select_bind_state.cpp
+  table_function_binder.cpp
+  update_binder.cpp
+  where_binder.cpp)
+set(ALL_OBJECT_FILES
+    ${ALL_OBJECT_FILES} $<TARGET_OBJECTS:duckdb_expression_binders>
+    PARENT_SCOPE)

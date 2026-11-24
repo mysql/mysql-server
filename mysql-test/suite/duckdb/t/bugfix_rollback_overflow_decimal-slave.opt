@@ -1,0 +1,6 @@
+--skip-log-bin
+--force_innodb_to_duckdb=off
+--replica_parallel_workers=1
+--duckdb_use_double_for_decimal=off
+--duckdb_multi_trx_in_batch=on
+--duckdb_multi_trx_timeout=1000

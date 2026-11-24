@@ -30,6 +30,7 @@
 #include "sql/clone_handler.h"
 #include "sql/debug_sync.h"
 #include "sql/derror.h"
+#include "sql/duckdb/duckdb_config.h"
 #include "sql/mysqld.h"
 #include "sql/rpl_commit_stage_manager.h"
 #include "sql/rpl_handler.h"
@@ -55,7 +56,8 @@ int Binlog_tc_log::prepare(MYSQL_BIN_LOG *binlog, THD *thd, bool all) {
     commit flush stage. Reset to HA_REGULAR_DURABILITY at the
     beginning of parsing next command.
   */
-  thd->durability_property = HA_IGNORE_DURABILITY;
+  if (!myduck::global_mode_on())
+    thd->durability_property = HA_IGNORE_DURABILITY;
 
   CONDITIONAL_SYNC_POINT_FOR_TIMESTAMP("before_prepare_in_engines");
 

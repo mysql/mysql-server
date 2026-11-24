@@ -1,0 +1,20 @@
+# name: test/sql/copy/csv/auto/test_auto_8573.test
+# description: Test read_csv_auto on issue 8573
+# group: [auto]
+
+statement ok
+PRAGMA enable_verification
+
+
+statement ok
+PRAGMA verify_parallelism
+
+query II
+SELECT typeof(bignumber), typeof(bignumber::DECIMAL(25,3)) FROM read_csv('{DATA_DIR}/csv/big_number.csv', COLUMNS={'bignumber': 'DECIMAL(25,3)'}, QUOTE='"', DELIM=',');
+----
+DECIMAL(25,3)	DECIMAL(25,3)
+
+query II
+SELECT typeof(bignumber), typeof(bignumber::DECIMAL(25,3)) FROM read_csv_auto('{DATA_DIR}/csv/big_number.csv', COLUMNS={'bignumber': 'DECIMAL(25,3)'}, QUOTE='"', DELIM=',');
+----
+DECIMAL(25,3)	DECIMAL(25,3)

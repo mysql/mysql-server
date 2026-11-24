@@ -78,6 +78,7 @@ struct TABLE_RULE_ENT {
   char *db;
   char *tbl_name;
   uint key_len;
+  char *target_tbl = nullptr;
 };
 
 /** Enum values for CONFIGURED_BY column. */
@@ -270,6 +271,8 @@ class Rpl_filter {
                             enum_configured_by configured_by);
   int set_db_rewrite(mem_root_deque<Item *> *list,
                      enum_configured_by configured_by);
+  int set_wild_table_rewrite(mem_root_deque<Item *> *list,
+                             enum_configured_by configured_by);
   typedef int (Rpl_filter::*Add_filter)(char const *);
   int parse_filter_list(mem_root_deque<Item *> *item_list, Add_filter func);
   /**
@@ -286,6 +289,10 @@ class Rpl_filter {
   int add_ignore_db(const char *db_spec);
 
   int add_db_rewrite(const char *from_db, const char *to_db);
+
+  int add_wild_table_rewrite(const char *from_tbl, const char *to_tbl);
+  char *get_rewrite_table(const char *db, const char *tbl, size_t *new_len);
+  void get_rewrite_table(String *str);
 
   /* Getters - to get information about current rules */
 
@@ -320,6 +327,10 @@ class Rpl_filter {
   */
   Rpl_filter_statistics *get_rewrite_db_statistics() {
     return &rewrite_db_statistics;
+  }
+
+  Rpl_filter_statistics *get_rewrite_wild_table_statistics() {
+    return &rewrite_wild_table_statistics;
   }
 
   void free_string_list(I_List<i_string> *l);
@@ -386,9 +397,11 @@ class Rpl_filter {
   Rpl_filter_statistics do_db_statistics;
   Rpl_filter_statistics ignore_db_statistics;
   Rpl_filter_statistics rewrite_db_statistics;
+  Rpl_filter_statistics rewrite_wild_table_statistics;
 
  private:
   bool table_rules_on;
+
   /*
     State if the relation between the per-channel filter
     and the channel's Relay_log_info is established.
@@ -453,7 +466,8 @@ class Rpl_filter {
   void init_table_rule_hash(Table_rule_hash **h, bool *h_inited);
   void init_table_rule_array(Table_rule_array *, bool *a_inited);
 
-  int add_table_rule_to_array(Table_rule_array *a, const char *table_spec);
+  int add_table_rule_to_array(Table_rule_array *a, const char *table_spec,
+                              const char *target_tbl = nullptr);
   int add_table_rule_to_hash(Table_rule_hash *h, const char *table_spec,
                              uint len);
 
@@ -509,12 +523,15 @@ class Rpl_filter {
   Table_rule_array wild_do_table;
   Table_rule_array wild_ignore_table;
 
+  Table_rule_array wild_rewrite_table;
+
   bool do_table_hash_inited;
   bool ignore_table_hash_inited;
   bool do_table_array_inited;
   bool ignore_table_array_inited;
   bool wild_do_table_inited;
   bool wild_ignore_table_inited;
+  bool wild_rewrite_table_inited;
 
   I_List<i_string> do_db;
   I_List<i_string> ignore_db;
@@ -587,7 +604,8 @@ class Sql_cmd_change_repl_filter : public Sql_cmd {
         ignore_table_list(nullptr),
         wild_do_table_list(nullptr),
         wild_ignore_table_list(nullptr),
-        rewrite_db_pair_list(nullptr) {}
+        rewrite_db_pair_list(nullptr),
+        rewrite_wild_table_pair_list(nullptr) {}
 
   ~Sql_cmd_change_repl_filter() override = default;
 
@@ -608,6 +626,7 @@ class Sql_cmd_change_repl_filter : public Sql_cmd {
   mem_root_deque<Item *> *wild_do_table_list;
   mem_root_deque<Item *> *wild_ignore_table_list;
   mem_root_deque<Item *> *rewrite_db_pair_list;
+  mem_root_deque<Item *> *rewrite_wild_table_pair_list;
 };
 
 extern Rpl_filter *rpl_filter;

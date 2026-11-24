@@ -1,0 +1,142 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+###########################################################################
+# 0. Prepare
+###########################################################################
+[connection master]
+CREATE TABLE t1 (
+id BIGINT AUTO_INCREMENT NOT NULL,
+c0 VARCHAR(20) NOT NULL,
+PRIMARY KEY(id)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL AUTO_INCREMENT,
+  `c0` varchar(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL DEFAULT '0',
+  `c0` varchar(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# 1. Test DUCKDB_MULTI_TRX_BATCH_COMMIT
+###########################################################################
+[connection slave]
+SET GLOBAL duckdb_log_options = '';
+STOP REPLICA SQL_THREAD;
+[connection master]
+INSERT INTO t1 (c0) VALUES('duck');
+INSERT INTO t1 (c0) VALUES('mysql');
+include/rpl/sync.inc
+[connection slave]
+START REPLICA SQL_THREAD;
+include/rpl/sync.inc
+include/assert_grep.inc [Check DuckDB batch commit log]
+[connection slave]
+SET GLOBAL duckdb_log_options = DUCKDB_MULTI_TRX_BATCH_COMMIT;
+STOP REPLICA SQL_THREAD;
+[connection master]
+INSERT INTO t1 (c0) VALUES('duck');
+INSERT INTO t1 (c0) VALUES('mysql');
+include/rpl/sync.inc
+[connection slave]
+START REPLICA SQL_THREAD;
+include/rpl/sync.inc
+include/assert_grep.inc [Check DuckDB batch commit log]
+SET GLOBAL duckdb_log_options = DEFAULT;
+###########################################################################
+# 2. Test DUCKDB_MULTI_TRX_BATCH_DETAIL
+###########################################################################
+[connection slave]
+SET GLOBAL duckdb_log_options = '';
+STOP REPLICA SQL_THREAD;
+[connection master]
+INSERT INTO t1 (c0) VALUES('duck');
+INSERT INTO t1 (c0) VALUES('mysql');
+include/rpl/sync.inc
+[connection slave]
+START REPLICA SQL_THREAD;
+include/rpl/sync.inc
+include/assert_grep.inc [Check DuckDB batch detail log]
+[connection slave]
+SET GLOBAL duckdb_log_options = DUCKDB_MULTI_TRX_BATCH_DETAIL;
+STOP REPLICA SQL_THREAD;
+[connection master]
+INSERT INTO t1 (c0) VALUES('duck');
+INSERT INTO t1 (c0) VALUES('mysql');
+include/rpl/sync.inc
+[connection slave]
+START REPLICA SQL_THREAD;
+include/rpl/sync.inc
+include/assert_grep.inc [Check DuckDB batch detail log]
+SET GLOBAL duckdb_log_options = DEFAULT;
+###########################################################################
+# 3. Test DUCKDB_QUERY
+###########################################################################
+[connection slave]
+SET GLOBAL duckdb_log_options = '';
+STOP REPLICA SQL_THREAD;
+[connection master]
+INSERT INTO t1 (c0) VALUES('duck');
+INSERT INTO t1 (c0) VALUES('mysql');
+include/rpl/sync.inc
+[connection slave]
+START REPLICA SQL_THREAD;
+include/rpl/sync.inc
+include/assert_grep.inc [Check DuckDB query log]
+[connection slave]
+SET GLOBAL duckdb_log_options = DUCKDB_QUERY;
+STOP REPLICA SQL_THREAD;
+[connection master]
+INSERT INTO t1 (c0) VALUES('duck');
+INSERT INTO t1 (c0) VALUES('mysql');
+include/rpl/sync.inc
+[connection slave]
+START REPLICA SQL_THREAD;
+include/rpl/sync.inc
+include/assert_grep.inc [Check DuckDB query log]
+SET GLOBAL duckdb_log_options = DEFAULT;
+###########################################################################
+# 4. Test DUCKDB_QUERY_RESULT
+###########################################################################
+[connection slave]
+SET GLOBAL duckdb_log_options = '';
+STOP REPLICA SQL_THREAD;
+[connection master]
+INSERT INTO t1 (c0) VALUES('duck');
+INSERT INTO t1 (c0) VALUES('mysql');
+include/rpl/sync.inc
+[connection slave]
+START REPLICA SQL_THREAD;
+include/rpl/sync.inc
+include/assert_grep.inc [Check DuckDB query result log]
+[connection slave]
+SET GLOBAL duckdb_log_options = DUCKDB_QUERY_RESULT;
+STOP REPLICA SQL_THREAD;
+[connection master]
+INSERT INTO t1 (c0) VALUES('duck');
+INSERT INTO t1 (c0) VALUES('mysql');
+include/rpl/sync.inc
+[connection slave]
+START REPLICA SQL_THREAD;
+include/rpl/sync.inc
+include/assert_grep.inc [Check DuckDB query result log]
+SET GLOBAL duckdb_log_options = DEFAULT;
+###########################################################################
+# 5. Test Cleanup
+###########################################################################
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

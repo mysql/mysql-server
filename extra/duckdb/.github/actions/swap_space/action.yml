@@ -1,0 +1,14 @@
+name: 'Set Swap Space'
+description: 'Add moar swap'
+inputs:
+  swap-size-gb:
+    description: 'Swap space to create, in Gigabytes.'
+    required: false
+    default: '8'
+runs:
+  using: "composite"
+  steps:
+    - uses: pierotofy/set-swap-space@v1.0
+      if: runner.os == 'Linux'
+      with:
+        swap-size-gb: ${{ inputs.swap-size-gb }}

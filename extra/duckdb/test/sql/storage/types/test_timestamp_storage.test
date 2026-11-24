@@ -1,0 +1,47 @@
+# name: test/sql/storage/types/test_timestamp_storage.test
+# description: Test storage for timestamp type
+# group: [types]
+
+# load the DB from disk
+load __TEST_DIR__/timestamp_storage_test.db
+
+# create a table with hugeints
+statement ok
+CREATE TABLE timestamp (sec TIMESTAMP_S, milli TIMESTAMP_MS,micro TIMESTAMP_US, nano TIMESTAMP_NS );
+
+statement ok
+INSERT INTO timestamp VALUES (NULL,NULL,NULL,NULL )
+
+statement ok
+INSERT INTO timestamp VALUES ('2008-01-01 00:00:01','2008-01-01 00:00:01.594','2008-01-01 00:00:01.88926','2008-01-01 00:00:01.889268321' )
+
+statement ok
+INSERT INTO timestamp VALUES ('2008-01-01 00:00:51','2008-01-01 00:00:01.894','2008-01-01 00:00:01.99926','2008-01-01 00:00:01.999268321' )
+
+statement ok
+INSERT INTO timestamp VALUES ('2008-01-01 00:00:11','2008-01-01 00:00:01.794','2008-01-01 00:00:01.98926','2008-01-01 00:00:01.899268321' )
+
+# reload the database from disk a few times
+loop i 0 2
+
+restart
+
+query TTTT
+SELECT * FROM timestamp ORDER BY sec
+----
+2008-01-01 00:00:01	2008-01-01 00:00:01.594	2008-01-01 00:00:01.88926	2008-01-01 00:00:01.889268321
+2008-01-01 00:00:11	2008-01-01 00:00:01.794	2008-01-01 00:00:01.98926	2008-01-01 00:00:01.899268321
+2008-01-01 00:00:51	2008-01-01 00:00:01.894	2008-01-01 00:00:01.99926	2008-01-01 00:00:01.999268321
+NULL	NULL	NULL	NULL
+
+query TTTT
+SELECT * FROM timestamp WHERE micro=TIMESTAMP '2008-01-01 00:00:01.88926' ORDER BY micro
+----
+2008-01-01 00:00:01	2008-01-01 00:00:01.594	2008-01-01 00:00:01.88926	2008-01-01 00:00:01.889268321
+
+query TTTT
+SELECT * FROM timestamp WHERE micro=TIMESTAMP '2020-01-01 00:00:01.88926' ORDER BY micro
+----
+
+
+endloop

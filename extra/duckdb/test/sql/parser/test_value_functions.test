@@ -1,0 +1,79 @@
+# name: test/sql/parser/test_value_functions.test
+# description: Test SQL value functions
+# group: [parser]
+
+require no_extension_autoloading "FIXME: Unimplemented type for cast (TIMESTAMP WITH TIME ZONE -> DATE)"
+
+statement ok
+PRAGMA enable_verification
+
+# by default these columns can be used as per usual
+query I
+SELECT user FROM (VALUES ('hello world')) t(user)
+----
+hello world
+
+# if the column is not found they are turned into the SQL value function
+query I
+SELECT user
+----
+duckdb
+
+query I
+SELECT UsEr
+----
+duckdb
+
+# Issue #10363 - we also prefer table-as-struct over value functions
+query I
+SELECT user FROM (VALUES (42)) user(x)
+----
+{'x': 42}
+
+# run all SQL value functions
+# need to run without verification since CURRENT_TIME etc break verification
+statement ok
+PRAGMA disable_verification
+
+require icu
+
+foreach value_function current_catalog current_date current_schema current_role current_time current_timestamp current_user localtime localtimestamp session_user user
+
+statement ok
+SELECT ${value_function}
+
+endloop
+
+statement error
+SELECT useRrr
+----
+useRrr
+
+# value function in having
+query II
+select
+  1 as one,
+  max(cast('1000-05-01 00:00:00' as timestamp)) as mt
+group by one
+having max(cast('1000-05-01 00:00:00' as timestamp))  <= current_timestamp;
+----
+1	1000-05-01 00:00:00
+
+query II
+select a as "b", "b" + 1 from (VALUES (84), (42)) t(a) ORDER BY ALL;
+----
+42	43
+84	85
+
+# value function conflict in ORDER BY
+query I
+select a as "CURRENT_TIMESTAMP" from (VALUES (84), (42)) t(a) order by "CURRENT_TIMESTAMP" + 1;
+----
+42
+84
+
+# value function conflict in WHERE
+query I
+select a as localtime from (VALUES ('2018-01-01'), ('2022-01-01')) t(a) where localtime >= '2020-01-01'
+----
+2022-01-01

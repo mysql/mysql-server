@@ -1,0 +1,131 @@
+
+1. Basic test
+
+CREATE TABLE t1 (id INT PRIMARY KEY, col1 VARCHAR(100)) ENGINE=DuckDB;
+CREATE TABLE t2 (id INT PRIMARY KEY, col1 BLOB) ENGINE=DuckDB;
+INSERT INTO t1 VALUES (1, 'A'), (2, x'41'), (3, b'01000001');
+INSERT INTO t2 VALUES (1, 'A'), (2, x'41'), (3, b'01000001'), (4, 0xFF), (5, x'FF'), (6, b'11111111');
+SELECT * FROM t1 WHERE col1 = 'A';
+id	col1
+1	A
+2	A
+3	A
+SELECT * FROM t1 WHERE col1 = x'41';
+id	col1
+1	A
+2	A
+3	A
+SELECT * FROM t1 WHERE col1 = b'01000001';
+id	col1
+1	A
+2	A
+3	A
+SELECT * FROM t2 WHERE col1 = 'A';
+id	col1
+1	A
+2	A
+3	A
+SELECT * FROM t2 WHERE col1 = x'41';
+id	col1
+1	A
+2	A
+3	A
+SELECT * FROM t2 WHERE col1 = b'01000001';
+id	col1
+1	A
+2	A
+3	A
+SELECT id, hex(col1) FROM t2 WHERE col1 = 0xFF;
+ERROR HY000: [DuckDB] Parser Error: syntax error at or near "xFF"
+
+LINE 1: SELECT id, hex(col1) FROM t2 WHERE col1 = 0xFF
+                                                   ^.
+SELECT id, hex(col1) FROM t2 WHERE col1 = x'FF';
+id	hex(col1)
+4	FF
+5	FF
+6	FF
+SELECT id, hex(col1) FROM t2 WHERE col1 = b'11111111';
+id	hex(col1)
+4	FF
+5	FF
+6	FF
+DELETE FROM t1 WHERE col1 = x'41';
+SELECT * FROM t1;
+id	col1
+DELETE FROM t2 WHERE col1 = x'41';
+SELECT id, hex(col1) FROM t2;
+id	hex(col1)
+4	FF
+5	FF
+6	FF
+DELETE FROM t2 WHERE col1 = x'FF';
+SELECT id, hex(col1) FROM t2;
+id	hex(col1)
+DROP TABLE t1;
+DROP TABLE t2;
+
+2. Comparison of BLOB and VARCHAR
+
+2.1 When comparing VARCHAR type and BLOB_LITERAL, the BLOB_LITERAL value is converted to VARCHAR.
+CREATE TABLE t1 (
+id INT PRIMARY KEY,
+col1 VARCHAR(100) COLLATE utf8mb4_general_ci,
+col2 VARCHAR(100) COLLATE utf8mb4_bin
+) ENGINE = DuckDB;
+INSERT INTO t1 VALUES (1, 'A', 'A'), (2, 'a', 'a'), (3, 'Z', 'Z');
+SELECT col1 = x'41', col1 < x'41'
+	, col1 > x'41', col1 <= x'41'
+	, col1 >= x'41', col1 BETWEEN x'42' AND x'61'
+	, col2 = x'41', col2 < x'41'
+	, col2 > x'41', col2 <= x'41'
+	, col2 >= x'41', col2 BETWEEN x'42' AND x'61'
+FROM t1;
+col1 = x'41'	col1 < x'41'	col1 > x'41'	col1 <= x'41'	col1 >= x'41'	col1 BETWEEN x'42' AND x'61'	col2 = x'41'	col2 < x'41'	col2 > x'41'	col2 <= x'41'	col2 >= x'41'	col2 BETWEEN x'42' AND x'61'
+1	0	0	1	1	0	1	0	0	1	1	0
+1	0	0	1	1	0	0	0	1	0	1	1
+0	0	1	0	1	0	0	0	1	0	1	1
+2.2 When comparing VARCHAR type and BLOB, the VARCHAR value is converted to BLOB.
+CREATE TABLE t2 (
+id INT PRIMARY KEY,
+col1 BLOB
+) ENGINE = DuckDB;
+INSERT INTO t2 VALUES (1, x'41'), (2, x'61'), (3, x'5A');
+SELECT t1.*, t2.*, t1.col1 = t2.col1
+, t1.col1 < t2.col1, t1.col1 > t2.col1
+, t1.col1 <= t2.col1, t1.col1 >= t2.col1
+, t1.col1 BETWEEN t2.col1 AND t2.col1, t1.col2 = t2.col1, t1.col2 < t2.col1
+, t1.col2 > t2.col1, t1.col2 <= t2.col1
+, t1.col2 >= t2.col1, t1.col2 BETWEEN t2.col1 AND t2.col1
+FROM t1, t2 ORDER BY t1.id, t2.id;
+id	col1	col2	id	col1	t1.col1 = t2.col1	t1.col1 < t2.col1	t1.col1 > t2.col1	t1.col1 <= t2.col1	t1.col1 >= t2.col1	t1.col1 BETWEEN t2.col1 AND t2.col1	t1.col2 = t2.col1	t1.col2 < t2.col1	t1.col2 > t2.col1	t1.col2 <= t2.col1	t1.col2 >= t2.col1	t1.col2 BETWEEN t2.col1 AND t2.col1
+1	A	A	1	A	1	0	0	1	1	1	1	0	0	1	1	1
+1	A	A	2	a	0	1	0	1	0	0	0	1	0	1	0	0
+1	A	A	3	Z	0	1	0	1	0	0	0	1	0	1	0	0
+2	a	a	1	A	0	0	1	0	1	0	0	0	1	0	1	0
+2	a	a	2	a	1	0	0	1	1	1	1	0	0	1	1	1
+2	a	a	3	Z	0	0	1	0	1	0	0	0	1	0	1	0
+3	Z	Z	1	A	0	0	1	0	1	0	0	0	1	0	1	0
+3	Z	Z	2	a	0	1	0	1	0	0	0	1	0	1	0	0
+3	Z	Z	3	Z	1	0	0	1	1	1	1	0	0	1	1	1
+2.3 When comparing STRING_LITERAL type and BLOB, the STRING_LITERAL value is converted to BLOB.
+SELECT col1 = 'Z', col1 < 'Z'
+	, col1 > 'Z', col1 <= 'Z'
+	, col1 >= 'Z', col1 BETWEEN 'a' AND 'A'
+FROM t1;
+col1 = 'Z'	col1 < 'Z'	col1 > 'Z'	col1 <= 'Z'	col1 >= 'Z'	col1 BETWEEN 'a' AND 'A'
+0	1	0	1	0	1
+0	1	0	1	0	1
+1	0	0	1	1	0
+2.4 When comparing STRING_LITERAL type and BLOB_LITERAL, the STRING_LITERAL value is converted to BLOB.
+SELECT 'a' = x'41', 'a' = x'61'
+	, 'A' = x'41', 'A' = x'61'
+	, 'a' >= x'41', 'a' <= x'41'
+	, 'a' < x'41', 'a' > x'41'
+	, 'a' BETWEEN x'41' AND x'61'
+FROM t1
+LIMIT 1;
+'a' = x'41'	'a' = x'61'	'A' = x'41'	'A' = x'61'	'a' >= x'41'	'a' <= x'41'	'a' < x'41'	'a' > x'41'	'a' BETWEEN x'41' AND x'61'
+0	1	1	0	1	0	0	1	1
+DROP TABLE t1;
+DROP TABLE t2;

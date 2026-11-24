@@ -1,0 +1,8 @@
+#
+# Aone#78159089  Crash when execute pstmt with CURSOR_TYPE_READ_ONLY
+#
+# Execute statements from mysql_client_test.
+SET GLOBAL duckdb_psmt_cursor_send_extra_eof = ON;
+SET GLOBAL duckdb_psmt_cursor_send_extra_eof = OFF;
+SET GLOBAL duckdb_psmt_cursor_send_extra_eof = default;
+DROP DATABASE client_test_db;

@@ -41,6 +41,7 @@
 #include "sql/dd/dd.h"                       // dd::get_dictionary
 #include "sql/dd/dd_view.h"                  // dd::update_view_status
 #include "sql/dd/dictionary.h"               // is_dd_schema_name
+#include "sql/dd/impl/upgrade/server.h"      // Bootstrap_error_handler
 #include "sql/dd/object_id.h"
 #include "sql/dd/string_type.h"
 #include "sql/dd/types/schema.h"
@@ -182,6 +183,9 @@ class View_metadata_updater_error_handler final
  public:
   View_metadata_updater_error_handler() {
     m_log_error = (error_handler_hook == my_message_stderr);
+    if (error_handler_hook ==
+        dd::upgrade::Bootstrap_error_handler::bootstrap_handler_fn())
+      m_log_error = true;
     /*
       When error_handler_hook is set to my_message_stderr (e.g, during server
       startup) error handler is not invoked. To invoke this error handler,

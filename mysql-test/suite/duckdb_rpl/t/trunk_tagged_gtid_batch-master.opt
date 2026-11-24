@@ -1,0 +1,2 @@
+--binlog-format=ROW
+--duckdb-source-set-insert-only-to-binlog=ON

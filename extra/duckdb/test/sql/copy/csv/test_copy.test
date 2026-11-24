@@ -1,0 +1,308 @@
+# name: test/sql/copy/csv/test_copy.test
+# description: Test copy statement
+# group: [csv]
+
+statement ok
+PRAGMA enable_verification
+
+
+# generate CSV file with ',' as delimiter and complex strings
+# load CSV file into a table
+statement ok
+CREATE TABLE test (a INTEGER, b INTEGER, c VARCHAR(10));
+
+query I
+COPY test FROM '{DATA_DIR}/csv/test/test.csv';
+----
+5000
+
+query IR
+SELECT COUNT(a), SUM(a) FROM test;
+----
+5000	12497500
+
+query IIT
+SELECT * FROM test ORDER BY 1 LIMIT 3;
+----
+0	0	 test
+1	1	 test
+2	2	 test
+
+# create CSV file from table
+query I
+COPY test TO '{TEMP_DIR}/test2.csv';
+----
+5000
+
+# load the same CSV file back again
+statement ok
+CREATE TABLE test2 (a INTEGER, b INTEGER, c VARCHAR(10));
+
+query I
+COPY test2 FROM '{TEMP_DIR}/test2.csv' ;
+----
+5000
+
+query IIT
+SELECT * FROM test2 ORDER BY 1 LIMIT 3;
+----
+0	0	 test
+1	1	 test
+2	2	 test
+
+# test too few rows
+statement ok
+CREATE TABLE test_too_few_rows (a INTEGER, b INTEGER, c VARCHAR, d INTEGER);
+
+statement error
+COPY test_too_few_rows FROM '{TEMP_DIR}/test2.csv' (NULL_PADDING 0);
+----
+It was not possible to automatically detect the CSV parsing dialect
+
+# create CSV file from query
+query I
+COPY (SELECT a,b FROM test WHERE a < 4000) TO '{TEMP_DIR}/test3.csv';
+----
+4000
+
+# load the same CSV file back again
+statement ok
+CREATE TABLE test3 (a INTEGER, b INTEGER);
+
+query I
+COPY test3 FROM '{TEMP_DIR}/test3.csv';
+----
+4000
+
+query II
+SELECT * FROM test3 ORDER BY 1 LIMIT 3;
+----
+0	0
+1	1
+2	2
+
+# export selected columns from a table to a CSV file
+query I
+COPY test (a,c) TO '{TEMP_DIR}/test4.csv' (DELIMITER ',', HEADER false);
+----
+5000
+
+# import selected columns from CSV file
+statement ok
+CREATE TABLE test4 (a INTEGER, b INTEGER, c VARCHAR(10));
+
+query I
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (DELIM ',');
+----
+5000
+
+query IIT
+SELECT * FROM test4 ORDER BY 1 LIMIT 3;
+----
+0	NULL	 test
+1	NULL	 test
+2	NULL	 test
+
+# unsupported type for HEADER
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (SEP ',', HEADER 0.2);
+----
+<REGEX>:.*"(HEADER|header)" expected an argument of type BOOLEAN.*
+
+# empty delimiter
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (SEP);
+----
+<REGEX>:.*"(SEP|sep)" requires an argument of type VARCHAR.*
+
+# number as delimiter
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (SEP 1);
+----
+<REGEX>:.*"(SEP|sep)" expected an argument of type VARCHAR.*
+
+# multiple format options
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (FORMAT 'csv', FORMAT 'some_other_copy_function');
+----
+duplicate option
+
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (FORMAT 'some_other_copy_function', FORMAT 'csv');
+----
+duplicate option
+
+# number as escape string
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (ESCAPE 1);
+----
+<REGEX>:.*"(ESCAPE|escape)" expected an argument of type VARCHAR.*
+
+# no escape string
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (ESCAPE);
+----
+<REGEX>:.*"(ESCAPE|escape)" requires an argument of type VARCHAR.*
+
+# number as quote string
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (QUOTE 1);
+----
+<REGEX>:.*"(QUOTE|quote)" expected an argument of type VARCHAR.*
+
+# no quote string
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (QUOTE);
+----
+<REGEX>:.*"(QUOTE|quote)" requires an argument of type VARCHAR.*
+
+# no format string
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (FORMAT);
+----
+Unsupported parameter type for FORMAT: expected e.g. FORMAT 'csv', 'parquet'
+
+# encoding must not be empty and must have the correct parameter type and value
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (ENCODING);
+----
+<REGEX>:.*"(ENCODING|encoding)" requires an argument of type VARCHAR.*
+
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (ENCODING 42);
+----
+<REGEX>:.*"(ENCODING|encoding)" expected an argument of type VARCHAR.*
+
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (ENCODING 'utf-42');
+----
+The CSV Reader does not support the encoding: "utf-42"
+
+# don't allow for non-existant copy options
+statement error
+COPY test4 (a,c) FROM '{TEMP_DIR}/test4.csv' (MAGIC '42');
+----
+<REGEX>:.*Unrecognized option "(MAGIC|magic)".*
+
+# Try new_line option
+query I
+COPY test TO '{TEMP_DIR}/test_crlf.csv' (new_line  '\r\n');
+----
+5000
+
+query I
+select count(*) from '{TEMP_DIR}/test_crlf.csv'
+----
+5000
+
+# Try CR LF lines
+query I
+COPY test TO '{TEMP_DIR}/test_r.csv' (new_line  '\r');
+----
+5000
+
+query I
+select count(*) from '{TEMP_DIR}/test_r.csv'
+----
+5000
+
+query I
+COPY test TO '{TEMP_DIR}/test_n.csv' (new_line  '\n');
+----
+5000
+
+query I
+select count(*) from '{TEMP_DIR}/test_n.csv'
+----
+5000
+
+query I
+COPY test TO '{TEMP_DIR}/test_crlfe.csv' (new_line  e'\r\n');
+----
+5000
+
+query I
+select count(*) from '{TEMP_DIR}/test_crlfe.csv'
+----
+5000
+
+query I
+COPY test TO '{TEMP_DIR}/test_re.csv' (new_line  e'\r');
+----
+5000
+
+query I
+select count(*) from '{TEMP_DIR}/test_re.csv'
+----
+5000
+
+query I
+COPY test TO '{TEMP_DIR}/test_en.csv' (new_line  e'\n');
+----
+5000
+
+query I
+select count(*) from '{TEMP_DIR}/test_en.csv'
+----
+5000
+
+# use a different delimiter
+# create new table
+statement ok
+DROP TABLE test;
+
+statement ok
+CREATE TABLE test (a INTEGER, b INTEGER, c VARCHAR(10));
+
+query I
+COPY test FROM '{DATA_DIR}/csv/test/test_pipe.csv' (SEPARATOR '|');
+----
+10
+
+# throw exception if a line contains too many values
+statement error
+COPY test FROM '{DATA_DIR}/csv/test/too_many_values.csv';
+----
+It was not possible to automatically detect the CSV parsing dialect
+
+# test default null string
+query I
+COPY test FROM '{DATA_DIR}/csv/test/test_null_csv.csv' DELIMITER '|';
+----
+1
+
+# test invalid UTF-8
+statement error
+COPY test FROM '{DATA_DIR}/csv/test/invalid_utf.csv' DELIMITER '|';
+----
+Invalid unicode (byte sequence mismatch) detected.
+
+# empty file
+statement ok
+CREATE TABLE empty_table (a INTEGER, b INTEGER, c VARCHAR(10));
+
+statement error
+COPY empty_table FROM '{DATA_DIR}/csv/test/empty.csv' (HEADER 0);
+----
+It was not possible to automatically detect the CSV parsing dialect
+
+
+# unterminated quotes
+statement ok
+CREATE TABLE unterminated (a VARCHAR);
+
+statement error
+COPY unterminated FROM '{DATA_DIR}/csv/test/unterminated.csv' (HEADER 0, AUTO_DETECT FALSE, strict_mode TRUE);
+----
+Value with unterminated quote found.
+
+# 1024 rows (vector size)
+# load CSV file into a table
+statement ok
+CREATE TABLE vsize (a INTEGER, b INTEGER, c VARCHAR(10));
+
+query I
+COPY vsize FROM '{DATA_DIR}/csv/test/vsize.csv';
+----
+1024
+

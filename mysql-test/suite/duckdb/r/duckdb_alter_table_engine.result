@@ -1,0 +1,658 @@
+#
+# Test DDL: alter table engine = innodb from duckdb tables
+# check whether changing storage engine from duckdb to innodb is supported
+#
+DROP DATABASE IF EXISTS alter_engine_test;
+CREATE DATABASE alter_engine_test;
+USE alter_engine_test;
+#
+# 1. test blob types
+#
+CREATE TABLE blob_table (
+id INT PRIMARY KEY,
+tiny_blob_field TINYBLOB,
+medium_blob_field MEDIUMBLOB,
+long_blob_field LONGBLOB,
+blob_field BLOB,
+bit_field BIT(64)
+) ENGINE=DUCKDB;
+INSERT INTO blob_table VALUES (1, 'tinyblob_data', 'mediumblob_data', 'longblob_data', 'blob_data', b'00000001');
+INSERT INTO blob_table VALUES (2, 'tinyblob_data2', 'mediumblob_data2', 'longblob_data2', 'blob_data2', b'00000010');
+INSERT INTO blob_table VALUES (3, NULL, NULL, 'longblob_data3', NULL, b'00000010');
+INSERT INTO blob_table VALUES (4, 'tinyblob_data4', 'mediumblob_data4', NULL, 'blob_data2', NULL);
+INSERT INTO blob_table VALUES (5, 'tinyblob_data5', 'mediumblob_data5', 'longblob_data5', 'blob_data5', b'00000011');
+SHOW CREATE TABLE blob_table;
+Table	Create Table
+blob_table	CREATE TABLE `blob_table` (
+  `id` int NOT NULL,
+  `tiny_blob_field` tinyblob,
+  `medium_blob_field` mediumblob,
+  `long_blob_field` longblob,
+  `blob_field` blob,
+  `bit_field` bit(64) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT id, tiny_blob_field, medium_blob_field, long_blob_field, blob_field, hex(bit_field) FROM blob_table;
+id	tiny_blob_field	medium_blob_field	long_blob_field	blob_field	hex(bit_field)
+1	tinyblob_data	mediumblob_data	longblob_data	blob_data	1
+2	tinyblob_data2	mediumblob_data2	longblob_data2	blob_data2	2
+3	NULL	NULL	longblob_data3	NULL	2
+4	tinyblob_data4	mediumblob_data4	NULL	blob_data2	NULL
+5	tinyblob_data5	mediumblob_data5	longblob_data5	blob_data5	3
+CHECKSUM TABLE blob_table;
+Table	Checksum
+alter_engine_test.blob_table	2649844247
+ALTER TABLE blob_table ENGINE = InnoDB;
+SHOW CREATE TABLE blob_table;
+Table	Create Table
+blob_table	CREATE TABLE `blob_table` (
+  `id` int NOT NULL,
+  `tiny_blob_field` tinyblob,
+  `medium_blob_field` mediumblob,
+  `long_blob_field` longblob,
+  `blob_field` blob,
+  `bit_field` bit(64) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE blob_table;
+Table	Checksum
+alter_engine_test.blob_table	2649844247
+ALTER TABLE blob_table ENGINE = DUCKDB;
+SHOW CREATE TABLE blob_table;
+Table	Create Table
+blob_table	CREATE TABLE `blob_table` (
+  `id` int NOT NULL,
+  `tiny_blob_field` tinyblob,
+  `medium_blob_field` mediumblob,
+  `long_blob_field` longblob,
+  `blob_field` blob,
+  `bit_field` bit(64) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE blob_table;
+Table	Checksum
+alter_engine_test.blob_table	2649844247
+ALTER TABLE blob_table ENGINE = DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE blob_table;
+Table	Create Table
+blob_table	CREATE TABLE `blob_table` (
+  `id` int NOT NULL,
+  `tiny_blob_field` tinyblob,
+  `medium_blob_field` mediumblob,
+  `long_blob_field` longblob,
+  `blob_field` blob,
+  `bit_field` bit(64) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE blob_table;
+Table	Checksum
+alter_engine_test.blob_table	2649844247
+#
+# 2. test string types
+#
+CREATE TABLE string_table (
+id INT PRIMARY KEY,
+null_field VARCHAR(255),
+bool_field BOOLEAN,
+decimal_field DECIMAL(10,2),
+enum_field ENUM('small', 'medium', 'large'),
+set_field SET('red', 'green', 'blue'),
+string_field VARCHAR(255),
+var_string_field VARCHAR(255),
+varchar_field VARCHAR(255),
+json_field JSON ,
+text_field TEXT,
+new_decimal_field DECIMAL(20,6)
+) ENGINE=DUCKDB;
+INSERT INTO string_table VALUES (1, NULL, TRUE, 123.45, 'small', 'red,green', 'sample_string', 'var_string_sample', 'varchar_sample','{"name": "Alice", "age": 30}', 'This is a sample text.', 123456.789012);
+INSERT INTO string_table VALUES (2, 'another_value', FALSE, 678.90, 'medium', 'blue', 'another_string', 'another_var_string', NULL, NULL, NULL, 345678.901234);
+INSERT INTO string_table VALUES (3, 'test_value', TRUE, 50.25, 'large', NULL, 'test_string', 'var_string_test', 'varchar_test', '{"city": "Beijing", "population": 2154}', 'Some additional text content.', 987654.321098);
+INSERT INTO string_table VALUES (4, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,NULL,NULL);
+INSERT INTO string_table VALUES (5, NULL, FALSE, 999.99, 'small', 'red', 'another test', 'var_string_another', 'varchar_another', '{"country": "USA", "states": 50}', 'More sample text data.', NULL);
+INSERT INTO string_table VALUES (6, 'final_value', TRUE, 100.00, 'medium', 'red,blue', 'final_string', 'var_string_final', 'varchar_final', '{"animal": "dog", "legs": 4}', 'End of this test text.', 778899.001122);
+SHOW CREATE TABLE string_table;
+Table	Create Table
+string_table	CREATE TABLE `string_table` (
+  `id` int NOT NULL,
+  `null_field` varchar(255) DEFAULT NULL,
+  `bool_field` tinyint(1) DEFAULT NULL,
+  `decimal_field` decimal(10,2) DEFAULT NULL,
+  `enum_field` enum('small','medium','large') DEFAULT NULL,
+  `set_field` set('red','green','blue') DEFAULT NULL,
+  `string_field` varchar(255) DEFAULT NULL,
+  `var_string_field` varchar(255) DEFAULT NULL,
+  `varchar_field` varchar(255) DEFAULT NULL,
+  `json_field` json DEFAULT NULL,
+  `text_field` text,
+  `new_decimal_field` decimal(20,6) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM string_table;
+id	null_field	bool_field	decimal_field	enum_field	set_field	string_field	var_string_field	varchar_field	json_field	text_field	new_decimal_field
+1	NULL	1	123.45	small	red,green	sample_string	var_string_sample	varchar_sample	{"age": 30, "name": "Alice"}	This is a sample text.	123456.789012
+2	another_value	0	678.90	medium	blue	another_string	another_var_string	NULL	NULL	NULL	345678.901234
+3	test_value	1	50.25	large	NULL	test_string	var_string_test	varchar_test	{"city": "Beijing", "population": 2154}	Some additional text content.	987654.321098
+4	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
+5	NULL	0	999.99	small	red	another test	var_string_another	varchar_another	{"states": 50, "country": "USA"}	More sample text data.	NULL
+6	final_value	1	100.00	medium	red,blue	final_string	var_string_final	varchar_final	{"legs": 4, "animal": "dog"}	End of this test text.	778899.001122
+CHECKSUM TABLE string_table;
+Table	Checksum
+alter_engine_test.string_table	2177912761
+ALTER TABLE string_table ENGINE = InnoDB;
+SHOW CREATE TABLE string_table;
+Table	Create Table
+string_table	CREATE TABLE `string_table` (
+  `id` int NOT NULL,
+  `null_field` varchar(255) DEFAULT NULL,
+  `bool_field` tinyint(1) DEFAULT NULL,
+  `decimal_field` decimal(10,2) DEFAULT NULL,
+  `enum_field` enum('small','medium','large') DEFAULT NULL,
+  `set_field` set('red','green','blue') DEFAULT NULL,
+  `string_field` varchar(255) DEFAULT NULL,
+  `var_string_field` varchar(255) DEFAULT NULL,
+  `varchar_field` varchar(255) DEFAULT NULL,
+  `json_field` json DEFAULT NULL,
+  `text_field` text,
+  `new_decimal_field` decimal(20,6) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE string_table;
+Table	Checksum
+alter_engine_test.string_table	2177912761
+ALTER TABLE string_table ENGINE = DUCKDB;
+SHOW CREATE TABLE string_table;
+Table	Create Table
+string_table	CREATE TABLE `string_table` (
+  `id` int NOT NULL,
+  `null_field` varchar(255) DEFAULT NULL,
+  `bool_field` tinyint(1) DEFAULT NULL,
+  `decimal_field` decimal(10,2) DEFAULT NULL,
+  `enum_field` enum('small','medium','large') DEFAULT NULL,
+  `set_field` set('red','green','blue') DEFAULT NULL,
+  `string_field` varchar(255) DEFAULT NULL,
+  `var_string_field` varchar(255) DEFAULT NULL,
+  `varchar_field` varchar(255) DEFAULT NULL,
+  `json_field` json DEFAULT NULL,
+  `text_field` text,
+  `new_decimal_field` decimal(20,6) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE string_table;
+Table	Checksum
+alter_engine_test.string_table	2177912761
+ALTER TABLE string_table ENGINE = DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE string_table;
+Table	Create Table
+string_table	CREATE TABLE `string_table` (
+  `id` int NOT NULL,
+  `null_field` varchar(255) DEFAULT NULL,
+  `bool_field` tinyint(1) DEFAULT NULL,
+  `decimal_field` decimal(10,2) DEFAULT NULL,
+  `enum_field` enum('small','medium','large') DEFAULT NULL,
+  `set_field` set('red','green','blue') DEFAULT NULL,
+  `string_field` varchar(255) DEFAULT NULL,
+  `var_string_field` varchar(255) DEFAULT NULL,
+  `varchar_field` varchar(255) DEFAULT NULL,
+  `json_field` json DEFAULT NULL,
+  `text_field` text,
+  `new_decimal_field` decimal(20,6) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE string_table;
+Table	Checksum
+alter_engine_test.string_table	2177912761
+#
+# 3. test numeric types
+#
+CREATE TABLE numeric_table (
+id INT PRIMARY KEY,
+tinyint_field TINYINT,
+smallint_field SMALLINT,
+mediumint_field MEDIUMINT,
+int_field INT,
+bigint_field BIGINT,
+float_field FLOAT,
+double_field DOUBLE,
+decimal_field DECIMAL(20,10)
+)ENGINE=DUCKDB;
+INSERT INTO numeric_table VALUES 
+(1, 127, 32767, 8388607, 2147483647, 9223372036854775807, 3.402823466E+38, 1.7976931348623157E+308, 123456789.1234567890),
+(2, -128, -32768, -8388608, -2147483648, -9223372036854775808, -3.402823466E+38, -1.7976931348623157E+308, -1234501234.1234567890),
+(3, NULL, 0, 0, 0, 0, 0.0, 0.0,NULL),
+(4, 1, 2, NULL, 4, 1844674407370955161, NULL, 2.2, 1234567890.1234567890),
+(5, -1, -2, -3, -4, -1844674407370955161, NULL, -2.2, -1234567890.1234567890);
+SHOW CREATE TABLE numeric_table;
+Table	Create Table
+numeric_table	CREATE TABLE `numeric_table` (
+  `id` int NOT NULL,
+  `tinyint_field` tinyint DEFAULT NULL,
+  `smallint_field` smallint DEFAULT NULL,
+  `mediumint_field` mediumint DEFAULT NULL,
+  `int_field` int DEFAULT NULL,
+  `bigint_field` bigint DEFAULT NULL,
+  `float_field` float DEFAULT NULL,
+  `double_field` double DEFAULT NULL,
+  `decimal_field` decimal(20,10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM numeric_table;
+id	tinyint_field	smallint_field	mediumint_field	int_field	bigint_field	float_field	double_field	decimal_field
+1	127	32767	8388607	2147483647	9223372036854775807	3.40282e38	1.7976931348623157e308	123456789.1234567890
+2	-128	-32768	-8388608	-2147483648	-9223372036854775808	-3.40282e38	-1.7976931348623157e308	-1234501234.1234567890
+3	NULL	0	0	0	0	0	0	NULL
+4	1	2	NULL	4	1844674407370955161	NULL	2.2	1234567890.1234567890
+5	-1	-2	-3	-4	-1844674407370955161	NULL	-2.2	-1234567890.1234567890
+CHECKSUM TABLE numeric_table;
+Table	Checksum
+alter_engine_test.numeric_table	2088420200
+ALTER TABLE numeric_table ENGINE = InnoDB;
+SHOW CREATE TABLE numeric_table;
+Table	Create Table
+numeric_table	CREATE TABLE `numeric_table` (
+  `id` int NOT NULL,
+  `tinyint_field` tinyint DEFAULT NULL,
+  `smallint_field` smallint DEFAULT NULL,
+  `mediumint_field` mediumint DEFAULT NULL,
+  `int_field` int DEFAULT NULL,
+  `bigint_field` bigint DEFAULT NULL,
+  `float_field` float DEFAULT NULL,
+  `double_field` double DEFAULT NULL,
+  `decimal_field` decimal(20,10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE numeric_table;
+Table	Checksum
+alter_engine_test.numeric_table	2088420200
+ALTER TABLE numeric_table ENGINE = DUCKDB;
+SHOW CREATE TABLE numeric_table;
+Table	Create Table
+numeric_table	CREATE TABLE `numeric_table` (
+  `id` int NOT NULL,
+  `tinyint_field` tinyint DEFAULT NULL,
+  `smallint_field` smallint DEFAULT NULL,
+  `mediumint_field` mediumint DEFAULT NULL,
+  `int_field` int DEFAULT NULL,
+  `bigint_field` bigint DEFAULT NULL,
+  `float_field` float DEFAULT NULL,
+  `double_field` double DEFAULT NULL,
+  `decimal_field` decimal(20,10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE numeric_table;
+Table	Checksum
+alter_engine_test.numeric_table	2088420200
+ALTER TABLE numeric_table ENGINE = DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE numeric_table;
+Table	Create Table
+numeric_table	CREATE TABLE `numeric_table` (
+  `id` int NOT NULL,
+  `tinyint_field` tinyint DEFAULT NULL,
+  `smallint_field` smallint DEFAULT NULL,
+  `mediumint_field` mediumint DEFAULT NULL,
+  `int_field` int DEFAULT NULL,
+  `bigint_field` bigint DEFAULT NULL,
+  `float_field` float DEFAULT NULL,
+  `double_field` double DEFAULT NULL,
+  `decimal_field` decimal(20,10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE numeric_table;
+Table	Checksum
+alter_engine_test.numeric_table	2088420200
+#
+# 4. test unsigned numeric types
+#
+CREATE TABLE unsigned_numeric_table (
+id INT PRIMARY KEY,
+tinyint_field TINYINT UNSIGNED,
+smallint_field SMALLINT UNSIGNED,
+mediumint_field MEDIUMINT UNSIGNED,
+int_field INT UNSIGNED,
+bigint_field BIGINT UNSIGNED,
+float_field FLOAT,
+double_field DOUBLE,
+decimal_field DECIMAL(20,10) 
+)ENGINE=DUCKDB;
+# Inserting test data into unsigned_numeric_table
+INSERT INTO unsigned_numeric_table VALUES (1, 255, 65535, 16777215, 4294967295, 18446744073709551615, 3.402823466E+38, 1.7976931348623157E+308, '9999999999.9999999999');
+INSERT INTO unsigned_numeric_table VALUES (2, 254, 65534, 16777214, 4294967294, 18446744073709551614, 3.402823465E+38, NULL, '9999999998.9999999998');
+INSERT INTO unsigned_numeric_table VALUES (3, 128, 32768, 8388607, 2147483647, 9223372036854775807, 123456789.123456789, 9876543210.0123456789, '1234567890.0123456789');
+INSERT INTO unsigned_numeric_table VALUES (4, NULL, 32767, NULL, 2147483647, NULL, 123456789.123456789, 9876543210.0123456789, '1234567890.0123456789');
+INSERT INTO unsigned_numeric_table VALUES (5, 127, 32767, NULL, NULL, NULL, 123456789.123456789, 9876543210.0123456789, '1234567890.0123456789');
+SHOW CREATE TABLE unsigned_numeric_table;
+Table	Create Table
+unsigned_numeric_table	CREATE TABLE `unsigned_numeric_table` (
+  `id` int NOT NULL,
+  `tinyint_field` tinyint unsigned DEFAULT NULL,
+  `smallint_field` smallint unsigned DEFAULT NULL,
+  `mediumint_field` mediumint unsigned DEFAULT NULL,
+  `int_field` int unsigned DEFAULT NULL,
+  `bigint_field` bigint unsigned DEFAULT NULL,
+  `float_field` float DEFAULT NULL,
+  `double_field` double DEFAULT NULL,
+  `decimal_field` decimal(20,10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM unsigned_numeric_table;
+id	tinyint_field	smallint_field	mediumint_field	int_field	bigint_field	float_field	double_field	decimal_field
+1	255	65535	16777215	4294967295	18446744073709551615	3.40282e38	1.7976931348623157e308	9999999999.9999999999
+2	254	65534	16777214	4294967294	18446744073709551614	3.40282e38	NULL	9999999998.9999999998
+3	128	32768	8388607	2147483647	9223372036854775807	123457000	9876543210.012346	1234567890.0123456789
+4	NULL	32767	NULL	2147483647	NULL	123457000	9876543210.012346	1234567890.0123456789
+5	127	32767	NULL	NULL	NULL	123457000	9876543210.012346	1234567890.0123456789
+CHECKSUM TABLE unsigned_numeric_table;
+Table	Checksum
+alter_engine_test.unsigned_numeric_table	953083886
+ALTER TABLE unsigned_numeric_table ENGINE = InnoDB;
+SHOW CREATE TABLE unsigned_numeric_table;
+Table	Create Table
+unsigned_numeric_table	CREATE TABLE `unsigned_numeric_table` (
+  `id` int NOT NULL,
+  `tinyint_field` tinyint unsigned DEFAULT NULL,
+  `smallint_field` smallint unsigned DEFAULT NULL,
+  `mediumint_field` mediumint unsigned DEFAULT NULL,
+  `int_field` int unsigned DEFAULT NULL,
+  `bigint_field` bigint unsigned DEFAULT NULL,
+  `float_field` float DEFAULT NULL,
+  `double_field` double DEFAULT NULL,
+  `decimal_field` decimal(20,10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE unsigned_numeric_table;
+Table	Checksum
+alter_engine_test.unsigned_numeric_table	953083886
+ALTER TABLE unsigned_numeric_table ENGINE = DUCKDB;
+SHOW CREATE TABLE unsigned_numeric_table;
+Table	Create Table
+unsigned_numeric_table	CREATE TABLE `unsigned_numeric_table` (
+  `id` int NOT NULL,
+  `tinyint_field` tinyint unsigned DEFAULT NULL,
+  `smallint_field` smallint unsigned DEFAULT NULL,
+  `mediumint_field` mediumint unsigned DEFAULT NULL,
+  `int_field` int unsigned DEFAULT NULL,
+  `bigint_field` bigint unsigned DEFAULT NULL,
+  `float_field` float DEFAULT NULL,
+  `double_field` double DEFAULT NULL,
+  `decimal_field` decimal(20,10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE unsigned_numeric_table;
+Table	Checksum
+alter_engine_test.unsigned_numeric_table	953083886
+ALTER TABLE unsigned_numeric_table ENGINE = DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE unsigned_numeric_table;
+Table	Create Table
+unsigned_numeric_table	CREATE TABLE `unsigned_numeric_table` (
+  `id` int NOT NULL,
+  `tinyint_field` tinyint unsigned DEFAULT NULL,
+  `smallint_field` smallint unsigned DEFAULT NULL,
+  `mediumint_field` mediumint unsigned DEFAULT NULL,
+  `int_field` int unsigned DEFAULT NULL,
+  `bigint_field` bigint unsigned DEFAULT NULL,
+  `float_field` float DEFAULT NULL,
+  `double_field` double DEFAULT NULL,
+  `decimal_field` decimal(20,10) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE unsigned_numeric_table;
+Table	Checksum
+alter_engine_test.unsigned_numeric_table	953083886
+#
+# 5. test date types
+#
+CREATE TABLE date_table (
+id INT PRIMARY KEY,
+date_field DATE,
+datetime_field DATETIME,
+timestamp_field TIMESTAMP,
+time_field TIME
+)ENGINE=DUCKDB;
+INSERT INTO date_table VALUES 
+(1, '2023-01-01', '2023-01-01 12:00:00', '2023-01-01 12:00:00', '12:00:00'),
+(2, '1999-12-31', '1999-12-31 23:59:59', '1999-12-31 23:59:59', '23:59:59'),
+(3, NULL, NULL, NULL, '00:00:00'),
+(4, '2024-02-29', '2024-02-29 00:00:00', '2024-02-29 00:00:00', '00:00:00'),
+(5, '2023-04-05', NULL, '2023-04-05 14:30:45', NULL),
+(6, '2023-04-05', '2023-04-05 14:30:45', '2023-04-05 14:30:45', '14:30:45');
+SHOW CREATE TABLE date_table;
+Table	Create Table
+date_table	CREATE TABLE `date_table` (
+  `id` int NOT NULL,
+  `date_field` date DEFAULT NULL,
+  `datetime_field` datetime DEFAULT NULL,
+  `timestamp_field` timestamp NULL DEFAULT NULL,
+  `time_field` time DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SELECT * FROM date_table;
+id	date_field	datetime_field	timestamp_field	time_field
+1	2023-01-01	2023-01-01 12:00:00	2023-01-01 12:00:00	12:00:00
+2	1999-12-31	1999-12-31 23:59:59	1999-12-31 23:59:59	23:59:59
+3	NULL	NULL	NULL	00:00:00
+4	2024-02-29	2024-02-29 00:00:00	2024-02-29 00:00:00	00:00:00
+5	2023-04-05	NULL	2023-04-05 14:30:45	NULL
+6	2023-04-05	2023-04-05 14:30:45	2023-04-05 14:30:45	14:30:45
+CHECKSUM TABLE date_table;
+Table	Checksum
+alter_engine_test.date_table	1791289722
+ALTER TABLE date_table ENGINE = InnoDB;
+SHOW CREATE TABLE date_table;
+Table	Create Table
+date_table	CREATE TABLE `date_table` (
+  `id` int NOT NULL,
+  `date_field` date DEFAULT NULL,
+  `datetime_field` datetime DEFAULT NULL,
+  `timestamp_field` timestamp NULL DEFAULT NULL,
+  `time_field` time DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE date_table;
+Table	Checksum
+alter_engine_test.date_table	1791289722
+ALTER TABLE date_table ENGINE = DUCKDB;
+SHOW CREATE TABLE date_table;
+Table	Create Table
+date_table	CREATE TABLE `date_table` (
+  `id` int NOT NULL,
+  `date_field` date DEFAULT NULL,
+  `datetime_field` datetime DEFAULT NULL,
+  `timestamp_field` timestamp NULL DEFAULT NULL,
+  `time_field` time DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE date_table;
+Table	Checksum
+alter_engine_test.date_table	1791289722
+ALTER TABLE date_table ENGINE = DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE date_table;
+Table	Create Table
+date_table	CREATE TABLE `date_table` (
+  `id` int NOT NULL,
+  `date_field` date DEFAULT NULL,
+  `datetime_field` datetime DEFAULT NULL,
+  `timestamp_field` timestamp NULL DEFAULT NULL,
+  `time_field` time DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM TABLE date_table;
+Table	Checksum
+alter_engine_test.date_table	1791289722
+#
+# 6. test large field
+#
+CREATE TABLE large_field_table1 ( 
+id INT PRIMARY KEY, 
+tiny_blob_field TINYBLOB,
+blob_field BLOB,
+medium_blob_field MEDIUMBLOB,
+long_blob_field LONGBLOB
+) ENGINE=DUCKDB;
+INSERT INTO large_field_table1 values(1, 'a', 'b', 'ccc', repeat('d', 1024 * 1024));
+INSERT INTO large_field_table1 values(2, repeat('a', 255), repeat('b', 65535), repeat('c',16777215), repeat('d', 67108864));
+INSERT INTO large_field_table1 values(3, 'aa', 'bb', 'ccc', repeat('d', 1024 * 1024));
+INSERT INTO large_field_table1 values(4, repeat('a', 254), repeat('b', 65533), repeat('c',8000000), repeat('d', 67108864));
+INSERT INTO large_field_table1 values(5, 'aa', 'bb', 'ccc', repeat('d', 1024 * 1024));
+SHOW CREATE TABLE large_field_table1;
+Table	Create Table
+large_field_table1	CREATE TABLE `large_field_table1` (
+  `id` int NOT NULL,
+  `tiny_blob_field` tinyblob,
+  `blob_field` blob,
+  `medium_blob_field` mediumblob,
+  `long_blob_field` longblob,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM  TABLE large_field_table1;
+Table	Checksum
+alter_engine_test.large_field_table1	3877415242
+ALTER TABLE large_field_table1 ENGINE=INNODB;
+SHOW CREATE TABLE large_field_table1;
+Table	Create Table
+large_field_table1	CREATE TABLE `large_field_table1` (
+  `id` int NOT NULL,
+  `tiny_blob_field` tinyblob,
+  `blob_field` blob,
+  `medium_blob_field` mediumblob,
+  `long_blob_field` longblob,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM  TABLE large_field_table1;
+Table	Checksum
+alter_engine_test.large_field_table1	3877415242
+ALTER TABLE large_field_table1 ENGINE=DUCKDB;
+SHOW CREATE TABLE large_field_table1;
+Table	Create Table
+large_field_table1	CREATE TABLE `large_field_table1` (
+  `id` int NOT NULL,
+  `tiny_blob_field` tinyblob,
+  `blob_field` blob,
+  `medium_blob_field` mediumblob,
+  `long_blob_field` longblob,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM  TABLE large_field_table1;
+Table	Checksum
+alter_engine_test.large_field_table1	3877415242
+ALTER TABLE large_field_table1 ENGINE=DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE large_field_table1;
+Table	Create Table
+large_field_table1	CREATE TABLE `large_field_table1` (
+  `id` int NOT NULL,
+  `tiny_blob_field` tinyblob,
+  `blob_field` blob,
+  `medium_blob_field` mediumblob,
+  `long_blob_field` longblob,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM  TABLE large_field_table1;
+Table	Checksum
+alter_engine_test.large_field_table1	3877415242
+CREATE TABLE large_field_table2 ( 
+id INT PRIMARY KEY,
+bit_field BIT(64),
+char_field CHAR(255), 
+string_field VARCHAR(8192),
+json_field JSON,
+text_field TEXT
+) ENGINE=DUCKDB;
+SET @long_str = repeat('a',67107864);
+SET @json_val = JSON_OBJECT('key1', 'static_value', 'key2', @long_str);
+INSERT INTO large_field_table2 values(1, X'ff', 'aaa', 'bbbbb', '{"country": "USA", "states": 50}', 'eeeee');
+INSERT INTO large_field_table2 values(2, X'FFFFFFFFFFFFFFFF', repeat('C', 255), repeat('D',8192),  @json_val, repeat('E', 65535));
+INSERT INTO large_field_table2 values(3, X'ff', 'aaa', 'bbbbb', '{"country": "USA", "states": 50}', 'eeeee');
+INSERT INTO large_field_table2 values(4, X'FFFFFFFFFFFFFFFF', repeat('w', 255), repeat('v',4096),  @json_val, repeat('o', 65535));
+INSERT INTO large_field_table2 values(5, X'ff', 'aaa', 'bbbbb', '{"country": "USA", "states": 50}', 'eeeee');
+SHOW CREATE TABLE large_field_table2;
+Table	Create Table
+large_field_table2	CREATE TABLE `large_field_table2` (
+  `id` int NOT NULL,
+  `bit_field` bit(64) DEFAULT NULL,
+  `char_field` char(255) DEFAULT NULL,
+  `string_field` varchar(8192) DEFAULT NULL,
+  `json_field` json DEFAULT NULL,
+  `text_field` text,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM  TABLE large_field_table2;
+Table	Checksum
+alter_engine_test.large_field_table2	2298046794
+ALTER TABLE large_field_table2 ENGINE=INNODB;
+SHOW CREATE TABLE large_field_table2;
+Table	Create Table
+large_field_table2	CREATE TABLE `large_field_table2` (
+  `id` int NOT NULL,
+  `bit_field` bit(64) DEFAULT NULL,
+  `char_field` char(255) DEFAULT NULL,
+  `string_field` varchar(8192) DEFAULT NULL,
+  `json_field` json DEFAULT NULL,
+  `text_field` text,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM  TABLE large_field_table2;
+Table	Checksum
+alter_engine_test.large_field_table2	2298046794
+ALTER TABLE large_field_table2 ENGINE=DUCKDB;
+SHOW CREATE TABLE large_field_table2;
+Table	Create Table
+large_field_table2	CREATE TABLE `large_field_table2` (
+  `id` int NOT NULL,
+  `bit_field` bit(64) DEFAULT NULL,
+  `char_field` char(255) DEFAULT NULL,
+  `string_field` varchar(8192) DEFAULT NULL,
+  `json_field` json DEFAULT NULL,
+  `text_field` text,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM  TABLE large_field_table2;
+Table	Checksum
+alter_engine_test.large_field_table2	2298046794
+ALTER TABLE large_field_table2 ENGINE=DUCKDB, ALGORITHM = COPY;
+SHOW CREATE TABLE large_field_table2;
+Table	Create Table
+large_field_table2	CREATE TABLE `large_field_table2` (
+  `id` int NOT NULL,
+  `bit_field` bit(64) DEFAULT NULL,
+  `char_field` char(255) DEFAULT NULL,
+  `string_field` varchar(8192) DEFAULT NULL,
+  `json_field` json DEFAULT NULL,
+  `text_field` text,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+CHECKSUM  TABLE large_field_table2;
+Table	Checksum
+alter_engine_test.large_field_table2	2298046794
+#
+# 7. test CHECKSUM
+# special case: when NULL in fields with default value
+#
+CREATE TABLE `t1` (
+`id` bigint NOT NULL,
+`c0` varchar(20) NOT NULL,
+`c1` char(10) DEFAULT 'duckdb',
+`c2` decimal(5,2) DEFAULT NULL,
+`c3` datetime DEFAULT NULL,
+`c4` timestamp NULL DEFAULT NULL,
+`c5` blob,
+PRIMARY KEY (`id`)
+) ENGINE=InnoDB;
+CREATE TABLE `t2` (
+`id` bigint NOT NULL,
+`c0` varchar(20) NOT NULL,
+`c1` char(10) DEFAULT 'duckdb',
+`c2` decimal(5,2) DEFAULT NULL,
+`c3` datetime DEFAULT NULL,
+`c4` timestamp NULL DEFAULT NULL,
+`c5` blob,
+PRIMARY KEY (`id`)
+) ENGINE=DuckDB;
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES (1, 'abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+INSERT INTO t2 (id, c0, c1, c2, c3, c4, c5) VALUES (1, 'abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+CHECKSUM TABLE t1;
+Table	Checksum
+alter_engine_test.t1	1521661477
+CHECKSUM TABLE t2;
+Table	Checksum
+alter_engine_test.t2	1521661477
+SET @long_str = NULL;
+SET @json_val = NULL;
+DROP DATABASE IF EXISTS alter_engine_test;

@@ -2361,6 +2361,15 @@ static bool fill_dd_table_from_create_info(
   tab_obj->set_secondary_engine_attribute(
       create_info->secondary_engine_attribute);
 
+  /*
+    For DuckDB, we save auto_increment_value(from create_info) in the
+    table se_private_data.
+  */
+  if (tab_obj->engine() == myduck::DUCKDB_ENGINE_NAME &&
+      create_info->auto_increment_value != 0)
+    tab_obj->se_private_data().set(myduck::DUCKDB_AUTO_INC,
+                                   create_info->auto_increment_value);
+
   // TODO-MYSQL_VERSION: We decided not to store MYSQL_VERSION_ID ?
   //
   //       If we are to introduce this version we need to explain when

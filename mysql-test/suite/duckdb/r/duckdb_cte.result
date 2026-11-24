@@ -1,0 +1,46 @@
+CREATE TABLE duckdb_table (id INT PRIMARY KEY, col1 INT) ENGINE=DuckDB;
+CREATE TABLE innodb_table (id INT PRIMARY KEY, col1 INT) ENGINE=InnoDB;
+INSERT INTO duckdb_table VALUES (1, 1);
+INSERT INTO innodb_table VALUES (1, 1);
+
+(1) CTE
+
+WITH tmp AS (SELECT MAX(col1) FROM duckdb_table) SELECT * FROM tmp;
+MAX(col1)
+1
+WITH tmp AS (SELECT MAX(col1) FROM duckdb_table) SELECT * FROM tmp, duckdb_table;
+MAX(col1)	id	col1
+1	1	1
+WITH tmp AS (SELECT MAX(col1) FROM duckdb_table) SELECT * FROM tmp, innodb_table;
+ERROR HY000: [DuckDB] Does not support mixed queries of duckdb engine and other engines in SELECT Statement. The table `duckdb_table` is a duckdb table. The table `innodb_table` is not a duckdb table.
+
+(2) Recursive CTE
+
+WITH RECURSIVE tmp AS (
+SELECT 1 AS n
+UNION ALL
+SELECT n + 1 FROM tmp WHERE n < 3
+)
+SELECT * FROM duckdb_table, tmp;
+id	col1	n
+1	1	1
+1	1	2
+1	1	3
+WITH RECURSIVE tmp AS (
+SELECT 1 AS n
+UNION ALL
+SELECT n + 1 FROM tmp, duckdb_table WHERE n = duckdb_table.col1
+)
+SELECT * FROM duckdb_table, tmp;
+id	col1	n
+1	1	1
+1	1	2
+WITH RECURSIVE tmp AS (
+SELECT 1 AS n
+UNION ALL
+SELECT n + 1 FROM tmp, innodb_table WHERE n = innodb_table.col1
+)
+SELECT * FROM duckdb_table, tmp;
+ERROR HY000: [DuckDB] Does not support mixed queries of duckdb engine and other engines in SELECT Statement. The table `duckdb_table` is a duckdb table. The table `innodb_table` is not a duckdb table.
+DROP TABLE duckdb_table;
+DROP TABLE innodb_table;

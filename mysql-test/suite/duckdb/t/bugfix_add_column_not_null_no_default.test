@@ -1,0 +1,431 @@
+# ===========================================================
+# Test: bugfix_add_column_not_null_no_default
+# Description:
+#   ADD COLUMN ... NOT NULL (without explicit DEFAULT) on a DuckDB table
+#   with existing rows used to fail because DuckDB fills new columns with
+#   NULL, and the subsequent SET NOT NULL check finds those NULLs.
+#
+#   MySQL uses the type's implicit default (0 for numeric, '' for string,
+#   etc.) to fill existing rows. The fix supplies this implicit default
+#   explicitly in the DuckDB ADD COLUMN statement.
+#
+#   DATE / DATETIME NOT NULL without DEFAULT use COPY and are covered by
+#   alter_temporal_default.test. TIMESTAMP zero-date defaults remain outside
+#   this type-mapping matrix.
+#
+#   Style: each case creates an InnoDB control table (t_innodb) alongside
+#   the DuckDB table (t_duckdb), runs the same ALTER on both, and uses
+#   CHECKSUM TABLE to assert data parity.
+#
+# Related: Aone#81035240
+# Fix:     storage/duckdb/ddl_convertor.cc
+#          - ADD COLUMN: inject type-specific DEFAULT via
+#            get_implicit_default_for_duckdb() to back-fill existing rows,
+#            then emit DROP DEFAULT so the resulting DuckDB column carries
+#            no DEFAULT (matches InnoDB column metadata in both strict and
+#            non-strict sql_mode).
+#          - AddColumnConvertor::translate
+#          - ENUM: ADD uses first enum value
+#          - BINARY(N): fill N zero bytes instead of empty blob
+# ===========================================================
+
+--echo #
+--echo # 1) All feasible types — default algorithm
+--echo #
+# Type-mapping matrix for get_implicit_default_for_duckdb(). 27 columns
+# cover every branch except DATE/DATETIME/TIMESTAMP (see the file header)
+# and YEAR (display-format
+# mismatch between InnoDB and DuckDB — CHECKSUM cannot compare it).
+# The default algorithm is whatever MySQL picks for the DuckDB handler
+# (INSTANT in practice). CHECKSUM parity confirms each implicit default
+# matches what InnoDB writes.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+
+ALTER TABLE t_innodb ADD COLUMN c_int INT NOT NULL,
+                     ADD COLUMN c_bigint BIGINT NOT NULL,
+                     ADD COLUMN c_tinyint TINYINT NOT NULL,
+                     ADD COLUMN c_bool BOOL NOT NULL,
+                     ADD COLUMN c_smallint SMALLINT NOT NULL,
+                     ADD COLUMN c_mediumint MEDIUMINT NOT NULL,
+                     ADD COLUMN c_float FLOAT NOT NULL,
+                     ADD COLUMN c_double DOUBLE NOT NULL,
+                     ADD COLUMN c_decimal DECIMAL(12,2) NOT NULL,
+                     ADD COLUMN c_varchar VARCHAR(100) NOT NULL,
+                     ADD COLUMN c_char CHAR(10) NOT NULL,
+                     ADD COLUMN c_text TEXT NOT NULL,
+                     ADD COLUMN c_tinytext TINYTEXT NOT NULL,
+                     ADD COLUMN c_mediumtext MEDIUMTEXT NOT NULL,
+                     ADD COLUMN c_longtext LONGTEXT NOT NULL,
+                     ADD COLUMN c_blob BLOB NOT NULL,
+                     ADD COLUMN c_tinyblob TINYBLOB NOT NULL,
+                     ADD COLUMN c_mediumblob MEDIUMBLOB NOT NULL,
+                     ADD COLUMN c_longblob LONGBLOB NOT NULL,
+                     ADD COLUMN c_varbinary VARBINARY(100) NOT NULL,
+                     ADD COLUMN c_time TIME NOT NULL,
+                     ADD COLUMN c_time6 TIME(6) NOT NULL,
+                     ADD COLUMN c_json JSON NOT NULL,
+                     ADD COLUMN c_bit BIT(8) NOT NULL,
+                     ADD COLUMN c_bit64 BIT(64) NOT NULL,
+                     ADD COLUMN c_set SET('x','y','z') NOT NULL,
+                     ADD COLUMN c_enum ENUM('a','b','c') NOT NULL;
+
+ALTER TABLE t_duckdb ADD COLUMN c_int INT NOT NULL,
+                     ADD COLUMN c_bigint BIGINT NOT NULL,
+                     ADD COLUMN c_tinyint TINYINT NOT NULL,
+                     ADD COLUMN c_bool BOOL NOT NULL,
+                     ADD COLUMN c_smallint SMALLINT NOT NULL,
+                     ADD COLUMN c_mediumint MEDIUMINT NOT NULL,
+                     ADD COLUMN c_float FLOAT NOT NULL,
+                     ADD COLUMN c_double DOUBLE NOT NULL,
+                     ADD COLUMN c_decimal DECIMAL(12,2) NOT NULL,
+                     ADD COLUMN c_varchar VARCHAR(100) NOT NULL,
+                     ADD COLUMN c_char CHAR(10) NOT NULL,
+                     ADD COLUMN c_text TEXT NOT NULL,
+                     ADD COLUMN c_tinytext TINYTEXT NOT NULL,
+                     ADD COLUMN c_mediumtext MEDIUMTEXT NOT NULL,
+                     ADD COLUMN c_longtext LONGTEXT NOT NULL,
+                     ADD COLUMN c_blob BLOB NOT NULL,
+                     ADD COLUMN c_tinyblob TINYBLOB NOT NULL,
+                     ADD COLUMN c_mediumblob MEDIUMBLOB NOT NULL,
+                     ADD COLUMN c_longblob LONGBLOB NOT NULL,
+                     ADD COLUMN c_varbinary VARBINARY(100) NOT NULL,
+                     ADD COLUMN c_time TIME NOT NULL,
+                     ADD COLUMN c_time6 TIME(6) NOT NULL,
+                     ADD COLUMN c_json JSON NOT NULL,
+                     ADD COLUMN c_bit BIT(8) NOT NULL,
+                     ADD COLUMN c_bit64 BIT(64) NOT NULL,
+                     ADD COLUMN c_set SET('x','y','z') NOT NULL,
+                     ADD COLUMN c_enum ENUM('a','b','c') NOT NULL;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = Checksum is the same after ALTER
+--source include/assert.inc
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t_innodb (id, c_int) VALUES (4, NULL);
+--error ER_BAD_NULL_ERROR
+INSERT INTO t_duckdb (id, c_int) VALUES (4, NULL);
+
+INSERT INTO t_innodb VALUES (5, 1,1,1,1,1,1, 1,1,1.00, 'a','a', 'a','a','a','a', 'a','a','a','a','a', '01:00:00','01:00:00.000000', '1', 1, 1, 'x', 'a');
+INSERT INTO t_duckdb VALUES (5, 1,1,1,1,1,1, 1,1,1.00, 'a','a', 'a','a','a','a', 'a','a','a','a','a', '01:00:00','01:00:00.000000', '1', 1, 1, 'x', 'a');
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = Checksum is the same after data insert
+--source include/assert.inc
+
+# Layer 1: MySQL DD records the same column metadata for both engines.
+# COLUMN_DEFAULT is NULL for NOT-NULL-without-DEFAULT columns on both
+# sides because MySQL doesn't track implicit defaults — proves the fix
+# does not pollute MySQL's view of the column definition.
+SELECT column_name, column_default, is_nullable
+  FROM information_schema.columns
+ WHERE table_schema='test' AND table_name='t_innodb'
+ ORDER BY ordinal_position;
+SELECT column_name, column_default, is_nullable
+  FROM information_schema.columns
+ WHERE table_schema='test' AND table_name='t_duckdb'
+ ORDER BY ordinal_position;
+
+# Layer 2: DuckDB catalog must show NO column_default for the injected
+# columns — proves the temporary DEFAULT was dropped after back-fill,
+# leaving the DuckDB column metadata aligned with InnoDB. Subsequent
+# INSERT-without-value behaviour is enforced by MySQL Server (strict
+# mode rejects, non-strict mode fills implicit default before sending
+# the row to DuckDB), so the column itself does not need a DEFAULT.
+CALL dbms_duckdb.query("SELECT column_name, column_default, is_nullable FROM information_schema.columns WHERE table_name='t_duckdb' ORDER BY ordinal_position");
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 2) NOT NULL without DEFAULT on empty table (should always succeed)
+--echo #
+# Boundary case: no rows means there is nothing to fill; the implicit
+# default is irrelevant. The ALTER must still install the NOT NULL flag.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+
+ALTER TABLE t_innodb ADD COLUMN c1 INT NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN c1 INT NOT NULL;
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t_innodb VALUES (1, NULL);
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t_duckdb VALUES (1, NULL);
+
+INSERT INTO t_innodb VALUES (1, 100);
+INSERT INTO t_duckdb VALUES (1, 100);
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 3) Mix of NOT NULL with DEFAULT and NOT NULL without DEFAULT
+--echo #
+# Confirms the injection branch is gated by has_default: column a (no
+# DEFAULT) gets the implicit 0, column b (explicit DEFAULT 42) is left
+# untouched.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+
+ALTER TABLE t_innodb ADD COLUMN a INT NOT NULL,
+                     ADD COLUMN b INT NOT NULL DEFAULT 42;
+
+ALTER TABLE t_duckdb ADD COLUMN a INT NOT NULL,
+                     ADD COLUMN b INT NOT NULL DEFAULT 42;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same
+--source include/assert.inc
+
+# Layer 2: prove the has_default gate works.
+#   a (no user DEFAULT) → DuckDB catalog should show NULL
+#     (fix injected '0' for back-fill then dropped it).
+#   b (explicit DEFAULT 42) → DuckDB catalog should show '42'
+#     (preserved from user input, the drop branch must not fire).
+CALL dbms_duckdb.query("SELECT column_name, column_default FROM information_schema.columns WHERE table_name='t_duckdb' AND column_name IN ('a','b') ORDER BY column_name");
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 4) Regression: TIMESTAMP NOT NULL DEFAULT now() still works
+--echo #
+# The fix only activates when has_default is false. This case has a
+# function default, so the new branch must be skipped and the existing
+# DEFAULT-handling path (fixed previously in 6bf51aa) must remain intact.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+
+SET TIMESTAMP=UNIX_TIMESTAMP('2001-01-01 00:00:00');
+ALTER TABLE t_innodb ADD COLUMN c1 TIMESTAMP NOT NULL DEFAULT now();
+ALTER TABLE t_duckdb ADD COLUMN c1 TIMESTAMP NOT NULL DEFAULT now();
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same
+--source include/assert.inc
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t_innodb VALUES (4, NULL);
+
+--error ER_BAD_NULL_ERROR
+INSERT INTO t_duckdb VALUES (4, NULL);
+
+DROP TABLE t_innodb, t_duckdb;
+SET TIMESTAMP=DEFAULT;
+
+# DATE and DATETIME zero-date cases are covered by alter_temporal_default.test.
+--echo #
+--echo # 5) Regression: nullable column must NOT have implicit default injected
+--echo #
+# When NOT_NULL_FLAG is unset, AddColumnConvertor must leave existing rows as
+# NULL (not 0/''). Verifies the fix's trigger condition is gated correctly.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+
+ALTER TABLE t_innodb ADD COLUMN c_int INT,
+                     ADD COLUMN c_str VARCHAR(20),
+                     ADD COLUMN c_date DATE;
+ALTER TABLE t_duckdb ADD COLUMN c_int INT,
+                     ADD COLUMN c_str VARCHAR(20),
+                     ADD COLUMN c_date DATE;
+
+# Verify all existing rows are NULL (not implicit default values).
+SELECT id, c_int, c_str, c_date FROM t_duckdb ORDER BY id;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same
+--source include/assert.inc
+
+# Inserting NULL is allowed (column is nullable).
+INSERT INTO t_innodb VALUES (4, NULL, NULL, NULL);
+INSERT INTO t_duckdb VALUES (4, NULL, NULL, NULL);
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same
+--source include/assert.inc
+
+# Layer 2: prove the NOT_NULL_FLAG gate works in reverse.
+# All three nullable columns must show NULL default in DuckDB catalog —
+# the fix's injection branch must NOT have triggered for nullable cols.
+CALL dbms_duckdb.query("SELECT column_name, column_default FROM information_schema.columns WHERE table_name='t_duckdb' AND column_name IN ('c_int','c_str','c_date') ORDER BY column_name");
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 6) DECIMAL precision × duckdb_use_double_for_decimal modes
+--echo #
+# DECIMAL is special: DuckDB's underlying storage type switches between
+# DECIMAL and DOUBLE depending on (a) precision (DuckDB DECIMAL caps at
+# 38) and (b) the global `duckdb_use_double_for_decimal` flag. The
+# implicit default '0' from get_implicit_default_for_duckdb() must
+# produce InnoDB-equivalent rows on every combination — see
+# create_table_column.test for the corresponding type-mapping coverage.
+
+SET @saved_use_double = @@global.duckdb_use_double_for_decimal;
+
+--echo #
+--echo # 6a) use_double=off — DuckDB stores both as DECIMAL (high precision capped at 38)
+--echo #
+SET GLOBAL duckdb_use_double_for_decimal=off;
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+
+ALTER TABLE t_innodb ADD COLUMN d_low DECIMAL(38,5) NOT NULL,
+                     ADD COLUMN d_high DECIMAL(40,5) NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN d_low DECIMAL(38,5) NOT NULL,
+                     ADD COLUMN d_high DECIMAL(40,5) NOT NULL;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same (use_double=off)
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 6b) use_double=on — DuckDB stores high-precision as DOUBLE
+--echo #
+SET GLOBAL duckdb_use_double_for_decimal=on;
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+
+ALTER TABLE t_innodb ADD COLUMN d_low DECIMAL(38,5) NOT NULL,
+                     ADD COLUMN d_high DECIMAL(40,5) NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN d_low DECIMAL(38,5) NOT NULL,
+                     ADD COLUMN d_high DECIMAL(40,5) NOT NULL;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond= $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text= Checksum is the same (use_double=on)
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+SET GLOBAL duckdb_use_double_for_decimal = @saved_use_double;
+
+--echo #
+--echo # 7) BINARY(10) ADD COLUMN — verify LENGTH matches InnoDB
+--echo #
+# InnoDB fills BINARY(10) NOT NULL with 10 zero bytes. The fix now
+# generates a 10-byte zero blob for DuckDB. CHECKSUM matches even
+# without the fix (record buffer is zero-padded), so we verify with
+# LENGTH() explicitly.
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+
+ALTER TABLE t_innodb ADD COLUMN c BINARY(10) NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN c BINARY(10) NOT NULL;
+
+SELECT id, HEX(c), LENGTH(c) FROM t_innodb ORDER BY id;
+SELECT id, HEX(c), LENGTH(c) FROM t_duckdb ORDER BY id;
+
+--let $li = query_get_value(SELECT LENGTH(c) AS l FROM t_innodb WHERE id=1, l, 1)
+--let $ld = query_get_value(SELECT LENGTH(c) AS l FROM t_duckdb WHERE id=1, l, 1)
+--let $assert_cond = $li = $ld
+--let $assert_text = BINARY(10) ADD COLUMN LENGTH parity
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 8) sql_mode parity for INSERT omitting NOT NULL column without DEFAULT
+--echo #
+# After the DROP DEFAULT change, the DuckDB column carries no DEFAULT —
+# so MySQL Server's sql_mode-driven implicit-default / rejection logic
+# must produce identical behaviour on both engines. This guards the
+# "alignment in both strict and non-strict mode" promise that motivates
+# the DROP DEFAULT step.
+
+SET @saved_sql_mode = @@SESSION.sql_mode;
+
+--echo #
+--echo # 8a) Non-strict — implicit default fills omitted column
+--echo #
+SET SESSION sql_mode = '';
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+
+ALTER TABLE t_innodb ADD COLUMN c INT NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN c INT NOT NULL;
+
+# Omitted NOT NULL column — non-strict should silently fill 0.
+INSERT INTO t_innodb (id) VALUES (4);
+INSERT INTO t_duckdb (id) VALUES (4);
+
+SELECT id, c FROM t_innodb ORDER BY id;
+SELECT id, c FROM t_duckdb ORDER BY id;
+
+--let $checksum_t_innodb = query_get_value(CHECKSUM TABLE t_innodb, Checksum, 1)
+--let $checksum_t_duckdb = query_get_value(CHECKSUM TABLE t_duckdb, Checksum, 1)
+--let $assert_cond = $checksum_t_innodb = $checksum_t_duckdb
+--let $assert_text = Non-strict implicit-default parity for omitted NOT NULL column
+--source include/assert.inc
+
+DROP TABLE t_innodb, t_duckdb;
+
+--echo #
+--echo # 8b) Strict — same INSERT must be rejected on both engines
+--echo #
+SET SESSION sql_mode = 'STRICT_TRANS_TABLES';
+
+CREATE TABLE t_innodb (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t_duckdb (id INT PRIMARY KEY) ENGINE=DuckDB;
+INSERT INTO t_innodb VALUES (1), (2), (3);
+INSERT INTO t_duckdb VALUES (1), (2), (3);
+
+ALTER TABLE t_innodb ADD COLUMN c INT NOT NULL;
+ALTER TABLE t_duckdb ADD COLUMN c INT NOT NULL;
+
+--error ER_NO_DEFAULT_FOR_FIELD
+INSERT INTO t_innodb (id) VALUES (4);
+--error ER_NO_DEFAULT_FOR_FIELD
+INSERT INTO t_duckdb (id) VALUES (4);
+
+DROP TABLE t_innodb, t_duckdb;
+
+SET SESSION sql_mode = @saved_sql_mode;

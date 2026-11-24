@@ -1,0 +1,92 @@
+--source include/rpl/init_source_replica.inc
+--source include/have_binlog_format_row.inc
+
+
+--echo #
+--echo # 1) IN THE SLAVE, DISABLE THE 'force_innodb_to_duckdb' VARIABLE.
+--echo #
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SET GLOBAL force_innodb_to_duckdb = OFF;
+
+--echo #
+--echo # 2) IN THE MASTER, CREATE INNODB TABLE IN MASTER, AND INSERT SOME DATA
+--echo #
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT, name CHAR(120), PRIMARY KEY (id)) ENGINE = InnoDB;
+SHOW CREATE TABLE t1;
+INSERT INTO t1 VALUES (1, 'one');
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+SELECT COUNT(*) FROM t1;
+
+
+--echo #
+--echo # 3) IN THE SLAVE, ENABLE THE 'force_innodb_to_duckdb' VARIABLE
+--echo #
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE t1;
+SELECT COUNT(*) FROM t1;
+SET GLOBAL force_innodb_to_duckdb = ON;
+
+
+--echo #
+--echo # 4) IN THE MASTER, ISSUE A COPY DDL
+--echo #
+--source include/rpl/connection_source.inc
+ALTER TABLE t1 MODIFY COLUMN name VARCHAR(512);
+
+
+--echo #
+--echo # 4) IN THE SLAVE, DISABLE THE 'force_innodb_to_duckdb' VARIABLE
+--echo #
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SET GLOBAL force_innodb_to_duckdb = OFF;
+
+--echo #
+--echo # 5) IN THE MASTER, REPEAT THE 'create table + insert data + copy ddl' ROUTINE
+--echo #
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+CREATE TABLE t1 (id INT NOT NULL AUTO_INCREMENT, name CHAR(120), PRIMARY KEY (id)) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1, 'one');
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+INSERT INTO t1(name) SELECT name FROM t1;
+ALTER TABLE t1 MODIFY COLUMN name VARCHAR(512);
+
+
+--echo #
+--echo # 6) IN THE SLAVE, CHECK THE TABLE AND DATA
+--echo #
+--source include/rpl/sync.inc
+--source include/rpl/connection_replica.inc
+SHOW CREATE TABLE t1;
+SELECT COUNT(*) FROM t1;
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync.inc
+
+SET GLOBAL force_innodb_to_duckdb = default;
+--source include/rpl/sync.inc
+--source include/rpl/deinit.inc

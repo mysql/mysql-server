@@ -1,0 +1,4 @@
+--skip-log-bin
+--force_innodb_to_duckdb=on
+--duckdb_batch_max_row_count=3
+--duckdb_log_options='DUCKDB_QUERY,DUCKDB_QUERY_RESULT'

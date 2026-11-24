@@ -1,0 +1,300 @@
+
+CREATE DATABASE IF NOT EXISTS test_partition;
+USE test_partition;
+
+--echo #
+--echo # 1) Convert engine between InnoDB and DuckDB
+--echo #
+# Create InnoDB partition table
+CREATE TABLE t_list (
+  id int KEY
+)
+PARTITION BY LIST COLUMNS(id) (
+    PARTITION p0 VALUES IN (0, 10, 20, 30, 40, 50),
+    PARTITION p1 VALUES IN (1, 11, 21, 31, 41, 51),
+    PARTITION p2 VALUES IN (2, 12, 22, 32, 42, 52),
+    PARTITION p3 VALUES IN (3, 13, 23, 33, 43, 53)
+);
+
+INSERT INTO t_list VALUES (0), (1), (2), (3);
+
+# Convert to DuckDB
+ALTER TABLE t_list ENGINE = DuckDB;
+SHOW CREATE TABLE t_list;
+
+INSERT INTO t_list VALUES (10), (11), (12), (13);
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+SELECT * FROM t_list PARTITION(p3) ORDER BY id;
+
+
+--echo #
+--echo # 2) Add partition, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_list ENGINE = DuckDB;
+ALTER TABLE t_list ADD PARTITION (
+  PARTITION p4 VALUES IN (4, 14, 24, 34, 44, 54)
+);
+SHOW CREATE TABLE t_list;
+
+INSERT INTO t_list VALUES (4);
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+SELECT * FROM t_list PARTITION(p3) ORDER BY id;
+SELECT * FROM t_list PARTITION(p4) ORDER BY id;
+
+
+--echo #
+--echo # 3) Reorganize partition into, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_list ENGINE = DuckDB;
+ALTER TABLE t_list REORGANIZE PARTITION p3, p4 INTO (
+    PARTITION p3_new VALUES in (4, 14, 24, 34, 44, 54),
+    PARTITION p4_new VALUES in (3, 13, 23, 33, 43, 53)
+);
+SHOW CREATE TABLE t_list;
+
+INSERT INTO t_list VALUES (23), (24);
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+SELECT * FROM t_list PARTITION(p3_new) ORDER BY id;
+SELECT * FROM t_list PARTITION(p4_new) ORDER BY id;
+
+
+--echo #
+--echo # 4) Rebuild partition, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_list ENGINE = DuckDB;
+ALTER TABLE t_list REBUILD PARTITION ALL;
+SHOW CREATE TABLE t_list;
+
+INSERT INTO t_list VALUES (20), (21), (22);
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+SELECT * FROM t_list PARTITION(p3_new) ORDER BY id;
+SELECT * FROM t_list PARTITION(p4_new) ORDER BY id;
+
+
+--echo #
+--echo # 5) Remove partitioning, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_list ENGINE = DuckDB;
+CREATE TABLE t_list_2 LIKE t_list;
+ALTER TABLE t_list_2 REMOVE PARTITIONING;
+SHOW CREATE TABLE t_list_2;
+
+INSERT INTO t_list_2 SELECT * FROM t_list;
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_list_2, Checksum, 1)
+ALTER TABLE t_list_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_list_2;
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_list_2, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+
+--echo #
+--echo # 6) Exchange partition, which is not implemented
+--echo #
+ALTER TABLE t_list_2 ENGINE = DuckDB;
+--error ER_PARTITION_MGMT_ON_NONPARTITIONED # SHXTODO: check_if_incompatible_data is not implemented 
+ALTER TABLE t_list EXCHANGE PARTITION p1 WITH TABLE t_list_2;
+
+
+--echo #
+--echo # 7) Partitioning, which is no operation in DuckDB
+--echo #
+ALTER TABLE t_list_2 PARTITION BY LIST COLUMNS(id) (
+    PARTITION p0 VALUES IN (0, 10, 20, 30, 40, 50),
+    PARTITION p1 VALUES IN (1, 11, 21, 31, 41, 51),
+    PARTITION p2 VALUES IN (2, 12, 22, 32, 42, 52),
+    PARTITION p3 VALUES IN (3, 13, 23, 33, 43, 53),
+    PARTITION p4 VALUES IN (4, 14, 24, 34, 44, 54)
+);
+SHOW CREATE TABLE t_list_2;
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_list_2, Checksum, 1)
+ALTER TABLE t_list_2 ENGINE = InnoDB;
+SHOW CREATE TABLE t_list_2;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_list_2, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_list_2 PARTITION(p0) ORDER BY id;
+SELECT * FROM t_list_2 PARTITION(p1) ORDER BY id;
+SELECT * FROM t_list_2 PARTITION(p2) ORDER BY id;
+SELECT * FROM t_list_2 PARTITION(p3) ORDER BY id;
+SELECT * FROM t_list_2 PARTITION(p4) ORDER BY id;
+
+
+--echo #
+--echo # 8) Truncate partition, which is deleting all rows in the partition
+--echo #
+ALTER TABLE t_list TRUNCATE PARTITION p4_new;
+SHOW CREATE TABLE t_list;
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+SELECT * FROM t_list PARTITION(p3_new) ORDER BY id;
+SELECT * FROM t_list PARTITION(p4_new) ORDER BY id;
+
+
+--echo #
+--echo # 9) Drop partition, which is deleting all rows in the partition
+--echo #
+ALTER TABLE t_list ENGINE = DuckDB;
+ALTER TABLE t_list DROP PARTITION p3_new;
+SHOW CREATE TABLE t_list;
+
+--let $checksum_d = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+ALTER TABLE t_list ENGINE = InnoDB;
+SHOW CREATE TABLE t_list;
+--let $checksum_i = query_get_value(CHECKSUM TABLE t_list, Checksum, 1)
+
+# Check data in DuckDB and InnoDB
+--let $assert_cond = "$checksum_i" = "$checksum_d"
+--let $assert_text= CHECKSUM is the same
+--source include/assert.inc
+
+SELECT * FROM t_list PARTITION(p0) ORDER BY id;
+SELECT * FROM t_list PARTITION(p1) ORDER BY id;
+SELECT * FROM t_list PARTITION(p2) ORDER BY id;
+SELECT * FROM t_list PARTITION(p4_new) ORDER BY id;
+
+
+--echo #
+--echo # 10) ADMIN PARTITION
+--echo #
+ALTER TABLE t_list ENGINE = DuckDB;
+# Optimize partition
+ALTER TABLE t_list OPTIMIZE PARTITION p0;
+
+# Analyze partition
+ALTER TABLE t_list ANALYZE PARTITION p0;
+
+# Check partition
+ALTER TABLE t_list CHECK PARTITION p0;
+
+# Repair partition
+ALTER TABLE t_list REPAIR PARTITION p0;
+
+
+--echo #
+--echo # 11) DML which specify partition
+--echo #
+# A following parser error without a position must not reuse this position.
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_list PARTITION(p0) WHERE id = 0;
+--error ER_DUCKDB_CLIENT
+SELECT * FROM t_list PARTITION(p0);
+
+# non batch mode + non data import mode
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = OFF;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_list PARTITION(p0) VALUES (50);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_list PARTITION(p0) WHERE id = 0;
+--error ER_DUCKDB_CLIENT
+UPDATE t_list PARTITION (p0) SET id = 50 WHERE id = 0;
+
+# non batch mode + data import mode
+SET GLOBAL duckdb_dml_in_batch = OFF;
+SET duckdb_data_import_mode = ON;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_list PARTITION(p0) VALUES (50);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_list PARTITION(p0) WHERE id = 0;
+--error ER_DUCKDB_DATA_IMPORT_MODE
+UPDATE t_list PARTITION (p0) SET id = 50 WHERE id = 0;
+
+# batch mode + data import mode
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = ON;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_list PARTITION(p0) VALUES (50);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_list PARTITION(p0) WHERE id = 0;
+--error ER_DUCKDB_DATA_IMPORT_MODE
+UPDATE t_list PARTITION (p0) SET id = 50 WHERE id = 0;
+
+# batch mode + non data import mode
+SET GLOBAL duckdb_dml_in_batch = ON;
+SET duckdb_data_import_mode = OFF;
+--error ER_DUCKDB_CLIENT
+INSERT INTO t_list PARTITION(p0) VALUES (50);
+--error ER_DUCKDB_CLIENT
+DELETE FROM t_list PARTITION(p0) WHERE id = 0;
+--error ER_DUCKDB_CLIENT
+UPDATE t_list PARTITION (p0) SET id = 50 WHERE id = 0;
+
+
+--echo #
+--echo # 12) Cleanup
+--echo #
+SET GLOBAL duckdb_dml_in_batch = default;
+DROP DATABASE test_partition;

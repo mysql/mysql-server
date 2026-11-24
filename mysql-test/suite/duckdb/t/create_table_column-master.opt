@@ -1,0 +1,2 @@
+#--skip-log-bin
+--duckdb_require_primary_key=off

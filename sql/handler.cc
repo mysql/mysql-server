@@ -134,6 +134,11 @@
 #include "template_utils.h"
 #include "uniques.h"  // Unique_on_insert
 
+#include "sql/duckdb/duckdb_config.h"
+#ifdef HAVE_DUCKDB
+#include "sql/duckdb/duckdb_context.h"
+#endif
+
 /**
   @def MYSQL_TABLE_IO_WAIT
   Instrumentation helper for table io_waits.
@@ -515,7 +520,8 @@ static bool is_storage_engine_name_externally_disabled(const char *name) {
 bool ha_is_externally_disabled(const handlerton &htnr) {
   const char *se_name = ha_resolve_storage_engine_name(&htnr);
   assert(se_name != nullptr);
-  return is_storage_engine_name_externally_disabled(se_name);
+  return (myduck::is_disabled(htnr) ||
+          is_storage_engine_name_externally_disabled(se_name));
 }
 
 // Check if storage engine is disabled for table/tablespace creation.
@@ -881,6 +887,9 @@ int ha_initialize_handlerton(st_plugin_int *plugin) {
     case DB_TYPE_INNODB:
       innodb_hton = hton;
       break;
+    case DB_TYPE_DUCKDB:
+      myduck_hton = hton;
+      break;
     default:
       break;
   };
@@ -980,6 +989,17 @@ bool ha_log_ddl_create_schema(const char *schema_name) {
   return plugin_foreach(nullptr, log_ddl_create_schema_handletron,
                         MYSQL_STORAGE_ENGINE_PLUGIN,
                         const_cast<char *>(schema_name));
+}
+
+static bool createdb_handlerton(THD *, plugin_ref plugin, void *db) {
+  handlerton *hton = plugin_data<handlerton *>(plugin);
+  if (hton->state == SHOW_OPTION_YES && hton->create_database)
+    hton->create_database(hton, (char *)db);
+  return false;
+}
+
+void ha_create_database(char *db) {
+  plugin_foreach(nullptr, createdb_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, db);
 }
 
 static bool closecon_handlerton(THD *thd, plugin_ref plugin, void *) {
@@ -1657,6 +1677,15 @@ std::pair<int, bool> commit_owned_gtids(THD *thd, bool all) {
     }
   }
 
+#ifdef HAVE_DUCKDB
+  if (ending_trans(thd, all) && thd->multi_trx_in_batch()) {
+    if (opt_bin_log && (!thd->slave_thread || opt_log_replica_updates)) {
+      thd->get_duckdb_context()->prepare_gtids_for_binlog_commit();
+    }
+    error = thd->get_duckdb_context()->save_batch_gtid_set();
+  }
+#endif  // HAVE_DUCKDB
+
   return std::make_pair(error, need_clear_owned_gtid);
 }
 
@@ -1903,7 +1932,13 @@ end:
       gtid_state->update_on_rollback(thd);
     else
       gtid_state->update_on_commit(thd);
-  } else {
+  }
+#ifdef HAVE_DUCKDB
+  else if (all && thd->multi_trx_in_batch()) {
+    thd->get_duckdb_context()->update_on_commit();
+  }
+#endif
+  else {
     if (has_commit_order_manager(thd) && error) {
       gtid_state->update_on_rollback(thd);
     }
@@ -1961,6 +1996,10 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
   Transaction_ctx *trn_ctx = thd->get_transaction();
   const Transaction_ctx::enum_trx_scope trx_scope =
       all ? Transaction_ctx::SESSION : Transaction_ctx::STMT;
+
+  if (myduck::global_mode_on() &&
+      (all || !trn_ctx->is_active(Transaction_ctx::SESSION)))
+    trn_ctx->move_duckdb_to_first(trx_scope);
   auto ha_list = trn_ctx->ha_trx_info(trx_scope);
 
   /*
@@ -2011,6 +2050,8 @@ int ha_commit_low(THD *thd, bool all, bool run_after_commit) {
         my_error(ER_ERROR_DURING_COMMIT, MYF(0), err,
                  my_strerror(errbuf, MYSQL_ERRMSG_SIZE, err));
         error = 1;
+        /* Skip committing other engines if duckdb engine failed to commit */
+        if (ht->db_type == DB_TYPE_DUCKDB) return 1;
       }
       assert(!thd->status_var_aggregated);
       thd->status_var.ha_commit_count++;

@@ -1,0 +1,5 @@
+PREPARE duckdb_proc FROM 'CALL dbms_duckdb.query(''SELECT 42 AS answer'')';
+EXECUTE duckdb_proc;
+DEALLOCATE PREPARE duckdb_proc;
+--error ER_NATIVE_PROC_PARAMETER_MISMATCH
+CALL dbms_duckdb.query(1);

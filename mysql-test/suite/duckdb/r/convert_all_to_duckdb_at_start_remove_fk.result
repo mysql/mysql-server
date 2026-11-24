@@ -1,0 +1,52 @@
+#
+# 1) CREATE TABLES
+#
+CREATE TABLE customers (
+customer_id INT PRIMARY KEY AUTO_INCREMENT,
+name VARCHAR(100) NOT NULL,
+email VARCHAR(100) UNIQUE
+) ENGINE=InnoDB;
+CREATE TABLE orders (
+order_id INT PRIMARY KEY AUTO_INCREMENT,
+order_date DATE NOT NULL,
+customer_id INT,
+total_amount DECIMAL(10, 2),
+FOREIGN KEY (customer_id) REFERENCES customers(customer_id)
+ON DELETE CASCADE
+ON UPDATE CASCADE
+) ENGINE=InnoDB;
+INSERT INTO customers (name, email) VALUES
+('Alice', 'alice@example.com'),
+('Bob', 'bob@example.com');
+INSERT INTO orders (order_date, customer_id, total_amount) VALUES
+('2024-04-05', 1, 100.50),
+('2024-04-06', 2, 200.75);
+#
+# 2) RESTART WITH duckdb_convert_all_at_startup=ON
+#
+# restart: --duckdb_convert_all_at_startup=ON --duckdb_convert_all_skip_mtr_db=ON
+SELECT COUNT(*) FROM information_schema.KEY_COLUMN_USAGE WHERE REFERENCED_TABLE_NAME is not NULL;
+COUNT(*)
+0
+SHOW CREATE TABLE customers;
+Table	Create Table
+customers	CREATE TABLE `customers` (
+  `customer_id` int NOT NULL DEFAULT '0',
+  `name` varchar(100) NOT NULL,
+  `email` varchar(100) DEFAULT NULL,
+  PRIMARY KEY (`customer_id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+SHOW CREATE TABLE orders;
+Table	Create Table
+orders	CREATE TABLE `orders` (
+  `order_id` int NOT NULL DEFAULT '0',
+  `order_date` date NOT NULL,
+  `customer_id` int DEFAULT NULL,
+  `total_amount` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`order_id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/assert.inc [CHECKSUM is the same]
+#
+# 3) CLEANUP
+#
+DROP TABLE customers, orders;

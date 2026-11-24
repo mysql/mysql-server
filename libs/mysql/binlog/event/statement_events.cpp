@@ -109,7 +109,9 @@ Query_event::Query_event(
       default_collation_for_utf8mb4_number(0),
       sql_require_primary_key(0xff),
       default_table_encryption(0xff),
-      enable_cascade_triggers(0) {}
+      enable_cascade_triggers(0),
+
+      duckdb_data_import_mode(0xff) {}
 
 /**
   Utility function for the Query_event constructor.
@@ -161,7 +163,9 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
       default_collation_for_utf8mb4_number(0),
       sql_require_primary_key(0xff),
       default_table_encryption(0xff),
-      enable_cascade_triggers(0) {
+      enable_cascade_triggers(0),
+
+      duckdb_data_import_mode(0xff) {
   BAPI_ENTER("Query_event::Query_event(const char*, ...)");
   READER_TRY_INITIALIZATION;
   READER_ASSERT_POSITION(fde->common_header_len);
@@ -357,6 +361,9 @@ Query_event::Query_event(const char *buf, const Format_description_event *fde,
         break;
       case Q_ENABLE_CASCADE_TRIGGERS:
         READER_TRY_SET(enable_cascade_triggers, read<uint8_t>);
+        break;
+      case Q_DUCKDB_DATA_IMPORT_MODE:
+        READER_TRY_SET(duckdb_data_import_mode, read<uint8_t>);
         break;
       default:
         /* That's why you must write status vars in growing order of code */

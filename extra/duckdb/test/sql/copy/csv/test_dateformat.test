@@ -1,0 +1,112 @@
+# name: test/sql/copy/csv/test_dateformat.test
+# description: Test CSVs with a variable date format
+# group: [csv]
+
+statement ok
+PRAGMA enable_verification
+
+statement ok
+CREATE TABLE dates (d DATE);
+
+# base date format does not work here
+statement error
+COPY dates FROM '{DATA_DIR}/csv/test/dateformat.csv' (AUTO_DETECT 0, HEADER 0)
+----
+Line: 1
+
+statement ok
+COPY dates FROM '{DATA_DIR}/csv/test/dateformat.csv' (HEADER 0, DATEFORMAT '%d/%m/%Y')
+
+query I
+SELECT * FROM dates
+----
+2019-06-05
+
+# if we reverse the date format, we get a different result
+statement ok
+COPY dates FROM '{DATA_DIR}/csv/test/dateformat.csv' (HEADER 0, DATEFORMAT '%m/%d/%Y')
+
+query I
+SELECT * FROM dates ORDER BY d
+----
+2019-05-06
+2019-06-05
+
+# test dateformat on COPY TO
+statement ok
+CREATE TABLE new_dates (d DATE);
+
+statement ok
+COPY dates TO '{TEMP_DIR}/dateformat.csv' (HEADER 0, DATEFORMAT '%d/%m/%Y')
+
+statement ok
+COPY new_dates FROM '{TEMP_DIR}/dateformat.csv' (HEADER 0, DATEFORMAT '%d/%m/%Y')
+
+query I
+SELECT * FROM new_dates ORDER BY 1
+----
+2019-05-06
+2019-06-05
+
+# timestamp format
+statement ok
+CREATE TABLE timestamps(t TIMESTAMP);
+
+# timestamp format
+statement ok
+COPY timestamps FROM '{DATA_DIR}/csv/test/timestampformat.csv' (HEADER 0, DELIMITER '|', TIMESTAMPFORMAT '%a %d, %B %Y, %I:%M:%S %p')
+
+query I
+SELECT * FROM timestamps
+----
+2003-06-30 12:03:10
+
+# test timestamp format on COPY TO
+statement ok
+CREATE TABLE new_timestamps (t TIMESTAMP);
+
+statement ok
+COPY timestamps TO '{TEMP_DIR}/timestampformat.csv' (HEADER 0, TIMESTAMPFORMAT '%a %d, %B %Y, %I:%M:%S %p')
+
+statement ok
+COPY new_timestamps FROM '{TEMP_DIR}/timestampformat.csv' (HEADER 0, TIMESTAMPFORMAT '%a %d, %B %Y, %I:%M:%S %p')
+
+query I
+SELECT * FROM new_timestamps ORDER BY 1
+----
+2003-06-30 12:03:10
+
+statement ok
+DELETE FROM new_timestamps
+
+# test iso format in copy
+statement ok
+COPY timestamps TO '{TEMP_DIR}/timestampformat.csv' (HEADER 0, TIMESTAMPFORMAT ISO)
+
+statement ok
+COPY new_timestamps FROM '{TEMP_DIR}/timestampformat.csv' (HEADER 0)
+
+query I
+SELECT * FROM new_timestamps ORDER BY 1
+----
+2003-06-30 12:03:10
+
+# incorrect date/timestamp format results in an error
+statement error
+COPY dates FROM '{DATA_DIR}/csv/test/dateformat.csv' (HEADER 0, DATEFORMAT '%')
+----
+Could not parse DATEFORMAT: Trailing format character %
+
+statement error
+COPY timestamps FROM '{DATA_DIR}/csv/test/timestampformat.csv' (HEADER 0, DELIMITER '|', TIMESTAMPFORMAT '%')
+----
+
+query I
+select columns FROM sniff_csv('{DATA_DIR}/csv/dateformat/working.csv',  header=true,dateformat='%d-%b-%Y');
+----
+[{'name': ACCESSION_NUMBER, 'type': VARCHAR}, {'name': FILING_DATE, 'type': DATE}]
+
+query I
+select columns FROM sniff_csv('{DATA_DIR}/csv/dateformat/not_working.csv',  header=true,dateformat='%d-%b-%Y');
+----
+[{'name': ACCESSION_NUMBER, 'type': VARCHAR}, {'name': FILING_DATE, 'type': DATE}]

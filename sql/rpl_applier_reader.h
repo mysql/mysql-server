@@ -28,6 +28,8 @@
 #include "sql/binlog.h"
 #include "sql/binlog_reader.h"
 
+extern bool duckdb_commit_multi_trx_due_to_reader;
+
 class Relay_log_info;
 
 /**

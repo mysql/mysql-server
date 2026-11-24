@@ -1,0 +1,88 @@
+CREATE TABLE savepoint_duckdb(id INT PRIMARY KEY) ENGINE=DuckDB;
+CREATE TABLE savepoint_innodb(id INT PRIMARY KEY) ENGINE=InnoDB;
+# Batching enabled.
+SET GLOBAL duckdb_dml_in_batch=ON;
+# DuckDB must reject a savepoint after joining the transaction.
+START TRANSACTION;
+INSERT INTO savepoint_duckdb VALUES(1);
+SAVEPOINT unsupported;
+ERROR 42000: The storage engine for the table doesn't support SAVEPOINT
+ROLLBACK TO SAVEPOINT unsupported;
+ERROR 42000: SAVEPOINT unsupported does not exist
+ROLLBACK;
+SELECT COUNT(*) AS duckdb_rows FROM savepoint_duckdb;
+duckdb_rows
+0
+# An earlier savepoint can roll back all work in a newly joined engine.
+START TRANSACTION;
+INSERT INTO savepoint_innodb VALUES(1);
+SAVEPOINT before_duckdb;
+INSERT INTO savepoint_duckdb VALUES(2);
+Warnings:
+Warning	6414	Combining the storage engines DUCKDB and InnoDB is deprecated, but the statement or transaction updates both the DUCKDB table test.savepoint_duckdb and the InnoDB table test.savepoint_innodb.
+INSERT INTO savepoint_innodb VALUES(2);
+ROLLBACK TO SAVEPOINT before_duckdb;
+COMMIT;
+SELECT COUNT(*) AS duckdb_rows FROM savepoint_duckdb;
+duckdb_rows
+0
+SELECT * FROM savepoint_innodb ORDER BY id;
+id
+1
+DELETE FROM savepoint_innodb;
+# Native InnoDB savepoints remain supported.
+START TRANSACTION;
+INSERT INTO savepoint_innodb VALUES(3);
+SAVEPOINT native;
+INSERT INTO savepoint_innodb VALUES(4);
+ROLLBACK TO SAVEPOINT native;
+RELEASE SAVEPOINT native;
+COMMIT;
+SELECT * FROM savepoint_innodb ORDER BY id;
+id
+3
+DELETE FROM savepoint_innodb;
+# Batching disabled.
+SET GLOBAL duckdb_dml_in_batch=OFF;
+# DuckDB must reject a savepoint after joining the transaction.
+START TRANSACTION;
+INSERT INTO savepoint_duckdb VALUES(1);
+SAVEPOINT unsupported;
+ERROR 42000: The storage engine for the table doesn't support SAVEPOINT
+ROLLBACK TO SAVEPOINT unsupported;
+ERROR 42000: SAVEPOINT unsupported does not exist
+ROLLBACK;
+SELECT COUNT(*) AS duckdb_rows FROM savepoint_duckdb;
+duckdb_rows
+0
+# An earlier savepoint can roll back all work in a newly joined engine.
+START TRANSACTION;
+INSERT INTO savepoint_innodb VALUES(1);
+SAVEPOINT before_duckdb;
+INSERT INTO savepoint_duckdb VALUES(2);
+Warnings:
+Warning	6414	Combining the storage engines DUCKDB and InnoDB is deprecated, but the statement or transaction updates both the DUCKDB table test.savepoint_duckdb and the InnoDB table test.savepoint_innodb.
+INSERT INTO savepoint_innodb VALUES(2);
+ROLLBACK TO SAVEPOINT before_duckdb;
+COMMIT;
+SELECT COUNT(*) AS duckdb_rows FROM savepoint_duckdb;
+duckdb_rows
+0
+SELECT * FROM savepoint_innodb ORDER BY id;
+id
+1
+DELETE FROM savepoint_innodb;
+# Native InnoDB savepoints remain supported.
+START TRANSACTION;
+INSERT INTO savepoint_innodb VALUES(3);
+SAVEPOINT native;
+INSERT INTO savepoint_innodb VALUES(4);
+ROLLBACK TO SAVEPOINT native;
+RELEASE SAVEPOINT native;
+COMMIT;
+SELECT * FROM savepoint_innodb ORDER BY id;
+id
+3
+DELETE FROM savepoint_innodb;
+DROP TABLE savepoint_duckdb, savepoint_innodb;
+SET GLOBAL duckdb_dml_in_batch=1;

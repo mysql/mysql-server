@@ -1,0 +1,2 @@
+--duckdb_log_options="DUCKDB_QUERY"
+--duckdb_max_temp_directory_size=107374182400

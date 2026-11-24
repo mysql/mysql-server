@@ -1,0 +1,80 @@
+include/rpl/init.inc [topology=1->2->3]
+###########################################################################
+# 0. Prepare, InnoDB (server_1) -> DuckDB (server_2) -> DuckDB (server_3)
+###########################################################################
+[connection server_1]
+SET autocommit = 1;
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+c0 VARCHAR(20) NOT NULL,
+PRIMARY KEY(id)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection server_2]
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection server_3]
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# 1. Test server_2 Crash Before DuckDB commit
+###########################################################################
+[connection server_2]
+STOP REPLICA;
+[connection server_1]
+# Trx1, Trx2, Trx3 and Trx4
+INSERT INTO t1 (id, c0) VALUES (1, 'abc'), (1+1, 'efg'), (1+2, 'xyz');
+DELETE FROM t1 WHERE id =1+2;
+UPDATE t1 SET id=1+2, c0='AliSQL' WHERE id=1;
+INSERT INTO t1 (id, c0) VALUES (1, 'xyz');
+[connection server_2]
+SET GLOBAL debug="+d,crash_before_duckdb_commit";
+START REPLICA;
+include/rpl/start_server.inc [server_number=2]
+START REPLICA;
+include/rpl/sync.inc
+include/rpl/diff.inc
+###########################################################################
+# 2. Test server_2 Crash After DuckDB commit
+###########################################################################
+[connection server_2]
+STOP REPLICA;
+[connection server_1]
+# Trx1, Trx2, Trx3 and Trx4
+INSERT INTO t1 (id, c0) VALUES (4, 'abc'), (4+1, 'efg'), (4+2, 'xyz');
+DELETE FROM t1 WHERE id =4+2;
+UPDATE t1 SET id=4+2, c0='AliSQL' WHERE id=4;
+INSERT INTO t1 (id, c0) VALUES (4, 'xyz');
+[connection server_2]
+SET GLOBAL debug="+d,crash_after_duckdb_commit";
+START REPLICA;
+include/rpl/start_server.inc [server_number=2]
+START REPLICA;
+include/rpl/sync.inc
+include/rpl/diff.inc
+###########################################################################
+# Cleanup
+###########################################################################
+[connection server_1]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc

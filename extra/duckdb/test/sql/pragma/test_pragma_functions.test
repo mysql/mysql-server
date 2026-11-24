@@ -1,0 +1,6 @@
+# name: test/sql/pragma/test_pragma_functions.test
+# description: Test PRAGMA functions
+# group: [pragma]
+
+statement ok
+PRAGMA functions

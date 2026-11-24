@@ -1,0 +1,39 @@
+# name: test/sql/catalog/view/recursive_view.test
+# description: Issue #3017: Querying View of a View Crashes
+# group: [view]
+
+statement ok
+set storage_compatibility_version='v0.10.2'
+
+statement ok
+CREATE TABLE IF NOT EXISTS test (val INTEGER);
+
+statement ok
+INSERT INTO test(val) VALUES (1), (2), (3);
+
+# recursive view definition
+statement ok
+CREATE OR REPLACE VIEW foo AS (SELECT * FROM test);
+
+statement ok
+CREATE OR REPLACE VIEW foo AS (SELECT * FROM foo);
+
+statement error
+SELECT * FROM foo;
+----
+<REGEX>:.*Binder Error.*infinite recursion detected.*
+
+# more complex recursive view definition
+statement ok
+CREATE OR REPLACE VIEW foo AS (SELECT * FROM test);
+
+statement ok
+CREATE OR REPLACE VIEW foo2 AS (SELECT * FROM foo);
+
+statement ok
+CREATE OR REPLACE VIEW foo AS (SELECT (SELECT * FROM foo2));
+
+statement error
+SELECT * FROM foo;
+----
+<REGEX>:.*Binder Error.*infinite recursion detected.*

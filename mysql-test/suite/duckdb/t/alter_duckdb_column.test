@@ -1,0 +1,22 @@
+--echo ####################
+--echo # TEST FOR INSTANT #
+--echo ####################
+--let $algorithm = INSTANT
+--let $copy_ddl = 0
+--source suite/duckdb/include/alter_duckdb_column.inc
+
+
+--echo ####################
+--echo # TEST FOR INPLACE #
+--echo ####################
+--let $algorithm = INPLACE
+--let $copy_ddl = 0
+--source suite/duckdb/include/alter_duckdb_column.inc
+
+
+--echo #################
+--echo # TEST FOR COPY #
+--echo #################
+--let $algorithm = COPY
+--let $copy_ddl = 1
+--source suite/duckdb/include/alter_duckdb_column.inc

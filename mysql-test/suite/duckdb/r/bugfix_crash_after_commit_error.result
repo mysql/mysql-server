@@ -1,0 +1,17 @@
+create table t1(id int primary key) engine = duckdb;
+set duckdb_dml_in_batch = on;
+begin;
+insert into t1 values (1);
+insert into t1 values (1);
+commit;
+ERROR HY000: [DuckDB] DuckDB commit transaction error. PRIMARY KEY or UNIQUE constraint violation: duplicate key "1"
+drop table t1;
+# restart: --skip-log-bin
+create table t1(id int primary key) engine = duckdb;
+set duckdb_dml_in_batch = on;
+begin;
+insert into t1 values (1);
+insert into t1 values (1);
+commit;
+ERROR HY000: [DuckDB] DuckDB commit transaction error. PRIMARY KEY or UNIQUE constraint violation: duplicate key "1"
+drop table t1;

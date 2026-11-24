@@ -1,0 +1,39 @@
+# name: test/sql/types/enum/standalone_enum.test
+# description: Test stand-alone enums
+# group: [enum]
+
+statement ok
+PRAGMA enable_verification
+
+query I
+SELECT 'hello'::ENUM('world', 'hello');
+----
+hello
+
+statement ok
+CREATE TABLE test AS SELECT 'hello'::ENUM('world', 'hello') AS h;
+
+query I
+SELECT * FROM test
+----
+hello
+
+statement error
+SELECT 'hello'::ENUM;
+----
+ENUM type requires at least one argument
+
+statement error
+SELECT 'hello'::ENUM(42);
+----
+ENUM type requires a set of VARCHAR arguments
+
+statement error
+SELECT 'hello'::ENUM('zzz', 42);
+----
+ENUM type requires a set of VARCHAR arguments
+
+statement error
+SELECT 'hello'::ENUM(foobar 42);
+----
+Parser Error: syntax error at or near "42"

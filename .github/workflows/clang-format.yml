@@ -10,6 +10,9 @@ on:
       - "**/*.h"
       - "**/*.hpp"
       - ".clang-format"
+      - "extra/duckdb/**"
+      - "Docs/duckdb-port-audit.json"
+      - ".github/workflows/clang-format.yml"
 
 permissions: {}
 
@@ -52,9 +55,12 @@ jobs:
           fi
 
           changed_files="$RUNNER_TEMP/clang-format-files"
+          # DuckDB keeps its upstream formatting; its archived tree is pinned
+          # and checked independently below.
           git diff --name-only -z --diff-filter=ACMR \
             --no-ext-diff --no-textconv HEAD^1 HEAD -- \
-            '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' > "$changed_files"
+            '*.c' '*.cc' '*.cpp' '*.h' '*.hpp' \
+            ':(exclude)extra/duckdb/**' > "$changed_files"
 
           found=0
           fail=0
@@ -73,3 +79,19 @@ jobs:
             echo "::error::Run scripts/ci/format.sh to fix formatting."
             exit 1
           fi
+      - name: Verify embedded DuckDB snapshot
+        working-directory: source
+        run: |
+          python3 - <<'PY'
+          import json
+          import subprocess
+          from pathlib import Path
+
+          audit = Path("Docs/duckdb-port-audit.json")
+          expected = json.loads(audit.read_text())["embedded_duckdb"]["source_tree"]
+          actual = subprocess.check_output(
+              ["git", "rev-parse", "HEAD:extra/duckdb"], text=True
+          ).strip()
+          if actual != expected:
+              raise SystemExit("Embedded DuckDB differs from its pinned source tree")
+          PY

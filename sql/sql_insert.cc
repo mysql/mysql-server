@@ -112,6 +112,8 @@
 #include "template_utils.h"
 #include "thr_lock.h"
 
+#include "sql/duckdb/duckdb_table.h"  // is_duckdb_table
+
 namespace dd {
 class Table;
 }  // namespace dd
@@ -519,6 +521,28 @@ bool Sql_cmd_insert_values::execute_inner(THD *thd) {
 
   TABLE *const insert_table = lex->insert_table_leaf->table;
 
+  /** REPLACE statement is not supported yet. */
+  if (thd->lex->sql_command == SQLCOM_REPLACE) {
+    bool exist_duckdb_table = false;
+    bool exist_other_table = false;
+
+    Table_ref *non_duckdb_table;
+    Table_ref *duckdb_table;
+    lex->check_table_engine_type(exist_duckdb_table, exist_other_table,
+                                 &non_duckdb_table, &duckdb_table);
+    if (exist_duckdb_table) {
+      char ebuff[MYSQL_ERRMSG_SIZE];
+      snprintf(ebuff, sizeof(ebuff),
+               "Does not support duckdb engine in REPLACE statement. "
+               "The table `%s` is a duckdb table",
+               duckdb_table->table_name);
+      my_error(ER_DUCKDB_CLIENT, MYF(0), ebuff);
+    }
+  }
+
+  if (unlikely(myduck::is_duckdb_table(insert_table))) {
+    thd->status_var.com_duckdb_insert++;
+  }
   if (duplicates == DUP_UPDATE || duplicates == DUP_REPLACE)
     prepare_for_positional_update(insert_table, table_list);
 

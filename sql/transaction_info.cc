@@ -84,6 +84,20 @@ void Transaction_ctx::register_ha(enum_trx_scope scope, Ha_trx_info *ha_info,
   ha_info->register_ha(&m_scope_info[scope], ht);
 }
 
+#include "sql/handler.h"
+
+void Transaction_ctx::move_duckdb_to_first(enum_trx_scope scope) {
+  auto ha_list = ha_trx_info(scope);
+  Ha_trx_info *prev_ha_info = nullptr;
+  for (auto &ha_info : ha_list) {
+    if (prev_ha_info && ha_info.ht()->db_type == DB_TYPE_DUCKDB) {
+      prev_ha_info->move_next_to_first(&m_scope_info[scope]);
+      return;
+    }
+    prev_ha_info = &ha_info;
+  }
+}
+
 Ha_trx_info_list Transaction_ctx::ha_trx_info(enum_trx_scope scope) {
   return {m_scope_info[scope].m_ha_list};
 }

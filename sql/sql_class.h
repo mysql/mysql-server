@@ -114,6 +114,7 @@
 #include "sql/sql_error.h"
 #include "sql/sql_list.h"
 #include "sql/sql_plugin_ref.h"
+#include "sql/sql_rds_context.h"
 #include "sql/sys_vars_resource_mgr.h"  // Session_sysvar_resource_manager
 #include "sql/system_variables.h"       // system_variables
 #include "sql/transaction_info.h"       // Ha_trx_info
@@ -123,6 +124,10 @@
 #include "template_utils.h"
 #include "thr_lock.h"
 #include "violite.h"
+
+namespace myduck {
+class DuckdbThdContext;
+}
 
 enum enum_check_fields : int;
 enum enum_tx_isolation : int;
@@ -363,6 +368,7 @@ class Query_arena {
   MEM_ROOT *mem_root;  // Pointer to current memroot
   /// To check whether a reprepare operation is active
   bool is_repreparing{false};
+  bool is_duckdb_cursor_disabled{false};
   /*
     The states reflects three different life cycles for three
     different types of statements:
@@ -4881,12 +4887,21 @@ class THD : public MDL_context_owner,
   */
   bool m_inside_system_variable_global_update;
 
+  Gtid_specification gtid_next_saved_before_convert_engine;
+#ifdef HAVE_DUCKDB
+  myduck::DuckdbThdContext *get_duckdb_context(bool create = true);
+#endif  // HAVE_DUCKDB
+  bool multi_trx_in_batch();
+
  public:
   /** The parameter value bindings for the current query. Allocated on the THD
    * memroot. Can be empty */
   PS_PARAM *bind_parameter_values;
   /** the number of elements in parameters */
   unsigned long bind_parameter_values_count;
+
+ public:
+  myduck::DuckdbThdContext *duckdb_context = nullptr;
 
  public:
   /**
@@ -5005,6 +5020,11 @@ class THD : public MDL_context_owner,
   void inc_fk_cascade_chain_tables() { m_fk_cascade_chain_tables++; }
   void dec_fk_cascade_chain_tables() { m_fk_cascade_chain_tables--; }
   void reset_fk_cascade_chain_tables() { m_fk_cascade_chain_tables = 0; }
+
+  THD_rds_context m_rds_context;
+
+ public:
+  THD_rds_context &get_rds_context() { return m_rds_context; }
 };
 
 /**

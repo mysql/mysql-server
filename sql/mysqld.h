@@ -336,6 +336,15 @@ extern uint32 gtid_executed_compression_period;
 extern bool binlog_gtid_simple_recovery;
 extern ulong binlog_error_action;
 extern ulong locked_account_connection_count;
+
+extern bool duckdb_convert_all_at_startup;
+extern bool duckdb_convert_all_at_startup_ignore_error;
+extern uint duckdb_convert_all_at_startup_threads;
+extern bool duckdb_convert_all_skip_mtr_db;
+extern std::atomic<bool> on_duckdb_convert_progress;
+extern bool duckdb_convert_tables_with_generated_columns;
+extern bool duckdb_support_auto_increment;
+
 enum enum_binlog_error_action {
   /// Ignore the error and let server continue without binlogging
   IGNORE_ERROR = 0,
@@ -366,6 +375,7 @@ extern handlerton *myisam_hton;
 extern handlerton *heap_hton;
 extern handlerton *temptable_hton;
 extern handlerton *innodb_hton;
+extern handlerton *myduck_hton;
 extern uint opt_server_id_bits;
 extern ulong opt_server_id_mask;
 extern const char *load_default_groups[];

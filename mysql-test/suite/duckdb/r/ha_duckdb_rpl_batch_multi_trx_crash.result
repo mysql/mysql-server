@@ -1,0 +1,122 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+###########################################################################
+# 0. Prepare
+###########################################################################
+[connection master]
+CREATE TABLE t1 (
+id BIGINT NOT NULL,
+c0 VARCHAR(20) NOT NULL,
+c1 CHAR(10) DEFAULT 'duckdb',
+c2 DECIMAL(5,2),
+c3 DATETIME,
+c4 TIMESTAMP,
+c5 BLOB,
+PRIMARY KEY(id, c0)
+) ENGINE=InnoDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  `c2` decimal(5,2) DEFAULT NULL,
+  `c3` datetime DEFAULT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
+  `c5` blob,
+  PRIMARY KEY (`id`,`c0`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+include/rpl/sync.inc
+[connection slave]
+ALTER TABLE t1 ENGINE=DuckDB;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` bigint NOT NULL,
+  `c0` varchar(20) NOT NULL,
+  `c1` char(10) DEFAULT 'duckdb',
+  `c2` decimal(5,2) DEFAULT NULL,
+  `c3` datetime DEFAULT NULL,
+  `c4` timestamp NULL DEFAULT NULL,
+  `c5` blob,
+  PRIMARY KEY (`id`,`c0`)
+) ENGINE=DUCKDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci
+###########################################################################
+# 1. Test Crash before DuckDB commit
+###########################################################################
+[connection slave]
+STOP REPLICA;
+[connection master]
+SET autocommit = 1;
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES (1, 'abc', NULL, 1.23, '2020-11-20', NULL, X'e18080ff8a');
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES (2, 'd', NULL, NULL, '1998-01-01', '2006-02-28 00:21:11', NULL);
+UPDATE t1 SET id=6, c4='2026-03-27 10:00:34' WHERE id=1;
+DELETE FROM t1 WHERE id=2;
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES (5, 'lmn', 'RSA', 10.5, NULL, '1988-10-01 08:58:25', NULL);
+[connection slave]
+SET GLOBAL debug = "+d,crash_before_duckdb_commit";
+START REPLICA;
+include/rpl/start_server.inc [server_number=2]
+START REPLICA;
+Warnings:
+Note	3083	Replication thread(s) for channel '' are already runnning.
+include/rpl/diff.inc
+###########################################################################
+# 2. Test Crash after DuckDB commit
+###########################################################################
+[connection slave]
+STOP REPLICA;
+[connection master]
+SET autocommit = 1;
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES (3, 'efg', 'RSA', 5.2, NULL, '2028-09-09 15:30:34', NULL);
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES (4, 'hijk', NULL, 6, '2023-06-07', NULL, X'1a53aa890ee6');
+UPDATE t1 SET c1='xxxxx', c2=7.79, c3=NULL, c4='2025-03-25 20:58:23', c5=X'e18080e18080' WHERE id=4;
+UPDATE t1 SET c2=8.88 WHERE id=5;
+DELETE FROM t1 WHERE id=5;
+[connection slave]
+SET GLOBAL debug = "+d,crash_after_duckdb_commit";
+START REPLICA;
+include/rpl/start_server.inc [server_number=2]
+START REPLICA;
+Warnings:
+Note	3083	Replication thread(s) for channel '' are already runnning.
+include/rpl/diff.inc
+###########################################################################
+# 3. Test transactions are not replayed by executing SQL
+###########################################################################
+include/assert_grep.inc [Check DML SQL is not executed]
+###########################################################################
+# 4. Test Crash after DuckDB commit an Insert-only Batch
+###########################################################################
+[connection slave]
+STOP REPLICA SQL_THREAD;
+# 4.1 Execute 3 Insert-only Trx, and then Rotate Binlog after the first two Trxs have finished executing
+[connection master]
+SET autocommit = 1;
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES (5, '25sg', 'RDS', 5.2, NULL, '2028-11-11 15:30:34', X'e18080e18080');
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES (6, '0aaaa', NULL, 88.88, '2023-06-07', NULL, X'1a53aa890ee6');
+FLUSH LOGS;
+INSERT INTO t1 (id, c0, c1, c2, c3, c4, c5) VALUES (7, 'hdnnn', 'MYSQL', 11.11, '2023-10-21', NULL, X'e18080e18080');
+include/rpl/sync.inc
+# 4.2 Make Slave Restart
+[connection slave]
+SET GLOBAL debug = "+d,crash_after_duckdb_commit";
+START REPLICA SQL_THREAD;
+include/rpl/start_server.inc [server_number=2]
+START REPLICA;
+Warnings:
+Note	3083	Replication thread(s) for channel '' are already runnning.
+include/rpl/diff.inc
+# 4.3 Check the first batch (Trx 1 and Trx 2) is replayed idempotently, the second batch is replayed normally
+include/assert_grep.inc [Check 1 Delete Batch SQL after Restart]
+include/assert_grep.inc [Check 2 INSERT Batch SQL after Restart]
+###########################################################################
+# 4. Cleanup
+###########################################################################
+[connection master]
+DROP TABLE t1;
+include/rpl/sync.inc
+include/rpl/deinit.inc
