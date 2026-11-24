@@ -121,6 +121,9 @@
 #include "sql_string.h"
 #include "template_utils.h"
 
+#include "sql/join_optimizer/cost_model.h"
+#include "sql/item_cloudsql_vector_func.h"
+
 using std::ceil;
 using std::max;
 using std::min;
@@ -3038,6 +3041,15 @@ void JOIN::adjust_access_methods() {
         }
       }
     }
+
+    if (tab->is_csql_prefer_ann()) {
+      if (tab->range_scan() != nullptr) {
+        ::destroy_at(tab->range_scan());
+        tab->set_range_scan(nullptr);
+      }
+      tab->table()->keys_in_use_for_order_by.clear_all();
+    }
+
     // Ensure AM consistency
     assert(!(tab->range_scan() &&
              (tab->type() == JT_REF || tab->type() == JT_ALL)));
@@ -3248,6 +3260,19 @@ bool JOIN::get_best_combination() {
         ::destroy_at(tab->range_scan());
         tab->set_range_scan(nullptr);
       }
+
+      // TODO: revisit the ANN cost computation here
+      // Check if we should prefer ANN scan for this table.
+      bool shouldPreferANN = shouldPreferVectorIndexSearch(this, tab);
+      tab->set_csql_prefer_ann(shouldPreferANN);
+      if (shouldPreferANN) {
+        if (tab->range_scan() != nullptr) {
+          ::destroy_at(tab->range_scan());
+          tab->set_range_scan(nullptr);
+        }
+        tab->table()->keys_in_use_for_order_by.clear_all();
+      }
+
       if (table->is_intersect() || table->is_except()) {
         tab->set_type(JT_ALL);  // INTERSECT, EXCEPT can't use ref access yet
       } else if (!pos->key) {
@@ -3255,6 +3280,8 @@ bool JOIN::get_best_combination() {
           tab->set_type(calc_join_type(tab->range_scan()));
         else
           tab->set_type(JT_ALL);
+      } else if (shouldPreferANN) {
+        tab->set_type(JT_ALL);
       } else {
         // REF or RANGE, clarify later when prefix tables are set for JOIN_TABs
         tab->set_type(JT_REF);
@@ -11900,6 +11927,12 @@ double EstimateRowAccesses(const AccessPath *path, double num_evaluations,
                 subpath->nested_loop_join().inner, num_evaluations, limit);
             return true;
           }
+          case AccessPath::VECTOR_INDEX_JOIN: {
+            rows += EstimateRowAccessesInNestedLoopJoin(
+                subpath, subpath->vector_index_join().outer,
+                subpath->vector_index_join().inner, num_evaluations, limit);
+            return true;
+          }
           case AccessPath::NESTED_LOOP_SEMIJOIN_WITH_DUPLICATE_REMOVAL: {
             rows += EstimateRowAccessesInNestedLoopJoin(
                 subpath,
@@ -11986,4 +12019,243 @@ bool IsHashEquijoinCondition(const Item_eq_base *item, table_map left_side,
          !Overlaps(left_arg_tables, right_side) &&
          Overlaps(right_arg_tables, right_side) &&
          !Overlaps(right_arg_tables, left_side);
+}
+
+/**
+   Helper function to collect ANN functions on a table.
+  @param item: The item to search for ANN functions on
+  @param table_ref: The table to search for ANN functions on
+  @param ann_items: The vector to store the ANN functions on the table
+*/
+void collect_ann_functions_on_table (Item *item, Table_ref *table_ref,
+                                     std::vector<Item *> &ann_items){
+  std::vector<Item *> all_ann_items = get_functions_of_type(
+       item, Item_func::CLOUDSQL_APPROX_DISTANCE_FUNC);
+  for (Item *ann_item : all_ann_items) {
+    if (is_ann_function_on_table(ann_item, table_ref)) {
+        ann_items.insert(ann_items.end(), ann_item);
+    }
+  }
+}
+
+
+/**
+  Given a JOIN and a Table_ref, returns a Item_func_approx_distance specified on
+  the given table in the following order of priority:
+  1. The first occurrence of Item_func_approx_distance in the JOIN's ORDER BY
+     list that is on the given table.
+  2. If there are no such functions in the JOIN's ORDER BY list, the first
+     occurrence of Item_func_approx_distance in the joins SELECT LIST that is
+     on the given table.
+  @param join: The JOIN to search.
+  @param table_ref: The table to search for ANN functions on
+
+  @retval The Item to be used for vector index search (empty if none).
+*/
+Item * get_ann_item_for_vector_index_search(JOIN *join, Table_ref *table_ref) {
+  Item* res = nullptr;
+  std::vector<Item *> ann_items;
+  for (ORDER *order = join->query_block->order_list.first; order;
+       order = order->next) {
+    collect_ann_functions_on_table(*order->item, table_ref, ann_items);
+  }
+  if (!ann_items.empty()) {
+    res = ann_items[0];
+  }
+
+  for (Item *item : join->query_block->fields) {
+    collect_ann_functions_on_table(item, table_ref, ann_items);
+  }
+  if (!ann_items.empty() && res == nullptr) {
+    res = ann_items[0];
+  }
+
+  for (Item *item : *join->fields) {
+    collect_ann_functions_on_table(item, table_ref, ann_items);
+  }
+  if (!ann_items.empty() && res == nullptr) {
+    res = ann_items[0];
+  }
+  
+  if (res != nullptr) {
+   for (Item *ann_item : ann_items) {
+      if (ann_item != res) {
+        Item_func_approx_distance *ann_func =
+            down_cast<Item_func_approx_distance *>(ann_item);
+        if (ann_func->get_vector_query_status()) {
+          *ann_func->get_vector_query_status() = MULTIPLE_ANN_ONE_TABLE;
+        }
+      }
+    }
+  }
+  return res;
+}
+
+
+/* shouldPreferVectorIndexSearch - Function to check if we should prefer
+ * vector index search.
+ *
+ * @param join: The join
+ * @param tab: The table
+ * We prefer vector index search if:
+ * 1. Number of vector index output rows is less than the rowcount
+ * of the best access path
+ * 2. Cost of the vector index branch is less than cost of the best access path
+ */
+bool shouldPreferVectorIndexSearch(JOIN *join, JOIN_TAB *tab) {
+  // Check if cloudsql vector is enabled
+  if (!opt_cloudsql_vector)
+    return false;
+
+  // Check if there is a table reference and position
+  TABLE *table = tab->table();
+  POSITION *position = tab->position();
+  if (!table || !position) {
+    return false;
+  }
+
+  // Check if there are any ANN expressions on the table
+  Item * ann_item = get_ann_item_for_vector_index_search(join, tab->table_ref);
+  if (!ann_item) {
+    return false;
+  }
+
+  // Get the limit from the query expression
+  THD *thd = join->thd;
+  ha_rows limit = 0;
+  Query_expression *query_expression =
+         thd->lex->current_query_block()->master_query_expression();
+  if (query_expression && query_expression->has_any_limit()) {
+    limit =  query_expression->select_limit_cnt;
+  }
+  // Do not prefer Vector Index Search if there is no limit.
+  if (limit == 0 || limit >= position->prefix_rowcount) {
+    return false;
+  }
+
+  // Set the number of output rows to the min of the limit and the number of
+  // records in the table.
+  ha_rows num_output_rows = std::min(limit, tab->records());
+
+  // Compute the cost of the vector index branch
+  double vectorIndexBranchCost =
+      computeVectorIndexBranchCost(thd, position, table, num_output_rows);
+
+  // Do not prefer Vector Index Search if the cost of the Vector index branch is
+  // higher than the cost of the best access path
+  if (vectorIndexBranchCost > position->prefix_cost) {
+    return false;
+  }
+  return true;
+}
+
+
+/* computePkLookupCost - Function to compute the cost of a primary key
+ * lookup. This is a subset of the logic in 8.4's EstimateRefAccessCost which
+ * is relevant for a single PK lookup.
+ *
+ * @param table: The base table
+ */
+double computePkLookupCost(TABLE *table) {
+  assert(table->file != nullptr);
+  // Cost of reading 1 row using the primary key.
+  Cost_estimate cost = table->file->read_cost(table->s->primary_key, 1, 1.0);
+  return cost.total_cost();
+}
+
+/* computeVectorIndexBranchCost - Function to compute the cost of the
+ * vector index branch.
+ *
+ * @param thd: The thread handle
+ * @param position: The position of the access path
+ * @param table: The base table
+ * @param num_output_rows: The number of output rows
+ */
+double computeVectorIndexBranchCost (THD *thd, POSITION *position,
+                                     TABLE *table, ha_rows num_output_rows) {
+  double vectorIndexScanCost = 0, primaryKeyLookupCost = 0;
+  const Cost_model_server *cost_model = thd->cost_model();
+
+  // TODO: We might want to add a vectorIndexScanConst variable to the ANN item
+  vectorIndexScanCost = position->read_cost +
+      cost_model->row_evaluate_cost(num_output_rows);
+
+  if (table->bytes_per_row() == nullptr) {
+    table->set_bytes_per_row(new (thd->mem_root) BytesPerTableRow{
+          EstimateBytesPerRowTable(table)});
+  }
+
+  // Set the number of output rows and compute the cost of the primary key
+  // lookup. For each loop, we expect to read 1 row from the base table, so we
+  // set the number of output rows to 1 (num of rows looked up per loop).
+  primaryKeyLookupCost = computePkLookupCost(table);
+
+  // Set the cost of the nested loop join to the sum of the cost of the vector
+  // index scan and (num_output_rows * the cost of one primary key lookup).
+  return (vectorIndexScanCost + ( num_output_rows * primaryKeyLookupCost));
+}
+
+/* setVectorIndexBranchCost - Simple function to compute the cost of the
+ * vector index branch.
+ *
+ * @param thd: The thread handle
+ * @param tab The QEP_TAB for the base table.
+ * @param path: The access path
+ * @param ann_item: The ANN item
+ * @param num_output_rows: The number of output rows
+ */
+void setVectorIndexBranchCost (THD *thd, QEP_TAB *tab, AccessPath *path,
+                               Item *ann_item, ha_rows num_output_rows) {
+  // Only compute the cost for vector index scan if the access path is a
+  // nested loop join.
+  POSITION *position = tab->position();
+  if (position == nullptr) {
+    return;
+  }
+
+  // Get the inner and outer paths of the nested loop join
+  AccessPath *vectorIndexScan = nullptr;
+  AccessPath *primaryKeyLookup = nullptr;
+  if (path->type == AccessPath::NESTED_LOOP_JOIN) {
+    vectorIndexScan = path->nested_loop_join().outer;
+    primaryKeyLookup = path->nested_loop_join().inner;
+  } else if (path->type == AccessPath::VECTOR_INDEX_JOIN) {
+    vectorIndexScan = path->vector_index_join().outer;
+    primaryKeyLookup = path->vector_index_join().inner;
+  } else {
+    return;
+  }
+
+  const Cost_model_server *cost_model = thd->cost_model();
+
+  // Set the number of output rows to the minimum of the number of output rows
+  // and the number of records in the table.
+  num_output_rows = std::min(num_output_rows, tab->records());
+
+  // Set the number of output rows and compute the cost of the vector index scan
+  // TODO: We might want to add a vectorIndexScanConst variable to the ANN item
+  vectorIndexScan->set_num_output_rows(num_output_rows);
+  vectorIndexScan->set_cost(position->read_cost +
+                            cost_model->row_evaluate_cost(num_output_rows));
+
+  // Get the embedding column and the base table
+  Item *field = ((Item_func *)ann_item)->arguments()[0];
+  Field* embedding_field = get_embedding_field(field);
+  if (!embedding_field) {
+    return;
+  }
+  TABLE *base_table = embedding_field->table;
+
+  // Set the number of output rows and compute the cost of the primary key
+  // lookup. For each loop, we expect to read 1 row from the base table, so we
+  // set the number of output rows to 1 (num of rows looked up per loop).
+  primaryKeyLookup->set_num_output_rows(1);
+  primaryKeyLookup->set_cost(
+      computePkLookupCost(base_table));
+
+  // Set the cost of the nested loop join to the sum of the cost of the vector
+  // index scan and (num_output_rows * the cost of one primary key lookup).
+  path->set_num_output_rows(num_output_rows);
+  path->set_cost(vectorIndexScan->cost() +
+                 (num_output_rows * primaryKeyLookup->cost()));
 }

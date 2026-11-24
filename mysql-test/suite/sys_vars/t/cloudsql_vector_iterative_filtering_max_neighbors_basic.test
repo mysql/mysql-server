@@ -1,0 +1,286 @@
+# Copyright 2026 Google LLC
+
+############## mysql-test\t\cloudsql_vector_iterative_filtering_max_neighbors.test ########
+#                                                                             #
+# Variable Name: cloudsql_vector_iterative_filtering_max_neighbors            #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: UINT                                                             #
+# Default Value: 500                                                          #
+# Range: 10-1000                                                              #
+#                                                                             #                                                           #
+# Description:                                                                #
+# Test Cases System Variable cloudsql_vector_iterative_filtering_max_neighbors#
+# that checks the behavior of this variable in the following ways             #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+############################################################################
+#   START OF cloudsql_vector_iterative_filtering_max_neighbors TESTS       #
+############################################################################
+
+
+####################################################################################
+# Saving initial value of cloudsql_vector_iterative_filtering_max_neighbors        #
+# in a temporary variable.                                                         #
+####################################################################################
+
+SET @start_sql_mode = @@session.sql_mode;
+SET SESSION sql_mode = 'STRICT_ALL_TABLES';
+SET @session_start_value = @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+SELECT @session_start_value;
+
+--echo '#--------------------FN_DYNVARS_032_01------------------------#'
+#############################################################################
+# Display the DEFAULT of cloudsql_vector_iterative_filtering_max_neighbors  #
+#############################################################################
+
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 10;
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = DEFAULT;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+
+
+--echo '#---------------------FN_DYNVARS_032_02-------------------------#'
+########################################################################################
+# Check if cloudsql_vector_iterative_filtering_max_neighbors can be accessed with and without @@ sign    #
+########################################################################################
+
+SET cloudsql_vector_iterative_filtering_max_neighbors = 15;
+SELECT @@cloudsql_vector_iterative_filtering_max_neighbors;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.cloudsql_vector_iterative_filtering_max_neighbors;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.cloudsql_vector_iterative_filtering_max_neighbors;
+
+SET session cloudsql_vector_iterative_filtering_max_neighbors = 500;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+
+
+--echo '#--------------------FN_DYNVARS_032_03------------------------#'
+########################################################################
+#             change the value to a valid value                        #
+########################################################################
+
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 1000;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 10;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+
+
+--echo '#--------------------FN_DYNVARS_032_04-------------------------#'
+###########################################################################
+#                 Change the value to invalid value                       #
+###########################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 0;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 9;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 1001;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = "T";
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = "Y";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = TRUE;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = ON;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = OFF;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = '¹';
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = NO;
+
+
+--echo '#-------------------FN_DYNVARS_032_05----------------------------#'
+###########################################################################
+# Test if accessing global gives error                                    #
+###########################################################################
+
+SET @@global.cloudsql_vector_iterative_filtering_max_neighbors = 100;
+SELECT @@global.cloudsql_vector_iterative_filtering_max_neighbors;
+SET @@global.cloudsql_vector_iterative_filtering_max_neighbors = 500;
+
+--echo '#----------------------FN_DYNVARS_032_06------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table contains variable value        #
+#########################################################################
+
+--disable_warnings
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='cloudsql_vector_iterative_filtering_max_neighbors';
+--enable_warnings
+
+--echo '#----------------------FN_DYNVARS_032_07------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table matches value in variable     #
+#########################################################################
+
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+--disable_warnings
+SELECT VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='cloudsql_vector_iterative_filtering_max_neighbors';
+--enable_warnings
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = @session_start_value;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+SET SESSION sql_mode = @start_sql_mode;
+############## mysql-test\t\cloudsql_vector_iterative_filtering_max_neighbors.test ########
+#                                                                             #
+# Variable Name: cloudsql_vector_iterative_filtering_max_neighbors            #
+# Scope: SESSION                                                              #
+# Access Type: Dynamic                                                        #
+# Data Type: UINT                                                             #
+# Default Value: 500                                                          #
+# Range: 10-1000                                                              #
+#                                                                             #                                                           #
+# Description:                                                                #
+# Test Cases System Variable cloudsql_vector_iterative_filtering_max_neighbors#
+# that checks the behavior of this variable in the following ways             #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+#                                                                             #
+###############################################################################
+
+--source include/load_sysvars.inc
+
+############################################################################
+#   START OF cloudsql_vector_iterative_filtering_max_neighbors TESTS       #
+############################################################################
+
+
+####################################################################################
+# Saving initial value of cloudsql_vector_iterative_filtering_max_neighbors        #
+# in a temporary variable.                                                         #
+####################################################################################
+
+SET @start_sql_mode = @@session.sql_mode;
+SET SESSION sql_mode = 'STRICT_ALL_TABLES';
+SET @session_start_value = @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+SELECT @session_start_value;
+
+--echo '#--------------------FN_DYNVARS_032_01------------------------#'
+#############################################################################
+# Display the DEFAULT of cloudsql_vector_iterative_filtering_max_neighbors  #
+#############################################################################
+
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 10;
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = DEFAULT;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+
+
+--echo '#---------------------FN_DYNVARS_032_02-------------------------#'
+########################################################################################
+# Check if cloudsql_vector_iterative_filtering_max_neighbors can be accessed with and without @@ sign    #
+########################################################################################
+
+SET cloudsql_vector_iterative_filtering_max_neighbors = 15;
+SELECT @@cloudsql_vector_iterative_filtering_max_neighbors;
+
+--Error ER_UNKNOWN_TABLE
+SELECT session.cloudsql_vector_iterative_filtering_max_neighbors;
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.cloudsql_vector_iterative_filtering_max_neighbors;
+
+SET session cloudsql_vector_iterative_filtering_max_neighbors = 500;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+
+
+--echo '#--------------------FN_DYNVARS_032_03------------------------#'
+########################################################################
+#             change the value to a valid value                        #
+########################################################################
+
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 1000;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 10;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+
+
+--echo '#--------------------FN_DYNVARS_032_04-------------------------#'
+###########################################################################
+#                 Change the value to invalid value                       #
+###########################################################################
+
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = -1;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 0;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 9;
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = 1001;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = "T";
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = "Y";
+--Error ER_WRONG_VALUE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = TRUE;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = ON;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = OFF;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = '¹';
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = NO;
+
+
+--echo '#-------------------FN_DYNVARS_032_05----------------------------#'
+###########################################################################
+# Test if accessing global gives error                                    #
+###########################################################################
+
+SET @@global.cloudsql_vector_iterative_filtering_max_neighbors = 100;
+SELECT @@global.cloudsql_vector_iterative_filtering_max_neighbors;
+SET @@global.cloudsql_vector_iterative_filtering_max_neighbors = 500;
+
+--echo '#----------------------FN_DYNVARS_032_06------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table contains variable value        #
+#########################################################################
+
+--disable_warnings
+SELECT count(VARIABLE_VALUE) FROM performance_schema.global_variables WHERE VARIABLE_NAME='cloudsql_vector_iterative_filtering_max_neighbors';
+--enable_warnings
+
+--echo '#----------------------FN_DYNVARS_032_07------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table matches value in variable     #
+#########################################################################
+
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+--disable_warnings
+SELECT VARIABLE_VALUE
+FROM performance_schema.session_variables
+WHERE VARIABLE_NAME='cloudsql_vector_iterative_filtering_max_neighbors';
+--enable_warnings
+
+##############################
+#   Restore initial value    #
+##############################
+
+SET @@session.cloudsql_vector_iterative_filtering_max_neighbors = @session_start_value;
+SELECT @@session.cloudsql_vector_iterative_filtering_max_neighbors;
+SET SESSION sql_mode = @start_sql_mode;

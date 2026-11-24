@@ -1,0 +1,79 @@
+# Copyright 2026 Google LLC
+
+# Test error code paths for vector index creation
+
+# DD entries are only visible in debug build
+--source include/have_debug.inc
+
+call mtr.add_suppression("Failed to train vector index: not enough data points");
+call mtr.add_suppression("Failed to persist vector index");
+call mtr.add_suppression("Failed to scan table and build index");
+call mtr.add_suppression("Failed to persist partitioner to sub_table");
+
+# Initial data
+--let $table_name=t1
+--let $index_name=t1_j
+--let $dimensions=3
+--let $rows=1000
+--let $deterministic=1
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic| $MYSQL test 2>&1
+
+#  TODO: The following three tests are upstream hooks in the parallel ddl code.
+#  They do work sometimes, but not always. Sometimes the build succceeds
+#  without hitting the debug hooks. We should investigate and fix flakiness.
+#--eval SET SESSION debug='+d,ddl_write_failure';
+#--error ER_TEMP_FILE_WRITE_FAILURE
+#--eval CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+#--source suite/vector_index/include/assert_no_vector_index.inc
+#--eval SET SESSION debug='-d,ddl_write_failure';
+#
+#--eval SET SESSION debug='+d,ddl_tmpfile_fail';
+#--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+#--eval CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+#--source suite/vector_index/include/assert_no_vector_index.inc
+#--eval SET SESSION debug='-d,ddl_tmpfile_fail';
+#
+#--eval SET SESSION debug='+d,ddl_btree_build_oom';
+#--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+#--eval CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+#--source suite/vector_index/include/assert_no_vector_index.inc
+#--eval SET SESSION debug='-d,ddl_btree_build_oom';
+#
+--eval SET SESSION debug='+d,vector_index_invalid_ddl';
+--error ER_VECTOR_INDEX_INCOMPATIBLE_CREATE_DDL
+--eval CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+--source suite/vector_index/include/assert_no_vector_index.inc
+--eval SET SESSION debug='-d,vector_index_invalid_ddl';
+
+--eval SET SESSION debug='+d,vector_index_sub_table_err';
+--error 1030
+--eval CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+--source suite/vector_index/include/assert_no_vector_index.inc
+--eval SET SESSION debug='-d,vector_index_sub_table_err';
+
+--eval SET SESSION debug='+d,vector_index_cfg_err';
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+--eval CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+--source suite/vector_index/include/assert_no_vector_index.inc
+--eval SET SESSION debug='-d,vector_index_cfg_err';
+
+--eval SET SESSION debug='+d,vector_index_scan_err';
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+--eval CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+--source suite/vector_index/include/assert_no_vector_index.inc
+--eval SET SESSION debug='-d,vector_index_scan_err';
+
+--eval SET SESSION debug='+d,vector_index_train_err';
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+--eval CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+--source suite/vector_index/include/assert_no_vector_index.inc
+--eval SET SESSION debug='-d,vector_index_train_err';
+
+--eval SET SESSION debug='+d,vector_index_persist_err';
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+--eval CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+--source suite/vector_index/include/assert_no_vector_index.inc
+--eval SET SESSION debug='-d,vector_index_persist_err';
+
+DROP TABLE t1;
+--source suite/vector_index/include/assert_no_vector_index.inc

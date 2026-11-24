@@ -138,7 +138,7 @@ eval CREATE TABLE a (pk INT, embedding VECTOR($vector_max_dim), PRIMARY KEY (pk)
 eval INSERT INTO a VALUES (0, TO_VECTOR(CONCAT("[", REPEAT("1.0,", $vector_max_dim-1), "1.0]")));
 eval INSERT INTO a VALUES (1, TO_VECTOR(CONCAT("[", REPEAT("2.0,", $vector_max_dim-1), "2.0]")));
 eval INSERT INTO a VALUES (2, TO_VECTOR(CONCAT("[", REPEAT("3.0,", $vector_max_dim-1), "3.0]")));
-UPDATE a SET embedding = TO_VECTOR("[1]") WHERE pk = 1;
+eval UPDATE a SET embedding = TO_VECTOR(CONCAT("[", REPEAT("1.0,", $vector_max_dim-1), "3.0]")) WHERE pk = 1;
 DELETE FROM a WHERE pk = 0;
 --disable_result_log
 --sorted_result
@@ -148,7 +148,7 @@ SELECT pk, FROM_VECTOR(embedding) FROM a;
 --source include/diff_tables.inc
 
 --source include/rpl/connection_source.inc
-UPDATE a SET embedding = TO_VECTOR("[0.0]");
+eval UPDATE a SET embedding = TO_VECTOR(CONCAT("[", REPEAT("0.0,", $vector_max_dim-1), "0.0]"));
 
 --source include/rpl/sync_to_replica.inc
 --let $diff_tables=master:a,slave:a
@@ -189,8 +189,9 @@ CREATE TABLE a (a1 INT, a2 VECTOR(2), a3 VECTOR(1), a4 VARCHAR(1), PRIMARY KEY(a
 INSERT INTO a VALUES (1, TO_VECTOR("[1,2]"), TO_VECTOR("[1]"), "a");
 --sorted_result
 SELECT FROM_VECTOR(a2), FROM_VECTOR(a3) FROM a;
---error ER_DATA_TOO_LONG
+--error ER_VECTOR_DATA_DIMENSION_MISMATCH
 UPDATE a SET a3 = a2;
+--error ER_VECTOR_DATA_DIMENSION_MISMATCH
 UPDATE a SET a2 = a3;
 --sorted_result
 SELECT FROM_VECTOR(a2), FROM_VECTOR(a3) FROM a;
@@ -217,7 +218,7 @@ CREATE TABLE b (
 ALTER TABLE b MODIFY COLUMN v1 BLOB;
 
 --source include/rpl/connection_source.inc
-INSERT INTO b(v1) VALUES (TO_VECTOR("[1,2,3,4]")), (TO_VECTOR("[5,6,7,8]"));
+INSERT INTO b(v1) VALUES (TO_VECTOR("[1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4]")), (TO_VECTOR("[5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8]"));
 --sorted_result
 SELECT pk, FROM_VECTOR(v1) FROM b;
 
@@ -249,7 +250,7 @@ CREATE TABLE b (
 ALTER TABLE b MODIFY COLUMN v1 TEXT;
 
 --source include/rpl/connection_source.inc
-INSERT INTO b(v1) VALUES (TO_VECTOR("[1,2,3,4]")), (TO_VECTOR("[5,6,7,8]"));
+INSERT INTO b(v1) VALUES (TO_VECTOR("[1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4]")), (TO_VECTOR("[5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8]"));
 --sorted_result
 SELECT pk, FROM_VECTOR(v1) FROM b;
 
@@ -378,7 +379,7 @@ CREATE TABLE b (
 ALTER TABLE b MODIFY COLUMN v1 VARCHAR(128);
 
 --source include/rpl/connection_source.inc
-INSERT INTO b(v1) VALUES (TO_VECTOR("[1,2,3,4]")), (TO_VECTOR("[5,6,7,8]"));
+INSERT INTO b(v1) VALUES (TO_VECTOR("[1,2,3,4,1,2,3,4,1,2,3,4,1,2,3,4]")), (TO_VECTOR("[5,6,7,8,5,6,7,8,5,6,7,8,5,6,7,8]"));
 --sorted_result
 SELECT pk, FROM_VECTOR(v1) FROM b;
 

@@ -1,0 +1,240 @@
+# Copyright 2026 Google LLC
+
+# This test just verifies syntax of Vector Index DDL and DD entires created in the flow.
+# This test does not verify the functionality of Vector Index
+
+# DD entries are only visible in debug build
+--source include/have_debug.inc
+
+call mtr.add_suppression("vector_index operation unsuccessful: base table size 0 is smaller than 1000");
+call mtr.add_suppression("Failed to train vector index: not enough data points");
+
+# Initial data
+--let $table_name=t1
+--let $dimensions=3
+--let $rows=1000
+--let $deterministic=1
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic| $MYSQL test 2>&1
+
+SET SESSION debug='+d,skip_dd_table_access_check';
+
+#Create vector index with all options
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+
+# Show we can select from t1 without breaking things
+SELECT i, vector_to_string(j) from t1 LIMIT 4;
+
+SELECT i, vector_to_string(j) from t1 FORCE INDEX(t1_j) LIMIT 4;
+
+SELECT name, type, algorithm, options FROM mysql.indexes WHERE NAME LIKE '%t1%';
+SELECT name, type FROM information_schema.innodb_indexes WHERE NAME LIKE '%t1%';
+
+# Drop index
+DROP INDEX t1_j ON t1;
+
+#Create vector index with all options USING TREE clause in the front
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+
+# Drop index
+DROP INDEX t1_j ON t1;
+
+# Create vector index without any options except mandatory option DISTANCE_MEASURE,
+#it should take TREE as default and other values as UNSPECIFIED
+# (Innodb layer will take care of assigning right default values)
+CREATE VECTOR INDEX t1_j ON t1(j) DISTANCE_MEASURE=dot_product;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+DROP INDEX t1_j ON t1;
+
+CREATE VECTOR INDEX t1_j ON t1(j) QUANTIZER=SQ8 DISTANCE_MEASURE=dot_product;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+DROP INDEX t1_j ON t1;
+
+CREATE VECTOR INDEX t1_j ON t1(j) DISTANCE_MEASURE=COSINE;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+DROP INDEX t1_j ON t1;
+
+CREATE VECTOR INDEX t1_j ON t1(j) DISTANCE_MEASURE=DOT_PRODUCT;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+DROP INDEX t1_j ON t1;
+
+# Create vector index without DISTANCE_MEASURE option, it should throw error
+--error ER_VECTOR_INDEX_OPERATION_ERROR
+CREATE VECTOR INDEX t1_j ON t1(j);
+
+# Check that small letters in options are also valid
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) DISTANCE_MEASURE=dot_product quantizer=sq8;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+DROP INDEX t1_j ON t1;
+
+--error ER_UNKNOWN_VECTOR_INDEX_OPTION
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=AH DISTANCE_MEASURE=dot_product;
+--error ER_UNKNOWN_VECTOR_INDEX_OPTION
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=ah DISTANCE_MEASURE=dot_product;
+
+--error ER_UNKNOWN_VECTOR_INDEX_OPTION
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=BRUTE_FORCE DISTANCE_MEASURE=dot_product;
+
+# create vector index with wrong vector options should throw error
+--error ER_UNKNOWN_VECTOR_INDEX_OPTION
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=dummy DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+--error ER_UNKNOWN_VECTOR_INDEX_OPTION
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=SQ8 DISTANCE_MEASURE=dummy NUM_LEAVES=10;
+
+# Create vector index should fail if the num_partitions specified is wrong value
+--error 1064
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) NUM_LEAVES=-1 DISTANCE_MEASURE=dot_product;
+--error ER_VECTOR_INDEX_BAD_PARTITION_NUMBER
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) NUM_LEAVES=0 DISTANCE_MEASURE=dot_product;
+
+# Create vector index with any other USING clause should throw error
+--error ER_VECTOR_FEATURE_UNSUPPORTED
+CREATE VECTOR INDEX t1_j USING BTREE ON t1(j) DISTANCE_MEASURE=dot_product;
+
+#Create already existing vector index should throw error.
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+--error ER_DUP_KEYNAME
+CREATE VECTOR INDEX t1_j USING TREE ON t1(j) QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+DROP INDEX t1_j ON t1;
+
+
+# Create vector index on normal non-vector column should throw error
+--error ER_BAD_VECTOR_INDEX_COLUMN
+CREATE VECTOR INDEX t1_i ON t1(i) USING TREE DISTANCE_MEASURE=dot_product;
+--error ER_BAD_VECTOR_INDEX_COLUMN
+CREATE VECTOR INDEX t1_i ON t1(i) DISTANCE_MEASURE=dot_product;
+
+# Create normal index cannot use USING TREE
+--error ER_VECTOR_FEATURE_UNSUPPORTED
+CREATE INDEX t1_j USING TREE ON t1(j);
+
+# Create normal index cannot specify any vector index options in options clause
+--error 1064
+CREATE INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+--error 1064
+CREATE INDEX t1_j ON t1(j) QUANTIZER=SQ8;
+--error 1064
+CREATE INDEX t1_j ON t1(j) DISTANCE_MEASURE=l2_squared;
+--error 1064
+CREATE INDEX t1_j ON t1(j) NUM_LEAVES=10;
+
+
+#Repeat all the above commands with ALTER TABLE ADD INDEX syntax
+
+#Create vector index using ALTER TABLE ADD INDEX , index with all options
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+
+# Drop index using ALTER TABLE DROP INDEX
+ALTER TABLE t1 DROP INDEX t1_j;
+
+# Create vector index with out any options, it should take TREE as default and other values as UNSPECIFIED
+# (Innodb layer will take care of assigning right default values)
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) DISTANCE_MEASURE=dot_product;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+ALTER TABLE t1 DROP INDEX t1_j;
+
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) QUANTIZER=SQ8 DISTANCE_MEASURE=dot_product;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+ALTER TABLE t1 DROP INDEX t1_j;
+
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) DISTANCE_MEASURE=COSINE;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+ALTER TABLE t1 DROP INDEX t1_j;
+
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) DISTANCE_MEASURE=DOT_PRODUCT;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+ALTER TABLE t1 DROP INDEX t1_j;
+
+# Create vector index without DISTANCE_MEASURE option, it should throw error
+--error ER_VECTOR_INDEX_OPERATION_ERROR
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j);
+
+# Check that small letters in options are also valid
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE DISTANCE_MEASURE=dot_product quantizer=sq8;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+ALTER TABLE t1 DROP INDEX t1_j;
+
+--error ER_UNKNOWN_VECTOR_INDEX_OPTION
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=AH DISTANCE_MEASURE=dot_product;
+--error ER_UNKNOWN_VECTOR_INDEX_OPTION
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=ah DISTANCE_MEASURE=dot_product;
+
+--error ER_UNKNOWN_VECTOR_INDEX_OPTION
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=BRUTE_FORCE DISTANCE_MEASURE=dot_product;
+
+# create vector index with wrong vector options should throw error
+--error ER_UNKNOWN_VECTOR_INDEX_OPTION
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=dummy DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+--error ER_UNKNOWN_VECTOR_INDEX_OPTION
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE DISTANCE_MEASURE=dummy NUM_LEAVES=10;
+--error ER_UNKNOWN_VECTOR_INDEX_OPTION
+
+# Create vector index should fail if the num_partitions specified is wrong value
+--error 1064
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE NUM_LEAVES=-1 DISTANCE_MEASURE=dot_product;
+--error ER_VECTOR_INDEX_BAD_PARTITION_NUMBER
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE NUM_LEAVES=0 DISTANCE_MEASURE=dot_product;
+
+# Create vector index with any other USING clause should throw error
+--error ER_VECTOR_FEATURE_UNSUPPORTED
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING BTREE DISTANCE_MEASURE=dot_product;
+
+#Create already existing vector index should throw error.
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+--error ER_DUP_KEYNAME
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+SELECT OPTIONS FROM mysql.indexes WHERE NAME LIKE '%t1%';
+# Drop index
+ALTER TABLE t1 DROP INDEX t1_j;
+
+# Create vector index on normal non-vector column should throw error
+--error ER_BAD_VECTOR_INDEX_COLUMN
+ALTER TABLE t1 ADD VECTOR INDEX t1_i(i) USING TREE DISTANCE_MEASURE=dot_product;
+--error ER_BAD_VECTOR_INDEX_COLUMN
+ALTER TABLE t1 ADD VECTOR INDEX t1_i(i) DISTANCE_MEASURE=dot_product;
+
+# Create normal index cannot use USING TREE
+--error ER_VECTOR_FEATURE_UNSUPPORTED
+ALTER TABLE t1 ADD INDEX t1_j(j) USING TREE;
+
+# Create normal index cannot specify any vector index options in options clause
+--error 1064
+ALTER TABLE t1 ADD INDEX t1_j(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;
+--error 1064
+ALTER TABLE t1 ADD INDEX t1_j(j) QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+--error 1064
+ALTER TABLE t1 ADD INDEX t1_j(j) DISTANCE_MEASURE=l2_squared;
+--error 1064
+ALTER TABLE t1 ADD INDEX t1_j(j) NUM_LEAVES=10 DISTANCE_MEASURE=l2_squared;
+
+
+# Cleanup
+DROP TABLE t1;
+
+#Check that creating index during CREATE TABLE is not supported
+--error ER_VECTOR_INDEX_DURING_CREATE_TABLE
+CREATE TABLE t1 (i INT NOT NULL AUTO_INCREMENT PRIMARY KEY, j VECTOR(3) USING VARBINARY, VECTOR KEY t1_j (j));
+
+# Check that creating index on empty table (not enough rows) does not make Server crash
+CREATE TABLE t1(i INT PRIMARY KEY AUTO_INCREMENT, j VECTOR(3) USING VARBINARY);
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+ALTER TABLE t1 ADD VECTOR INDEX t1_j(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+DROP TABLE t1;
+
+
+
+

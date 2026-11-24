@@ -54,6 +54,7 @@ class Index : virtual public Entity_object {
   typedef Index_impl Impl;
   typedef tables::Indexes DD_table;
 
+  // If you are changing this enum, make sure to change in indexes.cc
  public:
   enum enum_index_type  // similar to Keytype in sql_class.h but w/o FOREIGN_KEY
   {
@@ -61,7 +62,8 @@ class Index : virtual public Entity_object {
     IT_UNIQUE,
     IT_MULTIPLE,
     IT_FULLTEXT,
-    IT_SPATIAL
+    IT_SPATIAL,
+    IT_VECTOR
   };
 
   enum enum_index_algorithm  // similar to ha_key_alg
@@ -70,7 +72,8 @@ class Index : virtual public Entity_object {
     IA_BTREE,
     IA_RTREE,
     IA_HASH,
-    IA_FULLTEXT
+    IA_FULLTEXT,
+    IA_KMEANS
   };
 
  public:

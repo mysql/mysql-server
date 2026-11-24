@@ -1,0 +1,80 @@
+# Copyright 2026 Google LLC
+
+--echo #
+--echo # mysqldump test when we have vector data
+--echo #
+
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+CREATE VECTOR INDEX vectorIndext1 ON t1(j) DISTANCE_MEASURE=cosine;
+
+--replace_regex /vector_dimensions_chk_[0-9]*/vector_dimensions_chk_cons/
+SHOW CREATE TABLE t1;
+
+--exec $MYSQL_DUMP --skip-comments test t1 > $MYSQLTEST_VARDIR/tmp/mysqldump_vector.sql
+DROP TABLE t1;
+
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqldump_vector.sql
+
+# verify show create table + dump/load with a check constraint still works
+ALTER TABLE t1 ADD column k INT;
+ALTER TABLE t1 ADD CONSTRAINT chk1 CHECK (k IS NULL);
+SHOW CREATE TABLE t1;
+CREATE VECTOR INDEX vectorIndext1 ON t1(j) DISTANCE_MEASURE=cosine;
+
+# Table with Foreign Key
+CREATE TABLE t2 (id INT PRIMARY KEY);
+--let $table_name=t3
+--source suite/vector_index/include/vector_data.inc
+ALTER TABLE t3 ADD COLUMN t2_id INT, ADD CONSTRAINT fk_t3_t2 FOREIGN KEY (t2_id) REFERENCES t2(id);
+CREATE VECTOR INDEX vectorIndext3 ON t3(j) DISTANCE_MEASURE=cosine;
+
+# Table with Foreign Key and Additional Check Constraint
+--let $table_name=t4
+--source suite/vector_index/include/vector_data.inc
+ALTER TABLE t4 ADD COLUMN t2_id INT, ADD CONSTRAINT fk_t4_t2 FOREIGN KEY (t2_id) REFERENCES t2(id), ADD CONSTRAINT chk_id CHECK (t2_id > 0);
+CREATE VECTOR INDEX vectorIndext4 ON t4(j) DISTANCE_MEASURE=cosine;
+
+--replace_regex /vector_dimensions_chk_[0-9]*/vector_dimensions_chk_cons/
+SHOW CREATE TABLE t1;
+
+--replace_regex /vector_dimensions_chk_[0-9]*/vector_dimensions_chk_cons/
+SHOW CREATE TABLE t3;
+
+--replace_regex /vector_dimensions_chk_[0-9]*/vector_dimensions_chk_cons/
+SHOW CREATE TABLE t4;
+
+--exec $MYSQL_DUMP --skip-comments test t1 t3 t4 > $MYSQLTEST_VARDIR/tmp/mysqldump_vector.sql
+DROP TABLE t1;
+DROP TABLE t3;
+DROP TABLE t4;
+
+--exec $MYSQL test < $MYSQLTEST_VARDIR/tmp/mysqldump_vector.sql
+
+--replace_regex /vector_dimensions_chk_[0-9]*/vector_dimensions_chk_cons/
+SHOW CREATE TABLE t1;
+
+--replace_regex /vector_dimensions_chk_[0-9]*/vector_dimensions_chk_cons/
+SHOW CREATE TABLE t3;
+
+--replace_regex /vector_dimensions_chk_[0-9]*/vector_dimensions_chk_cons/
+SHOW CREATE TABLE t4;
+
+# mysqldump and restor does not restor vector index, this is known issue.
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+# This will fall back to KNN query as the table does not have vector index.
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.15,0.725,0.6125]'), 'distance_measure=cosine'),i  LIMIT 10;
+
+CREATE VECTOR INDEX vectorIndext1 ON t1(j) DISTANCE_MEASURE=cosine;
+ANALYZE TABLE t1;
+
+# This will be ANN query.
+SELECT i FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[0.15,0.725,0.6125]'), 'distance_measure=cosine'),i  LIMIT 10;
+
+DROP TABLE t1;
+DROP TABLE t3;
+DROP TABLE t4;
+DROP TABLE t2;
+--remove_file $MYSQLTEST_VARDIR/tmp/mysqldump_vector.sql

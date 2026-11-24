@@ -1,0 +1,157 @@
+#
+# With cloudsql_vector_iterative_filtering=ON, a filtered ANN query must
+# still scan all qualifying rows when the vector index turns out to be
+# unusable (brute-force fallback). Previously, the original scan was
+# replaced by a self-referencing primary key lookup before the usability
+# check, so the fallback returned no rows (or a single unrelated row).
+#
+use test;
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+# Reference: exact (KNN) results for the filtered query.
+set cloudsql_vector_iterative_filtering=OFF;
+set session debug='+d,vector_index_unusable';
+select i from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+660
+580
+700
+520
+20
+300
+460
+880
+140
+500
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+select i from t1 where i between 20 and 200 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+35
+152
+181
+99
+57
+83
+37
+95
+93
+45
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+set session debug='-d,vector_index_unusable';
+# Iterative filtering with an unusable vector index must fall back to a
+# full brute-force scan and return the same rows as above.
+set cloudsql_vector_iterative_filtering=ON;
+set session debug='+d,vector_index_unusable';
+select i from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+660
+580
+700
+520
+20
+300
+460
+880
+140
+500
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+select i from t1 where i between 20 and 200 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+i
+35
+152
+181
+99
+57
+83
+37
+95
+93
+45
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+select count(*) from (select i from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as dt;
+count(*)
+10
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+# The plan must not contain the primary key lookup without a vector
+# index scan feeding it.
+explain format=tree select * from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Filter: ((t1.i % 20) = 0)  (rows=1000)
+            -> Table scan on t1  (rows=1000)
+
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+set session debug='-d,vector_index_unusable';
+# Sanity check: with a usable index the iterative plan is still chosen.
+explain format=tree select * from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+EXPLAIN
+-> Limit: 10 row(s)  (rows=10)
+    -> Sort: approx_distance(t1.j,to_vector('[1,2,3]'),'distance_measure=l2_squared'), limit input to 10 row(s) per chunk  (rows=1000)
+        -> Vector index join (with iterative filtering)  (rows=10)
+            -> Vector index scan on t1  (rows=10)
+            -> Filter: ((t1.i % 20) = 0)  (rows=1)
+                -> Single-row index lookup on t1 using PRIMARY (i = t1.i)
+
+# A prepared statement that falls back must emit a warning on each
+# fallback execution and retry ANN once the index is usable again.
+prepare stmt from 'select i from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector(''[1,2,3]''), ''distance_measure=l2_squared'') limit 10';
+select queries from information_schema.innodb_vector_indexes where index_name = 'vec_index';
+queries
+0
+set session debug='+d,vector_index_unusable';
+execute stmt;
+i
+660
+580
+700
+520
+20
+300
+460
+880
+140
+500
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+execute stmt;
+i
+660
+580
+700
+520
+20
+300
+460
+880
+140
+500
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: Vector index is corrupt or invisible to the current transaction.
+select queries from information_schema.innodb_vector_indexes where index_name = 'vec_index';
+queries
+0
+set session debug='-d,vector_index_unusable';
+execute stmt;
+i
+660
+580
+700
+520
+20
+300
+460
+880
+140
+500
+select queries from information_schema.innodb_vector_indexes where index_name = 'vec_index';
+queries
+1
+deallocate prepare stmt;
+set cloudsql_vector_iterative_filtering=default;
+drop table t1;

@@ -110,6 +110,7 @@
 #include "sql/table.h"
 #include "sql/thd_raii.h"
 #include "sql_string.h"
+#include "sql/vector_opts.h"
 #include "string_with_len.h"
 #include "strmake.h"
 #include "typelib.h"
@@ -817,6 +818,9 @@ static dd::Index::enum_index_algorithm dd_get_new_index_algorithm_type(
 
     case HA_KEY_ALG_FULLTEXT:
       return dd::Index::IA_FULLTEXT;
+
+    case HA_KEY_ALG_KMEANS:
+      return dd::Index::IA_KMEANS;
   }
 
   /* purecov: begin deadcode */
@@ -831,6 +835,8 @@ static dd::Index::enum_index_type dd_get_new_index_type(const KEY *key) {
   if (key->flags & HA_FULLTEXT) return dd::Index::IT_FULLTEXT;
 
   if (key->flags & HA_SPATIAL) return dd::Index::IT_SPATIAL;
+
+  if (key->flags & HA_VECTOR) return dd::Index::IT_VECTOR;
 
   if (key->flags & HA_NOSAME) {
     /*
@@ -914,6 +920,10 @@ static void fill_dd_index_elements_from_key_parts(
         case dd::Index::IT_SPATIAL:
           if (key_part == key_parts)
             const_cast<dd::Column *>(key_col_obj)
+                ->set_column_key(dd::Column::CK_MULTIPLE);
+          break;
+        case dd::Index::IT_VECTOR:
+          const_cast<dd::Column *>(key_col_obj)
                 ->set_column_key(dd::Column::CK_MULTIPLE);
           break;
         default:
@@ -1124,6 +1134,16 @@ static void fill_dd_indexes_from_keyinfo(
     if (key->parser_name.str)
       idx_options->set("parser_name", key->parser_name.str);
 
+    if (dd_get_new_index_type(key) == dd::Index::IT_VECTOR) {
+      idx_options->set("gcp_quantizer",
+                       get_quantizer_name(key->quantizer).c_str());
+      idx_options->set("gcp_num_partitions", key->m_num_partitions);
+      idx_options->set("gcp_distance_measure",
+                       get_distance_measure_name(key->distance_measure).c_str());
+      idx_options->set("gcp_version", VECTOR_INDEX_DD_VERSION);
+      idx_options->set("gcp_idx_algorithm",
+                       get_index_algorithm_name(key->algorithm).c_str());
+    }
     /*
       If we have no primary key, then we pick the first candidate primary
       key and promote it. When we promote, the field's of key_part needs to

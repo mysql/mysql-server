@@ -1,0 +1,240 @@
+# Copyright 2026 Google LLC
+
+--source include/have_debug.inc
+--source include/elide_costs.inc
+use test;
+
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--let $table_name=t2
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted
+
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+create vector index vec_index on t2(j) distance_measure=l2_squared;
+alter table t2 add column k int;
+alter table t1 add column k int;
+update t2 set k = FLOOR(RAND() * 1000) + 1;
+update t1 set k = FLOOR(RAND() * 1000) + 1;
+
+--echo # Query plans with filters and index scans disabled
+set cloudsql_vector_iterative_filtering=OFF;
+select i from t1 where i < 900  order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 15;
+
+select i from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 where i between 20 and 200 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 where i between 20 and 200 order by i % 3, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select t1.i from t1, t2 where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1, t2 where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1, t2 where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select t1.i from t1 inner join t2 on t1.i = t2.i where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select t1.i from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select i % 3 val from t1 group by val, j order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select i % 3 val from t1 group by val, j order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select i % 3 val from t1 group by val, j having val = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select i % 3 val from t1 group by val, j having val = 1 order by val, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select * from (select i from t1 where i % 2 = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as tmp where i < 100;
+--replace_regex $elide_costs
+explain format=tree select * from (select i from t1 where i % 2 = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as tmp where i < 100;
+
+--echo # Query plans and results with filters and index scans enabled
+set cloudsql_vector_iterative_filtering=ON;
+select i, vector_to_string(j), approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+--replace_regex $elide_costs_and_time
+explain analyze select * from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select i from t1 where i between 20 and 200 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 where i between 20 and 200 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select i from t1 where i between 20 and 200 order by i % 3, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 where i between 20 and 200 order by i % 3, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+--echo # Filter is not pushed down in cross join
+select t1.i from t1, t2 where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1, t2 where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select t1.i from t1, t2 where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1, t2 where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+--echo # Filter is pushed down in inner join
+select t1.i from t1 inner join t2 on t1.i = t2.i where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i where t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+explain format=tree select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i where t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+--echo # Join conditions on the base table are pushed down
+select t1.i from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t1.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+--echo # Join conditions not on the base table are not pushed down
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by t2.i, approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select t1.i, t2.i from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select * from t1 inner join t2 on t1.i = t2.i and t2.i between 20 and 200 order by approx_distance(t2.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared'), approx_distance(t1.j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+--echo # Temporary table filters not pushed down
+select i % 3 val from t1 group by val, j order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select i % 3 val from t1 group by val, j order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select i % 3 val from t1 group by val, j having val = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select i % 3 val from t1 group by val, j having val = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select i % 3 val from t1 group by val, j having val = 1 order by val, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+--replace_regex $elide_costs
+explain format=tree select i % 3 val from t1 group by val, j having val = 1 order by val, approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+--echo # Only filters within subquery are pushed down
+select * from (select i from t1 where i % 2 = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as tmp where i < 100;
+--replace_regex $elide_costs
+explain format=tree select * from (select i from t1 where i % 2 = 1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10) as tmp where i < 100;
+
+
+--echo # Queries where the filter cannot produce LIMIT results or cloudsql_vector_iterative_filtering_max_neighbors needs to be increased.
+set cloudsql_vector_iterative_filtering_max_neighbors=30;
+select i, vector_to_string(j), approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+set cloudsql_vector_iterative_filtering_max_neighbors=50;
+select i, vector_to_string(j), approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared')  from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+set cloudsql_vector_iterative_filtering_max_neighbors=default;
+select * from t1 where i % 400 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+set cloudsql_vector_iterative_filtering_max_neighbors=1000;
+select i, vector_to_string(j), approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1 where i % 400 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+select i, vector_to_string(j), approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') from t1 where i % 20 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+
+select i from t1 where i < 900 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 15;
+
+
+--echo # ANN exhausted + failure scenario
+set session debug='+d,return_ann_exhausted_error';
+
+# this should succeed but return < 10 results
+select i from t1 where i % 3 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+set session debug='-d,return_ann_exhausted_error';
+
+set session debug='+d,return_ann_failed';
+--error ER_GET_ERRNO
+select i from t1 where i % 3 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 10;
+set session debug='-d,return_ann_failed';
+
+--echo # Setup a large table, build an index, then delete from it such that < 1k rows remain to test data exhaustion scenario.
+--let $table_name=t3
+--let $dimensions=3
+--let $rows=10000
+--let $deterministic=1
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic | $MYSQL test 2>&1
+CREATE VECTOR INDEX vec_index3 ON t3(j) DISTANCE_MEASURE=l2_squared;
+
+select i from t3 where i % 4 = 0 and i % 3 = 0 and i < 500 order by ROUND(approx_distance(j, string_to_vector('[8000,8000,8000]'), 'distance_measure=l2_squared'), -8), i DESC limit 10;
+delete from t3 where i % 10 != 0;
+select i from t3 where i % 4 = 0 and i % 3 = 0 and i < 500 order by ROUND(approx_distance(j, string_to_vector('[8000,8000,8000]'), 'distance_measure=l2_squared'), -8), i DESC limit 10;
+delete from t3 where i % 20 != 0;
+
+# Less than 10 results satisfy this filter so SQL layer will keep trying.
+select i from t3 where i % 4 = 0 and i % 3 = 0 and i < 500 order by ROUND(approx_distance(j, string_to_vector('[8000,8000,8000]'), 'distance_measure=l2_squared'), -8), i DESC limit 10;
+--replace_regex $elide_costs_and_rows
+explain format=tree select i from t3 where i % 4 = 0 and i % 3 = 0 and i < 500 order by ROUND(approx_distance(j, string_to_vector('[8000,8000,8000]'), 'distance_measure=l2_squared'), -8), i DESC limit 10;
+
+--echo # VectorSearchResults uint32 x uint32 allocation wrap in iterative filtering
+CREATE TABLE t4 (
+  pk1 CHAR(250) CHARACTER SET latin1 NOT NULL,
+  pk2 CHAR(250) CHARACTER SET latin1 NOT NULL,
+  pk3 CHAR(250) CHARACTER SET latin1 NOT NULL,
+  pk4 CHAR(250) CHARACTER SET latin1 NOT NULL,
+  j VECTOR(3) USING VARBINARY,
+  PRIMARY KEY(pk1,pk2,pk3,pk4)
+) ENGINE=InnoDB STATS_PERSISTENT=1 STATS_AUTO_RECALC=0;
+
+INSERT INTO t4 SELECT LPAD(i,250,'a'), LPAD(i,250,'b'),
+                                LPAD(i,250,'c'), LPAD(i,250,'d'), j FROM t1;
+CREATE VECTOR INDEX vec_index4 ON t4(j) DISTANCE_MEASURE=l2_squared;
+ANALYZE TABLE t4;
+
+# Fake stats so prefix_rowcount > LIMIT (sql_optimizer.cc: shouldPreferVectorIndexSearch).
+UPDATE mysql.innodb_table_stats SET n_rows=1000000000
+  WHERE database_name='test' AND table_name='t4';
+UPDATE mysql.innodb_index_stats SET stat_value=1000000000
+  WHERE database_name='test' AND table_name='t4' AND stat_name='n_diff_pfx04';
+FLUSH TABLE t4;
+
+# m_record_size ~ 1001. LIMIT 4290677 -> 4290677 * 1001 = 2^32 + 381
+# -> m_records alloc is wrapped to 381 B, m_capacity = 4290677.
+SELECT 1 FROM t4 WHERE LENGTH(pk2) > 0 AND pk2 = LPAD(1, 250, 'b')
+  ORDER BY approx_distance(j, string_to_vector('[1,2,3]'),
+                           'distance_measure=l2_squared')
+  LIMIT 4290677;
+
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;

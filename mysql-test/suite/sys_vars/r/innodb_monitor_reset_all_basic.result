@@ -316,6 +316,15 @@ dblwr_async_requests	disabled
 dblwr_sync_requests	disabled
 dblwr_flush_requests	disabled
 dblwr_flush_wait_events	disabled
+module_vector_indexes	disabled
+num_queries	disabled
+num_mutations	disabled
+num_queries_failed	disabled
+num_mutations_failed	disabled
+num_tree_load	disabled
+num_tree_load_failed	disabled
+num_tree_unload	disabled
+single_thread_queries	disabled
 set global innodb_monitor_enable = all;
 create table monitor_test(col int) engine = innodb;
 drop table monitor_test;

@@ -784,6 +784,7 @@ ib_err_t ib_cursor_open_index_using_name(
   /* Traverse the user defined indexes. */
   while (index != nullptr) {
     if (innobase_strcasecmp(index->name, index_name) == 0) {
+      ut_a(index->type != DICT_VECTOR);
       index_id = index->id;
       *idx_type = index->type;
       *idx_id = index_id;

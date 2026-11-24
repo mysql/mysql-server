@@ -1,0 +1,46 @@
+# Copyright 2026 Google LLC
+
+# Initial data
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+--echo Initial Data inserted
+
+XA START 'insert_row';
+INSERT INTO t1 VALUES (1001, string_to_vector("[1,2,3]"));
+SELECT COUNT(*) FROM t1 WHERE i=1001;
+XA END 'insert_row';
+XA PREPARE 'insert_row';
+SELECT COUNT(*) FROM t1 WHERE i=1001;
+XA ROLLBACK 'insert_row';
+SELECT COUNT(*) FROM t1 WHERE i=1001;
+
+XA START 'create_index';
+--error ER_XAER_RMFAIL
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+XA END 'create_index';
+XA PREPARE 'create_index';
+XA COMMIT 'create_index';
+SELECT index_name FROM information_schema.innodb_vector_indexes;
+
+CREATE VECTOR INDEX vec_index ON test.t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared;
+SELECT index_name FROM information_schema.innodb_vector_indexes;
+
+XA START 'insert_row_and_nearest';
+INSERT INTO t1 VALUES (1001, string_to_vector("[1,2,3]"));
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 3;
+XA END 'insert_row_and_nearest';
+XA PREPARE 'insert_row_and_nearest';
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 3;
+XA COMMIT 'insert_row_and_nearest';
+SELECT i, vector_to_string(j) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 3;
+
+XA START 'drop_index';
+--error ER_XAER_RMFAIL
+DROP INDEX vec_index ON test.t1;
+XA END 'drop_index';
+XA PREPARE 'drop_index';
+XA COMMIT 'drop_index';
+SELECT index_name FROM information_schema.innodb_vector_indexes;
+
+DROP INDEX vec_index ON test.t1;
+DROP TABLE t1;

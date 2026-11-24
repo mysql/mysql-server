@@ -2477,6 +2477,9 @@ typedef PT_index_option<LEX_CSTRING, &KEY_CREATE_INFO::comment>
     PT_index_comment;
 typedef PT_index_option<LEX_CSTRING, &KEY_CREATE_INFO::parser_name>
     PT_fulltext_index_parser_name;
+typedef PT_index_option<ulong, &KEY_CREATE_INFO::m_num_partitions> PT_index_partitions_option;
+typedef PT_index_option<distance_measure, &KEY_CREATE_INFO::m_distance_measure> PT_index_distance_measure_option;
+typedef PT_index_option<ha_key_sub_alg, &KEY_CREATE_INFO::m_quantizer_option> PT_index_quantizer_option;
 typedef PT_index_option<bool, &KEY_CREATE_INFO::is_visible> PT_index_visibility;
 
 /**

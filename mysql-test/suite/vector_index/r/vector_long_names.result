@@ -1,0 +1,85 @@
+CREATE VECTOR INDEX vidx123456789012345678901234567890123456789012345678901234567890 ON test123456789012345678901234567890123456789012345678901234567890(col0123456789012345678901234567890123456789012345678901234567890) DISTANCE_MEASURE=cosine;;
+#######################################################################
+#     Test the vector indexes being persisted on a clean shutdown     #
+#######################################################################
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+state	corrupted	config
+INDEX_READY_TO_USE	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vidx123456789012345678901234567890123456789012345678901234567890	test.test123456789012345678901234567890123456789012345678901234567890	TREE_SQ	3	COSINE	Ready	INDEX_READY_TO_USE	10	10	0	0	443
+SELECT prim123456789012345678901234567890123456789012345678901234567890 FROM test123456789012345678901234567890123456789012345678901234567890 ORDER BY APPROX_DISTANCE(col0123456789012345678901234567890123456789012345678901234567890, string_to_vector('[0.5,0.25,0.125]'), 'distance_measure=cosine'),prim123456789012345678901234567890123456789012345678901234567890  LIMIT 10;;
+prim123456789012345678901234567890123456789012345678901234567890
+494
+22
+180
+739
+472
+53
+984
+586
+554
+65
+SELECT prim123456789012345678901234567890123456789012345678901234567890 FROM test123456789012345678901234567890123456789012345678901234567890 ORDER BY APPROX_DISTANCE(col0123456789012345678901234567890123456789012345678901234567890, string_to_vector('[0.1,0.35,0.165]'), 'distance_measure=dot_product'),prim123456789012345678901234567890123456789012345678901234567890  LIMIT 10;;
+prim123456789012345678901234567890123456789012345678901234567890
+35
+628
+319
+8
+567
+41
+202
+745
+201
+284
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+state	corrupted	config
+INDEX_READY_TO_USE	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vidx123456789012345678901234567890123456789012345678901234567890	test.test123456789012345678901234567890123456789012345678901234567890	TREE_SQ	3	COSINE	Ready	INDEX_READY_TO_USE	10	10	1	0	443
+# restart
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+state	corrupted	config
+INDEX_PENDING_LOAD	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vidx123456789012345678901234567890123456789012345678901234567890	test.test123456789012345678901234567890123456789012345678901234567890	TREE_SQ	3	COSINE	Pending Load	INDEX_PENDING_LOAD	10	10	0	0	443
+########################################################################
+#     Test the vector indexes can be used by ANN queries after restart #
+########################################################################
+SELECT prim123456789012345678901234567890123456789012345678901234567890 FROM test123456789012345678901234567890123456789012345678901234567890 ORDER BY APPROX_DISTANCE(col0123456789012345678901234567890123456789012345678901234567890, string_to_vector('[0.5,0.25,0.125]'), 'distance_measure=cosine'),prim123456789012345678901234567890123456789012345678901234567890  LIMIT 10;;
+prim123456789012345678901234567890123456789012345678901234567890
+494
+22
+180
+739
+472
+53
+984
+586
+554
+65
+SELECT prim123456789012345678901234567890123456789012345678901234567890 FROM test123456789012345678901234567890123456789012345678901234567890 ORDER BY APPROX_DISTANCE(col0123456789012345678901234567890123456789012345678901234567890, string_to_vector('[0.1,0.35,0.165]'), 'distance_measure=dot_product'),prim123456789012345678901234567890123456789012345678901234567890  LIMIT 10;;
+prim123456789012345678901234567890123456789012345678901234567890
+35
+628
+319
+8
+567
+41
+202
+745
+201
+284
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+state	corrupted	config
+INDEX_READY_TO_USE	0	{"index_type":{"D":"TREE_SQ"},"distance_measure":{"D":"SquaredL2Distance","C":"CosineDistance"},"tree_levels":{"D":"1"},"num_partitions":{"G":"10"},"num_neighbors":{"D":"10"},"clusters_per_block":{"D":"16"},"min_cluster_size":{"D":"10.000000"},"max_clustering_iteration":{"D":"10"},"vector_dimensions":{"D":"768","C":"3"},"num_query_partitions":{"G":"10"}}
+SELECT * FROM information_schema.innodb_vector_indexes;
+INDEX_NAME	TABLE_NAME	INDEX_TYPE	DIMENSION	DIST_MEASURE	STATUS	STATE	NUM_LEAVES	NUM_LEAVES_TO_SEARCH	QUERIES	MUTATIONS	TREE_MEMORY
+vidx123456789012345678901234567890123456789012345678901234567890	test.test123456789012345678901234567890123456789012345678901234567890	TREE_SQ	3	COSINE	Ready	INDEX_READY_TO_USE	10	10	1	0	443
+DROP TABLE test123456789012345678901234567890123456789012345678901234567890;;

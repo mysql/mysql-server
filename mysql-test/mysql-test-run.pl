@@ -286,6 +286,7 @@ our @DEFAULT_SUITES = qw(
   component_keyring_file
   component_connection_control
   jdv
+  vector_index
 );
 
 our $DEFAULT_SUITES = join ',', @DEFAULT_SUITES;

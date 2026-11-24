@@ -825,6 +825,9 @@ class Field {
   virtual bool is_unsigned() const { return false; }
   bool is_gcol() const { return gcol_info; }
   bool is_virtual_gcol() const { return gcol_info && !stored_in_db; }
+  bool is_vector_col() const {
+    return type() == MYSQL_TYPE_VECTOR;
+  }
 
   /// Holds the expression to be used to generate default values.
   Value_generator *m_default_val_expr{nullptr};

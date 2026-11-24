@@ -1,0 +1,196 @@
+# Copyright 2026 Google LLC
+
+#
+# vector_index.vector_index_training
+
+--source include/have_debug.inc
+
+call mtr.add_suppression("Failed to allocate memory for training");
+call mtr.add_suppression("Not enough memory to collect training dataset");
+call mtr.add_suppression("Failed to scan table and build index");
+call mtr.add_suppression("Not enough memory to continue collecting training data");
+call mtr.add_suppression("Failed to train vector index: not enough data points");
+call mtr.add_suppression("Failed to create partitioner");
+call mtr.add_suppression("Failed to train vector index: KMeans internal error");
+call mtr.add_suppression("KMeans code: UNKNOWN message: simulated kmeans error");
+call mtr.add_suppression("Error encountered during index build: KMeans internal error");
+
+set @start_value = @@global.cloudsql_vector_max_mem_size;
+
+### prepare the table
+
+# t1 has 2^17 ~= 130K data, uses % sampling + query_rate based partition config
+create table t1(i int primary key auto_increment, j vector(3) using varbinary);
+insert into t1(j) values(string_to_vector('[1,2,3]'));    # 0
+insert into t1(j) select j from t1;                       # 1
+insert into t1(j) select j from t1;                       # 2
+insert into t1(j) select j from t1;                       # 3
+insert into t1(j) select j from t1;                       # 4
+insert into t1(j) select j from t1;                       # 5
+insert into t1(j) select j from t1;                       # 6
+insert into t1(j) select j from t1;                       # 7
+insert into t1(j) select j from t1;                       # 8
+insert into t1(j) select j from t1;                       # 9
+insert into t1(j) select j from t1;                       # 10
+insert into t1(j) select j from t1;                       # 11
+insert into t1(j) select j from t1;                       # 12
+insert into t1(j) select j from t1;                       # 13
+insert into t1(j) select j from t1;                       # 14
+insert into t1(j) select j from t1;                       # 15
+insert into t1(j) select j from t1;                       # 16
+insert into t1(j) select j from t1;                       # 17
+
+# t2 has 20K data, uses 10K sampling + fixed dp per partition config
+create table t2(i int primary key auto_increment, j vector(3) using varbinary);
+insert into t2(j) select j from t1 where i <= 20000;
+
+# t3 has 2K data, uses all sampling + fixed dp per partition config
+create table t3(i int primary key auto_increment, j vector(3) using varbinary);
+insert into t3(j) select j from t2 where i <= 2000;
+
+
+### test 1: default training with enough memory should succeed
+
+create vector index v1 on t1(j) distance_measure=cosine;
+create vector index v2 on t2(j) distance_measure=cosine;
+create vector index v3 on t3(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+drop index v1 on t1;
+drop index v2 on t2;
+drop index v3 on t3;
+select index_name, state from information_schema.innodb_vector_indexes;
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+
+
+### test 2: default training without enough memory should fail
+
+# 130K -> 13K training data -> 156KB training memory -> 195KB total vector memory
+#  20K -> 10K training data -> 120KB training memory -> 150KB total vector memory
+#   2K ->  2K training data ->  24KB training memory ->  30KB total vector memory
+
+# 180K memory quota - only t1 will fail
+set global cloudsql_vector_max_mem_size = 184320;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v1 on t1(j) distance_measure=cosine;
+create vector index v2 on t2(j) distance_measure=cosine;
+create vector index v3 on t3(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+drop index v2 on t2;
+drop index v3 on t3;
+
+# 120K memory quota - only t3 can succeed
+set global cloudsql_vector_max_mem_size = 122880;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v1 on t1(j) distance_measure=cosine;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v2 on t2(j) distance_measure=cosine;
+create vector index v3 on t3(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+drop index v3 on t3;
+
+# 24K memory quota - all fail
+set global cloudsql_vector_max_mem_size = 24576;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v1 on t1(j) distance_measure=cosine;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v2 on t2(j) distance_measure=cosine;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v3 on t3(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+
+
+### test 3: customizing `num_leaves` should succeed as long as there is at least 1 dp per partition
+
+# 500 partitions -> 500 training data ->  6KB training memory -> 7.5KB total vector memory
+# 500 partitions -> 500 centroids     -> 24KB tree memory     ->  24KB total vector memory
+set global cloudsql_vector_max_mem_size = 24576;
+create vector index v1 on t1(j) distance_measure=cosine num_leaves=500;
+create vector index v2 on t2(j) distance_measure=cosine num_leaves=500;
+create vector index v3 on t3(j) distance_measure=cosine num_leaves=500;
+select index_name, state from information_schema.innodb_vector_indexes;
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+drop index v1 on t1;
+drop index v2 on t2;
+drop index v3 on t3;
+
+
+### test 4: customizing `num_leaves` should fail if no enough data for training
+# 500 partitions -> 500 training data ->  6KB training memory -> 7.5KB total vector memory
+set global cloudsql_vector_max_mem_size = 6144;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v1 on t1(j) distance_measure=cosine num_leaves=500;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v2 on t2(j) distance_measure=cosine num_leaves=500;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v3 on t3(j) distance_measure=cosine num_leaves=500;
+select index_name, state from information_schema.innodb_vector_indexes;
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+
+
+### test 5: building should fail if the tree_size doesn't fit
+
+# TODO: this part cannot be tested since mark_ready() and related code does not handle this situation (so far)
+
+
+### test 6: table < 1K should not be trained regardless
+
+set global cloudsql_vector_max_mem_size = 102400000;
+
+# t4 has 999 data
+create table t4(i int primary key auto_increment, j vector(3) using varbinary);
+insert into t4(j) select j from t3 where i < 1000;
+
+# fail by default
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v4 on t4(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+
+# fail with num_leaves
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v4 on t4(j) distance_measure=cosine num_leaves=100;
+select index_name, state from information_schema.innodb_vector_indexes;
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+
+
+### test 7: simulate tree error during training process
+
+set global cloudsql_vector_max_mem_size = 102400000;
+
+# fail if error while adding datapoints to training dataset
+set session debug='+d,simulate_kmeans_training_error';
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v1 on t1(j) distance_measure=cosine;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v2 on t2(j) distance_measure=cosine;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v3 on t3(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+
+# fail if error while adding datapoints to training dataset
+set session debug='-d,simulate_kmeans_training_error';
+set global debug='+d,simulate_kmeans_add_dp_error';
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v1 on t1(j) distance_measure=cosine;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v2 on t2(j) distance_measure=cosine;
+--error ER_VECTOR_INDEX_CREATE_SE_ERROR
+create vector index v3 on t3(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+select index_memory, training_memory from information_schema.innodb_vector_indexes_memory;
+
+
+### cleanup
+set global debug='-d,simulate_kmeans_add_dp_error';
+set @@global.cloudsql_vector_max_mem_size=@start_value;
+
+drop table t1;
+drop table t2;
+drop table t3;
+drop table t4;
+

@@ -634,13 +634,7 @@ bool Parallel_reader::Scan_ctx::check_visibility(const rec_t *&rec,
     auto view = m_trx->read_view;
 
     if (m_config.m_index->is_clustered()) {
-      trx_id_t rec_trx_id;
-
-      if (m_config.m_index->trx_id_offset > 0) {
-        rec_trx_id = trx_read_trx_id(rec + m_config.m_index->trx_id_offset);
-      } else {
-        rec_trx_id = row_get_rec_trx_id(rec, m_config.m_index, offsets);
-      }
+      const trx_id_t rec_trx_id = get_trx_id(rec, offsets);
 
       if (m_trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
           !view->changes_visible(rec_trx_id, table_name)) {
@@ -880,8 +874,7 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
     rec_offs_init(offsets_);
 
     const rec_t *rec = page_cur_get_rec(cur);
-    offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED,
-                              UT_LOCATION_HERE, &heap);
+    offsets = get_offsets(rec, index, offsets_, heap);
 
     if (end_tuple != nullptr) {
       ut_ad(rec != nullptr);
@@ -894,7 +887,7 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
       Since the range creation is based on the key values and the key value do
       not ever change the, latest (non-MVCC) version of the record should always
       tell us correctly whether we're within the range or outside of it. */
-      auto ret = end_tuple->compare(rec, index, offsets);
+      auto ret = cmp_range_end(rec, index, offsets);
 
       /* Note: The range creation doesn't use MVCC. Therefore it's possible
       that the range boundary entry could have been deleted. */
@@ -932,8 +925,6 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
     m_scan_ctx->set_error_state(err);
   }
 
-  mem_heap_free(heap);
-
   if (call_end_page && m_scan_ctx->m_reader->m_finish_callback) {
     /* Page finished. */
     m_thread_ctx->m_state = State::PAGE;
@@ -943,6 +934,8 @@ dberr_t Parallel_reader::Ctx::traverse_recs(PCursor *pcursor, mtr_t *mtr) {
       err = cb_err;
     }
   }
+
+  mem_heap_free(heap);
 
   return (err);
 }

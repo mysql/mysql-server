@@ -399,6 +399,13 @@ bool Create_field::init(
                  max_dimension_bytes, Field_vector::max_dimensions, fld_name);
         break;
       }
+      if (m_max_display_width_in_codepoints <
+          Field_vector::dimension_bytes(VECTOR_MIN_SUPPORTED_DIMENSIONS)) {
+        my_error(ER_VECTOR_NOT_SUPPORTED_DIMENSIONS, MYF(0),
+                 m_max_display_width_in_codepoints / Field_vector::precision,
+                 VECTOR_MIN_SUPPORTED_DIMENSIONS, Field_vector::max_dimensions);
+        break;
+      }
       [[fallthrough]];
     }
     case MYSQL_TYPE_BLOB:
@@ -776,7 +783,8 @@ size_t Create_field::key_length() const {
     case MYSQL_TYPE_JSON:
     case MYSQL_TYPE_VAR_STRING:
     case MYSQL_TYPE_STRING:
-    case MYSQL_TYPE_VARCHAR: {
+    case MYSQL_TYPE_VARCHAR:
+    case MYSQL_TYPE_VECTOR: {
       return std::min(max_display_width_in_bytes(),
                       static_cast<size_t>(MAX_FIELD_BLOBLENGTH));
     }
@@ -790,10 +798,6 @@ size_t Create_field::key_length() const {
       }
       return pack_length() + (max_display_width_in_bytes() & 7 ? 1 : 0);
     }
-    /* LCOV_EXCL_START */
-    case MYSQL_TYPE_VECTOR:
-      assert(false);  // Key on VECTOR type column is not supported.
-    /* LCOV_EXCL_STOP */
     default: {
       return pack_length(is_array);
     }

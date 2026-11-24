@@ -42,6 +42,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "rem0rec.h"
 #include "row0upd.h"
+#include "vector0dd.h"
+#include "vector0index.h"
 #include "trx0undo.h"
 #ifndef UNIV_HOTBACKUP
 
@@ -3097,7 +3099,12 @@ func_exit:
 
     if (err == DB_SUCCESS) {
       node->state = UPD_NODE_UPDATE_ALL_SEC;
+
+      /* Skip over vector indexes (currently we only support one vector index) */
       node->index = index->next();
+      if (node->index != nullptr && dict_index_is_vector(node->index)) {
+        node->index = node->index->next();
+      }
     }
 
     goto exit_func;
@@ -3152,7 +3159,11 @@ func_exit:
     node->state = UPD_NODE_UPDATE_SOME_SEC;
   }
 
+  /* Skip over vector indexes (currently we only support one vector index) */
   node->index = index->next();
+  if (node->index != nullptr && dict_index_is_vector(node->index)) {
+    node->index = node->index->next();
+  }
 
 exit_func:
   if (heap) {
@@ -3227,7 +3238,7 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
       break;
     }
 
-    if (node->index->type != DICT_FTS) {
+    if (node->index->type != DICT_FTS && !dict_index_is_vector(node->index)) {
       err = row_upd_sec_step(node, thr);
 
       if (err != DB_SUCCESS) {
@@ -3265,6 +3276,7 @@ que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
   que_node_t *parent;
   dberr_t err = DB_SUCCESS;
   trx_t *trx;
+  std::shared_ptr<ib_vector::VectorPersist> persister = nullptr;
   DBUG_TRACE;
 
   ut_ad(thr);
@@ -3331,6 +3343,23 @@ que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
     return thr;
   }
 
+  if (node->state == UPD_NODE_UPDATE_CLUSTERED) {
+    auto table = static_cast<upd_node_t*>(thr->run_node)->table;
+    if (ib_vector::dict_table_vector_index_is_available(table)) {
+      /* We are about to update a row in the base table. If a vector index is
+      present, we need to sync the mutation to the vector index. */
+      auto index = ib_vector::dict_table_get_vector_index_ptr(table);
+      std::tie(persister, trx->error_state) = index->sync_mutation(thr);
+
+      /** This call must always succeed. We are just capturing update data here.
+      There is no tree scan or cursor operation involved. */
+      ut_ad(persister);
+      if (!persister || trx->error_state != DB_SUCCESS) {
+        return nullptr;
+      }
+    }
+  }
+
   /* DO THE CHECKS OF THE CONSISTENCY CONSTRAINTS HERE */
 
   err = row_upd(node, thr);
@@ -3343,6 +3372,20 @@ error_handling:
   }
 
   /* DO THE TRIGGER ACTIONS HERE */
+
+  if (persister) {
+    /** There is an active vector index present on this table. Update the
+    sub_table. The relevant entries are already captured when persister was
+    created. */
+    err = persister->persist();
+    /** If vector index load failed, we mark the index as unusable but the DML
+    on base table can still proceed.  */
+    if (err != DB_SUCCESS && err != DB_VEC_INDEX_LOAD_FAILED) {
+      /* Pass on rest of SQL errors to the calling code. */
+      trx->error_state = err;
+      return nullptr;
+    }
+  }
 
   if (node->searched_update) {
     /* Fetch next row to update */

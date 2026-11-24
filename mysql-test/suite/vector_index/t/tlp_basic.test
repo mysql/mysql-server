@@ -1,0 +1,45 @@
+# Copyright 2026 Google LLC
+
+#
+# vector_index.tlp_basic
+
+
+### prepare the tables
+
+--let $table_name=t1
+--let $dimensions=3
+--let $rows=10000
+--let $deterministic=0
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic | $MYSQL test 2>&1
+
+
+### there will be 100 partitions w/ default configuration, no tlp
+
+create vector index vec_index on t1(j) distance_measure=cosine;
+
+select * from information_schema.innodb_vector_indexes;
+
+select it.name as table_name, ii.name as index_name, avi.state, avi.config
+from information_schema.innodb_all_vector_indexes as avi
+join information_schema.innodb_tables as it on avi.table_id = it.table_id
+join information_schema.innodb_indexes as ii on avi.id = ii.index_id
+where it.name = 'test/t1' and ii.name = 'vec_index';
+
+
+### enabling tlp through a manual configuration w/ 10000 partitions
+
+drop index vec_index on t1;
+
+create vector index vec_index on t1(j) num_leaves=10000 distance_measure=l2_squared;
+
+select * from information_schema.innodb_vector_indexes;
+
+select it.name as table_name, ii.name as index_name, avi.state, avi.config
+from information_schema.innodb_all_vector_indexes as avi
+join information_schema.innodb_tables as it on avi.table_id = it.table_id
+join information_schema.innodb_indexes as ii on avi.id = ii.index_id
+where it.name = 'test/t1' and ii.name = 'vec_index';
+
+
+### clean up
+drop table t1;

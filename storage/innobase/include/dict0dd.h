@@ -115,6 +115,8 @@ enum dd_table_keys {
   DD_TABLE_DISCARD,
   /** Columns before first instant ADD COLUMN, used only for V1 */
   DD_TABLE_INSTANT_COLS,
+  /** In case of vector sub table, we store parent table id here */
+  DD_TABLE_VECTOR_SUB_TABLE_PARENT_ID,
   /** Sentinel */
   DD_TABLE__LAST
 };
@@ -235,7 +237,8 @@ const char *const dd_space_state_values[DD_SPACE_STATE__LAST + 1] = {
 
 /** InnoDB private key strings for dd::Table. @see dd_table_keys */
 const char *const dd_table_key_strings[DD_TABLE__LAST] = {
-    "autoinc", "data_directory", "version", "discard", "instant_col"};
+    "autoinc", "data_directory", "version", "discard", "instant_col",
+    "gcp_vector_sub_table_parent_id"};
 
 /** InnoDB private key strings for dd::Column, @see dd_column_keys */
 const char *const dd_column_key_strings[DD_COLUMN__LAST] = {
@@ -258,6 +261,14 @@ enum dd_index_keys {
   DD_INDEX_ROOT,
   /** Creating transaction ID */
   DD_INDEX_TRX_ID,
+  /** GCP vector index version */
+  DD_VECTOR_INDEX_VERSION,
+  /** GCP vector index sub_table id */
+  DD_VECTOR_SUB_TABLE_ID,
+  /** GCP vector index tree size */
+  DD_VECTOR_TREE_SIZE,
+  /** GCP vector index config */
+  DD_VECTOR_INDEX_CONFIG,
   /** Sentinel */
   DD_INDEX__LAST
 };
@@ -265,7 +276,9 @@ enum dd_index_keys {
 /** InnoDB private key strings for dd::Index or dd::Partition_index.
 @see dd_index_keys */
 const char *const dd_index_key_strings[DD_INDEX__LAST] = {
-    "id", "space_id", "table_id", "root", "trx_id"};
+    "id", "space_id", "table_id", "root", "trx_id",
+    "gcp_vector_index_version", "gcp_vector_sub_table_id",
+    "gcp_vector_tree_size", "gcp_vector_index_config"};
 
 /** InnoDB private key strings for dd::Index or dd::Partition_index.
 @see dd_index_keys */

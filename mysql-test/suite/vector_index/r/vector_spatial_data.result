@@ -1,0 +1,90 @@
+USE test;
+# return a POINT object string with random latitude/longitude on earch
+CREATE FUNCTION rand_location(i int)
+RETURNS
+VARCHAR(100)
+BEGIN
+RETURN(CONCAT(
+'POINT(',
+-32.3 + i/10.0, ' ',
+-124.24 + i/10.0,
+')'
+    )
+);
+END  |
+# Convert a POINT type to a vector string
+CREATE FUNCTION vector_from_point(location POINT)
+RETURNS
+VARCHAR(100)
+BEGIN
+RETURN(CONCAT(
+'[',
+ST_X(location), ', ',
+ST_Y(location),
+']'
+    )
+);
+END  |
+# Fill t1 with random longitude/laditude pairs in California
+CREATE PROCEDURE fill_location_table(n_rows INT)
+BEGIN
+DECLARE i INT DEFAULT 1;
+WHILE i <= n_rows DO
+INSERT INTO t1 (location) VALUES (ST_PointFromText(rand_location(i)));
+SET i = i + 1;
+END while;
+END |
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT, location POINT);
+CALL fill_location_table(1000);
+CREATE TABLE t2 (id INT PRIMARY KEY AUTO_INCREMENT, location VECTOR(2) USING VARBINARY);
+# Convert the point column in t1 to a vector type column in t2
+INSERT INTO t2 SELECT id, string_to_vector(vector_from_point(location)) FROM t1;
+CREATE VECTOR INDEX vec_index ON test.t2(location) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=dot_product;
+SET @sunnyvale_coordinates = vector_from_point(ST_PointFromText('POINT(37.36 -122.06)'));
+# Use ANN/KNN functions with a POINT converted to vector type search param
+SELECT id FROM t2 ORDER BY APPROX_DISTANCE(location, string_to_vector(@sunnyvale_coordinates), 'distance_measure=cosine'), id LIMIT 5;
+id
+538
+539
+537
+540
+536
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+SELECT APPROX_DISTANCE(location, string_to_vector(@sunnyvale_coordinates), 'distance_measure=cosine') FROM t2 ORDER BY 1 LIMIT 5;
+APPROX_DISTANCE(location, string_to_vector(@sunnyvale_coordinates), 'distance_measure=cosine')
+0.000000324593173672838
+0.00000034196663700747365
+0.000003039975799423722
+0.000003381651516254358
+0.000008617992951487352
+Warnings:
+Warning	9003	Unable to perform similarity search. Performing exact search instead, Reason: No Vector index with the specified distance measure found
+SELECT id, cosine_distance(location, string_to_vector(@sunnyvale_coordinates)) from t2 order by 2 limit 5;
+id	cosine_distance(location, string_to_vector(@sunnyvale_coordinates))
+538	0.000000324593173672838
+539	0.00000034196663700747365
+537	0.000003039975799423722
+540	0.000003381651516254358
+536	0.000008617992951487352
+SELECT vector_distance(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates));
+vector_distance(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates))
+531.1550521850586
+SELECT cosine_distance(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates));
+cosine_distance(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates))
+0.000019009004541326036
+SELECT dot_product(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates));
+dot_product(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates))
+-13353.653564453125
+SELECT l2_squared_distance(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates));
+l2_squared_distance(string_to_vector('[30, -100.22]'), string_to_vector(@sunnyvale_coordinates))
+531.1550521850586
+DROP INDEX vec_index ON test.t2;
+SELECT COUNT(*) FROM t1;
+COUNT(*)
+1000
+DROP TABLE t1;
+DROP TABLE t2;
+DROP FUNCTION rand_location;
+DROP PROCEDURE fill_location_table;
+DROP FUNCTION vector_from_point;

@@ -1,0 +1,77 @@
+SET SESSION debug='+d,vector_index_invalid_ddl_crash';;
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SET SESSION debug='+d,skip_dd_table_access_check';
+include/assert.inc [No trace in mysql.indexes should be present for the index]
+include/assert.inc [No trace in information_schema.innodb_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_all_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_tables]
+include/assert.inc [No trace in information_schema.innodb_datafiles]
+SET SESSION debug='+d,vector_index_sub_table_crash';;
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SET SESSION debug='+d,skip_dd_table_access_check';
+include/assert.inc [No trace in mysql.indexes should be present for the index]
+include/assert.inc [No trace in information_schema.innodb_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_all_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_tables]
+include/assert.inc [No trace in information_schema.innodb_datafiles]
+SET SESSION debug='+d,vector_index_sub_table_crash';;
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SET SESSION debug='+d,skip_dd_table_access_check';
+include/assert.inc [No trace in mysql.indexes should be present for the index]
+include/assert.inc [No trace in information_schema.innodb_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_all_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_tables]
+include/assert.inc [No trace in information_schema.innodb_datafiles]
+SET SESSION debug='+d,vector_index_cfg_crash';;
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SET SESSION debug='+d,skip_dd_table_access_check';
+include/assert.inc [No trace in mysql.indexes should be present for the index]
+include/assert.inc [No trace in information_schema.innodb_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_all_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_tables]
+include/assert.inc [No trace in information_schema.innodb_datafiles]
+SET SESSION debug='+d,vector_index_scan_crash';;
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SET SESSION debug='+d,skip_dd_table_access_check';
+include/assert.inc [No trace in mysql.indexes should be present for the index]
+include/assert.inc [No trace in information_schema.innodb_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_all_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_tables]
+include/assert.inc [No trace in information_schema.innodb_datafiles]
+SET SESSION debug='+d,vector_index_train_crash';;
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SET SESSION debug='+d,skip_dd_table_access_check';
+include/assert.inc [No trace in mysql.indexes should be present for the index]
+include/assert.inc [No trace in information_schema.innodb_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_all_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_tables]
+include/assert.inc [No trace in information_schema.innodb_datafiles]
+SET SESSION debug='+d,vector_index_persist_crash';;
+CREATE VECTOR INDEX t1_j ON t1(j) USING TREE QUANTIZER=SQ8 DISTANCE_MEASURE=l2_squared NUM_LEAVES=10;;
+ERROR HY000: Lost connection to MySQL server during query
+# restart
+SET SESSION debug='+d,skip_dd_table_access_check';
+include/assert.inc [No trace in mysql.indexes should be present for the index]
+include/assert.inc [No trace in information_schema.innodb_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_all_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_tables]
+include/assert.inc [No trace in information_schema.innodb_datafiles]
+DROP TABLE t1;
+SET SESSION debug='+d,skip_dd_table_access_check';
+include/assert.inc [No trace in mysql.indexes should be present for the index]
+include/assert.inc [No trace in information_schema.innodb_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_all_vector_indexes]
+include/assert.inc [No trace in information_schema.innodb_tables]
+include/assert.inc [No trace in information_schema.innodb_datafiles]

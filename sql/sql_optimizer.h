@@ -1311,4 +1311,58 @@ bool IsHashEquijoinCondition(const Item_eq_base *item, table_map left_side,
 */
 size_t CountOrderElements(const ORDER *order);
 
+/**
+  Given a JOIN and a Table_ref, returns a Item_func_approx_distance specified on
+  the given table in the following order of priority:
+  1. The first occurrence of Item_func_approx_distance in the JOIN's ORDER BY
+     list that is on the given table.
+  2. If there are no such functions in the JOIN's ORDER BY list, the first
+     occurrence of Item_func_approx_distance in the joins SELECT LIST that is
+     on the given table.
+
+  @param join The JOIN to search.
+  @param Table_ref The table to search for ANN functions on
+
+  @retval The Item to be used for vector index search (empty if none).
+*/
+Item * get_ann_item_for_vector_index_search(JOIN *join, Table_ref *table_ref);
+
+/* shouldPreferVectorIndexSearch - Function to check if we should prefer
+ * vector index search.
+ *
+ * @param join: The join
+ * @param tab: The table
+ * We prefer vector index search if:
+ * 1. Number of vector index output rows is less than the rowcount
+ * of the best access path
+ * 2. Cost of the vector index branch is less than cost of the best access path
+ */
+bool shouldPreferVectorIndexSearch(JOIN *join, JOIN_TAB *tab);
+
+/* computeVectorIndexBranchCost - Simple function to compute the cost of the
+ * vector index branch.
+ *
+ * @param thd: The thread handle
+ * @param position: The position of the access path
+ * @param table: The base table
+ * @param num_output_rows: The number of output rows
+ */
+double computeVectorIndexBranchCost (THD *thd, POSITION *position,
+                                     TABLE *table, ha_rows num_output_rows);
+/**
+ * Computes the cost of a VectorIndexBranch.
+ *
+ * @param thd The thread handler.
+ * @param position The position of the VectorIndexBranch.
+ * @param tab The QEP_TAB for the base table.
+ * @param path The access path of the VectorIndexBranch.
+ * @param ann_item The ANN item that is being indexed.
+ * @param num_output_rows The number of output rows expected from the
+ * VectorIndexBranch.
+ *
+ * @retval The cost of the VectorIndexBranch.
+ */
+void setVectorIndexBranchCost (THD *thd, QEP_TAB *, AccessPath *, Item *,
+                               ha_rows);
+
 #endif /* SQL_OPTIMIZER_INCLUDED */

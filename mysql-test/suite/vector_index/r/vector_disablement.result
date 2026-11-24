@@ -1,0 +1,34 @@
+CREATE TABLE t1(i INTEGER PRIMARY KEY, j VECTOR(3) USING VARBINARY);
+# restart: --cloudsql_vector=OFF
+# Create vector index is blocked if cloudsql_vector = OFF
+CREATE VECTOR INDEX t1_x ON t1(j) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Global flag cloudsql_vector is OFF. Please turn on to use this functionality
+# We should be able to drop existing vector index
+#  when cloudsql_vector = OFF
+DROP TABLE t1;
+# Check that scam_indexes directory does not exist when vector is disabled.
+"Check that scam_indexes directory does not exist when vector is disabled."
+Pattern found.
+USE test;
+# create table with vector type column when flag is disabled
+CREATE TABLE t2(id int PRIMARY KEY, emb vector(3) USING varbinary);
+# create dummy table to use
+CREATE TABLE t3 (id int PRIMARY KEY, emb VARCHAR(3));
+# add vector column when flag is disabled
+ALTER TABLE t3 ADD COLUMN emb2 vector(3) USING varbinary;
+# attempt to use ANN
+SELECT id FROM t2 ORDER BY APPROX_DISTANCE(emb,string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 10;
+ERROR HY000: Global flag cloudsql_vector is OFF. Please turn on to use this functionality
+# attempt to create vector index when flag is disabled
+CREATE VECTOR INDEX t2_x ON t2(emb) DISTANCE_MEASURE=l2_squared;
+ERROR HY000: Global flag cloudsql_vector is OFF. Please turn on to use this functionality
+# verify we can still use string_to_vector/vector_to_string
+SELECT vector_to_string(string_to_vector('[1.0, -2.0, 3]'));
+vector_to_string(string_to_vector('[1.0, -2.0, 3]'))
+[1.00000e+00,-2.00000e+00,3.00000e+00]
+# verify we can still use vector_distance
+SELECT vector_distance(string_to_vector('[1.0, -2.0, 3]'), string_to_vector('[1.0, 0, 30]'));
+vector_distance(string_to_vector('[1.0, -2.0, 3]'), string_to_vector('[1.0, 0, 30]'))
+733
+# Cleanup
+drop table t2;

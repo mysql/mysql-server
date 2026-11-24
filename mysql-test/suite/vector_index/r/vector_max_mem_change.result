@@ -1,0 +1,21 @@
+call mtr.add_suppression("Failed to allocate memory");
+call mtr.add_suppression("Error encountered during index build: not enough memory");
+call mtr.add_suppression("Failed to scan table and build index");
+call mtr.add_suppression("IndexRegistry::MemoryInfo: total_memory");
+call mtr.add_suppression("Not enough memory to collect training dataset");
+create vector index v1 on t1(j) distance_measure=cosine num_leaves=100;
+create vector index v2 on t2(j) distance_measure=cosine num_leaves=100;
+create vector index v3 on t3(j) distance_measure=cosine num_leaves=100;
+set global cloudsql_vector_max_mem_size = 10240;
+drop index v1 on t1;
+create vector index v1 on t1(j) distance_measure=cosine num_leaves=100;
+ERROR HY000: CREATE VECTOR INDEX failed with error from storage engine: Vector index: Out of memory. Consider increasing cloudsql_vector_max_mem_size
+set global innodb_cloudsql_vector_mem_regulation = off;
+create vector index v1 on t1(j) distance_measure=cosine num_leaves=100;
+set global innodb_cloudsql_vector_mem_regulation = on;
+Warnings:
+Warning	1210	Vector index memory regulation cannot be turned back ON without restarting, if it is already OFF.
+# restart
+drop table t1;
+drop table t2;
+drop table t3;

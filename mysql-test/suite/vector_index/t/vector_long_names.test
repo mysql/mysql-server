@@ -1,0 +1,40 @@
+# Copyright 2026 Google LLC
+
+# To test various scenerios during shutdown
+
+--let $table_name=test123456789012345678901234567890123456789012345678901234567890
+--let $primary_col_name=prim123456789012345678901234567890123456789012345678901234567890
+--let $vector_col_name=col0123456789012345678901234567890123456789012345678901234567890
+--source suite/vector_index/include/vector_data.inc
+--eval CREATE VECTOR INDEX vidx123456789012345678901234567890123456789012345678901234567890 ON $table_name($vector_col_name) DISTANCE_MEASURE=cosine;
+
+--echo #######################################################################
+--echo #     Test the vector indexes being persisted on a clean shutdown     #
+--echo #######################################################################
+
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+--eval SELECT $primary_col_name FROM $table_name ORDER BY APPROX_DISTANCE($vector_col_name, string_to_vector('[0.5,0.25,0.125]'), 'distance_measure=cosine'),$primary_col_name  LIMIT 10;
+--eval SELECT $primary_col_name FROM $table_name ORDER BY APPROX_DISTANCE($vector_col_name, string_to_vector('[0.1,0.35,0.165]'), 'distance_measure=dot_product'),$primary_col_name  LIMIT 10;
+
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+--source include/restart_mysqld.inc
+
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+--echo ########################################################################
+--echo #     Test the vector indexes can be used by ANN queries after restart #
+--echo ########################################################################
+
+
+--eval SELECT $primary_col_name FROM $table_name ORDER BY APPROX_DISTANCE($vector_col_name, string_to_vector('[0.5,0.25,0.125]'), 'distance_measure=cosine'),$primary_col_name  LIMIT 10;
+--eval SELECT $primary_col_name FROM $table_name ORDER BY APPROX_DISTANCE($vector_col_name, string_to_vector('[0.1,0.35,0.165]'), 'distance_measure=dot_product'),$primary_col_name  LIMIT 10;
+
+SELECT state,corrupted,config FROM information_schema.innodb_all_vector_indexes;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+--eval DROP TABLE $table_name;

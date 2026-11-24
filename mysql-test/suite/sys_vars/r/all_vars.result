@@ -46,6 +46,8 @@ init_replica
 init_replica
 init_slave
 init_slave
+innodb_cloudsql_vector_mem_regulation
+innodb_cloudsql_vector_mem_regulation
 innodb_dedicated_server
 innodb_dedicated_server
 innodb_log_spin_cpu_abs_lwm

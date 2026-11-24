@@ -1,0 +1,33 @@
+# Copyright 2026 Google LLC
+
+--echo Verify lower_case_table_names=1
+SELECT @@lower_case_table_names;
+
+--let $table_name=t1
+--let $dimensions=3
+--let $rows=1000
+--let $deterministic=0
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic | $MYSQL test 2>&1
+--echo Initial Data inserted
+
+--echo Verify table names/procedures/etc are case-insensitive
+
+INSERT INTO T1 VALUES (1001, string_to_vector("[1,2,3]"));
+
+INSERT INTO t1  (i, j) VALUES (1002, string_to_vector('[0,0,0]'));
+
+INSERT INTO t1  (i, J) VALUES (1003, string_to_vector('[0,0,0]'));
+
+CREATE VECTOR INDEX vec_index on T1(j) DISTANCE_MEASURE=l2_squared;
+
+--error ER_VECTOR_INDEX_OPERATION_ERROR
+CREATE VECTOR INDEX vec_index2 on t1(j) DISTANCE_MEASURE=l2_squared;
+
+UPDATE t1 SET J = STRING_TO_VECTOR('[1,2,3]') WHERE i = 1;
+
+--echo Verify we can run ANN queries
+SELECT COUNT(*) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') LIMIT 10;
+
+CHECK TABLE t1;
+CHECK TABLE T1;
+DROP TABLE T1;

@@ -1,0 +1,213 @@
+use test;
+Initial Data inserted
+# create vector index with generated PK
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+# verify PK order is honored with APPROX
+select i, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t1 order by i LIMIT 12;
+i	APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared')
+52	46.16015625
+53	46.16015625
+54	46.16015625
+55	46.16015625
+56	46.16015625
+57	46.16015625
+60	51.591796875
+61	51.591796875
+62	51.591796875
+63	51.591796875
+64	51.591796875
+65	51.591796875
+select i, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t1 order by i DESC LIMIT 12;
+i	APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared')
+65	51.591796875
+64	51.591796875
+63	51.591796875
+62	51.591796875
+61	51.591796875
+60	51.591796875
+57	46.16015625
+56	46.16015625
+55	46.16015625
+54	46.16015625
+53	46.16015625
+52	46.16015625
+# verify without ANN, query still uses index-based order
+explain format=tree select i from t1 order by i;
+EXPLAIN
+-> Covering index scan on t1 using PRIMARY  (...)
+
+# verify PK order is honored with function of PK in order by
+select i, 3*(i-55), APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t1 order by 3*(i-55) LIMIT 12;
+i	3*(i-55)	APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared')
+52	-9	46.16015625
+53	-6	46.16015625
+54	-3	46.16015625
+55	0	46.16015625
+56	3	46.16015625
+57	6	46.16015625
+60	15	51.591796875
+61	18	51.591796875
+62	21	51.591796875
+63	24	51.591796875
+64	27	51.591796875
+65	30	51.591796875
+# verify PK order is honored with APPROX & PK in order by
+select i, vector_to_string(j) FROM t1 order by i, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') LIMIT 12;
+i	vector_to_string(j)
+52	[5.20000e+01,5.30000e+01,5.40000e+01]
+53	[5.30000e+01,5.40000e+01,5.50000e+01]
+54	[5.40000e+01,5.50000e+01,5.60000e+01]
+55	[5.50000e+01,5.60000e+01,5.70000e+01]
+56	[5.60000e+01,5.70000e+01,5.80000e+01]
+57	[5.70000e+01,5.80000e+01,5.90000e+01]
+60	[6.00000e+01,6.10000e+01,6.20000e+01]
+61	[6.10000e+01,6.20000e+01,6.30000e+01]
+62	[6.20000e+01,6.30000e+01,6.40000e+01]
+63	[6.30000e+01,6.40000e+01,6.50000e+01]
+64	[6.40000e+01,6.50000e+01,6.60000e+01]
+65	[6.50000e+01,6.60000e+01,6.70000e+01]
+# verify same behavior with PK in non-first position & non-ascending order
+create table t2 (i int, i2 int primary key, j vector(3) using varbinary, index (i));
+insert into t2 select i, -1*i, j from t1;
+create vector index vec_index on t2(j) distance_measure=l2_squared;
+# order by secondary index
+select i, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by i LIMIT 12;
+i	APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared')
+52	51.591796875
+53	51.591796875
+54	51.591796875
+55	51.591796875
+56	51.591796875
+57	51.591796875
+60	51.591796875
+61	51.591796875
+62	51.591796875
+63	51.591796875
+64	51.591796875
+65	51.591796875
+# order by PK not first in table definition
+select i2, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by i2 LIMIT 12;
+i2	APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared')
+-65	51.591796875
+-64	51.591796875
+-63	51.591796875
+-62	51.591796875
+-61	51.591796875
+-60	51.591796875
+-57	46.16015625
+-56	46.16015625
+-55	46.16015625
+-54	46.16015625
+-53	46.16015625
+-52	46.16015625
+# order by function of PK not first in table definition
+select i2, 3*(i2-55), APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by 3*(i2-55) LIMIT 12;
+i2	3*(i2-55)	APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared')
+-65	-360	51.591796875
+-64	-357	51.591796875
+-63	-354	51.591796875
+-62	-351	51.591796875
+-61	-348	51.591796875
+-60	-345	51.591796875
+-57	-336	46.16015625
+-56	-333	46.16015625
+-55	-330	46.16015625
+-54	-327	46.16015625
+-53	-324	46.16015625
+-52	-321	46.16015625
+# order by APPROX & PK not first in table definition
+select i, i2, vector_to_string(j) FROM t2 order by i2, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') LIMIT 12;
+i	i2	vector_to_string(j)
+65	-65	[6.50000e+01,6.60000e+01,6.70000e+01]
+64	-64	[6.40000e+01,6.50000e+01,6.60000e+01]
+63	-63	[6.30000e+01,6.40000e+01,6.50000e+01]
+62	-62	[6.20000e+01,6.30000e+01,6.40000e+01]
+61	-61	[6.10000e+01,6.20000e+01,6.30000e+01]
+60	-60	[6.00000e+01,6.10000e+01,6.20000e+01]
+57	-57	[5.70000e+01,5.80000e+01,5.90000e+01]
+56	-56	[5.60000e+01,5.70000e+01,5.80000e+01]
+55	-55	[5.50000e+01,5.60000e+01,5.70000e+01]
+54	-54	[5.40000e+01,5.50000e+01,5.60000e+01]
+53	-53	[5.30000e+01,5.40000e+01,5.50000e+01]
+52	-52	[5.20000e+01,5.30000e+01,5.40000e+01]
+create table t3 (i int, i2 int, j vector(3) using varbinary, primary key (i, i2));
+# order by part of the composite PK
+select i, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by i LIMIT 12;
+i	APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared')
+52	51.591796875
+53	51.591796875
+54	51.591796875
+55	51.591796875
+56	51.591796875
+57	51.591796875
+60	51.591796875
+61	51.591796875
+62	51.591796875
+63	51.591796875
+64	51.591796875
+65	51.591796875
+# order by other part of the composite PK
+select i2, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by i2 LIMIT 12;
+i2	APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared')
+-65	51.591796875
+-64	51.591796875
+-63	51.591796875
+-62	51.591796875
+-61	51.591796875
+-60	51.591796875
+-57	46.16015625
+-56	46.16015625
+-55	46.16015625
+-54	46.16015625
+-53	46.16015625
+-52	46.16015625
+# order by the composite PK
+select i, i2, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by i, i2 LIMIT 12;
+i	i2	APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared')
+52	-52	46.16015625
+53	-53	46.16015625
+54	-54	46.16015625
+55	-55	46.16015625
+56	-56	46.16015625
+57	-57	46.16015625
+60	-60	51.591796875
+61	-61	51.591796875
+62	-62	51.591796875
+63	-63	51.591796875
+64	-64	51.591796875
+65	-65	51.591796875
+# order by function of the composite PK
+select i2, (3*i - i2*0.5), APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') FROM t2 order by (3*i - i2*0.5) LIMIT 12;
+i2	(3*i - i2*0.5)	APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared')
+-52	182.0	46.16015625
+-53	185.5	46.16015625
+-54	189.0	46.16015625
+-55	192.5	46.16015625
+-56	196.0	46.16015625
+-57	199.5	46.16015625
+-60	210.0	51.591796875
+-61	213.5	51.591796875
+-62	217.0	51.591796875
+-63	220.5	51.591796875
+-64	224.0	51.591796875
+-65	227.5	51.591796875
+# order by the composite PK & APPROX
+select i, i2, vector_to_string(j) FROM t2 order by i, i2, APPROX_DISTANCE(j, string_to_vector('[60, 59, 58]'), 'distance_measure=l2_squared') LIMIT 12;
+i	i2	vector_to_string(j)
+52	-52	[5.20000e+01,5.30000e+01,5.40000e+01]
+53	-53	[5.30000e+01,5.40000e+01,5.50000e+01]
+54	-54	[5.40000e+01,5.50000e+01,5.60000e+01]
+55	-55	[5.50000e+01,5.60000e+01,5.70000e+01]
+56	-56	[5.60000e+01,5.70000e+01,5.80000e+01]
+57	-57	[5.70000e+01,5.80000e+01,5.90000e+01]
+60	-60	[6.00000e+01,6.10000e+01,6.20000e+01]
+61	-61	[6.10000e+01,6.20000e+01,6.30000e+01]
+62	-62	[6.20000e+01,6.30000e+01,6.40000e+01]
+63	-63	[6.30000e+01,6.40000e+01,6.50000e+01]
+64	-64	[6.40000e+01,6.50000e+01,6.60000e+01]
+65	-65	[6.50000e+01,6.60000e+01,6.70000e+01]
+# cleanup
+drop index vec_index on t1;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t3;

@@ -1,0 +1,67 @@
+# Copyright 2026 Google LLC
+
+--let $table_name=t1
+--let $dimensions=16000
+--let $rows=1000
+--let $deterministic=1
+--exec include/vector_data_generate.sh $table_name $dimensions $rows $deterministic | $MYSQL test 2>&1
+--echo Initial Data inserted
+--disable_result_log
+SELECT i, vector_to_string(j) FROM t1 LIMIT 1;
+--enable_result_log
+
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+--echo Create index
+CREATE VECTOR INDEX idx1 ON t1(j) DISTANCE_MEASURE=DOT_PRODUCT;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+SELECT vector_to_string(j) FROM t1 WHERE i = 1 INTO @temp;
+
+--echo Make sure ANN works
+SELECT i FROM t1 WHERE i = 1 ORDER BY APPROX_DISTANCE(j, string_to_vector(@temp), 'distance_measure=dot_product') LIMIT 10;
+
+--echo Delete from the table
+DELETE FROM t1 WHERE i = 1;
+
+SELECT i FROM t1 WHERE i = 1 ORDER BY APPROX_DISTANCE(j, string_to_vector(@temp), 'distance_measure=dot_product') LIMIT 10;
+
+--echo Various distance measures
+SELECT i, cosine_distance(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+SELECT i, dot_product(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+SELECT i, l2_squared_distance(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+
+--echo Insert NULL vector into table
+INSERT INTO t1 (i, j) VALUES (1, NULL);
+SELECT i FROM t1 WHERE j IS NULL;
+
+--echo Various distance measures with NULL vector row
+SELECT i, cosine_distance(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+SELECT i, dot_product(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+SELECT i, l2_squared_distance(j, string_to_vector(@temp)) dist FROM t1 ORDER BY dist LIMIT 2;
+
+--echo Alter embedding to be NULL
+UPDATE t1 SET j = NULL WHERE i = 10;
+SELECT i FROM t1 WHERE j IS NULL;
+
+--echo Insert non-null value
+INSERT INTO t1 (i, j) VALUES (1001, string_to_vector(@temp));
+
+--echo Confirm ANN still works after all the changes we've made
+SELECT COUNT(*) FROM t1 ORDER BY APPROX_DISTANCE(j, string_to_vector(@temp), 'distance_measure=dot_product') LIMIT 1;
+
+--echo Drop Index
+DROP INDEX idx1 ON t1;
+SELECT * FROM information_schema.innodb_vector_indexes;
+
+--error ER_VECTOR_NOT_SUPPORTED_DIMENSIONS
+CREATE TABLE t2(i INT PRIMARY KEY, j VECTOR(0) USING VARBINARY);
+
+--error 1064
+CREATE TABLE t2(i INT PRIMARY KEY, j VECTOR(-1) USING VARBINARY);
+
+--error ER_EXCEEDS_VECTOR_MAX_DIMENSIONS
+CREATE TABLE t2(i INT PRIMARY KEY, j VECTOR(16384) USING VARBINARY);
+
+#Cleanup
+DROP TABLE t1;

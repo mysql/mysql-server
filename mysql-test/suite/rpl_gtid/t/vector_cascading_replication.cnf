@@ -1,0 +1,16 @@
+!include ../my.cnf
+
+[mysqld.1]
+cloudsql_vector=ON
+
+[mysqld.2]
+cloudsql_vector=ON
+
+[mysqld.3]
+cloudsql_vector=ON
+
+
+[ENV]
+MASTER_MYPORT=   @mysqld.1.port
+SERVER_MYPORT_2= @mysqld.2.port
+SERVER_MYPORT_3= @mysqld.3.port

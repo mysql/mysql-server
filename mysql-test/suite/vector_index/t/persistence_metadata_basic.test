@@ -1,0 +1,95 @@
+# Copyright 2026 Google LLC
+
+#
+# vector_index.persistence_metadata_basic
+
+### prepare the tables
+
+--let $table_name=t1
+--source suite/vector_index/include/vector_data.inc
+
+
+### check index's dist_measure configuration
+
+# cosine distance
+create vector index v1 on t1(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+select config from information_schema.innodb_all_vector_indexes;
+
+# the config should be intact and reloaded through restart
+--source include/restart_mysqld.inc
+
+--replace_column 1 x
+select i from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=cosine") limit 1;
+select index_name, state from information_schema.innodb_vector_indexes;
+select config from information_schema.innodb_all_vector_indexes;
+
+drop index v1 on t1;
+
+# l2_squared distance
+create vector index v1 on t1(j) distance_measure=l2_squared;
+select index_name, state from information_schema.innodb_vector_indexes;
+select config from information_schema.innodb_all_vector_indexes;
+
+# the config should be intact and reloaded through restart
+--source include/restart_mysqld.inc
+
+--replace_column 1 x
+select i from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared") limit 1;
+select index_name, state from information_schema.innodb_vector_indexes;
+select config from information_schema.innodb_all_vector_indexes;
+
+drop index v1 on t1;
+
+# dot_product distance
+create vector index v1 on t1(j) distance_measure=dot_product;
+select index_name, state from information_schema.innodb_vector_indexes;
+select config from information_schema.innodb_all_vector_indexes;
+
+# the config should be intact and reloaded through restart
+--source include/restart_mysqld.inc
+
+--replace_column 1 x
+select i from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=dot_product") limit 1;
+select index_name, state from information_schema.innodb_vector_indexes;
+select config from information_schema.innodb_all_vector_indexes;
+
+drop index v1 on t1;
+
+
+### check index's num_leaves configuration
+
+# default setting
+create vector index v1 on t1(j) distance_measure=cosine;
+select index_name, state from information_schema.innodb_vector_indexes;
+select config from information_schema.innodb_all_vector_indexes;
+
+# the config should be intact and reloaded through restart
+--source include/restart_mysqld.inc
+
+--replace_column 1 x
+select i from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=cosine") limit 1;
+select index_name, state from information_schema.innodb_vector_indexes;
+select config from information_schema.innodb_all_vector_indexes;
+
+drop index v1 on t1;
+
+# customized num_leaves
+create vector index v1 on t1(j) distance_measure=l2_squared num_leaves=11;
+select index_name, state from information_schema.innodb_vector_indexes;
+select config from information_schema.innodb_all_vector_indexes;
+
+# the config should be intact and reloaded through restart
+--source include/restart_mysqld.inc
+
+--replace_column 1 x
+select i from t1 order by approx_distance(j, string_to_vector('[1,1,1]'), "distance_measure=l2_squared") limit 1;
+select index_name, state from information_schema.innodb_vector_indexes;
+select config from information_schema.innodb_all_vector_indexes;
+
+drop index v1 on t1;
+
+
+### clean up
+drop table t1;
+

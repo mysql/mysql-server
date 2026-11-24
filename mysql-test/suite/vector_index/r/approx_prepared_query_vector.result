@@ -1,0 +1,136 @@
+#
+# APPROX_DISTANCE with a query vector supplied through a user variable
+# must use the value current at EXECUTE time, not the one captured at
+# PREPARE time. Previously, the ANN search kept using the PREPARE-time
+# vector while the exact distances were computed with the current one.
+#
+use test;
+create vector index vec_index on t1(j) distance_measure=l2_squared;
+# Reference results for two different query vectors.
+select i from t1 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 5;
+i
+35
+628
+8
+201
+284
+select i from t1 order by approx_distance(j, string_to_vector('[-1,-2,-3]'), 'distance_measure=l2_squared') limit 5;
+i
+596
+856
+145
+949
+56
+# Passing ? as the query vector is rejected at PREPARE time.
+prepare stmt from 'select i from t1 order by approx_distance(j, ?, ''distance_measure=l2_squared'') limit 5';
+ERROR HY000: Unable to perform similarity search, Reason: APPROX_DISTANCE cannot be used with non-constants
+# Preparing with an unset or empty query vector variable succeeds at
+# PREPARE time and is rejected at EXECUTE time.
+prepare stmt from 'select i from t1 order by approx_distance(j, @qv, ''distance_measure=l2_squared'') limit 5';
+execute stmt;
+ERROR HY000: Unable to perform similarity search, Reason: Query vector cannot be NULL in APPROX_DISTANCE
+deallocate prepare stmt;
+set @qv = '';
+prepare stmt from 'select i from t1 order by approx_distance(j, @qv, ''distance_measure=l2_squared'') limit 5';
+execute stmt;
+ERROR HY000: Unable to perform similarity search, Reason: Wrong query vector length: 0
+# Prepared statement executed with two different query vectors.
+set @qv = string_to_vector('[1,2,3]');
+explain format=tree select i from t1 order by approx_distance(j, @qv, 'distance_measure=l2_squared') limit 5;
+EXPLAIN
+-> Limit: 5 row(s)  (rows=5)
+    -> Sort: approx_distance(t1.j,(@qv),'distance_measure=l2_squared'), limit input to 5 row(s) per chunk  (rows=1000)
+        -> Nested loop inner join  (rows=5)
+            -> Vector index scan on t1  (rows=5)
+            -> Single-row index lookup on t1 using PRIMARY (i = t1.i)  (rows=1)
+
+execute stmt;
+i
+35
+628
+8
+201
+284
+set @qv = string_to_vector('[-1,-2,-3]');
+execute stmt;
+i
+596
+856
+145
+949
+56
+set @qv = string_to_vector('[1,2,3]');
+execute stmt;
+i
+35
+628
+8
+201
+284
+# An invalid query vector at EXECUTE time is rejected, like it is for a
+# freshly parsed statement.
+set @qv = NULL;
+execute stmt;
+ERROR HY000: Unable to perform similarity search, Reason: Query vector cannot be NULL in APPROX_DISTANCE
+set @qv = '';
+execute stmt;
+ERROR HY000: Unable to perform similarity search, Reason: Wrong query vector length: 0
+set @qv = 'abc';
+execute stmt;
+ERROR HY000: Unable to perform similarity search, Reason: Wrong query vector length: 3
+set @qv = string_to_vector('[1,2,3]');
+execute stmt;
+i
+35
+628
+8
+201
+284
+deallocate prepare stmt;
+# Same with a filter, which uses iterative filtering.
+set cloudsql_vector_iterative_filtering=ON;
+select i from t1 where i % 2 = 0 order by approx_distance(j, string_to_vector('[1,2,3]'), 'distance_measure=l2_squared') limit 3;
+i
+628
+8
+284
+select i from t1 where i % 2 = 0 order by approx_distance(j, string_to_vector('[-1,-2,-3]'), 'distance_measure=l2_squared') limit 3;
+i
+596
+856
+56
+set @qv = string_to_vector('[1,2,3]');
+prepare stmt from 'select i from t1 where i % 2 = 0 order by approx_distance(j, @qv, ''distance_measure=l2_squared'') limit 3';
+execute stmt;
+i
+628
+8
+284
+set @qv = string_to_vector('[-1,-2,-3]');
+execute stmt;
+i
+596
+856
+56
+deallocate prepare stmt;
+set cloudsql_vector_iterative_filtering=default;
+# Statements inside stored procedures are prepared once as well.
+create procedure p() select i from t1 order by approx_distance(j, @qv, 'distance_measure=l2_squared') limit 5;
+set @qv = string_to_vector('[1,2,3]');
+call p();
+i
+35
+628
+8
+201
+284
+set @qv = string_to_vector('[-1,-2,-3]');
+call p();
+i
+596
+856
+145
+949
+56
+drop procedure p;
+drop table t1;
