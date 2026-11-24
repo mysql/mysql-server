@@ -2479,10 +2479,10 @@ bool Item_in_optimizer::fix_fields(THD *, Item **) {
     the subquery's result is empty.
     But, if apply_is_true() is called for the subquery predicate, a FALSE
     result is equivalent to a NULL result from the owner's POV.
-    A NULL value in the left argument will surely lead to a NULL or FALSE
-    result for the naked IN. If the complete item is:
-    plain IN, or IN IS TRUE, then it will return NULL or FALSE. Otherwise it
-    won't and we must remove the left argument from not_null_tables().
+    A NULL value in the left argument leads to UNKNOWN or FALSE for the
+    naked IN. Keep the left argument's bits for BOOL_IS_TRUE as candidates
+    for null rejection. not_null_tables() also checks whether an IN subquery
+    is tested for truth before exposing those bits.
     Right argument doesn't need to be handled, as
     Item_subselect::not_null_tables() is always 0.
   */
@@ -2723,6 +2723,18 @@ void Item_in_optimizer::update_used_tables() {
   } else {
     not_null_tables_cache &= subqpred->left_expr->not_null_tables();
   }
+}
+
+table_map Item_in_optimizer::not_null_tables() const {
+  const auto *subqpred = down_cast<const Item_in_subselect *>(args[0]);
+  // IS TRUE can turn UNKNOWN into FALSE, which an enclosing expression
+  // such as a comparison with zero can accept.
+  if (subqpred->subquery_type() == Item_subselect::IN_SUBQUERY &&
+      subqpred->value_transform == BOOL_IS_TRUE &&
+      !subqpred->m_is_truth_condition) {
+    return 0;
+  }
+  return not_null_tables_cache;
 }
 
 bool Item_func_eq::clean_up_after_removal(uchar *arg) {

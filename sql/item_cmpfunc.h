@@ -541,6 +541,7 @@ class Item_in_optimizer final : public Item_bool_func {
   const char *func_name() const override { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
   void update_used_tables() override;
+  table_map not_null_tables() const override;
 };
 
 /// Abstract factory interface for creating comparison predicates.
