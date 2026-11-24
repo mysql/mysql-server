@@ -1,0 +1,132 @@
+include/rpl/init_source_replica.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the connection metadata repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START REPLICA; see the 'START REPLICA Syntax' in the MySQL Manual for more information.
+[connection master]
+# DELETE CASCADE, same child targeted by cascade and explicit delete
+CREATE TABLE p (id INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE c (
+id INT PRIMARY KEY, p_id INT,
+FOREIGN KEY (p_id) REFERENCES p(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+INSERT INTO p VALUES (1), (2);
+INSERT INTO c VALUES (1, 1), (2, 1), (3, NULL);
+DELETE p, c FROM p, c WHERE p.id = 1 AND c.id = 1;
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:p, slave:p]
+include/diff_tables.inc [master:c, slave:c]
+[connection master]
+SELECT * FROM p ORDER BY id;
+id
+2
+SELECT * FROM c ORDER BY id;
+id	p_id
+3	NULL
+DROP TABLE c, p;
+# DELETE CASCADE, parent target only
+CREATE TABLE p (id INT PRIMARY KEY, i INT) ENGINE=InnoDB;
+CREATE TABLE c (
+id INT PRIMARY KEY, p_id INT,
+FOREIGN KEY (p_id) REFERENCES p(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+INSERT INTO p VALUES (1, 2), (2, 1);
+INSERT INTO c VALUES (1, 1), (2, 2), (3, NULL);
+DELETE p FROM p STRAIGHT_JOIN c ON p.i = c.id;
+SELECT * FROM p ORDER BY id;
+id	i
+SELECT * FROM c ORDER BY id;
+id	p_id
+3	NULL
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:p, slave:p]
+include/diff_tables.inc [master:c, slave:c]
+[connection master]
+DROP TABLE c, p;
+# DELETE CASCADE, overlapping parent and child targets
+CREATE TABLE p (id INT PRIMARY KEY, i INT) ENGINE=InnoDB;
+CREATE TABLE c (
+id INT PRIMARY KEY, p_id INT,
+FOREIGN KEY (p_id) REFERENCES p(id) ON DELETE CASCADE
+) ENGINE=InnoDB;
+INSERT INTO p VALUES (1, 2), (2, 1);
+INSERT INTO c VALUES (1, 1), (2, 2), (3, NULL);
+DELETE p, c FROM p STRAIGHT_JOIN c ON p.i = c.id;
+SELECT * FROM p ORDER BY id;
+id	i
+SELECT * FROM c ORDER BY id;
+id	p_id
+3	NULL
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:p, slave:p]
+include/diff_tables.inc [master:c, slave:c]
+[connection master]
+DROP TABLE c, p;
+# DELETE SET NULL
+CREATE TABLE p (id INT PRIMARY KEY, i INT) ENGINE=InnoDB;
+CREATE TABLE c (
+id INT PRIMARY KEY, p_id INT,
+FOREIGN KEY (p_id) REFERENCES p(id) ON DELETE SET NULL
+) ENGINE=InnoDB;
+INSERT INTO p VALUES (1, 2), (2, 1);
+INSERT INTO c VALUES (1, 1), (2, 2), (3, NULL);
+DELETE p FROM p STRAIGHT_JOIN c ON p.i = c.id
+WHERE c.p_id IS NOT NULL;
+SELECT * FROM p ORDER BY id;
+id	i
+SELECT * FROM c ORDER BY id;
+id	p_id
+1	NULL
+2	NULL
+3	NULL
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:p, slave:p]
+include/diff_tables.inc [master:c, slave:c]
+[connection master]
+DROP TABLE c, p;
+# UPDATE CASCADE
+CREATE TABLE p (id INT PRIMARY KEY, u INT UNIQUE, i INT) ENGINE=InnoDB;
+CREATE TABLE c (
+id INT PRIMARY KEY, p_u INT,
+FOREIGN KEY (p_u) REFERENCES p(u) ON UPDATE CASCADE
+) ENGINE=InnoDB;
+INSERT INTO p VALUES (1, 1, 2), (2, 2, 1);
+INSERT INTO c VALUES (1, 1), (2, 2), (3, NULL);
+UPDATE p STRAIGHT_JOIN c ON p.i = c.p_u SET p.u = p.u + 10;
+SELECT * FROM p ORDER BY id;
+id	u	i
+1	11	2
+2	12	1
+SELECT * FROM c ORDER BY id;
+id	p_u
+1	11
+2	12
+3	NULL
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:p, slave:p]
+include/diff_tables.inc [master:c, slave:c]
+[connection master]
+DROP TABLE c, p;
+# UPDATE SET NULL
+CREATE TABLE p (id INT PRIMARY KEY, u INT UNIQUE, i INT) ENGINE=InnoDB;
+CREATE TABLE c (
+id INT PRIMARY KEY, p_u INT,
+FOREIGN KEY (p_u) REFERENCES p(u) ON UPDATE SET NULL
+) ENGINE=InnoDB;
+INSERT INTO p VALUES (1, 1, 2), (2, 2, 1);
+INSERT INTO c VALUES (1, 1), (2, 2), (3, NULL);
+UPDATE p STRAIGHT_JOIN c ON p.i = c.p_u SET p.u = p.u + 10;
+SELECT * FROM p ORDER BY id;
+id	u	i
+1	11	2
+2	12	1
+SELECT * FROM c ORDER BY id;
+id	p_u
+1	NULL
+2	NULL
+3	NULL
+include/rpl/sync_to_replica.inc
+include/diff_tables.inc [master:p, slave:p]
+include/diff_tables.inc [master:c, slave:c]
+[connection master]
+DROP TABLE c, p;
+include/rpl/deinit.inc
