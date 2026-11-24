@@ -1,0 +1,12 @@
+#
+# Bug#121694 Binlog group commit leaks Global_connection_memory until disconnect
+#
+SET @saved_query_alloc_block_size = @@global.query_alloc_block_size;
+SET GLOBAL query_alloc_block_size = 1024;
+CREATE TABLE t1 (id INT PRIMARY KEY, c1 VARCHAR(255), c2 BIGINT, c3 VARCHAR(255),
+c4 BIGINT, c5 VARCHAR(255), c6 MEDIUMTEXT, c7 DATETIME, c8 DATETIME, c9 BIGINT,
+c10 DATETIME, c11 TINYINT, c12 VARCHAR(255), c13 BIGINT, c14 TEXT);
+include/assert.inc [Group commit does not leave connection memory charged to its sessions]
+DROP TABLE t1;
+SET DEBUG_SYNC = 'RESET';
+SET GLOBAL query_alloc_block_size = @saved_query_alloc_block_size;
