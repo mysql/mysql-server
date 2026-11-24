@@ -142,6 +142,11 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
     m_ordering_category = category;
   }
 
+  Object_id ordering_method_id() const override { return m_ordering_method_id; }
+  void set_ordering_method_id(Object_id ordering_method_id) override {
+    m_ordering_method_id = ordering_method_id;
+  }
+
   /////////////////////////////////////////////////////////////////////////
   // is_unsigned.
   /////////////////////////////////////////////////////////////////////////

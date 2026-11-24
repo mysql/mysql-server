@@ -460,7 +460,7 @@ bool Sql_cmd_create_ordering::execute(THD *thd) {
 
   udt_type->set_ordering_form(m_ordering_form);
   udt_type->set_ordering_category(m_ordering_category);
-  // udt->set_ordering_method_id();
+  udt_type->set_ordering_method_id(udt_method->id());
 
   if (dc->update(udt_type)) {
     return true;

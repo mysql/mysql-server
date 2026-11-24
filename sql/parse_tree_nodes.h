@@ -6138,6 +6138,36 @@ class PT_alter_type_action;
 class PT_alter_type_add_method;
 class PT_alter_type_drop_method;
 
+class PT_method_characteristics {
+ public:
+  PT_method_characteristics(const POS &pos, const POS &end_pos = POS())
+      : m_pos(pos), m_end_pos(end_pos) {}
+
+  POS m_pos;
+  POS m_end_pos;
+  bool m_deterministic_set{false};
+  bool m_sql_data_access_set{false};
+  bool m_null_call_option_set{false};
+  bool m_deterministic{false};
+  enum_sql_data_access m_sql_data_access;
+  enum_null_call_option m_null_call_option{
+      enum_null_call_option::NULL_ON_NULL_INPUT};
+};
+
+class PT_method_parameter_def {
+ public:
+  PT_method_parameter_def(sp_variable::enum_mode parameter_mode,
+                          const LEX_STRING &parameter_name,
+                          PT_type *parameter_type)
+      : m_parameter_mode(parameter_mode),
+        m_parameter_name(parameter_name),
+        m_parameter_type(parameter_type) {}
+
+  sp_variable::enum_mode m_parameter_mode;
+  LEX_STRING m_parameter_name;
+  PT_type *m_parameter_type;
+};
+
 class PT_type_add_method_def {
  public:
   PT_type_add_method_def(const LEX_STRING &method_name,
@@ -6148,10 +6178,15 @@ class PT_type_add_method_def {
         m_option(option),
         m_return_type(return_type) {}
 
+  void set_characteristics(PT_method_characteristics *characteristics) {
+    m_characteristics = characteristics;
+  }
+
   LEX_STRING m_method_name;
   LEX_STRING m_method_specific_name;
   enum_method_call_option m_option;
   PT_type *m_return_type;
+  PT_method_characteristics *m_characteristics;
 };
 
 class PT_type_drop_method_def {

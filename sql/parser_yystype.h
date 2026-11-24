@@ -45,6 +45,8 @@
 #include "sql/mem_root_array.h"
 #include "sql/method_call_option.h"
 #include "sql/null_call_option.h"
+#include "sql/sp_pcontext.h"
+#include "sql/sql_data_access.h"
 #include "sql/olap.h"
 #include "sql/opt_hints.h"  // opt_hints_enum
 #include "sql/ordering_option.h"
@@ -157,6 +159,8 @@ class PT_alter_type_action;
 class PT_type_add_method_def;
 class PT_type_drop_method_def;
 class PT_specific_method_designator;
+class PT_method_parameter_def;
+class PT_method_characteristics;
 
 class Table_ident;
 class sp_condition_value;
@@ -534,11 +538,17 @@ union MY_SQL_PARSER_STYPE {
   PT_alter_type_action *alter_type_action;
   PT_type_add_method_def *add_method_def;
   PT_type_drop_method_def *drop_method_def;
+  PT_method_parameter_def *parameter_def;
+  PT_method_characteristics *method_characteristics;
+  bool bool_value;
+  sp_variable::enum_mode parameter_mode;
+  enum enum_sql_data_access sql_data_access_option;
   enum enum_null_call_option null_call_option;
   enum enum_method_call_option method_call_option;
   enum enum_ordering_form ordering_form;
   enum enum_ordering_category ordering_category;
   Mem_root_array<PT_type_add_method_def *> *add_method_def_list;
+  Mem_root_array<PT_method_parameter_def *> *parameter_def_list;
   PT_specific_method_designator *specific_method_designator;
 
   Table_ident *table_ident;

@@ -2028,13 +2028,19 @@ CHARSET_INFO *warn_on_deprecated_user_defined_collation(
 /* UDT */
 %type <type_ident> type_ident
 %type <alter_type_action> alter_type_action
+%type <bool_value> deterministic_characteristic
+%type <sql_data_access_option> sql_data_access_indication
 %type <null_call_option> null_call_clause
+%type <method_characteristics> method_characteristics method_characteristic opt_method_characteristics
 %type <ordering_form> ordering_form
 %type <ordering_category> ordering_category
 %type <method_call_option> method_kind opt_method_kind
 %type <add_method_def> method_specification partial_method_specification
 %type <drop_method_def> specific_method_specification_designator
 %type <add_method_def_list> method_specification_list opt_method_specification_list
+%type <parameter_mode> parameter_mode opt_parameter_mode
+%type <parameter_def> sql_parameter_declaration
+%type <parameter_def_list> sql_parameter_declaration_list opt_sql_parameter_declaration_list
 %type <specific_method_designator> specific_routine_designator
 %type <lexer.lex_str> opt_specific_method_name specific_method_name
 
@@ -3466,7 +3472,7 @@ method_specification:
           partial_method_specification opt_method_characteristics
           {
             $$= $1;
-            // TODO: $$->set_characteristics($2);
+            $$->set_characteristics($2);
           }
         ;
 
@@ -3497,16 +3503,62 @@ specific_method_name:
 
 opt_sql_parameter_declaration_list:
           %empty
+          {
+            $$= nullptr;
+          }
         | sql_parameter_declaration_list
         ;
 
 sql_parameter_declaration_list:
           sql_parameter_declaration
+          {
+            $$= NEW_PTN Mem_root_array<PT_method_parameter_def *>(YYMEM_ROOT);
+            if (($$ == nullptr) || $$->push_back($1)) {
+              MYSQL_YYABORT;
+            }
+          }
         | sql_parameter_declaration_list ',' sql_parameter_declaration
+          {
+            $$= $1;
+            if ($$->push_back($3)) {
+              MYSQL_YYABORT;
+            }
+          }
+        ;
+
+opt_parameter_mode:
+          %empty
+          {
+            $$= sp_variable::MODE_IN;
+          }
+        | parameter_mode
+        ;
+
+parameter_mode:
+          IN_SYM
+          {
+            $$= sp_variable::MODE_IN;
+          }
+        | OUT_SYM
+          {
+            $$= sp_variable::MODE_OUT;
+          }
+        | INOUT_SYM
+          {
+            $$= sp_variable::MODE_INOUT;
+          }
         ;
 
 sql_parameter_declaration:
-          broken_type
+          opt_parameter_mode broken_type
+          {
+            LEX_STRING unnamed{};
+            $$= NEW_PTN PT_method_parameter_def($1, unnamed, $2);
+          }
+        | opt_parameter_mode IDENT_sys broken_type
+          {
+            $$= NEW_PTN PT_method_parameter_def($1, $2, $3);
+          }
         ;
 
 returns_clause:
@@ -3518,16 +3570,98 @@ returns_clause:
 
 opt_method_characteristics:
           %empty
+          {
+            $$= NEW_PTN PT_method_characteristics(@$);
+          }
         | method_characteristics
         ;
 
 method_characteristics:
           method_characteristic
         | method_characteristics method_characteristic
+          {
+            $$= $1;
+            if ($2->m_deterministic_set) {
+              if ($1->m_deterministic_set) {
+                my_error(ER_DUPLICATE_UDT_METHOD_CHARACTERISTICS, MYF(0), "DETERMINISTIC");
+                MYSQL_YYABORT;
+              } else {
+                $$->m_deterministic_set = true;
+                $$->m_deterministic = $2->m_deterministic;
+              }
+            }
+
+            if ($2->m_sql_data_access_set) {
+              if ($1->m_sql_data_access_set) {
+                my_error(ER_DUPLICATE_UDT_METHOD_CHARACTERISTICS, MYF(0), "SQL DATA ACCESS");
+                MYSQL_YYABORT;
+              } else {
+                $$->m_sql_data_access_set = true;
+                $$->m_sql_data_access = $2->m_sql_data_access;
+              }
+            }
+
+            if ($2->m_null_call_option_set) {
+              if ($1->m_null_call_option_set) {
+                my_error(ER_DUPLICATE_UDT_METHOD_CHARACTERISTICS, MYF(0), "NULL CALL");
+                MYSQL_YYABORT;
+              } else {
+                $$->m_null_call_option_set = true;
+                $$->m_null_call_option = $2->m_null_call_option;
+              }
+            }
+          }
         ;
 
 method_characteristic:
-          null_call_clause
+          deterministic_characteristic
+          {
+            $$= NEW_PTN PT_method_characteristics(@$);
+            $$->m_deterministic_set = true;
+            $$->m_deterministic = $1;
+          }
+        | sql_data_access_indication
+          {
+            $$= NEW_PTN PT_method_characteristics(@$);
+            $$->m_sql_data_access_set = true;
+            $$->m_sql_data_access = $1;
+          }
+        | null_call_clause
+          {
+            $$= NEW_PTN PT_method_characteristics(@$);
+            $$->m_null_call_option_set = true;
+            $$->m_null_call_option = $1;
+          }
+        ;
+
+deterministic_characteristic:
+          DETERMINISTIC_SYM
+          {
+            $$= true;
+          }
+        | NOT_SYM DETERMINISTIC_SYM
+          {
+            $$= false;
+          }
+        ;
+
+sql_data_access_indication:
+          NO_SYM SQL_SYM
+          {
+            $$= enum_sql_data_access::NO_SQL;
+          }
+        | CONTAINS_SYM SQL_SYM
+          {
+            $$= enum_sql_data_access::CONTAINS_SQL;
+          }
+        | READS_SYM SQL_SYM DATA_SYM
+          {
+            $$= enum_sql_data_access::READS_SQL;
+          }
+        | MODIFIES_SYM SQL_SYM DATA_SYM
+          {
+            $$= enum_sql_data_access::MODIFIES_SQL;
+          }
         ;
 
 null_call_clause:

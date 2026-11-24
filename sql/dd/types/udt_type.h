@@ -126,6 +126,9 @@ class UDT_Type : virtual public Entity_object {
   virtual enum_ordering_category get_ordering_category() const = 0;
   virtual void set_ordering_category(enum_ordering_category category) = 0;
 
+  virtual Object_id ordering_method_id() const = 0;
+  virtual void set_ordering_method_id(Object_id ordering_method_id) = 0;
+
   /////////////////////////////////////////////////////////////////////////
   // is_unsigned.
   /////////////////////////////////////////////////////////////////////////
