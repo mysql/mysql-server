@@ -176,6 +176,7 @@ SET(TESTS
   strings_misc
   strings_skip_trailing
   strings_strnxfrm
+  strings_uca_strcasecmp
   strings_utf8
   strings_valid_check
   strtod
