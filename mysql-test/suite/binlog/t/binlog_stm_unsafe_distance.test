@@ -1,0 +1,43 @@
+# ==== Purpose ====
+#
+# Test that statements calling DISTANCE() or VECTOR_DISTANCE() are unsafe for
+# statement-based binary logging.
+#
+# ==== Requirements ====
+#
+# R1. With BINLOG_FORMAT=STATEMENT, INSERT, UPDATE and DELETE statements that
+#     call DISTANCE() or VECTOR_DISTANCE() raise ER_BINLOG_UNSAFE_STATEMENT.
+#
+# R2. A SELECT that calls the function is not logged and raises no warning.
+#
+# ==== Implementation ====
+#
+# Run DML using the function and check the warnings.
+#
+# ==== References ====
+#
+# Bug#121547: Add DISTANCE() for VECTOR data type
+#
+
+--source include/have_binlog_format_statement.inc
+
+CALL mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+
+CREATE TABLE t1 (id INT PRIMARY KEY, v VECTOR(2));
+CREATE TABLE t2 (id INT PRIMARY KEY, d DOUBLE);
+INSERT INTO t1 VALUES (1, TO_VECTOR('[1, 0]')), (2, TO_VECTOR('[0, 1]'));
+
+--echo # R1
+INSERT INTO t2 SELECT id, DISTANCE(v, TO_VECTOR('[1, 1]'), 'EUCLIDEAN') FROM t1;
+INSERT INTO t2 VALUES
+  (3, VECTOR_DISTANCE(TO_VECTOR('[1, 1]'), TO_VECTOR('[2, 2]'), 'COSINE'));
+UPDATE t2 JOIN t1 USING (id)
+   SET t2.d = DISTANCE(t1.v, TO_VECTOR('[1, 1]'), 'DOT');
+DELETE FROM t2
+ WHERE d < DISTANCE(TO_VECTOR('[1, 1]'), TO_VECTOR('[1, 2]'), 'MANHATTAN');
+
+--echo # R2
+SELECT id, DISTANCE(v, TO_VECTOR('[1, 1]'), 'EUCLIDEAN_SQUARED') AS d
+  FROM t1 ORDER BY d, id;
+
+DROP TABLE t1, t2;
