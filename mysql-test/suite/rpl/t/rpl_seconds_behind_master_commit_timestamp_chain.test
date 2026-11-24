@@ -1,0 +1,146 @@
+--source include/have_debug.inc
+
+# Establish the chain topology: A -> B -> C
+--let $rpl_topology= 1->2, 2->3
+--let $rpl_skip_start_slave= 1
+--source include/rpl/init.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+SET @save_replica_parallel_workers = @@GLOBAL.replica_parallel_workers;
+SET GLOBAL replica_parallel_workers = 4;
+--source include/rpl/start_replica.inc
+
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+CALL mtr.add_suppression("Unsafe statement written to the binary log using statement format");
+SET @save_replica_parallel_workers_3 = @@GLOBAL.replica_parallel_workers;
+SET GLOBAL replica_parallel_workers = 4;
+--source include/rpl/start_replica.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+CREATE TABLE t (a INT PRIMARY KEY, b INT);
+
+--source include/rpl/sync.inc
+
+--echo #
+--echo # Test case 3: Chain topology A -> B -> C.
+--echo #   A long transaction (SLEEP(10)) commits on A, then is blocked
+--echo #   on B for 20 seconds, and finally blocked on C.
+--echo #     - B's SBM reflects the real waiting time and grows as the
+--echo #       transaction stays blocked.
+--echo #     - C's SBM does not include the 20 seconds the transaction
+--echo #       spent blocked on B, because B regenerates
+--echo #       immediate_commit_timestamp using B's local clock.
+--echo #
+
+# Block the transaction on both B and C.
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+LOCK TABLE t WRITE;
+
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+LOCK TABLE t WRITE;
+
+# Commit on A.  SLEEP(10) makes the transaction take 10 seconds on A.
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--disable_warnings
+INSERT INTO t(a, b) SELECT 1, SLEEP(10);
+--enable_warnings
+
+# The transaction is blocked on B.  Wait until B's applier is blocked.
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--let $wait_timeout= 30
+--let $show_statement= SHOW PROCESSLIST
+--let $field= Info
+--let $condition= = 'INSERT INTO t(a, b) SELECT 1, SLEEP(10)'
+--source include/wait_show_condition.inc
+
+# B's SBM should be small right after the transaction arrives — it
+# has only been blocked for a moment.
+--let $sbm_b= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1)
+--let $assert_text= SBM on B must be small right after transaction arrives
+--let $assert_cond= $sbm_b <= 9
+--source include/assert.inc
+
+# Wait 20 seconds.  The transaction is still blocked on B.
+--sleep 20
+
+# B's SBM must be >= 20: the real waiting time is not reduced by the
+# source execution time, because immediate_commit_timestamp records
+# commit time, not start time.
+--let $sbm_b= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1)
+--let $assert_text= SBM on B must be >= 20 (real waiting time, not reduced by source execution time)
+--let $assert_cond= $sbm_b >= 20
+--source include/assert.inc
+
+# C has not received the transaction yet, so C's SBM should be 0.
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+--let $sbm_c= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1)
+--let $assert_text= SBM on C must be 0 while transaction is blocked on B
+--let $assert_cond= $sbm_c = 0
+--source include/assert.inc
+
+# Unblock B.  The transaction is applied on B, then relayed to C.
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+UNLOCK TABLES;
+
+# The transaction reaches C and is blocked there.  Wait until C's
+# applier is blocked.
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+--let $wait_timeout= 30
+--let $show_statement= SHOW PROCESSLIST
+--let $field= Info
+--let $condition= = 'INSERT INTO t(a, b) SELECT 1, SLEEP(10)'
+--source include/wait_show_condition.inc
+
+# C's SBM should be small — it does not include the 20 seconds the
+# transaction spent blocked on B, because B regenerated
+# immediate_commit_timestamp when it applied the transaction.
+--let $sbm_c= query_get_value("SHOW REPLICA STATUS", Seconds_Behind_Source, 1)
+--let $assert_text= SBM on C must not include the time spent blocked on B
+--let $assert_cond= $sbm_c <= 10
+--source include/assert.inc
+
+# Unblock C.
+UNLOCK TABLES;
+
+--source include/rpl/sync.inc
+
+--echo #
+--echo # Cleanup
+--echo #
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+DROP TABLE t;
+
+--source include/rpl/sync.inc
+
+--let $rpl_connection_name= server_2
+--source include/connection.inc
+--source include/rpl/stop_replica.inc
+SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers;
+--source include/rpl/start_replica.inc
+
+--let $rpl_connection_name= server_3
+--source include/connection.inc
+--source include/rpl/stop_replica.inc
+SET GLOBAL replica_parallel_workers = @save_replica_parallel_workers_3;
+--source include/rpl/start_replica.inc
+
+--let $rpl_connection_name= server_1
+--source include/connection.inc
+--source include/rpl/deinit.inc

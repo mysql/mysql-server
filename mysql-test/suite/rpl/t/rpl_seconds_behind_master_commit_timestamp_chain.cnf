@@ -1,0 +1,14 @@
+!include ../my.cnf
+
+[mysqld.1]
+binlog-rows-query-log-events=ON
+
+[mysqld.2]
+binlog-rows-query-log-events=ON
+
+[mysqld.3]
+binlog-rows-query-log-events=ON
+
+[ENV]
+SERVER_MYPORT_3=                @mysqld.3.port
+SERVER_MYSOCK_3=                @mysqld.3.socket
