@@ -4403,11 +4403,17 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli) {
           The immediate master timestamp is expressed in microseconds.
           Delayed replication is defined in seconds.
           Hence convert immediate_commit_timestamp to seconds here.
+
+          immediate_commit_timestamp is in the master's clock, but
+          nap_time is computed against time(nullptr) which is the
+          replica's clock. Add clock_diff_with_master to convert
+          the master timestamp into the replica's clock domain,
+          consistent with the fallback path below.
         */
         sql_delay_end = ceil((static_cast<Gtid_log_event *>(ev)
                                   ->immediate_commit_timestamp) /
                              1000000.00) +
-                        sql_delay;
+                        rli->mi->clock_diff_with_master + sql_delay;
       }
     } else {
       /*

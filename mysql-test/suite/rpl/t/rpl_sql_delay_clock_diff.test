@@ -1,0 +1,179 @@
+#
+# ==== Purpose ====
+#
+# Verify that sql_delay_event correctly accounts for
+# clock_diff_with_master when immediate_commit_timestamp is
+# available.  This is a regression test for the fix that added
+# clock_diff_with_master to the commit-timestamps code path,
+# making it consistent with the fallback (when+exec_time) path.
+#
+# ==== Implementation ====
+#
+# Two debug points are used to simulate source clock skew:
+#
+#   'sql_delay_dec_master_clock_10s': source clock 10 seconds behind
+#   'sql_delay_inc_master_clock_10s': source clock 10 seconds ahead
+#
+# Each shifts three time values consistently on the source:
+#
+#   1. UNIX_TIMESTAMP()           (item_timefunc.cc)
+#   2. immediate_commit_timestamp (binlog.cc)
+#   3. event header when.tv_sec   (log_event.cc)
+#
+# The replica IO thread computes clock_diff_with_master using
+# SELECT UNIX_TIMESTAMP() from the source.
+#
+# Test case 1: source clock behind (clock_diff = +10).
+#   With SOURCE_DELAY=5, the replica should wait ~5 seconds.
+#   Without the fix, the replica would apply immediately.
+#
+# Test case 2: source clock ahead (clock_diff = -10).
+#   With SOURCE_DELAY=5, the replica should wait ~5 seconds.
+#   Without the fix, the replica would wait ~15 seconds.
+#
+# ==== References ====
+#
+# Bug: sql_delay_event missing clock_diff_with_master when using
+#      immediate_commit_timestamp
+
+--source include/have_debug.inc
+--source include/have_mta.inc
+
+--let $rpl_skip_start_slave= 1
+--source include/rpl/init_source_replica.inc
+
+--let $delay= 5
+
+#
+# Test case 1: Source clock is 10 seconds behind the replica.
+#   clock_diff_with_master = +10.
+#
+
+--source include/rpl/connection_source.inc
+--let $debug_point= sql_delay_dec_master_clock_10s
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_replica.inc
+--eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY= $delay
+--source include/rpl/start_replica.inc
+
+--let $sql_delay= query_get_value(SHOW REPLICA STATUS,SQL_Delay,1)
+--let $assert_text= Assert that SQL_Delay matches the configured delay
+--let $assert_cond= $sql_delay = $delay
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t1 (a INT);
+--let $trx_num= 1
+--let $server_uuid= query_get_value(SELECT @@global.server_uuid, @@global.server_uuid, 1)
+
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_source.inc
+--let $gtid= $server_uuid:$trx_num
+--source include/rpl/get_immediate_commit_timestamp.inc
+--let $master_immediate_commit_timestamp= $immediate_commit_timestamp
+
+--source include/rpl/connection_replica.inc
+--let $gtid= $server_uuid:$trx_num
+--source include/rpl/get_immediate_commit_timestamp.inc
+--let $slave_immediate_commit_timestamp= $immediate_commit_timestamp
+--let $timestamp_diff_ms= `SELECT $slave_immediate_commit_timestamp-$master_immediate_commit_timestamp`
+--let $timestamp_diff_sec= `SELECT CEILING($timestamp_diff_ms / 1000000)`
+
+# Source ICT is shifted -10s, so ICT diff = actual_delay + 10.
+# With the fix, actual_delay ~= 5, so ICT diff ~= 15.
+# Without the fix, actual_delay ~= 0, so ICT diff ~= 10.
+--let $assert_text= The replica must wait at least SOURCE_DELAY seconds (clock_diff_with_master must be accounted for)
+--let $assert_cond= $timestamp_diff_sec >= $delay + 10 - 1
+--source include/assert.inc
+
+--let $assert_text= The delay should not be excessively long
+--let $assert_cond= $timestamp_diff_sec <= $delay + 10 + 5
+--source include/assert.inc
+
+#
+# Cleanup case 1
+#
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--let $debug_point= sql_delay_dec_master_clock_10s
+--source include/remove_debug_point.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+
+--echo #
+--echo # Test case 2: Source clock is 10 seconds ahead of the replica.
+--echo #   clock_diff_with_master = -10.
+--echo #   With the fix: sql_delay_end = ict(+10) + (-10) + 5 = now + 5,
+--echo #     replica waits ~5s, ICT diff = 5 - 10 = -5.
+--echo #   Without the fix: sql_delay_end = ict(+10) + 5 = now + 15,
+--echo #     replica waits ~15s, ICT diff = 15 - 10 = 5.
+--echo #
+
+--source include/rpl/connection_source.inc
+--let $debug_point= sql_delay_inc_master_clock_10s
+--source include/add_debug_point.inc
+
+--source include/rpl/connection_replica.inc
+--source include/rpl/stop_replica.inc
+--eval CHANGE REPLICATION SOURCE TO SOURCE_DELAY= $delay
+--source include/rpl/start_replica.inc
+
+# Restart the IO thread to refresh clock_diff_with_master.
+STOP REPLICA IO_THREAD;
+START REPLICA IO_THREAD;
+--let $slave_param= Replica_IO_Running
+--let $slave_param_comparison= = 
+--let $slave_param_value= Yes
+--source include/rpl/wait_for_replica_status.inc
+
+--let $sql_delay= query_get_value(SHOW REPLICA STATUS,SQL_Delay,1)
+--let $assert_text= Assert that SQL_Delay matches the configured delay for case 2
+--let $assert_cond= $sql_delay = $delay
+--source include/assert.inc
+
+--source include/rpl/connection_source.inc
+CREATE TABLE t2 (a INT);
+--let $trx_num= 2
+
+--source include/rpl/connection_replica.inc
+--let $time_before= `SELECT UNIX_TIMESTAMP()`
+
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/connection_replica.inc
+--let $time_after= `SELECT UNIX_TIMESTAMP()`
+--let $actual_wait= `SELECT $time_after - $time_before`
+
+# With the fix, the replica waits ~5 seconds (delay + clock_diff =
+# 5 + (-10) + 10 = 5).  Without the fix, the replica would wait
+# ~15 seconds (delay only, no clock_diff correction).  Assert
+# actual_wait <= 10 to catch the missing clock_diff_with_master
+# (without the fix, actual_wait would be ~15).
+--let $assert_text= The replica must apply clock_diff_with_master when source clock is ahead (wait ~5s, not ~15s)
+--let $assert_cond= $actual_wait <= 10
+--source include/assert.inc
+
+--let $assert_text= The replica must wait at least SOURCE_DELAY seconds
+--let $assert_cond= $actual_wait >= $delay - 1
+--source include/assert.inc
+
+#
+# Cleanup
+#
+--source include/rpl/stop_replica.inc
+CHANGE REPLICATION SOURCE TO SOURCE_DELAY= 0;
+--source include/rpl/start_replica.inc
+
+--source include/rpl/connection_source.inc
+--let $debug_point= sql_delay_inc_master_clock_10s
+--source include/remove_debug_point.inc
+DROP TABLE t2;
+--source include/rpl/sync_to_replica.inc
+
+--source include/rpl/deinit.inc
