@@ -485,6 +485,30 @@ void purge(DeleteContext *ctx, dict_index_t *index, trx_id_t trxid,
       page_type == FIL_PAGE_TYPE_ZBLOB2 || /* Partially purged ZBLOB */
       page_type == FIL_PAGE_TYPE_BLOB || page_type == FIL_PAGE_SDI_BLOB ||
       page_type == FIL_PAGE_SDI_ZBLOB) {
+    if (is_rollback && uf != nullptr && dfield_is_ext(&uf->new_val)) {
+      /* Never destroy the LOB that row_undo_mod_clust() is about to restore
+      into the record.  btr_store_big_rec_extern_fields() leaves the reference
+      designating the pre-update LOB until the store is far enough along to
+      redirect it, so a crash in that window brings us here with the reference
+      still pointing at the value being restored; freeing it would leave a live
+      row referencing free pages.
+
+      Compare the tablespace and first-page numbers of the current and restored
+      LOB references rather than testing BTR_EXTERN_BEING_MODIFIED_FLAG. Once
+      the record points to the new LOB, they differ. In that case, continue
+      below to free the new LOB.
+
+      There is nothing to undo here -- an old format BLOB is never partially
+      updated, see ref_t::get_lob_page_info() -- so the LOB is simply left
+      alone. */
+      const ref_t restored(uf->new_val.blobref());
+
+      if (restored.space_id() == ref.space_id() &&
+          restored.page_no() == ref.page_no()) {
+        return;
+      }
+    }
+
     lob::Deleter free_blob(*ctx);
     free_blob.destroy();
     return;
