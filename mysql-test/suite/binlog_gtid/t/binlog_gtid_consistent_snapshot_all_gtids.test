@@ -1,0 +1,125 @@
+# ==== Purpose ====
+#
+# Verify that START TRANSACTION WITH CONSISTENT SNAPSHOT returns, with
+# session_track_gtids=ALL_GTIDS, the GTID set that matches its read view.
+#
+# ==== Requirements ====
+#
+# R1. With ALL_GTIDS, the OK packet of START TRANSACTION WITH CONSISTENT
+#     SNAPSHOT carries the GTID set of the snapshot.
+# R2. A transaction that is visible in InnoDB but not yet in GTID_EXECUTED
+#     must not be seen by the snapshot without its GTID: the snapshot waits.
+# R3. The implicit commit done by START TRANSACTION does not make the
+#     returned set bigger than the snapshot.
+# R4. Other session_track_gtids modes and READ COMMITTED keep today's
+#     behavior.
+# R5. With an empty GTID_EXECUTED, the OK packet still carries the
+#     (empty) GTID set, so the client can tell it from no set.
+#
+# ==== Implementation ====
+#
+# Pause a commit inside the binlog commit stage, after the commit in the
+# engines and before GTID_EXECUTED is updated, then start a snapshot from
+# another session.
+
+--source include/have_debug.inc
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_row.inc
+--source include/count_sessions.inc
+
+RESET BINARY LOGS AND GTIDS;
+
+--echo #
+--echo # R5: empty GTID_EXECUTED (must return an empty GTID set)
+--echo #
+SET SESSION session_track_gtids = 'ALL_GTIDS';
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+COMMIT;
+SET SESSION session_track_gtids = 'OFF';
+
+CREATE TABLE t1 (c1 INT PRIMARY KEY) ENGINE=InnoDB;
+
+--connect (con1,localhost,root,,)
+--connect (con2,localhost,root,,)
+
+--echo #
+--echo # R1: the snapshot returns its GTID set (must return GTID:1)
+--echo #
+--connection con2
+SET SESSION session_track_gtids = 'ALL_GTIDS';
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+COMMIT;
+
+--echo #
+--echo # R2: a commit is visible in InnoDB, its GTID is not in GTID_EXECUTED yet
+--echo #
+--connection con1
+SET DEBUG_SYNC = 'bgc_after_commit_in_engines_before_gtid_update SIGNAL engines_done WAIT_FOR continue_commit';
+--send INSERT INTO t1 VALUES (1)
+
+--connection con2
+--let $con2_id = `SELECT CONNECTION_ID()`
+SET DEBUG_SYNC = 'now WAIT_FOR engines_done';
+--enable_session_track_info
+--send START TRANSACTION WITH CONSISTENT SNAPSHOT
+
+--connection default
+--echo # The snapshot cannot finish while the commit holds LOCK_commit
+--let $wait_condition = SELECT COUNT(*) = 1 FROM performance_schema.threads T, performance_schema.events_waits_current W WHERE T.THREAD_ID = W.THREAD_ID AND W.EVENT_NAME LIKE '%MYSQL_BIN_LOG::LOCK_commit' AND T.PROCESSLIST_ID = $con2_id
+--source include/wait_condition.inc
+SET DEBUG_SYNC = 'now SIGNAL continue_commit';
+
+--connection con1
+--reap
+
+--echo # Must return GTID:1-2 and see the row
+--connection con2
+--reap
+--disable_session_track_info
+SELECT * FROM t1;
+COMMIT;
+
+--echo #
+--echo # R3: implicit commit before the snapshot (must return GTID:1-3)
+--echo #
+--connection con2
+BEGIN;
+INSERT INTO t1 VALUES (2);
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+SELECT * FROM t1;
+COMMIT;
+
+--echo #
+--echo # R4: OWN_GTID returns nothing for the snapshot
+--echo #
+SET SESSION session_track_gtids = 'OWN_GTID';
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+COMMIT;
+
+--echo #
+--echo # R4: READ COMMITTED takes no snapshot, so no snapshot GTID set
+--echo #
+SET SESSION session_track_gtids = 'ALL_GTIDS';
+SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
+--enable_session_track_info
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--disable_session_track_info
+COMMIT;
+SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+
+# Cleanup
+--connection default
+--disconnect con1
+--disconnect con2
+SET DEBUG_SYNC = 'RESET';
+DROP TABLE t1;
+RESET BINARY LOGS AND GTIDS;
+--source include/wait_until_count_sessions.inc

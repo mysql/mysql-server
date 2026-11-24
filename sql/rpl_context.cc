@@ -137,6 +137,39 @@ bool Session_consistency_gtids_ctx::notify_after_gtid_executed_update(
   return res;
 }
 
+bool Session_consistency_gtids_ctx::shall_collect_consistent_snapshot_gtids(
+    const THD *thd) {
+  return m_curr_session_track_gtids == SESSION_TRACK_GTIDS_ALL_GTIDS &&
+         shall_collect(thd);
+}
+
+bool Session_consistency_gtids_ctx::notify_after_consistent_snapshot(
+    const THD *thd) {
+  DBUG_TRACE;
+  assert(thd);
+  bool res = false;
+
+  if (!shall_collect_consistent_snapshot_gtids(thd)) return res;
+
+  /*
+    The set may already hold the GTID_EXECUTED collected by the implicit
+    commit that START TRANSACTION does before taking the snapshot. Replace
+    it, so the client gets exactly the set that matches the read view.
+  */
+  m_gtid_set->clear();
+
+  global_tsid_lock->assert_some_wrlock();
+  res = m_gtid_set->add_gtid_set(gtid_state->get_executed_gtids()) !=
+        RETURN_STATUS_OK;
+
+  if (!res) {
+    m_consistent_snapshot_collected = true;
+    notify_ctx_change_listener();
+  }
+
+  return res;
+}
+
 void Session_consistency_gtids_ctx::
     update_tracking_activeness_from_session_variable(const THD *thd) {
   m_curr_session_track_gtids = thd->variables.session_track_gtids;
@@ -148,6 +181,7 @@ bool Session_consistency_gtids_ctx::notify_after_response_packet(
   DBUG_TRACE;
 
   if (m_gtid_set && !m_gtid_set->is_empty()) m_gtid_set->clear();
+  m_consistent_snapshot_collected = false;
 
   /*
    Every time we get a notification that a packet was sent, we update

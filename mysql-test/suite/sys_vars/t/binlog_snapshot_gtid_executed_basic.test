@@ -1,0 +1,17 @@
+# ==== Purpose ====
+#
+# Basic checks of @@binlog_snapshot_gtid_executed: session only,
+# read only, and NULL outside START TRANSACTION WITH CONSISTENT SNAPSHOT.
+# The values inside a snapshot are tested in
+# binlog_gtid.binlog_gtid_consistent_snapshot_variable.
+
+SELECT @@session.binlog_snapshot_gtid_executed;
+SELECT @@binlog_snapshot_gtid_executed;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@global.binlog_snapshot_gtid_executed;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.binlog_snapshot_gtid_executed = 'a';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.binlog_snapshot_gtid_executed = 'a';

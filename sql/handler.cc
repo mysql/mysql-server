@@ -2505,10 +2505,33 @@ static bool snapshot_handlerton(THD *thd, plugin_ref plugin, void *arg) {
   return false;
 }
 
+/**
+  Tells whether START TRANSACTION WITH CONSISTENT SNAPSHOT shall also
+  capture the binary log coordinates (@@binlog_snapshot_file and
+  @@binlog_snapshot_position) and, with GTID_MODE=ON, the GTID set
+  (@@binlog_snapshot_gtid_executed, and the OK packet when
+  session_track_gtids=ALL_GTIDS) that match its read view.
+
+  Requires the binary log and REPEATABLE READ, the only isolation level
+  where the snapshot is taken.
+*/
+static bool consistent_snapshot_uses_binlog(THD *thd) {
+  return mysql_bin_log.is_open() && thd->tx_isolation == ISO_REPEATABLE_READ;
+}
+
 int ha_start_consistent_snapshot(THD *thd) {
   bool warn = true;
 
-  plugin_foreach(thd, snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN, &warn);
+  if (consistent_snapshot_uses_binlog(thd)) {
+    if (mysql_bin_log.start_consistent_snapshot(thd, [&]() {
+          plugin_foreach(thd, snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
+                         &warn);
+        }))
+      return 1;
+  } else {
+    plugin_foreach(thd, snapshot_handlerton, MYSQL_STORAGE_ENGINE_PLUGIN,
+                   &warn);
+  }
 
   /*
     Same idea as when one wants to CREATE TABLE in one engine which does not
