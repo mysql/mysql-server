@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -31,6 +31,7 @@
 #include "sql/dd/impl/raw/object_keys.h"  // IWYU pragma: keep
 #include "sql/dd/types/column.h"
 #include "sql/dd/types/entity_object.h"  // dd::Entity_object
+#include "sql/sql_data_access.h"
 
 class THD;
 struct MDL_key;
@@ -91,7 +92,6 @@ class UDT_Method : virtual public Entity_object {
   /////////////////////////////////////////////////////////////////////////
 
   virtual const String_type &specific_name() const = 0;
-
   virtual void set_specific_name(const String_type &specific_name) = 0;
 
   /////////////////////////////////////////////////////////////////////////
@@ -173,6 +173,33 @@ class UDT_Method : virtual public Entity_object {
 
   virtual Object_id return_type_id() const = 0;
   virtual void set_return_type_id(Object_id return_type_id) = 0;
+
+  virtual enum_column_types data_type() const = 0;
+  virtual void set_data_type(enum_column_types data_type) = 0;
+
+  virtual const String_type &data_type_utf8() const = 0;
+  virtual void set_data_type_utf8(const String_type &data_type_utf8) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_deterministic.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool is_deterministic() const = 0;
+  virtual void set_is_deterministic(bool is_deterministic) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // sql_data_access.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual enum_sql_data_access sql_data_access() const = 0;
+  virtual void set_sql_data_access(enum_sql_data_access sql_data_access) = 0;
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_null_call.
+  /////////////////////////////////////////////////////////////////////////
+
+  virtual bool is_null_call() const = 0;
+  virtual void set_is_null_call(bool is_null_call) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // created

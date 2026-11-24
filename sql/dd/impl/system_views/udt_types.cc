@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -99,7 +99,7 @@ UDT_Types::UDT_Types() {
 
   m_target_def.add_field(
       FIELD_DATA_TYPE, "DATA_TYPE",
-      "SUBSTRING_INDEX(SUBSTRING_INDEX(typ.column_type_utf8, '(', 1),' ', 1)");
+      "SUBSTRING_INDEX(SUBSTRING_INDEX(typ.data_type_utf8, '(', 1),' ', 1)");
 
   m_target_def.add_field(FIELD_CHARACTER_MAXIMUM_LENGTH,
                          "CHARACTER_MAXIMUM_LENGTH", "typ.char_max_length");

@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -110,11 +110,14 @@ class UDT_Type : virtual public Entity_object {
   virtual void set_final(bool is_final) = 0;
 
   /////////////////////////////////////////////////////////////////////////
-  // type.
+  // data_type.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual enum_column_builtin_types type() const = 0;
-  virtual void set_type(enum_column_builtin_types type) = 0;
+  virtual enum_column_builtin_types data_type() const = 0;
+  virtual void set_data_type(enum_column_builtin_types data_type) = 0;
+
+  virtual const String_type &data_type_utf8() const = 0;
+  virtual void set_data_type_utf8(const String_type &data_type_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // ordering.
@@ -180,14 +183,6 @@ class UDT_Type : virtual public Entity_object {
 
   virtual void set_is_explicit_collation(bool is_explicit_collation) = 0;
   virtual bool is_explicit_collation() const = 0;
-
-  /////////////////////////////////////////////////////////////////////////
-  // Column display type.
-  /////////////////////////////////////////////////////////////////////////
-
-  virtual const String_type &column_type_utf8() const = 0;
-
-  virtual void set_column_type_utf8(const String_type &column_type_utf8) = 0;
 
   /////////////////////////////////////////////////////////////////////////
   // created

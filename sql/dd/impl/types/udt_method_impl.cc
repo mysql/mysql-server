@@ -64,6 +64,7 @@ UDT_Method_impl::UDT_Method_impl()
       m_is_static(false),
       m_is_overriding(false),
       m_is_constructor(false),
+      m_data_type(enum_column_types::LONG),
       m_is_unsigned(false),
       m_char_max_length(0),
       m_char_octet_length(0),
@@ -72,10 +73,13 @@ UDT_Method_impl::UDT_Method_impl()
       m_numeric_scale_null(true),
       m_datetime_precision(0),
       m_datetime_precision_null(true),
-      m_return_type_id(INVALID_OBJECT_ID),
       m_collation_id(INVALID_OBJECT_ID),
       m_is_explicit_collation(0),
-
+      m_return_type_id(INVALID_OBJECT_ID),
+      m_data_type_utf8(),
+      m_is_deterministic(true),
+      m_sql_data_access(enum_sql_data_access::NO_SQL),
+      m_is_null_call(false),
       m_created(0),
       m_last_altered(0) {}
 
@@ -92,6 +96,7 @@ bool UDT_Method_impl::restore_attributes(const Raw_record &r) {
   m_is_static = r.read_bool(UDT_Methods::FIELD_IS_STATIC);
   m_is_overriding = r.read_bool(UDT_Methods::FIELD_IS_OVERRIDING);
   m_is_constructor = r.read_bool(UDT_Methods::FIELD_IS_CONSTRUCTOR);
+  m_data_type = (enum_column_types)r.read_uint(UDT_Methods::FIELD_DATA_TYPE);
 
   m_is_unsigned = r.read_bool(UDT_Methods::FIELD_IS_UNSIGNED);
   m_char_max_length = r.read_uint(UDT_Methods::FIELD_CHAR_MAX_LENGTH);
@@ -106,9 +111,14 @@ bool UDT_Method_impl::restore_attributes(const Raw_record &r) {
       r.read_bool(UDT_Methods::FIELD_IS_EXPLICIT_COLLATION);
 
   m_return_type_id = r.read_ref_id(UDT_Methods::FIELD_RETURN_TYPE_ID);
+  m_data_type_utf8 = r.read_str(UDT_Methods::FIELD_DATA_TYPE_UTF8);
+  m_is_deterministic = r.read_bool(UDT_Methods::FIELD_IS_DETERMINISTIC);
+  m_sql_data_access =
+      (enum_sql_data_access)r.read_uint(UDT_Methods::FIELD_SQL_DATA_ACCESS);
+  m_is_null_call = r.read_bool(UDT_Methods::FIELD_IS_NULL_CALL);
 
-  m_last_altered = r.read_int(UDT_Methods::FIELD_LAST_ALTERED);
   m_created = r.read_int(UDT_Methods::FIELD_CREATED);
+  m_last_altered = r.read_int(UDT_Methods::FIELD_LAST_ALTERED);
 
   return false;
 }
@@ -123,6 +133,8 @@ bool UDT_Method_impl::store_attributes(Raw_record *r) {
          r->store(UDT_Methods::FIELD_IS_STATIC, m_is_static) ||
          r->store(UDT_Methods::FIELD_IS_OVERRIDING, m_is_overriding) ||
          r->store(UDT_Methods::FIELD_IS_CONSTRUCTOR, m_is_constructor) ||
+         r->store(UDT_Methods::FIELD_DATA_TYPE,
+                  static_cast<int>(m_data_type)) ||
 
          r->store(UDT_Methods::FIELD_IS_UNSIGNED, m_is_unsigned) ||
          r->store(UDT_Methods::FIELD_CHAR_MAX_LENGTH,
@@ -139,13 +151,18 @@ bool UDT_Method_impl::store_attributes(Raw_record *r) {
          r->store(UDT_Methods::FIELD_IS_EXPLICIT_COLLATION,
                   m_is_explicit_collation) ||
          r->store_ref_id(UDT_Methods::FIELD_RETURN_TYPE_ID, m_return_type_id) ||
+         r->store(UDT_Methods::FIELD_DATA_TYPE_UTF8, m_data_type_utf8) ||
+         r->store(UDT_Methods::FIELD_IS_DETERMINISTIC, m_is_deterministic) ||
+         r->store(UDT_Methods::FIELD_SQL_DATA_ACCESS,
+                  static_cast<int>(m_sql_data_access)) ||
+         r->store(UDT_Methods::FIELD_IS_NULL_CALL, m_is_null_call) ||
 
          r->store(UDT_Methods::FIELD_CREATED, m_created) ||
          r->store(UDT_Methods::FIELD_LAST_ALTERED, m_last_altered);
 }
 
 ///////////////////////////////////////////////////////////////////////////
-static_assert(UDT_Methods::NUMBER_OF_FIELDS == 18,
+static_assert(UDT_Methods::NUMBER_OF_FIELDS == 23,
               "UDT_Methods definition has changed, check if "
               "serialize() and deserialize() need to be updated!");
 void UDT_Method_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
@@ -157,6 +174,7 @@ void UDT_Method_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   write(w, m_is_static, STRING_WITH_LEN("is_static"));
   write(w, m_is_overriding, STRING_WITH_LEN("is_overriding"));
   write(w, m_is_constructor, STRING_WITH_LEN("is_constructor"));
+  write_enum(w, m_data_type, STRING_WITH_LEN("data_type"));
   write(w, m_is_unsigned, STRING_WITH_LEN("is_unsigned"));
   write(w, m_char_max_length, STRING_WITH_LEN("char_max_length"));
   write(w, m_char_octet_length, STRING_WITH_LEN("char_octet_length"));
@@ -169,9 +187,13 @@ void UDT_Method_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   write(w, m_collation_id, STRING_WITH_LEN("collation_id"));
   write(w, m_is_explicit_collation, STRING_WITH_LEN("is_explicit_collation"));
   write(w, m_return_type_id, STRING_WITH_LEN("return_type_id"));
+  write(w, m_data_type_utf8, STRING_WITH_LEN("data_type_utf8"));
+  write(w, m_is_deterministic, STRING_WITH_LEN("is_deterministic"));
+  write_enum(w, m_sql_data_access, STRING_WITH_LEN("sql_data_access"));
+  write(w, m_is_null_call, STRING_WITH_LEN("is_null_call"));
 
-  write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
   write(w, m_created, STRING_WITH_LEN("created"));
+  write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
   w->EndObject();
 }
 
@@ -185,6 +207,7 @@ bool UDT_Method_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_is_static, val, "is_static");
   read(&m_is_overriding, val, "is_overriding");
   read(&m_is_constructor, val, "is_constructor");
+  read_enum(&m_data_type, val, "data_type");
   read(&m_is_unsigned, val, "is_unsigned");
   read(&m_char_max_length, val, "char_max_length");
   read(&m_char_octet_length, val, "char_octet_length");
@@ -196,9 +219,13 @@ bool UDT_Method_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_collation_id, val, "collation_id");
   read(&m_is_explicit_collation, val, "is_explicit_collation");
   read(&m_return_type_id, val, "return_type_id");
+  read(&m_data_type_utf8, val, "data_type_utf8");
+  read(&m_is_deterministic, val, "is_deterministic");
+  read_enum(&m_sql_data_access, val, "sql_data_access");
+  read(&m_is_null_call, val, "is_null_call");
 
-  read(&m_last_altered, val, "last_altered");
   read(&m_created, val, "created");
+  read(&m_last_altered, val, "last_altered");
 
   return false;
 }

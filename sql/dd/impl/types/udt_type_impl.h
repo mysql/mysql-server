@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -113,16 +113,23 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
   /////////////////////////////////////////////////////////////////////////
 
   bool is_final() const override { return m_is_final; }
-
   void set_final(bool is_final) override { m_is_final = is_final; }
 
   /////////////////////////////////////////////////////////////////////////
-  // type.
+  // data_type.
   /////////////////////////////////////////////////////////////////////////
 
-  enum_column_builtin_types type() const override { return m_type; }
+  enum_column_builtin_types data_type() const override { return m_data_type; }
+  void set_data_type(enum_column_builtin_types data_type) override {
+    m_data_type = data_type;
+  }
 
-  void set_type(enum_column_builtin_types type) override { m_type = type; }
+  const String_type &data_type_utf8() const override {
+    return m_data_type_utf8;
+  }
+  void set_data_type_utf8(const String_type &data_type_utf8) override {
+    m_data_type_utf8 = data_type_utf8;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // ordering.
@@ -238,18 +245,6 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
   }
 
   /////////////////////////////////////////////////////////////////////////
-  // Column display type
-  /////////////////////////////////////////////////////////////////////////
-
-  const String_type &column_type_utf8() const override {
-    return m_column_type_utf8;
-  }
-
-  void set_column_type_utf8(const String_type &column_type_utf8) override {
-    m_column_type_utf8 = column_type_utf8;
-  }
-
-  /////////////////////////////////////////////////////////////////////////
   // created
   /////////////////////////////////////////////////////////////////////////
 
@@ -306,7 +301,7 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
   enum_udt_type_category m_type_category;
   bool m_is_instantiable;
   bool m_is_final;
-  enum_column_builtin_types m_type;
+  enum_column_builtin_types m_data_type;
   enum_ordering_form m_ordering_form;
   enum_ordering_category m_ordering_category;
   Object_id m_ordering_method_id;
@@ -319,10 +314,9 @@ class UDT_Type_impl : public Entity_object_impl, public UDT_Type {
   uint m_datetime_precision;
   uint m_datetime_precision_null;
 
-  String_type m_column_type_utf8;
-
   Object_id m_collation_id;
   bool m_is_explicit_collation;
+  String_type m_data_type_utf8;
 
   ulonglong m_created;
   ulonglong m_last_altered;

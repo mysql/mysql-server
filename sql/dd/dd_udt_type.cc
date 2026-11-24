@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -171,10 +171,10 @@ bool create_udt_type(THD *thd, const dd::Schema &sch_obj,
 
   std::unique_ptr<dd::UDT_Type> obj(sch_obj.create_udt_type(thd));
   obj->set_name(type_name);
-  obj->set_type(storage_type);
+  obj->set_data_type(storage_type);
   obj->set_ordering_form(NO_ORDER);
   obj->set_ordering_category(NO_CATEGORY);
-  // obj->set_ordering_method_id(0);
+  obj->set_ordering_method_id(0);
   obj->set_unsigned(td.m_type_flags & UNSIGNED_FLAG);
   obj->set_char_max_length(td.m_length);    // FIXME length_specified
   obj->set_char_octet_length(td.m_length);  // FIXME length_specified
@@ -191,7 +191,7 @@ bool create_udt_type(THD *thd, const dd::Schema &sch_obj,
   }
 
   obj->set_is_explicit_collation(td.m_has_explicit_collation);
-  obj->set_column_type_utf8("FIXME");
+  obj->set_data_type_utf8("FIXME");
   return thd->dd_client()->store(obj.get());
 }
 

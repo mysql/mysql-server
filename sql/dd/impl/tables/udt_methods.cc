@@ -29,6 +29,7 @@
 #include "mysql/strings/m_ctype.h"
 #include "sql/dd/impl/raw/object_keys.h"  // Parent_id_range_key
 #include "sql/dd/impl/raw/raw_record.h"
+#include "sql/dd/impl/tables/builtin_type_enum.h"
 #include "sql/dd/impl/tables/dd_properties.h"  // TARGET_DD_VERSION
 #include "sql/dd/impl/types/object_table_definition_impl.h"
 #include "sql/dd/impl/types/udt_method_impl.h"  // dd::UDT_Method_impl
@@ -68,6 +69,9 @@ UDT_Methods::UDT_Methods() {
   m_target_def.add_field(FIELD_IS_CONSTRUCTOR, "FIELD_IS_CONSTRUCTOR",
                          "is_constructor BOOL");
 
+  m_target_def.add_field(FIELD_DATA_TYPE, "FIELD_DATA_TYPE",
+                         "data_type " MYSQL_TYPE_ENUM_STRING " NOT NULL");
+
   m_target_def.add_field(FIELD_IS_UNSIGNED, "FIELD_IS_UNSIGNED",
                          "is_unsigned BOOL");
   m_target_def.add_field(FIELD_CHAR_MAX_LENGTH, "FIELD_CHAR_MAX_LENGTH",
@@ -88,6 +92,21 @@ UDT_Methods::UDT_Methods() {
 
   m_target_def.add_field(FIELD_RETURN_TYPE_ID, "FIELD_RETURN_TYPE_ID",
                          "return_type_id BIGINT UNSIGNED NULL");
+
+  m_target_def.add_field(FIELD_DATA_TYPE_UTF8, "FIELD_DATA_TYPE_UTF8",
+                         "data_type_utf8 MEDIUMTEXT NOT NULL");
+
+  m_target_def.add_field(FIELD_IS_DETERMINISTIC, "FIELD_IS_DETERMINISTIC",
+                         "is_deterministic BOOL");
+
+  m_target_def.add_field(
+      FIELD_SQL_DATA_ACCESS, "FIELD_SQL_DATA_ACCESS",
+      "sql_data_access "
+      "ENUM('NO_SQL', 'CONTAINS_SQL', 'READS_SQL', 'MODIFIES_SQL') "
+      "NOT NULL");
+
+  m_target_def.add_field(FIELD_IS_NULL_CALL, "FIELD_IS_NULL_CALL",
+                         "is_null_call BOOL");
 
   m_target_def.add_field(FIELD_CREATED, "FIELD_CREATED",
                          "created TIMESTAMP NOT NULL");

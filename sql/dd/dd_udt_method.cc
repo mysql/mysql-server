@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -107,7 +107,8 @@ bool create_udt_method(THD *thd, const dd::UDT_Type &typ_obj,
   std::unique_ptr<dd::UDT_Method> obj(typ_obj.create_udt_method(thd));
 
   bool is_static = (method_call == enum_method_call_option::STATIC_METHOD);
-  bool is_constructor = (method_call == enum_method_call_option::CONSTRUCTOR_METHOD);
+  bool is_constructor =
+      (method_call == enum_method_call_option::CONSTRUCTOR_METHOD);
 
   obj->set_is_static(is_static);
   obj->set_is_overriding(false);

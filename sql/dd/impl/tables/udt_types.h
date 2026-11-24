@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -53,7 +53,7 @@ class UDT_Types : public Entity_object_table_impl {
     FIELD_ID,
     FIELD_SCHEMA_ID,
     FIELD_NAME,
-    FIELD_TYPE,
+    FIELD_DATA_TYPE,
     FIELD_TYPE_CATEGORY,
     FIELD_IS_INSTANTIABLE,
     FIELD_IS_FINAL,
@@ -67,7 +67,7 @@ class UDT_Types : public Entity_object_table_impl {
     FIELD_NUMERIC_SCALE,
     FIELD_DATETIME_PRECISION,
     FIELD_COLLATION_ID,
-    FIELD_COLUMN_TYPE_UTF8,
+    FIELD_DATA_TYPE_UTF8,
     FIELD_IS_EXPLICIT_COLLATION,
     FIELD_LAST_ALTERED,
     FIELD_CREATED,

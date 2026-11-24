@@ -101,11 +101,9 @@ UDT_Methods::UDT_Methods() {
   m_target_def.add_field(FIELD_IS_CONSTRUCTOR, "IS_CONSTRUCTOR",
                          "met.is_constructor");
 
-#ifdef LATER
   m_target_def.add_field(
       FIELD_DATA_TYPE, "DATA_TYPE",
-      "SUBSTRING_INDEX(SUBSTRING_INDEX(met.column_type_utf8, '(', 1),' ', 1)");
-#endif
+      "SUBSTRING_INDEX(SUBSTRING_INDEX(met.data_type_utf8, '(', 1),' ', 1)");
 
   m_target_def.add_field(FIELD_CHARACTER_MAXIMUM_LENGTH,
                          "CHARACTER_MAXIMUM_LENGTH", "met.char_max_length");
@@ -134,6 +132,13 @@ UDT_Methods::UDT_Methods() {
   m_target_def.add_field(FIELD_RESULT_UDT_NAME, "RESULT_UDT_NAME",
                          "result_typ.name" + m_target_def.fs_name_collation());
 #endif
+
+  m_target_def.add_field(FIELD_IS_DETERMINISTIC, "IS_DETERMINISTIC",
+                         "met.is_deterministic");
+  m_target_def.add_field(FIELD_SQL_DATA_ACCESS, "SQL_DATA_ACCESS",
+                         "met.sql_data_access");
+  m_target_def.add_field(FIELD_IS_NULL_CALL, "IS_NULL_CALL",
+                         "met.is_null_call");
 
   m_target_def.add_from("mysql.method_specifications met");
 

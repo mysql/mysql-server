@@ -57,6 +57,7 @@ class UDT_Methods : public Entity_object_table_impl {
     FIELD_IS_STATIC,
     FIELD_IS_OVERRIDING,
     FIELD_IS_CONSTRUCTOR,
+    FIELD_DATA_TYPE,
     FIELD_IS_UNSIGNED,
     FIELD_CHAR_MAX_LENGTH,
     FIELD_CHAR_OCTET_LENGTH,
@@ -66,8 +67,12 @@ class UDT_Methods : public Entity_object_table_impl {
     FIELD_COLLATION_ID,
     FIELD_IS_EXPLICIT_COLLATION,
     FIELD_RETURN_TYPE_ID,
-    FIELD_LAST_ALTERED,
+    FIELD_DATA_TYPE_UTF8,
+    FIELD_IS_DETERMINISTIC,
+    FIELD_SQL_DATA_ACCESS,
+    FIELD_IS_NULL_CALL,
     FIELD_CREATED,
+    FIELD_LAST_ALTERED,
     NUMBER_OF_FIELDS  // Always keep this entry at the end of the enum
   };
 

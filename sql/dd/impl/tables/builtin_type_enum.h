@@ -83,8 +83,8 @@
   "  'MYSQL_TYPE_LONG_BLOB',\n"   \
   "  'MYSQL_TYPE_BLOB',\n"        \
   "  'MYSQL_TYPE_VAR_STRING',\n"  \
-  "  'MYSQL_TYPE_GEOMETRY,'\n"    \
-  "  'MYSQL_TYPE_JSON,'\n"        \
+  "  'MYSQL_TYPE_GEOMETRY',\n"    \
+  "  'MYSQL_TYPE_JSON',\n"        \
   "  'MYSQL_TYPE_VECTOR'\n"       \
   ")"
 

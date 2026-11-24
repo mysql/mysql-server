@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -60,8 +60,7 @@ UDT_Types::UDT_Types() {
                          "name VARCHAR(64) NOT NULL COLLATE " +
                              String_type(name_collation()->m_coll_name));
 
-  // FIXME: revise enum
-  m_target_def.add_field(FIELD_TYPE, "FIELD_TYPE",
+  m_target_def.add_field(FIELD_DATA_TYPE, "FIELD_DATA_TYPE",
                          "data_type " MYSQL_BUILTIN_TYPE_ENUM_STRING
                          " NOT NULL");
 
@@ -102,8 +101,8 @@ UDT_Types::UDT_Types() {
                          "datetime_precision INT UNSIGNED");
   m_target_def.add_field(FIELD_COLLATION_ID, "FIELD_COLLATION_ID",
                          "collation_id BIGINT UNSIGNED");
-  m_target_def.add_field(FIELD_COLUMN_TYPE_UTF8, "FIELD_COLUMN_TYPE_UTF8",
-                         "column_type_utf8 MEDIUMTEXT NOT NULL");
+  m_target_def.add_field(FIELD_DATA_TYPE_UTF8, "FIELD_DATA_TYPE_UTF8",
+                         "data_type_utf8 MEDIUMTEXT NOT NULL");
   m_target_def.add_field(FIELD_IS_EXPLICIT_COLLATION,
                          "FIELD_IS_EXPLICIT_COLLATION",
                          "is_explicit_collation BOOL");

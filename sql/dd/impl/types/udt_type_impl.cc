@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -62,7 +62,7 @@ UDT_Type_impl::UDT_Type_impl()
     : m_type_category(enum_udt_type_category::DISTINCT),
       m_is_instantiable(false),
       m_is_final(false),
-      m_type(enum_column_builtin_types::LONG),
+      m_data_type(enum_column_builtin_types::LONG),
       m_ordering_form(NO_ORDER),
       m_ordering_category(NO_CATEGORY),
       m_ordering_method_id(INVALID_OBJECT_ID),
@@ -76,6 +76,7 @@ UDT_Type_impl::UDT_Type_impl()
       m_datetime_precision_null(true),
       m_collation_id(INVALID_OBJECT_ID),
       m_is_explicit_collation(false),
+      m_data_type_utf8(),
       m_created(0),
       m_last_altered(0) {}
 
@@ -94,7 +95,8 @@ bool UDT_Type_impl::restore_attributes(const Raw_record &r) {
       (enum_udt_type_category)r.read_int(UDT_Types::FIELD_TYPE_CATEGORY);
   m_is_instantiable = r.read_bool(UDT_Types::FIELD_IS_INSTANTIABLE);
   m_is_final = r.read_bool(UDT_Types::FIELD_IS_FINAL);
-  m_type = (enum_column_builtin_types)r.read_int(UDT_Types::FIELD_TYPE);
+  m_data_type =
+      (enum_column_builtin_types)r.read_int(UDT_Types::FIELD_DATA_TYPE);
   m_ordering_form =
       (enum_ordering_form)r.read_int(UDT_Types::FIELD_ORDERING_FORM);
   m_ordering_category =
@@ -109,7 +111,7 @@ bool UDT_Type_impl::restore_attributes(const Raw_record &r) {
   m_datetime_precision = r.read_uint(UDT_Types::FIELD_DATETIME_PRECISION);
   m_datetime_precision_null = r.is_null(UDT_Types::FIELD_DATETIME_PRECISION);
   m_is_explicit_collation = r.read_bool(UDT_Types::FIELD_IS_EXPLICIT_COLLATION);
-  m_column_type_utf8 = r.read_str(UDT_Types::FIELD_COLUMN_TYPE_UTF8);
+  m_data_type_utf8 = r.read_str(UDT_Types::FIELD_DATA_TYPE_UTF8);
 
   m_last_altered = r.read_int(UDT_Types::FIELD_LAST_ALTERED);
   m_created = r.read_int(UDT_Types::FIELD_CREATED);
@@ -128,7 +130,7 @@ bool UDT_Type_impl::store_attributes(Raw_record *r) {
                   static_cast<int>(m_type_category)) ||
          r->store(UDT_Types::FIELD_IS_INSTANTIABLE, m_is_instantiable) ||
          r->store(UDT_Types::FIELD_IS_FINAL, m_is_final) ||
-         r->store(UDT_Types::FIELD_TYPE, static_cast<int>(m_type)) ||
+         r->store(UDT_Types::FIELD_DATA_TYPE, static_cast<int>(m_data_type)) ||
          r->store(UDT_Types::FIELD_ORDERING_FORM,
                   static_cast<int>(m_ordering_form)) ||
          r->store(UDT_Types::FIELD_ORDERING_CATEGORY,
@@ -147,7 +149,7 @@ bool UDT_Type_impl::store_attributes(Raw_record *r) {
                   m_datetime_precision_null) ||
          r->store(UDT_Types::FIELD_IS_EXPLICIT_COLLATION,
                   m_is_explicit_collation) ||
-         r->store(UDT_Types::FIELD_COLUMN_TYPE_UTF8, m_column_type_utf8) ||
+         r->store(UDT_Types::FIELD_DATA_TYPE_UTF8, m_data_type_utf8) ||
          r->store(UDT_Types::FIELD_CREATED, m_created) ||
          r->store(UDT_Types::FIELD_LAST_ALTERED, m_last_altered);
 }
@@ -162,7 +164,7 @@ void UDT_Type_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   write_enum(w, m_type_category, STRING_WITH_LEN("type_category"));
   write(w, m_is_instantiable, STRING_WITH_LEN("is_instantiable"));
   write(w, m_is_final, STRING_WITH_LEN("is_final"));
-  write_enum(w, m_type, STRING_WITH_LEN("type"));
+  write_enum(w, m_data_type, STRING_WITH_LEN("data_type"));
   write_enum(w, m_ordering_form, STRING_WITH_LEN("ordering_form"));
   write_enum(w, m_ordering_category, STRING_WITH_LEN("ordering_category"));
   write(w, m_ordering_method_id, STRING_WITH_LEN("ordering_method_id"));
@@ -175,7 +177,7 @@ void UDT_Type_impl::serialize(Sdi_wcontext *wctx, Sdi_writer *w) const {
   write(w, m_datetime_precision, STRING_WITH_LEN("datetime_precision"));
   write(w, m_datetime_precision_null,
         STRING_WITH_LEN("datetime_precision_null"));
-  write(w, m_column_type_utf8, STRING_WITH_LEN("column_type_utf8"));
+  write(w, m_data_type_utf8, STRING_WITH_LEN("data_type_utf8"));
   write(w, m_collation_id, STRING_WITH_LEN("collation_id"));
   write(w, m_is_explicit_collation, STRING_WITH_LEN("is_explicit_collation"));
   write(w, m_last_altered, STRING_WITH_LEN("last_altered"));
@@ -190,7 +192,7 @@ bool UDT_Type_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read_enum(&m_type_category, val, "type_category");
   read(&m_is_instantiable, val, "is_instantiable");
   read(&m_is_final, val, "is_final");
-  read_enum(&m_type, val, "type");
+  read_enum(&m_data_type, val, "data_type");
   read_enum(&m_ordering_form, val, "ordering_form");
   read_enum(&m_ordering_category, val, "ordering_category");
   read(&m_ordering_method_id, val, "ordering_method_id");
@@ -202,7 +204,7 @@ bool UDT_Type_impl::deserialize(Sdi_rcontext *rctx, const RJ_Value &val) {
   read(&m_numeric_scale_null, val, "numeric_scale_null");
   read(&m_datetime_precision, val, "datetime_precision");
   read(&m_datetime_precision_null, val, "datetime_precision_null");
-  read(&m_column_type_utf8, val, "column_type_utf8");
+  read(&m_data_type_utf8, val, "data_type_utf8");
   read(&m_collation_id, val, "collation_id");
   read(&m_is_explicit_collation, val, "is_explicit_collation");
   read(&m_last_altered, val, "last_altered");

@@ -19,7 +19,7 @@ user_defined_types	CREATE TABLE `user_defined_types` (
   `numeric_scale` int unsigned DEFAULT NULL,
   `datetime_precision` int unsigned DEFAULT NULL,
   `collation_id` bigint unsigned DEFAULT NULL,
-  `column_type_utf8` mediumtext COLLATE utf8mb3_bin NOT NULL,
+  `data_type_utf8` mediumtext COLLATE utf8mb3_bin NOT NULL,
   `is_explicit_collation` tinyint(1) DEFAULT NULL,
   `last_altered` timestamp NOT NULL,
   `created` timestamp NOT NULL,
@@ -39,6 +39,7 @@ method_specifications	CREATE TABLE `method_specifications` (
   `is_static` tinyint(1) DEFAULT NULL,
   `is_overriding` tinyint(1) DEFAULT NULL,
   `is_constructor` tinyint(1) DEFAULT NULL,
+  `data_type` enum('MYSQL_TYPE_DECIMAL','MYSQL_TYPE_TINY','MYSQL_TYPE_SHORT','MYSQL_TYPE_LONG','MYSQL_TYPE_FLOAT','MYSQL_TYPE_DOUBLE','MYSQL_TYPE_TIMESTAMP','MYSQL_TYPE_LONGLONG','MYSQL_TYPE_INT24','MYSQL_TYPE_DATE','MYSQL_TYPE_TIME','MYSQL_TYPE_DATETIME','MYSQL_TYPE_YEAR','MYSQL_TYPE_NEWDATE','MYSQL_TYPE_VARCHAR','MYSQL_TYPE_BIT','MYSQL_TYPE_TIMESTAMP2','MYSQL_TYPE_DATETIME2','MYSQL_TYPE_TIME2','MYSQL_TYPE_NEWDECIMAL','MYSQL_TYPE_ENUM','MYSQL_TYPE_SET','MYSQL_TYPE_TINY_BLOB','MYSQL_TYPE_MEDIUM_BLOB','MYSQL_TYPE_LONG_BLOB','MYSQL_TYPE_BLOB','MYSQL_TYPE_VAR_STRING','MYSQL_TYPE_GEOMETRY','MYSQL_TYPE_JSON','MYSQL_TYPE_VECTOR') COLLATE utf8mb3_bin NOT NULL,
   `is_unsigned` tinyint(1) DEFAULT NULL,
   `char_max_length` int unsigned DEFAULT NULL,
   `char_octet_length` int unsigned DEFAULT NULL,
@@ -48,8 +49,12 @@ method_specifications	CREATE TABLE `method_specifications` (
   `collation_id` bigint unsigned DEFAULT NULL,
   `is_explicit_collation` tinyint(1) DEFAULT NULL,
   `return_type_id` bigint unsigned DEFAULT NULL,
-  `last_altered` timestamp NOT NULL,
+  `data_type_utf8` mediumtext COLLATE utf8mb3_bin NOT NULL,
+  `is_deterministic` tinyint(1) DEFAULT NULL,
+  `sql_data_access` enum('NO_SQL','CONTAINS_SQL','READS_SQL','MODIFIES_SQL') COLLATE utf8mb3_bin NOT NULL,
+  `is_null_call` tinyint(1) DEFAULT NULL,
   `created` timestamp NOT NULL,
+  `last_altered` timestamp NOT NULL,
   PRIMARY KEY (`id`),
   UNIQUE KEY `type_id` (`type_id`,`name`),
   CONSTRAINT `method_specifications_ibfk_1` FOREIGN KEY (`type_id`) REFERENCES `user_defined_types` (`id`)
@@ -105,6 +110,7 @@ METHOD_NAME	varchar(64)	NO		NULL
 IS_STATIC	tinyint(1)	YES		NULL	
 IS_OVERRIDING	tinyint(1)	YES		NULL	
 IS_CONSTRUCTOR	tinyint(1)	YES		NULL	
+DATA_TYPE	longtext	YES		NULL	
 CHARACTER_MAXIMUM_LENGTH	int unsigned	YES		NULL	
 CHARACTER_OCTET_LENGTH	int unsigned	YES		NULL	
 CHARACTER_SET_NAME	varchar(64)	YES		NULL	
@@ -112,6 +118,9 @@ COLLATION_NAME	varchar(64)	YES		NULL
 NUMERIC_PRECISION	bigint unsigned	YES		NULL	
 NUMERIC_SCALE	bigint unsigned	YES		NULL	
 DATETIME_PRECISION	int unsigned	YES		NULL	
+IS_DETERMINISTIC	tinyint(1)	YES		NULL	
+SQL_DATA_ACCESS	enum('NO_SQL','CONTAINS_SQL','READS_SQL','MODIFIES_SQL')	NO		NULL	
+IS_NULL_CALL	tinyint(1)	YES		NULL	
 DESCRIBE INFORMATION_SCHEMA.METHOD_SPECIFICATION_PARAMETERS;
 Field	Type	Null	Key	Default	Extra
 UDT_CATALOG	varchar(64)	NO		NULL	

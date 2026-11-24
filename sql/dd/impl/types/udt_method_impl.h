@@ -1,4 +1,4 @@
-/* Copyright (c) 2016, 2026, Oracle and/or its affiliates.
+/* Copyright (c) 2026, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License, version 2.0,
@@ -209,6 +209,47 @@ class UDT_Method_impl : public Entity_object_impl, public UDT_Method {
     m_return_type_id = return_type_id;
   }
 
+  enum_column_types data_type() const override { return m_data_type; }
+  void set_data_type(enum_column_types data_type) override {
+    m_data_type = data_type;
+  }
+
+  const String_type &data_type_utf8() const override {
+    return m_data_type_utf8;
+  }
+  void set_data_type_utf8(const String_type &data_type_utf8) override {
+    m_data_type_utf8 = data_type_utf8;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_deterministic.
+  /////////////////////////////////////////////////////////////////////////
+
+  bool is_deterministic() const override { return m_is_deterministic; }
+  void set_is_deterministic(bool is_deterministic) override {
+    m_is_deterministic = is_deterministic;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // sql_data_access.
+  /////////////////////////////////////////////////////////////////////////
+
+  enum_sql_data_access sql_data_access() const override {
+    return m_sql_data_access;
+  }
+  void set_sql_data_access(enum_sql_data_access sql_data_access) override {
+    m_sql_data_access = sql_data_access;
+  }
+
+  /////////////////////////////////////////////////////////////////////////
+  // is_null_call.
+  /////////////////////////////////////////////////////////////////////////
+
+  bool is_null_call() const override { return m_is_null_call; }
+  void set_is_null_call(bool is_null_call) override {
+    m_is_null_call = is_null_call;
+  }
+
   /////////////////////////////////////////////////////////////////////////
   // created
   /////////////////////////////////////////////////////////////////////////
@@ -268,6 +309,7 @@ class UDT_Method_impl : public Entity_object_impl, public UDT_Method {
   bool m_is_static;
   bool m_is_overriding;
   bool m_is_constructor;
+  enum_column_types m_data_type;
 
   bool m_is_unsigned;
   size_t m_char_max_length;
@@ -278,10 +320,14 @@ class UDT_Method_impl : public Entity_object_impl, public UDT_Method {
   uint m_datetime_precision;
   uint m_datetime_precision_null;
 
-  Object_id m_return_type_id;
-
   Object_id m_collation_id;
   bool m_is_explicit_collation;
+
+  Object_id m_return_type_id;
+  String_type m_data_type_utf8;
+  bool m_is_deterministic;
+  enum_sql_data_access m_sql_data_access;
+  bool m_is_null_call;
 
   ulonglong m_created;
   ulonglong m_last_altered;
