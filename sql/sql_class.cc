@@ -29,6 +29,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <openssl/ssl.h>
 #include <algorithm>
 #include <utility>
 
@@ -3289,6 +3290,25 @@ void THD::cleanup_after_parse_error() {
 bool THD::is_classic_protocol() const {
   return get_protocol()->type() == Protocol::PROTOCOL_BINARY ||
          get_protocol()->type() == Protocol::PROTOCOL_TEXT;
+}
+
+LEX_CSTRING THD::get_tls_version() const {
+  if (!m_external_tls_version.empty())
+    return {m_external_tls_version.c_str(), m_external_tls_version.length()};
+
+  /*
+    m_SSL is only published after authentication (see check_connection()),
+    so fall back to the connection Vio, e.g. for the CONNECT audit event.
+  */
+  SSL_handle ssl = get_ssl();
+  if (ssl == nullptr && net.vio != nullptr)
+    ssl = static_cast<SSL_handle>(net.vio->ssl_arg);
+  if (ssl != nullptr) {
+    /* SSL_get_version() returns a pointer to a static string. */
+    const char *version = SSL_get_version(ssl);
+    if (version != nullptr) return {version, strlen(version)};
+  }
+  return {"", 0};
 }
 
 bool THD::is_connected(bool use_cached_connection_alive) {

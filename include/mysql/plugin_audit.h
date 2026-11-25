@@ -40,7 +40,12 @@
 #include "my_sqlcommand.h"
 #include "plugin_audit_message_types.h"
 
-#define MYSQL_AUDIT_INTERFACE_VERSION 0x0401
+/*
+  0x0500: Added port and tls_version to mysql_event_connection. The major
+  version is bumped so that plugins built against this header, which read the
+  new fields, are rejected by servers that do not provide them.
+*/
+#define MYSQL_AUDIT_INTERFACE_VERSION 0x0500
 
 /**
  @enum mysql_event_class_t
@@ -185,6 +190,10 @@ struct mysql_event_connection {
         - 5 Shared memory
   */
   int connection_type;
+  /** Client TCP port number. */
+  unsigned int port;
+  /** TLS version used for this connection. */
+  MYSQL_LEX_CSTRING tls_version;
 };
 
 /**

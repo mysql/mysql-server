@@ -184,6 +184,12 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::get,
         }(t->get_stmt_da()->status());
       } else if (!strcmp(name, "is_global_read_lock_acquired")) {
         *((bool *)inout_pvalue) = t->global_read_lock.is_acquired();
+      } else if (!strcmp(name, "peer_port")) {
+        *((uint16_t *)inout_pvalue) = t->peer_port;
+      } else if (!strcmp(name, "tls_version")) {
+        const LEX_CSTRING tls_version = t->get_tls_version();
+        *((mysql_cstring_with_length *)inout_pvalue) = {tls_version.str,
+                                                        tls_version.length};
       } else
         return true; /* invalid option */
     }
@@ -207,6 +213,14 @@ DEFINE_BOOL_METHOD(mysql_thd_attributes_imp::set,
           t->get_stmt_da()->reset_diagnostics_area();
           t->get_stmt_da()->reset_condition_info(t);
         }
+      } else if (!strcmp(name, "tls_version")) {
+        const auto *tls_version =
+            static_cast<const mysql_cstring_with_length *>(inout_pvalue);
+        if (tls_version->str == nullptr)
+          t->m_external_tls_version.clear();
+        else
+          t->m_external_tls_version.assign(tls_version->str,
+                                           tls_version->length);
       }
       return false;
     }

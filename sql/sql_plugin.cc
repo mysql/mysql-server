@@ -398,6 +398,13 @@ static const char *plugin_declarations_sym = "_mysql_plugin_declarations_";
 static int min_plugin_interface_version =
     MYSQL_PLUGIN_INTERFACE_VERSION & ~0xFF;
 
+/*
+  Audit plugins built against the 0x04xx audit API are still accepted: the
+  0x0500 API only appended fields to the end of mysql_event_connection, which
+  such plugins never read.
+*/
+static constexpr int MYSQL_AUDIT_MIN_INTERFACE_VERSION = 0x0401;
+
 /* Note that 'int version' must be the first field of every plugin
    sub-structure (plugin->info).
 */
@@ -407,7 +414,7 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM] = {
     MYSQL_FTPARSER_INTERFACE_VERSION,
     MYSQL_DAEMON_INTERFACE_VERSION,
     MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
-    MYSQL_AUDIT_INTERFACE_VERSION,
+    MYSQL_AUDIT_MIN_INTERFACE_VERSION,
     MYSQL_REPLICATION_INTERFACE_VERSION,
     MYSQL_AUTHENTICATION_INTERFACE_VERSION,
     MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION,

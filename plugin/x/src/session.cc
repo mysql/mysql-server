@@ -43,6 +43,7 @@
 #include "plugin/x/src/ngs/scheduler.h"
 #include "plugin/x/src/notices.h"
 #include "plugin/x/src/sql_data_context.h"
+#include "plugin/x/src/ssl_session_options.h"
 #include "plugin/x/src/xpl_dispatcher.h"
 #include "plugin/x/src/xpl_error.h"
 #include "plugin/x/src/xpl_log.h"
@@ -363,7 +364,18 @@ ngs::Error_code Session::init() {
   const unsigned short port = m_client->client_port();
   const Connection_type type = m_client->connection().get_type();
 
-  return m_sql.init(port, type);
+  ngs::Error_code error = m_sql.init(port, type);
+  if (error) return error;
+
+  /*
+    A session can be recreated on a connection that already completed the
+    TLS handshake (e.g. after Mysqlx.Session.Reset with keep_open=false or
+    Mysqlx.Session.Close), in which case mark_as_tls_session() is not called
+    again for the new session.
+  */
+  if (type == Connection_tls) update_tls_version();
+
+  return ngs::Success();
 }
 
 void Session::on_kill() {
@@ -388,6 +400,15 @@ void Session::on_reset() {
 
 void Session::mark_as_tls_session() {
   data_context().set_connection_type(Connection_tls);
+  update_tls_version();
+}
+
+void Session::update_tls_version() {
+  const std::string tls_version =
+      Ssl_session_options(&m_client->connection()).ssl_version();
+  const ngs::Error_code error = m_sql.set_tls_version(tls_version);
+  if (error)
+    log_debug("%s: %s", m_client->client_id(), error.message.c_str());
 }
 
 /** Checks whether things owned by the given user are visible to this session.
