@@ -27,6 +27,10 @@ IF(NOT WIX_DIR)
   RETURN()
 ENDIF()
 
+INCLUDE(${CMAKE_CURRENT_LIST_DIR}/msi_version.cmake)
+MYSQL_COMPUTE_MSI_VERSION(MYSQL_MSI
+  "${MAJOR_VERSION}" "${MINOR_VERSION}" "${PATCH_VERSION}" "${UPDATE_VERSION}")
+
 # WiX wants the license text as rtf; if there is no rtf license, 
 # we create a fake one from the plain text LICENSE file.
 CREATE_WIX_LICENCE_AND_RTF("${CMAKE_SOURCE_DIR}/LICENSE")
