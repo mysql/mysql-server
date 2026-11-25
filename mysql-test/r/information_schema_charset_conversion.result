@@ -1,0 +1,74 @@
+#
+# Reading INFORMATION_SCHEMA.PROCESSLIST, INFORMATION_SCHEMA.INNODB_TRX
+# and INFORMATION_SCHEMA.OPTIMIZER_TRACE must not fail when a statement
+# text can't be converted to the utf8mb3 character set of the column.
+# Unconvertible characters are replaced by '?' with a warning.
+#
+SET NAMES utf8mb4;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+SET NAMES utf8mb4;
+# Another session runs a statement that contains a supplementary
+# character, which is valid utf8mb4 but has no utf8mb3 representation.
+SELECT GET_LOCK('processlist_charset', 0);
+GET_LOCK('processlist_charset', 0)
+1
+BEGIN;
+INSERT INTO t1 VALUES (1);
+SELECT GET_LOCK('processlist_charset', 600) AS l, '😀' AS c;
+SELECT INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = <con1_id>;
+INFO
+SELECT GET_LOCK('processlist_charset', 600) AS l, '?' AS c
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+Warning	1366	Incorrect string value: '\xF0\x9F\x98\x80' ...' for column 'INFO' at row 1
+SELECT trx_query FROM INFORMATION_SCHEMA.INNODB_TRX
+WHERE trx_mysql_thread_id = <con1_id>;
+trx_query
+SELECT GET_LOCK('processlist_charset', 600) AS l, '?' AS c
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9F\x98\x80' ...' for column 'trx_query' at row 1
+SELECT RELEASE_LOCK('processlist_charset');
+RELEASE_LOCK('processlist_charset')
+1
+l	c
+1	😀
+SELECT RELEASE_LOCK('processlist_charset');
+RELEASE_LOCK('processlist_charset')
+1
+COMMIT;
+# Another session runs a statement that contains a binary string
+# literal which is not valid utf8mb4, as sent by client libraries
+# that inline binary parameter values.
+SELECT GET_LOCK('processlist_charset', 0);
+GET_LOCK('processlist_charset', 0)
+1
+SELECT GET_LOCK('processlist_charset', 600) AS l, LENGTH(_binary'<0x9D86BA318DFB>') AS c;
+SELECT INFO FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = <con1_id>;
+INFO
+SELECT GET_LOCK('processlist_charset', 600) AS l, LENGTH(_binary'???1??') AS c
+Warnings:
+Warning	1287	'INFORMATION_SCHEMA.PROCESSLIST' is deprecated and will be removed in a future release. Please use performance_schema.processlist instead
+Warning	1366	Incorrect string value: '\x9D\x86\xBA1\x8D\xFB...' for column 'INFO' at row 1
+SELECT RELEASE_LOCK('processlist_charset');
+RELEASE_LOCK('processlist_charset')
+1
+l	c
+1	6
+SELECT RELEASE_LOCK('processlist_charset');
+RELEASE_LOCK('processlist_charset')
+1
+# The optimizer trace of a statement that contains a supplementary
+# character.
+SET optimizer_trace = 'enabled=on';
+SELECT '😀' AS c;
+c
+😀
+Warnings:
+Warning	1300	Cannot convert string '\xF0\x9F\x98\x80' from utf8mb4 to utf8mb3
+SELECT QUERY FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+QUERY
+SELECT '?' AS c
+Warnings:
+Warning	1366	Incorrect string value: '\xF0\x9F\x98\x80' ...' for column 'QUERY' at row 1
+SET optimizer_trace = 'enabled=off';
+DROP TABLE t1;

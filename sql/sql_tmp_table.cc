@@ -1018,8 +1018,11 @@ TABLE *create_tmp_table(THD *thd, Temp_table_param *param,
     free_tmp_table(table);
   });
 
-  // All character set conversions into temporary tables are strict:
-  table->m_charset_conversion_is_strict = true;
+  // All character set conversions into temporary tables are strict, except
+  // for INFORMATION_SCHEMA tables (which can be filled with the
+  // statement text of other sessions, which is not necessarily
+  // convertible to the character set of the I_S column).
+  table->m_charset_conversion_is_strict = !param->schema_table;
 
   /*
     We will use TABLE_SHARE's MEM_ROOT for all allocations, so TABLE's
