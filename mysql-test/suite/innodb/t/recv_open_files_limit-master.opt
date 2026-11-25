@@ -1,0 +1,8 @@
+--innodb-buffer-pool-size=1G
+--innodb-redo-log-capacity=1G
+--innodb-adaptive-flushing=OFF
+--innodb-max-dirty-pages-pct=99
+--innodb-max-dirty-pages-pct-lwm=0
+--innodb-io-capacity=100
+--innodb-io-capacity-max=100
+--innodb-lru-scan-depth=128
