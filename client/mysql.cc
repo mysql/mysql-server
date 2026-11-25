@@ -3495,8 +3495,9 @@ static int com_server_help(String *buffer [[maybe_unused]],
   if (result) {
     const unsigned int num_fields = mysql_num_fields(result);
     const uint64_t num_rows = mysql_num_rows(result);
-    mysql_fetch_fields(result);
-    if (num_fields == 3 && num_rows == 1) {
+    MYSQL_FIELD *fields = mysql_fetch_fields(result);
+    if (num_fields == 3 && num_rows == 1 &&
+        strcmp(fields[0].name, "name") == 0) {
       cur = mysql_fetch_row(result);
       if (!cur) {
         error = -1;
