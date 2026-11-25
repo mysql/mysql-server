@@ -1723,6 +1723,120 @@ innodb_table_stats=
        table_id=3
        trx_id=0
        space_id=1
+method_specification_parameters=
+  col0=table_id=35
+  col1=table_id=35
+  col10=table_id=35
+  col11=table_id=35
+  col12=table_id=35
+  col13=table_id=35
+  col14=table_id=35
+  col15=table_id=35
+  col16=table_id=35
+  col17=table_id=35
+  col2=table_id=35
+  col3=table_id=35
+  col4=table_id=35
+  col5=table_id=35
+  col6=table_id=35
+  col7=table_id=35
+  col8=table_id=35
+  col9=table_id=35
+  data=autoinc=0
+  version=0
+  def=
+    fields=
+      elem0=def=char_max_length INT UNSIGNED
+            lbl=FIELD_CHAR_MAX_LENGTH
+            pos=7
+      elem1=def=char_octet_length INT UNSIGNED
+            lbl=FIELD_CHAR_OCTET_LENGTH
+            pos=8
+      elem10=def=method_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_METHOD_ID
+            pos=1
+      elem11=def=mode ENUM('IN','OUT','INOUT')
+            lbl=FIELD_MODE
+            pos=3
+      elem12=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
+            lbl=FIELD_NAME
+            pos=4
+      elem13=def=numeric_precision INT UNSIGNED
+            lbl=FIELD_NUMERIC_PRECISION
+            pos=9
+      elem14=def=numeric_scale INT UNSIGNED
+            lbl=FIELD_NUMERIC_SCALE
+            pos=10
+      elem15=def=ordinal_position INT UNSIGNED NOT NULL
+            lbl=FIELD_ORDINAL_POSITION
+            pos=2
+      elem2=def=collation_id BIGINT UNSIGNED
+            lbl=FIELD_COLLATION_ID
+            pos=12
+      elem3=def=created TIMESTAMP NOT NULL
+            lbl=FIELD_CREATED
+            pos=14
+      elem4=def=datetime_precision INT UNSIGNED
+            lbl=FIELD_DATETIME_PRECISION
+            pos=11
+      elem5=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem6=def=is_explicit_collation BOOL
+            lbl=FIELD_IS_EXPLICIT_COLLATION
+            pos=13
+      elem7=def=is_result BOOL
+            lbl=FIELD_IS_RESULT
+            pos=5
+      elem8=def=is_unsigned BOOL
+            lbl=FIELD_IS_UNSIGNED
+            pos=6
+      elem9=def=last_altered TIMESTAMP NOT NULL
+            lbl=FIELD_LAST_ALTERED
+            pos=15
+    foreign_keys=
+      elem0=def=FOREIGN KEY (method_id) REFERENCES method_specifications(id)
+            lbl=FK_METHOD_ID
+            pos=0
+    indexes=
+      elem0=def=PRIMARY KEY (id)
+            lbl=INDEX_PK_ID
+            pos=0
+      elem1=def=UNIQUE KEY (method_id, name)
+            lbl=INDEX_UK_METHOD_ID_NAME
+            pos=1
+    name=method_specification_parameters
+    options=
+      elem0=def=DEFAULT CHARSET=utf8mb3
+            lbl=CHARSET
+            pos=1
+      elem1=def=COLLATE=utf8mb3_bin
+            lbl=COLLATION
+            pos=2
+      elem2=def=ENGINE=INNODB
+            lbl=ENGINE
+            pos=0
+      elem3=def=ROW_FORMAT=DYNAMIC
+            lbl=ROW_FORMAT
+            pos=3
+      elem4=def=STATS_PERSISTENT=0
+            lbl=STATS_PERSISTENT
+            pos=4
+      elem5=def=TABLESPACE=mysql
+            lbl=TABLESPACE
+            pos=5
+  id=35
+  idx0=id=104
+       root=109
+       space_id=4294967294
+       table_id=35
+       trx_id=0
+  idx1=id=105
+       root=110
+       space_id=4294967294
+       table_id=35
+       trx_id=0
+       space_id=1
 method_specifications=
   col0=table_id=34
   col1=table_id=34
@@ -1737,6 +1851,11 @@ method_specifications=
   col18=table_id=34
   col19=table_id=34
   col2=table_id=34
+  col20=table_id=34
+  col21=table_id=34
+  col22=table_id=34
+  col23=table_id=34
+  col24=table_id=34
   col3=table_id=34
   col4=table_id=34
   col5=table_id=34
@@ -1750,60 +1869,106 @@ method_specifications=
     fields=
       elem0=def=char_max_length INT UNSIGNED
             lbl=FIELD_CHAR_MAX_LENGTH
-            pos=8
+            pos=9
       elem1=def=char_octet_length INT UNSIGNED
             lbl=FIELD_CHAR_OCTET_LENGTH
-            pos=9
-      elem10=def=is_unsigned BOOL
-            lbl=FIELD_IS_UNSIGNED
-            pos=7
-      elem11=def=last_altered TIMESTAMP NOT NULL
-            lbl=FIELD_LAST_ALTERED
-            pos=16
-      elem12=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
-            lbl=FIELD_NAME
-            pos=2
-      elem13=def=numeric_precision INT UNSIGNED
-            lbl=FIELD_NUMERIC_PRECISION
             pos=10
-      elem14=def=numeric_scale INT UNSIGNED
-            lbl=FIELD_NUMERIC_SCALE
-            pos=11
-      elem15=def=return_type_id BIGINT UNSIGNED NULL
-            lbl=FIELD_RETURN_TYPE_ID
-            pos=15
-      elem16=def=specific_name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
-            lbl=FIELD_SPECIFIC_NAME
-            pos=3
-      elem17=def=type_id BIGINT UNSIGNED NOT NULL
-            lbl=FIELD_TYPE_ID
-            pos=1
-      elem2=def=collation_id BIGINT UNSIGNED
-            lbl=FIELD_COLLATION_ID
-            pos=13
-      elem3=def=created TIMESTAMP NOT NULL
-            lbl=FIELD_CREATED
-            pos=17
-      elem4=def=datetime_precision INT UNSIGNED
-            lbl=FIELD_DATETIME_PRECISION
-            pos=12
-      elem5=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
-            lbl=FIELD_ID
-            pos=0
-      elem6=def=is_constructor BOOL
-            lbl=FIELD_IS_CONSTRUCTOR
-            pos=6
-      elem7=def=is_explicit_collation BOOL
+      elem10=def=is_explicit_collation BOOL
             lbl=FIELD_IS_EXPLICIT_COLLATION
-            pos=14
-      elem8=def=is_overriding BOOL
+            pos=15
+      elem11=def=is_null_call BOOL
+            lbl=FIELD_IS_NULL_CALL
+            pos=20
+      elem12=def=is_overriding BOOL
             lbl=FIELD_IS_OVERRIDING
             pos=5
-      elem9=def=is_static BOOL
+      elem13=def=is_static BOOL
             lbl=FIELD_IS_STATIC
             pos=4
+      elem14=def=is_unsigned BOOL
+            lbl=FIELD_IS_UNSIGNED
+            pos=8
+      elem15=def=last_altered TIMESTAMP NOT NULL
+            lbl=FIELD_LAST_ALTERED
+            pos=22
+      elem16=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
+            lbl=FIELD_NAME
+            pos=2
+      elem17=def=numeric_precision INT UNSIGNED
+            lbl=FIELD_NUMERIC_PRECISION
+            pos=11
+      elem18=def=numeric_scale INT UNSIGNED
+            lbl=FIELD_NUMERIC_SCALE
+            pos=12
+      elem19=def=return_type_id BIGINT UNSIGNED NULL
+            lbl=FIELD_RETURN_TYPE_ID
+            pos=16
+      elem2=def=collation_id BIGINT UNSIGNED
+            lbl=FIELD_COLLATION_ID
+            pos=14
+      elem20=def=specific_name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
+            lbl=FIELD_SPECIFIC_NAME
+            pos=3
+      elem21=def=sql_data_access ENUM('NO_SQL', 'CONTAINS_SQL', 'READS_SQL', 'MODIFIES_SQL') NOT NULL
+            lbl=FIELD_SQL_DATA_ACCESS
+            pos=19
+      elem22=def=type_id BIGINT UNSIGNED NOT NULL
+            lbl=FIELD_TYPE_ID
+            pos=1
+      elem3=def=created TIMESTAMP NOT NULL
+            lbl=FIELD_CREATED
+            pos=21
+      elem4=def=data_type ENUM(
+  'MYSQL_TYPE_DECIMAL',
+  'MYSQL_TYPE_TINY',
+  'MYSQL_TYPE_SHORT',
+  'MYSQL_TYPE_LONG',
+  'MYSQL_TYPE_FLOAT',
+  'MYSQL_TYPE_DOUBLE',
+  'MYSQL_TYPE_TIMESTAMP',
+  'MYSQL_TYPE_LONGLONG',
+  'MYSQL_TYPE_INT24',
+  'MYSQL_TYPE_DATE',
+  'MYSQL_TYPE_TIME',
+  'MYSQL_TYPE_DATETIME',
+  'MYSQL_TYPE_YEAR',
+  'MYSQL_TYPE_NEWDATE',
+  'MYSQL_TYPE_VARCHAR',
+  'MYSQL_TYPE_BIT',
+  'MYSQL_TYPE_TIMESTAMP2',
+  'MYSQL_TYPE_DATETIME2',
+  'MYSQL_TYPE_TIME2',
+  'MYSQL_TYPE_NEWDECIMAL',
+  'MYSQL_TYPE_ENUM',
+  'MYSQL_TYPE_SET',
+  'MYSQL_TYPE_TINY_BLOB',
+  'MYSQL_TYPE_MEDIUM_BLOB',
+  'MYSQL_TYPE_LONG_BLOB',
+  'MYSQL_TYPE_BLOB',
+  'MYSQL_TYPE_VAR_STRING',
+  'MYSQL_TYPE_GEOMETRY',
+  'MYSQL_TYPE_JSON',
+  'MYSQL_TYPE_VECTOR'
+) NOT NULL
+            lbl=FIELD_DATA_TYPE
+            pos=7
+      elem5=def=data_type_utf8 MEDIUMTEXT NOT NULL
+            lbl=FIELD_DATA_TYPE_UTF8
+            pos=17
+      elem6=def=datetime_precision INT UNSIGNED
+            lbl=FIELD_DATETIME_PRECISION
+            pos=13
+      elem7=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+            lbl=FIELD_ID
+            pos=0
+      elem8=def=is_constructor BOOL
+            lbl=FIELD_IS_CONSTRUCTOR
+            pos=6
+      elem9=def=is_deterministic BOOL
+            lbl=FIELD_IS_DETERMINISTIC
+            pos=18
     foreign_keys=
-      elem0=def=FOREIGN KEY (type_id) REFERENCES types(id)
+      elem0=def=FOREIGN KEY (type_id) REFERENCES user_defined_types(id)
             lbl=FK_TYPE_ID
             pos=0
     indexes=
@@ -3471,34 +3636,46 @@ user_defined_types=
       elem1=def=char_octet_length INT UNSIGNED
             lbl=FIELD_CHAR_OCTET_LENGTH
             pos=12
-      elem10=def=is_unsigned BOOL
+      elem10=def=is_instantiable BOOL
+            lbl=FIELD_IS_INSTANTIABLE
+            pos=5
+      elem11=def=is_unsigned BOOL
             lbl=FIELD_IS_UNSIGNED
             pos=10
-      elem11=def=last_altered TIMESTAMP NOT NULL
+      elem12=def=last_altered TIMESTAMP NOT NULL
             lbl=FIELD_LAST_ALTERED
             pos=19
-      elem12=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
+      elem13=def=name VARCHAR(64) NOT NULL COLLATE utf8mb3_general_ci
             lbl=FIELD_NAME
             pos=2
-      elem13=def=numeric_precision INT UNSIGNED
+      elem14=def=numeric_precision INT UNSIGNED
             lbl=FIELD_NUMERIC_PRECISION
             pos=13
-      elem14=def=numeric_scale INT UNSIGNED
+      elem15=def=numeric_scale INT UNSIGNED
             lbl=FIELD_NUMERIC_SCALE
             pos=14
-      elem15=def=ordering_category ENUM('NO_CATEGORY', 'RELATIVE', 'MAP', 'STATE') NOT NULL
+      elem16=def=ordering_category ENUM('NO_CATEGORY', 'RELATIVE', 'MAP', 'STATE') NOT NULL
             lbl=FIELD_ORDERING_CATEGORY
             pos=8
-      elem16=def=ordering_form ENUM('NO_ORDER', 'EQUAL_ONLY', 'ORDER_FULL') NOT NULL
+      elem17=def=ordering_form ENUM('NO_ORDER', 'EQUAL_ONLY', 'ORDER_FULL') NOT NULL
             lbl=FIELD_ORDERING_FORM
             pos=7
-      elem17=def=ordering_method_id BIGINT UNSIGNED NULL
+      elem18=def=ordering_method_id BIGINT UNSIGNED NULL
             lbl=FIELD_ORDERING_METHOD_ID
             pos=9
-      elem18=def=schema_id BIGINT UNSIGNED NOT NULL
+      elem19=def=schema_id BIGINT UNSIGNED NOT NULL
             lbl=FIELD_SCHEMA_ID
             pos=1
-      elem19=def=data_type ENUM(
+      elem2=def=collation_id BIGINT UNSIGNED
+            lbl=FIELD_COLLATION_ID
+            pos=16
+      elem20=def=type_category ENUM('DISTINCT', 'STRUCTURED') NOT NULL
+            lbl=FIELD_TYPE_CATEGORY
+            pos=4
+      elem3=def=created TIMESTAMP NOT NULL
+            lbl=FIELD_CREATED
+            pos=20
+      elem4=def=data_type ENUM(
   'MYSQL_BUILTIN_TYPE_DECIMAL',
   'MYSQL_BUILTIN_TYPE_TINY',
   'MYSQL_BUILTIN_TYPE_SHORT',
@@ -3526,35 +3703,23 @@ user_defined_types=
   'MYSQL_BUILTIN_TYPE_VAR_STRING',
   'MYSQL_BUILTIN_TYPE_STRING'
 ) NOT NULL
-            lbl=FIELD_TYPE
+            lbl=FIELD_DATA_TYPE
             pos=3
-      elem2=def=collation_id BIGINT UNSIGNED
-            lbl=FIELD_COLLATION_ID
-            pos=16
-      elem20=def=type_category ENUM('DISTINCT', 'STRUCTURED') NOT NULL
-            lbl=FIELD_TYPE_CATEGORY
-            pos=4
-      elem3=def=column_type_utf8 MEDIUMTEXT NOT NULL
-            lbl=FIELD_COLUMN_TYPE_UTF8
+      elem5=def=data_type_utf8 MEDIUMTEXT NOT NULL
+            lbl=FIELD_DATA_TYPE_UTF8
             pos=17
-      elem4=def=created TIMESTAMP NOT NULL
-            lbl=FIELD_CREATED
-            pos=20
-      elem5=def=datetime_precision INT UNSIGNED
+      elem6=def=datetime_precision INT UNSIGNED
             lbl=FIELD_DATETIME_PRECISION
             pos=15
-      elem6=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
+      elem7=def=id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT
             lbl=FIELD_ID
             pos=0
-      elem7=def=is_explicit_collation BOOL
+      elem8=def=is_explicit_collation BOOL
             lbl=FIELD_IS_EXPLICIT_COLLATION
             pos=18
-      elem8=def=is_final BOOL
+      elem9=def=is_final BOOL
             lbl=FIELD_IS_FINAL
             pos=6
-      elem9=def=is_instantiable BOOL
-            lbl=FIELD_IS_INSTANTIABLE
-            pos=5
     foreign_keys=
       elem0=def=FOREIGN KEY (collation_id) REFERENCES collations(id)
             lbl=FK_COLLATIONS_ID
@@ -3610,12 +3775,12 @@ user_defined_types=
        trx_id=0
        space_id=1
 view_routine_usage=
-  col0=table_id=35
-  col1=table_id=35
-  col2=table_id=35
-  col3=table_id=35
-  col4=table_id=35
-  col5=table_id=35
+  col0=table_id=36
+  col1=table_id=36
+  col2=table_id=36
+  col3=table_id=36
+  col4=table_id=36
+  col5=table_id=36
   data=
   def=
     fields=
@@ -3662,25 +3827,25 @@ view_routine_usage=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=35
-  idx0=id=104
-       root=109
+  id=36
+  idx0=id=106
+       root=111
        space_id=4294967294
-       table_id=35
+       table_id=36
        trx_id=0
-  idx1=id=105
-       root=110
+  idx1=id=107
+       root=112
        space_id=4294967294
-       table_id=35
+       table_id=36
        trx_id=0
        space_id=1
 view_table_usage=
-  col0=table_id=36
-  col1=table_id=36
-  col2=table_id=36
-  col3=table_id=36
-  col4=table_id=36
-  col5=table_id=36
+  col0=table_id=37
+  col1=table_id=37
+  col2=table_id=37
+  col3=table_id=37
+  col4=table_id=37
+  col5=table_id=37
   data=
   def=
     fields=
@@ -3727,15 +3892,15 @@ view_table_usage=
       elem5=def=TABLESPACE=mysql
             lbl=TABLESPACE
             pos=5
-  id=36
-  idx0=id=106
-       root=111
+  id=37
+  idx0=id=108
+       root=113
        space_id=4294967294
-       table_id=36
+       table_id=37
        trx_id=0
-  idx1=id=107
-       root=112
+  idx1=id=109
+       root=114
        space_id=4294967294
-       table_id=36
+       table_id=37
        trx_id=0
        space_id=1

@@ -9,6 +9,7 @@ select table_name, data_type, column_type from information_schema.columns  where
 TABLE_NAME	DATA_TYPE	COLUMN_TYPE
 COLUMNS	bigint	bigint unsigned
 METHOD_SPECIFICATIONS	bigint	bigint unsigned
+METHOD_SPECIFICATION_PARAMETERS	bigint	bigint unsigned
 PARAMETERS	int	int unsigned
 ROUTINES	int	int unsigned
 USER_DEFINED_TYPES	bigint	bigint unsigned
@@ -84,6 +85,7 @@ KEYWORDS
 KEY_COLUMN_USAGE
 LIBRARIES
 METHOD_SPECIFICATIONS
+METHOD_SPECIFICATION_PARAMETERS
 OPTIMIZER_TRACE
 PARAMETERS
 PARTITIONS
@@ -812,6 +814,7 @@ information_schema	COLUMNS	DATA_TYPE
 information_schema	COLUMNS	GENERATION_EXPRESSION
 information_schema	EVENTS	EVENT_DEFINITION
 information_schema	LIBRARIES	LIBRARY_DEFINITION
+information_schema	METHOD_SPECIFICATIONS	DATA_TYPE
 information_schema	PARAMETERS	DATA_TYPE
 information_schema	ROUTINES	DATA_TYPE
 information_schema	ROUTINES	DTD_IDENTIFIER
@@ -820,6 +823,7 @@ information_schema	STATISTICS	EXPRESSION
 information_schema	ST_GEOMETRY_COLUMNS	GEOMETRY_TYPE_NAME
 information_schema	TRIGGERS	ACTION_STATEMENT
 information_schema	USER_ATTRIBUTES	ATTRIBUTE
+information_schema	USER_DEFINED_TYPES	DATA_TYPE
 information_schema	VIEWS	VIEW_DEFINITION
 select table_name, column_name, data_type from information_schema.columns
 where table_schema not in ('performance_schema', 'sys')
@@ -906,7 +910,7 @@ table_schema IN ('mysql', 'information_schema', 'test', 'mysqltest')
 AND table_name not like 'ndb%' AND table_name COLLATE utf8mb3_general_ci not like 'innodb_%'
 GROUP BY TABLE_SCHEMA;
 TABLE_SCHEMA	count(*)
-information_schema	55
+information_schema	56
 mysql	35
 create table t1 (i int, j int);
 create trigger trg1 before insert on t1 for each row
@@ -1377,6 +1381,7 @@ JSON_DUALITY_VIEW_TABLES	information_schema.JSON_DUALITY_VIEW_TABLES	1
 KEY_COLUMN_USAGE	information_schema.KEY_COLUMN_USAGE	1
 LIBRARIES	information_schema.LIBRARIES	1
 METHOD_SPECIFICATIONS	information_schema.METHOD_SPECIFICATIONS	1
+METHOD_SPECIFICATION_PARAMETERS	information_schema.METHOD_SPECIFICATION_PARAMETERS	1
 OPTIMIZER_TRACE	information_schema.OPTIMIZER_TRACE	1
 PARAMETERS	information_schema.PARAMETERS	1
 PARTITIONS	information_schema.PARTITIONS	1
@@ -2523,6 +2528,7 @@ KEYWORDS	WORD
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 LIBRARIES	LIBRARY_SCHEMA
 METHOD_SPECIFICATIONS	UDT_SCHEMA
+METHOD_SPECIFICATION_PARAMETERS	UDT_SCHEMA
 OPTIMIZER_TRACE	QUERY
 PARAMETERS	SPECIFIC_SCHEMA
 PARTITIONS	TABLE_SCHEMA
@@ -2597,6 +2603,7 @@ KEYWORDS	WORD
 KEY_COLUMN_USAGE	CONSTRAINT_SCHEMA
 LIBRARIES	LIBRARY_SCHEMA
 METHOD_SPECIFICATIONS	UDT_SCHEMA
+METHOD_SPECIFICATION_PARAMETERS	UDT_SCHEMA
 OPTIMIZER_TRACE	QUERY
 PARAMETERS	SPECIFIC_SCHEMA
 PARTITIONS	TABLE_SCHEMA

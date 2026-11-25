@@ -98,7 +98,7 @@
 SET debug = '+d,skip_dd_table_access_check';
 
 # Total number of system views in MySQL server.
-let $expected_system_view_count = 52;
+let $expected_system_view_count = 53;
 
 --echo ########################################################################
 --echo # PART 1
@@ -364,7 +364,7 @@ INSERT INTO I_S_published_schema
         '797926c355c5bda0e300ad5fab20371e44d1bcacaf76f10d03636f37570fe732');
 INSERT INTO I_S_published_schema
   VALUES ('261000', '261000', 0,
-        '0be7203857fc76b50fd7f3e3a3d34189c2c4c80e13878a8a2c2cce3aa746c390');
+        'c65dcaec615d171a594469d187e2931b9eb08a3f968ff36fdb1d9bec8648c650');
 INSERT INTO I_S_published_schema
   VALUES ('261000', '261000', 1,
         '0000000000000000000000000000000000000000000000000000000000000000');

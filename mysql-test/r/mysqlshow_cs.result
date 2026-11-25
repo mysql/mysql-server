@@ -132,6 +132,7 @@ Database: information_schema
 | KEY_COLUMN_USAGE                      |
 | LIBRARIES                             |
 | METHOD_SPECIFICATIONS                 |
+| METHOD_SPECIFICATION_PARAMETERS       |
 | OPTIMIZER_TRACE                       |
 | PARAMETERS                            |
 | PARTITIONS                            |
@@ -223,6 +224,7 @@ Database: INFORMATION_SCHEMA
 | KEY_COLUMN_USAGE                      |
 | LIBRARIES                             |
 | METHOD_SPECIFICATIONS                 |
+| METHOD_SPECIFICATION_PARAMETERS       |
 | OPTIMIZER_TRACE                       |
 | PARAMETERS                            |
 | PARTITIONS                            |
