@@ -1095,6 +1095,7 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_fundamental_types,
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
   for (auto default_cfg : {true, false}) {
+    const auto initial_large_mem = os_total_large_mem_allocated.load();
     auto ret = with_pfs ? ut::malloc_large_page_withkey(
                               ut::make_psi_memory_key(pfs_key), sizeof(type),
                               ut::fallback_to_normal_page_t{}, default_cfg)
@@ -1116,6 +1117,7 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_fundamental_types,
             CPU_PAGE_SIZE,
         0);
     ut::free_large_page(ret, ut::fallback_to_normal_page_t{});
+    EXPECT_EQ(initial_large_mem, os_total_large_mem_allocated.load());
   }
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fallback_fundamental_types,
@@ -1132,6 +1134,7 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_pod_types, pod_types) {
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
   for (auto default_cfg : {true, false}) {
+    const auto initial_large_mem = os_total_large_mem_allocated.load();
     auto ret = with_pfs ? ut::malloc_large_page_withkey(
                               ut::make_psi_memory_key(pfs_key), sizeof(type),
                               ut::fallback_to_normal_page_t{}, default_cfg)
@@ -1153,6 +1156,7 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_pod_types, pod_types) {
             CPU_PAGE_SIZE,
         0);
     ut::free_large_page(ret, ut::fallback_to_normal_page_t{});
+    EXPECT_EQ(initial_large_mem, os_total_large_mem_allocated.load());
   }
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fallback_pod_types,
@@ -1170,6 +1174,7 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_non_pod_types, non_pod_types) {
   using type = typename TypeParam::type;
   auto with_pfs = TypeParam::with_pfs;
   for (auto default_cfg : {true, false}) {
+    const auto initial_large_mem = os_total_large_mem_allocated.load();
     auto ret = with_pfs ? ut::malloc_large_page_withkey(
                               ut::make_psi_memory_key(pfs_key), sizeof(type),
                               ut::fallback_to_normal_page_t{}, default_cfg)
@@ -1198,6 +1203,7 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_non_pod_types, non_pod_types) {
     // they know which type they are operating with. That is why we would be end
     // up accessing memory of not yet instantiated object (UB).
     ut::free_large_page(ret, ut::fallback_to_normal_page_t{});
+    EXPECT_EQ(initial_large_mem, os_total_large_mem_allocated.load());
   }
 }
 REGISTER_TYPED_TEST_SUITE_P(ut0new_large_malloc_free_fallback_non_pod_types,
