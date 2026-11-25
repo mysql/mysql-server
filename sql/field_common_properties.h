@@ -98,6 +98,7 @@ inline bool is_string_type(enum_field_types type) {
     case MYSQL_TYPE_ENUM:
     case MYSQL_TYPE_SET:
     case MYSQL_TYPE_JSON:
+    case MYSQL_TYPE_VECTOR:
       return true;
     default:
       return false;
