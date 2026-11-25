@@ -85,9 +85,12 @@ size_t escape_string_for_mysql(const CHARSET_INFO *charset_info, char *to,
      Without this check, we can create a problem by converting an invalid
      multi-byte character into a valid one. For example, 0xbf27 is not
      a valid GBK character, but 0xbf5c is. (0x27 = ', 0x5c = \)
+
+     Check the first byte only: for GB18030, my_mbcharlen_ptr() returns 0
+     when a valid lead byte is followed by an invalid second byte.
     */
-    tmp_length = use_mb_flag ? my_mbcharlen_ptr(charset_info, from, end) : 0;
-    if (tmp_length > 1)
+    if (use_mb_flag &&
+        my_ismb1st(charset_info, static_cast<unsigned char>(*from)))
       escape = *from;
     else
       switch (*from) {

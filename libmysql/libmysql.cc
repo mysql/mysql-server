@@ -1159,14 +1159,15 @@ namespace {
     mean "big enough"
 
   RETURN VALUES
-    ~0          The escaped string did not fit in the to buffer
+    ~0          The escaped string did not fit in the to buffer, or a backtick-
+                quoted identifier contained an invalid multibyte character
     >=0         The length of the escaped string
 */
 
 size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
                                size_t to_length, const char *from,
                                size_t length, char quote) {
-  const char *to_start = to;
+  char *to_start = to;
   const char *end = nullptr;
   const char *to_end = to_start + (to_length ? to_length - 1 : 2 * length);
   bool overflow = false;
@@ -1182,11 +1183,11 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
       from--;
       continue;
     }
-    /*
-      We don't have the same issue here with a non-multi-byte character being
-      turned into a multi-byte character by the addition of an escaping
-      character, because we are only escaping the ' character with itself.
-     */
+    if (quote == '`' && use_mb_flag &&
+        my_ismb1st(charset_info, static_cast<unsigned char>(*from))) {
+      *to_start = 0;
+      return static_cast<size_t>(-1);
+    }
     if (*from == quote) {
       if (to + 2 > to_end) {
         overflow = true;
@@ -1203,7 +1204,8 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
     }
   }
   *to = 0;
-  return overflow ? (ulong)~0 : (ulong)(to - to_start);
+  return overflow ? static_cast<size_t>(-1)
+                  : static_cast<size_t>(to - to_start);
 }
 }  // namespace
 
@@ -1216,6 +1218,7 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
   binary data.
 
   This function should be used for escaping identifiers and string parameters.
+  Backtick-quoted identifiers with invalid multibyte characters are rejected.
 
   @param [in] mysql   MySQL connection structure.
   @param [out] to     Escaped string output buffer.
@@ -1228,15 +1231,24 @@ size_t escape_quotes_for_mysql(CHARSET_INFO *charset_info, char *to,
   @return Result value.
     @retval != (ulong)-1 Succeeded. Number of bytes written to the output
                          buffer without the '\0' character.
-    @retval (ulong)-1    Failed.
+    @retval (ulong)-1    Failed. Use mysql_error() to get error message.
 */
 
 ulong STDCALL mysql_real_escape_string_quote(MYSQL *mysql, char *to,
                                              const char *from, ulong length,
                                              char quote) {
-  if (quote == '`' || mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES)
-    return (uint)escape_quotes_for_mysql(mysql->charset, to, 0, from, length,
-                                         quote);
+  if (quote == '`' ||
+      mysql->server_status & SERVER_STATUS_NO_BACKSLASH_ESCAPES) {
+    const size_t escaped_length =
+        escape_quotes_for_mysql(mysql->charset, to, 0, from, length, quote);
+    if (escaped_length == static_cast<size_t>(-1)) {
+      set_mysql_extended_error(
+          mysql, CR_UNKNOWN_ERROR, unknown_sqlstate,
+          "Cannot escape an invalid multibyte character in an identifier");
+      return static_cast<ulong>(-1);
+    }
+    return static_cast<ulong>(escaped_length);
+  }
   return (uint)escape_string_for_mysql(mysql->charset, to, 0, from, length);
 }
 
