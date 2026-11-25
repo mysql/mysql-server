@@ -26,6 +26,7 @@
 #include <vector>
 #include "mysql/binlog/event/codecs/binary.h"
 #include "mysql/binlog/event/codecs/factory.h"
+#include "mysql_com.h"  // net_store_length
 
 namespace mysql::binlog::event::codecs::unittests {
 
@@ -86,6 +87,32 @@ TEST_F(HeartbeatCodecTest, EncodeDecodeIdempotencyBinaryTest) {
   auto codec = mysql::binlog::event::codecs::Factory::build_codec(
       HEARTBEAT_LOG_EVENT_V2);
   HeartbeatCodecTest::run_codec_idempotency_test(codec);
+}
+
+TEST_F(HeartbeatCodecTest, DecodeRejectsLogFilenameLongerThanBuffer) {
+  auto codec = mysql::binlog::event::codecs::Factory::build_codec(
+      HEARTBEAT_LOG_EVENT_V2);
+
+  // Declared lengths of the log file name, all larger than what follows.
+  std::vector<uint64_t> lengths{64, UINT16_MAX, UINT32_MAX, UINT64_MAX};
+  for (auto length : lengths) {
+    unsigned char enc_buffer[64];
+    memset(enc_buffer, 0, sizeof(enc_buffer));
+
+    auto *ptr = enc_buffer;
+    ptr = net_store_length(ptr, binary::Heartbeat::OTW_HB_LOG_FILENAME_FIELD);
+    ptr = net_store_length(ptr, length);
+    memcpy(ptr, "binlog", 6);
+    ptr += 6;
+
+    Heartbeat_event_v2 decoded;
+    auto dec_result = codec->decode(enc_buffer, ptr - enc_buffer, decoded);
+
+    // The declared length does not fit in the buffer, so decoding must fail
+    // without reading past its end.
+    ASSERT_TRUE(dec_result.second);
+    ASSERT_TRUE(decoded.get_log_filename().empty());
+  }
 }
 
 }  // namespace mysql::binlog::event::codecs::unittests
