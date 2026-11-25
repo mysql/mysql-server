@@ -1,0 +1,52 @@
+# Bug#121262 SET SESSION foreign_key_checks = DEFAULT incorrectly sets the
+# session value to 0
+#
+# Check that the session values of foreign_key_checks and unique_checks
+# restored by SET SESSION <var> = DEFAULT are the ones recorded in the
+# binary log.
+#
+# Both variables are stored as inverted bits in option_bits and travel to
+# replicas in the flags2 field of every Query_log_event; mysqlbinlog prints
+# them as "SET @@session.foreign_key_checks=..., @@session.unique_checks=..."
+# whenever they change between events. SET SESSION <var> = DEFAULT used to
+# leave the inverted bit in place, so after "SET foreign_key_checks = 0;
+# SET foreign_key_checks = DEFAULT" the binary log kept saying 0 and replicas
+# applied the following statements with the checks disabled.
+#
+# The filtered output below must be identical for all binlog formats.
+
+--source include/have_log_bin.inc
+
+RESET BINARY LOGS AND GTIDS;
+--let $binlog_file = query_get_value(SHOW BINARY LOG STATUS, File, 1)
+
+CREATE TABLE t1 (a INT PRIMARY KEY);
+
+SET @@session.foreign_key_checks = 0;
+SET @@session.unique_checks = 0;
+INSERT INTO t1 VALUES (1);
+
+SET SESSION foreign_key_checks = DEFAULT;
+SET SESSION unique_checks = DEFAULT;
+SELECT @@session.foreign_key_checks, @@session.unique_checks;
+INSERT INTO t1 VALUES (2);
+
+DROP TABLE t1;
+FLUSH BINARY LOGS;
+
+--let $MYSQLD_DATADIR = `SELECT @@datadir`
+--let $dump_file = $MYSQLTEST_VARDIR/tmp/binlog_sys_var_bit_default.sql
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/$binlog_file > $dump_file
+
+--echo # Query events and the option changes recorded in front of them:
+perl;
+  my $file = "$ENV{'MYSQLTEST_VARDIR'}/tmp/binlog_sys_var_bit_default.sql";
+  open(my $fh, '<', $file) or die "Unable to open '$file': $!";
+  while (my $line = <$fh>) {
+    print $line
+      if $line =~ /^(SET \@\@session\.foreign_key_checks|BEGIN|CREATE TABLE|DROP TABLE)/;
+  }
+  close($fh);
+EOF
+
+--remove_file $dump_file

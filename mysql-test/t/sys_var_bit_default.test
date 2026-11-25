@@ -1,0 +1,136 @@
+# Bug#121262 SET SESSION foreign_key_checks = DEFAULT incorrectly sets the
+# session value to 0
+#
+# Regression test for SET [SESSION] <var> = DEFAULT on bit-backed system
+# variables (class Sys_var_bit).
+#
+# foreign_key_checks and unique_checks are stored as inverted bits in
+# option_bits (REVERSE()). SET SESSION <var> = DEFAULT used to copy the raw
+# bit of the global value and then apply the reversal a second time, so the
+# session ended up with the opposite of the global value:
+#
+#   SET @@foreign_key_checks = 0;
+#   SET SESSION foreign_key_checks = DEFAULT;
+#   SELECT @@foreign_key_checks;   -- returned 0, expected 1
+#
+# Bit variables without reversed semantics were not affected, and neither
+# was SET GLOBAL ... = DEFAULT.
+
+--echo #
+--echo # Global values the session defaults must be copied from.
+--echo #
+SELECT @@global.foreign_key_checks, @@global.unique_checks;
+
+--echo #
+--echo # foreign_key_checks: 0 followed by DEFAULT must yield the global value.
+--echo #
+SET @@session.foreign_key_checks = 0;
+SELECT @@session.foreign_key_checks;
+SET SESSION foreign_key_checks = DEFAULT;
+SELECT @@session.foreign_key_checks;
+
+--echo # 1 followed by DEFAULT must keep 1.
+SET @@session.foreign_key_checks = 1;
+SET SESSION foreign_key_checks = DEFAULT;
+SELECT @@session.foreign_key_checks;
+
+--echo # Same, using the other ways of spelling a session assignment.
+SET @@foreign_key_checks = 0;
+SET @@foreign_key_checks = DEFAULT;
+SELECT @@foreign_key_checks;
+SET foreign_key_checks = 0;
+SET foreign_key_checks = DEFAULT;
+SELECT @@foreign_key_checks;
+SET @@local.foreign_key_checks = 0;
+SET @@local.foreign_key_checks = DEFAULT;
+SELECT @@foreign_key_checks;
+
+--echo #
+--echo # unique_checks: 0 followed by DEFAULT must yield the global value.
+--echo #
+SET @@session.unique_checks = 0;
+SELECT @@session.unique_checks;
+SET SESSION unique_checks = DEFAULT;
+SELECT @@session.unique_checks;
+
+--echo # 1 followed by DEFAULT must keep 1.
+SET @@session.unique_checks = 1;
+SET SESSION unique_checks = DEFAULT;
+SELECT @@session.unique_checks;
+
+--echo # Same, using the other ways of spelling a session assignment.
+SET @@unique_checks = 0;
+SET @@unique_checks = DEFAULT;
+SELECT @@unique_checks;
+SET unique_checks = 0;
+SET unique_checks = DEFAULT;
+SELECT @@unique_checks;
+
+--echo #
+--echo # The session DEFAULT must follow the global value, not the compiled-in
+--echo # default: with the global set to 0, DEFAULT must give 0.
+--echo #
+SET @@global.foreign_key_checks = 0;
+SET @@session.foreign_key_checks = 1;
+SET SESSION foreign_key_checks = DEFAULT;
+SELECT @@session.foreign_key_checks;
+SET @@global.unique_checks = 0;
+SET @@session.unique_checks = 1;
+SET SESSION unique_checks = DEFAULT;
+SELECT @@session.unique_checks;
+
+--echo #
+--echo # SET GLOBAL ... = DEFAULT restores the compiled-in default (1) for both
+--echo # reversed variables, and a following session DEFAULT picks it up.
+--echo #
+SET GLOBAL foreign_key_checks = DEFAULT;
+SELECT @@global.foreign_key_checks;
+SET SESSION foreign_key_checks = DEFAULT;
+SELECT @@session.foreign_key_checks;
+SET GLOBAL unique_checks = DEFAULT;
+SELECT @@global.unique_checks;
+SET SESSION unique_checks = DEFAULT;
+SELECT @@session.unique_checks;
+
+--echo #
+--echo # Bit variables without reversed semantics keep resetting correctly.
+--echo #
+SELECT @@global.sql_safe_updates, @@global.autocommit, @@global.sql_notes,
+       @@global.sql_auto_is_null;
+SET @@session.sql_safe_updates = 1;
+SET SESSION sql_safe_updates = DEFAULT;
+SELECT @@session.sql_safe_updates;
+SET @@session.autocommit = 0;
+SET SESSION autocommit = DEFAULT;
+SELECT @@session.autocommit;
+SET @@session.sql_notes = 0;
+SET SESSION sql_notes = DEFAULT;
+SELECT @@session.sql_notes;
+SET @@session.sql_auto_is_null = 1;
+SET SESSION sql_auto_is_null = DEFAULT;
+SELECT @@session.sql_auto_is_null;
+SET @@session.sql_quote_show_create = 0;
+SET SESSION sql_quote_show_create = DEFAULT;
+SELECT @@session.sql_quote_show_create;
+
+--echo #
+--echo # The value reset by DEFAULT is really in effect, not just reported:
+--echo # after SET foreign_key_checks = 0, DEFAULT must re-enable the check.
+--echo #
+CREATE TABLE parent (id INT PRIMARY KEY);
+CREATE TABLE child (id INT PRIMARY KEY, pid INT,
+                    FOREIGN KEY (pid) REFERENCES parent (id));
+SET @@session.foreign_key_checks = 0;
+INSERT INTO child VALUES (1, 100);
+SET SESSION foreign_key_checks = DEFAULT;
+--error ER_NO_REFERENCED_ROW_2
+INSERT INTO child VALUES (2, 200);
+SELECT * FROM child;
+DROP TABLE child, parent;
+
+--echo #
+--echo # Cleanup.
+--echo #
+SET SESSION foreign_key_checks = DEFAULT;
+SET SESSION unique_checks = DEFAULT;
+SELECT @@session.foreign_key_checks, @@session.unique_checks;
