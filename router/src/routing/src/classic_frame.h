@@ -98,7 +98,12 @@ class ClassicFrame {
       auto &payload_buf = src_channel.payload_buffer();
       payload_buf.clear();
 
-      while (!frame_sequence_buf.empty()) {
+      // Only the frames that recv_frame_sequence() counted belong to this
+      // message. The receive view may hold more bytes (a client can pipeline
+      // the next command right after the frame sequence); iterating until the
+      // view is empty would decode those as further frames and read their
+      // declared payload past the end of the receive buffer.
+      for (size_t frame_num = 0; frame_num < num_of_frames; ++frame_num) {
         auto hdr_res =
             classic_protocol::decode<classic_protocol::frame::Header>(
                 net::buffer(frame_sequence_buf), caps);
@@ -108,14 +113,19 @@ class ClassicFrame {
         frame_sequence_buf =
             frame_sequence_buf.last(frame_sequence_buf.size() - hdr_res->first);
 
-        auto frame_payload =
-            frame_sequence_buf.first(hdr_res->second.payload_size());
+        const auto payload_size = hdr_res->second.payload_size();
+        if (payload_size > frame_sequence_buf.size()) {
+          return stdx::unexpected(
+              make_error_code(classic_protocol::codec_errc::not_enough_input));
+        }
+
+        auto frame_payload = frame_sequence_buf.first(payload_size);
 
         payload_buf.insert(payload_buf.end(), frame_payload.begin(),
                            frame_payload.end());
 
-        frame_sequence_buf = frame_sequence_buf.last(
-            frame_sequence_buf.size() - hdr_res->second.payload_size());
+        frame_sequence_buf =
+            frame_sequence_buf.last(frame_sequence_buf.size() - payload_size);
       }
 
       auto decode_res =
