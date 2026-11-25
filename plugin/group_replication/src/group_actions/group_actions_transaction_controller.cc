@@ -249,6 +249,9 @@ end:
   mysql_mutex_unlock(&m_run_lock);
 
   m_mysql_new_transaction_control->stop();
+  LogPluginErr(INFORMATION_LEVEL,
+               ER_GRP_RPL_TRANSACTION_MONITOR_BLOCKING_NEW_TRANSACTIONS,
+               m_transaction_timeout);
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
   status_info =
@@ -312,6 +315,9 @@ end:
     if (!clients_disconnected && (time_now > transaction_timeout_time) &&
         !thd->is_killed()) {
       m_mysql_before_commit_transaction_control->stop();
+      LogPluginErr(INFORMATION_LEVEL,
+                   ER_GRP_RPL_TRANSACTION_MONITOR_TIMEOUT_REACHED,
+                   m_transaction_timeout);
       m_mysql_close_connection_of_binloggable_transaction_not_reached_commit
           ->close();
       clients_disconnected = true;
