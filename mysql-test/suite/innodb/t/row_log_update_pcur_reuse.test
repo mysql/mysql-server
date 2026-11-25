@@ -1,0 +1,41 @@
+--source include/have_innodb_16k.inc
+--source include/have_debug_sync.inc
+
+# Start with inline values in the rebuilt clustered index. Growing the BLOB
+# during row-log replay calls store_position() in the LOB writer.
+# Reopening the saved cursor for a secondary lookup must release its buffer first.
+CREATE TABLE t1 (
+  id INT PRIMARY KEY,
+  k INT NOT NULL,
+  payload LONGBLOB,
+  KEY k (k)
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
+INSERT INTO t1 VALUES
+  (1,1,REPEAT('a',256)), (2,2,REPEAT('a',256)),
+  (3,3,REPEAT('a',256)), (4,4,REPEAT('a',256)),
+  (5,5,REPEAT('a',256)), (6,6,REPEAT('a',256)),
+  (7,7,REPEAT('a',256)), (8,8,REPEAT('a',256));
+
+--connect (ddl,localhost,root,,test)
+SET DEBUG_SYNC='row_log_table_apply1_before SIGNAL rebuilt WAIT_FOR updated';
+--send ALTER TABLE t1 FORCE, ALGORITHM=INPLACE, LOCK=NONE
+
+--connection default
+SET DEBUG_SYNC='now WAIT_FOR rebuilt';
+UPDATE t1 SET payload=REPEAT('b',20000), k=k+100;
+SET DEBUG_SYNC='now SIGNAL updated';
+
+--connection ddl
+--reap
+--connection default
+--disconnect ddl
+SET DEBUG_SYNC='RESET';
+
+SELECT COUNT(*) AS rows_found,
+       MIN(OCTET_LENGTH(payload)) AS min_len,
+       MAX(OCTET_LENGTH(payload)) AS max_len,
+       SUM(payload=REPEAT('b',20000)) AS valid_payloads
+FROM t1 FORCE INDEX (k) WHERE k BETWEEN 101 AND 108;
+SELECT COUNT(*) AS old_keys FROM t1 FORCE INDEX (k) WHERE k BETWEEN 1 AND 8;
+CHECK TABLE t1;
+DROP TABLE t1;

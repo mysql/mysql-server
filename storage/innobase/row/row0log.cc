@@ -2093,7 +2093,6 @@ flag_ok:
 
   pcur.open(index, 0, old_pk, PAGE_CUR_LE, BTR_MODIFY_TREE, &mtr,
             UT_LOCATION_HERE);
-  const auto guard = create_scope_guard([&pcur]() { pcur.close(); });
 #ifdef UNIV_DEBUG
   switch (pcur.get_btr_cur()->flag) {
     case BTR_CUR_UNSET:
@@ -2165,6 +2164,7 @@ flag_ok:
     }
   func_exit_committed:
     ut_ad(mtr.has_committed());
+    pcur.close();
 
     if (error != DB_SUCCESS) {
       /* Report the erroneous row using the new
@@ -2320,6 +2320,7 @@ flag_ok:
 
     dtuple_big_rec_free(big_rec);
   }
+  pcur.close();
   bool vfields_copied = false;
   while ((index = index->next()) != nullptr) {
     n_index++;
@@ -2375,6 +2376,7 @@ flag_ok:
       break;
     }
 
+    pcur.close();
     mtr_commit(&mtr);
 
     entry = row_build_index_entry(row, nullptr, index, heap);
