@@ -249,7 +249,6 @@ void Event_set_fetchable_cache::reset(bool reset_events) {
     }
   }
   m_failure_msg.assign("");
-  m_stream_truncated = false;
   if (!m_stream_open) {
     m_stream_sealed = true;
   }

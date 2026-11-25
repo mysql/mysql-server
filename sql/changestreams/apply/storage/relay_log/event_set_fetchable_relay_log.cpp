@@ -258,7 +258,6 @@ void Event_set_fetchable_relay_log::reset(bool) {
   m_decompressing = false;
   m_is_done = false;
   m_status = Return_status::ok;
-  m_stream_truncated = false;
   safe_close_reader();
 }
 

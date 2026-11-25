@@ -24,11 +24,13 @@
 #include <gtest/gtest.h>
 #include <algorithm>
 #include <array>
+#include <barrier>
 #include <cstring>
 #include <future>
 #include <numeric>
 #include <random>
 #include <sstream>
+#include <thread>
 
 #include "mysql/scheduler/clock_lwm_registry.h"
 #include "mysql/scheduler/commit_order_clock.h"
@@ -38,6 +40,7 @@
 #include "mysql/scheduler/scheduler.h"
 #include "mysql/scheduler/scheduler_clock.h"
 #include "mysql/scheduler/task_sequencer.h"
+#include "mysql/scheduler/transaction_order_schedule.h"
 
 using namespace std;
 
@@ -189,6 +192,36 @@ void test_commit_schedule(
 }  // namespace
 
 TEST(SchedulerPhases, Test64) { test_commit_schedule(1000, 64); }
+
+TEST(SchedulerPhases, ConcurrentCompletionAdvancesOnce) {
+  auto task_clock = std::make_shared<Clock_lwm_registry>();
+  auto commit_clock = std::make_shared<Commit_order_clock>();
+  constexpr unsigned int rounds = 100;
+  unsigned int invalid_completions = 0;
+
+  // Unblocking allows prepare and commit to reach next() concurrently.
+  // Repeat the actual operation without adding hooks to the scheduler.
+  for (unsigned int round = 0; round < rounds; ++round) {
+    Transaction_order_schedule schedule(Task_id{round}, task_clock, 0,
+                                        commit_clock, 0);
+    std::barrier start{3};
+    std::array<bool, 2> advance{};
+    auto complete = [&](unsigned int caller) {
+      start.arrive_and_wait();
+      advance[caller] = schedule.next();
+    };
+    std::thread prepare(complete, 0);
+    std::thread commit(complete, 1);
+    start.arrive_and_wait();
+    prepare.join();
+    commit.join();
+
+    // One callback advances the phase; the other completes the whole task.
+    if (advance[0] == advance[1]) ++invalid_completions;
+  }
+  EXPECT_EQ(0U, invalid_completions)
+      << "Each pair of callbacks must advance once and complete once";
+}
 
 namespace {
 

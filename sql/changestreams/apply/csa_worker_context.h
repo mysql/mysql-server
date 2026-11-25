@@ -97,6 +97,10 @@ class Csa_worker_context : public Parallel_worker_context {
   /// @param worker_id Worker identifier
   /// @param current_retry Current retry number
   void update(Worker_id worker_id, int current_retry);
+  /// Select the commit worker without changing retry accounting.
+  void set_worker_id(Worker_id worker_id) { m_worker_id = worker_id; }
+  /// Record the accepted retry count without changing the commit worker.
+  void set_retry_count(int current_retry) { m_current_retry = current_retry; }
   /// Updates all internal data for new transaction and channel
   /// @param trx_seq_num Transaction sequence number
   /// @param worker_id Worker identifier
@@ -116,11 +120,13 @@ class Csa_worker_context : public Parallel_worker_context {
   bool has_temporary_error(THD *thd, int error);
   /// Mark transaction as prepared and externally rollbackable.
   void set_applied();
-  /// Move transaction from prepared into committing state.
+  /// Claim a prepared transaction for commit or final cleanup.
   void set_committing();
-  /// Check if external rollback is on-going
-  /// @return True when external rollback was already requested.
-  bool is_rollback_requested() const { return m_rollback.load(); }
+  /// Check whether rescue has claimed this attempt, even before enqueue.
+  /// The request remains visible until the attempt is reset after recovery.
+  bool is_rollback_requested() const {
+    return m_rpco_state.load() == Rpco_state::rollback_requested;
+  }
   /// Handle commit order deadlock - one of the callers will request
   /// transaction rollback due to rpco deadlock
   void handle_commit_order_deadlock();
@@ -136,13 +142,17 @@ class Csa_worker_context : public Parallel_worker_context {
   /// RPCO lifecycle visible to deadlock reporting:
   /// - preparing: transaction is still in apply/prepare work
   /// - prepared: transaction left apply and may be rescued externally
-  /// - commit: transaction entered commit ownership and must resolve there
-  enum class Rpco_state : std::uint8_t { preparing, prepared, commit };
+  /// - commit: an owning thread handles commit or final cleanup
+  /// - rollback_requested: rescue claimed this attempt; wait for its future
+  enum class Rpco_state : std::uint8_t {
+    preparing,
+    prepared,
+    commit,
+    rollback_requested
+  };
 
   /// Sticky indicator that this transaction was reported as an RPCO victim.
   std::atomic<bool> m_is_commit_order_deadlock{false};
-  /// Set once an external rollback request has been enqueued.
-  std::atomic<bool> m_rollback{false};
   /// Current RPCO lifecycle state used to decide how to handle reports.
   std::atomic<Rpco_state> m_rpco_state{Rpco_state::preparing};
   /// Completes when the external rollback worker finishes rescue handling.

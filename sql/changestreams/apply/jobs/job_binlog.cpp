@@ -109,15 +109,13 @@ bool Job_binlog::run(Thread_id thread_id) {
   auto &stat_monitor = m_stat_monitor.get();
   auto &trx_exec_timer = stat_monitor.get_stat(Statistics_map::trx_exec_time);
   trx_exec_timer.start_time(thread_id);
-  if (m_channel->get_commit_order_manager() && is_trx() &&
-      m_phase != Transaction_phase::retry_commit) {
+  if (dispatch_reason == scheduler::Dispatch_reason::unblocked) {
+    is_error = this->commit_register(thread_id);
+  } else if (m_channel->get_commit_order_manager() && is_trx() &&
+             m_phase != Transaction_phase::retry_commit) {
     assert(m_phase != Transaction_phase::done);
     if (m_phase == Transaction_phase::prepare) {
-      if (dispatch_reason == scheduler::Dispatch_reason::unblocked) {
-        is_error = this->commit_register(thread_id);
-      } else {
-        is_error = this->prepare(thread_id);
-      }
+      is_error = this->prepare(thread_id);
     } else if (m_phase == Transaction_phase::commit_register) {
       is_error = this->commit_register(thread_id);
     } else if (m_phase == Transaction_phase::commit_binlog) {

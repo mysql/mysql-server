@@ -281,6 +281,7 @@ SET(SERVER_TESTS
   print_utils
   protocol_classic
   rpl_applier_monitor
+  rpl_csa_worker_context
   rpl_dependency_adapter_lwm
   rpl_resource_monitor
   regexp_engine

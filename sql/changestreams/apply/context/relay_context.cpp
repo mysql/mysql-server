@@ -337,6 +337,7 @@ void Relay_context::retry_transaction(int current_count, bool skip_rollback) {
   }
   if (m_csa_worker_context) {
     m_csa_worker_context->reset_commit_order_deadlock();
+    m_csa_worker_context->set_retry_count(current_count);
   }
 }
 

@@ -38,26 +38,24 @@ Transaction_order_schedule::Transaction_order_schedule(
       m_commit_time(commit_time) {}
 
 bool Transaction_order_schedule::is_finished() const {
-  if (m_phase == 0) {
+  if (m_phase.load() == 0) {
     return false;
   }
   return true;
 }
 
 bool Transaction_order_schedule::next() {
-  if (m_phase == 0) {
-    m_phase = 1;
-    return true;
-  }
-  return false;
+  // Unblocking can overlap the prepare and commit completion callbacks.
+  // The first advances this two-phase schedule; the second completes it.
+  return m_phase.exchange(1) == 0;
 }
 
 const Time_delay_type &Transaction_order_schedule::get_task_delay() const {
-  return get_phase_delay(m_phase);
+  return get_phase_delay(m_phase.load());
 }
 
 const Scheduler_clock_ptr &Transaction_order_schedule::get_clock() const {
-  return get_phase_clock(m_phase);
+  return get_phase_clock(m_phase.load());
 }
 
 const Task_id &Transaction_order_schedule::get_id() const { return m_task_id; }
@@ -79,7 +77,7 @@ const Scheduler_clock_ptr &Transaction_order_schedule::get_phase_clock(
 }
 
 unsigned int Transaction_order_schedule::get_phase_id() const {
-  return m_phase;
+  return m_phase.load();
 }
 
 }  // namespace mysql::scheduler

@@ -64,6 +64,8 @@ Job_applier::~Job_applier() {
   // Failed jobs retain the context until all task phases have released it.
   if (m_relay_context) {
     auto *w_ctx = m_relay_context->get_parallel_worker_context();
+    // Close rescue admission before deciding who cleans the retained THD.
+    if (w_ctx) w_ctx->set_committing();
     if (w_ctx && w_ctx->is_rollback_requested()) {
       w_ctx->wait_for_rollback();
       m_relay_context->detach_rli();
@@ -150,27 +152,26 @@ bool Job_applier::attach(Thread_id thread_id) {
   // secure a session only when needed, just before running
   ensure_session(thread_id);
   auto *w_ctx = m_relay_context->get_parallel_worker_context();
-  if (m_relay_context->get_session().is_killed()) {
-    if (scheduler::current_dispatch_reason() ==
-        scheduler::Dispatch_reason::unblocked) {
-      // Prepare has handed over, but recovery may still own the THD.
-      // Wait without retrying before taking over failure handling.
-      if (w_ctx->is_rollback_requested()) {
-        w_ctx->wait_for_rollback();
-      }
-      // Take over the session, so that this task reports the failure and
-      // cleans up on an attached session.
-      m_relay_context->attach_session();
-      m_is_attached = true;
-      scheduler::set_current_dispatch_reason(
-          scheduler::Dispatch_reason::normal);
-    }
-    return true;
-  }
-
+  // Claim ownership before either normal attachment or failure cleanup.
   if (m_phase == Transaction_phase::commit_binlog) {
     w_ctx->set_committing();
   }
+  if (!is_unblocked_dispatch && m_phase == Transaction_phase::commit_binlog) {
+    DBUG_EXECUTE_IF("csa_normal_commit_before_attach",
+                    csa_debug_pause("csa_normal_commit_before_attach"););
+  }
+  if (m_relay_context->get_session().is_killed()) {
+    // Recovery may still own the THD. Wait without retrying before
+    // attaching for failure handling, for both normal and unblocked owners.
+    if (w_ctx->is_rollback_requested()) {
+      w_ctx->wait_for_rollback();
+    }
+    m_relay_context->attach_session();
+    m_is_attached = true;
+    scheduler::set_current_dispatch_reason(scheduler::Dispatch_reason::normal);
+    return true;
+  }
+
   bool should_wait_for_rollback = (m_phase == Transaction_phase::commit_binlog)
                                       ? w_ctx->is_rollback_requested()
                                       : w_ctx->found_commit_order_deadlock();
@@ -276,9 +277,8 @@ bool Job_applier::commit_register(Thread_id thread_id) {
         DBUG_EXECUTE_IF("csa_helper_before_register",
                         csa_debug_pause("csa_helper_before_register"););
       // The transaction and channel were initialized when acquiring the
-      // session. Registration only changes its commit worker and retry count.
-      m_relay_context->get_parallel_worker_context()->update(thread_id,
-                                                             get_retries());
+      // session. Registration only changes its commit worker.
+      m_relay_context->get_parallel_worker_context()->set_worker_id(thread_id);
       if (m_relay_context->register_to_commit_order()) {
         set_fatal_error();
         return true;
@@ -411,7 +411,8 @@ bool Job_applier::run_phase(Thread_id thread_id) {
     }
     event_counter++;
 
-    if (check_rpco_conflict(thread_id)) {
+    if (m_phase == Transaction_phase::prepare &&
+        check_rpco_conflict(thread_id)) {
       return false;  // no error, stop applying
     }
 
@@ -450,6 +451,9 @@ bool Job_applier::run_phase(Thread_id thread_id) {
     m_relay_context->get_relay_log_info()->cleanup_context(thd, true);
     sync_rows_query_event_retention();
     thd->clear_error();
+    // Rollback resolved any apply-side conflict for the discarded attempt.
+    m_relay_context->get_parallel_worker_context()
+        ->reset_commit_order_deadlock();
     // Retire through the commit phase, like an already executed transaction.
     // Early registration may still be using the session or its COM slot.
     m_skip = true;

@@ -55,7 +55,7 @@ void Fetchable_transaction::reset_fetching(bool all) {
     batch->reset(all);
   }
   m_is_done = false;
-  m_is_truncated.store(false, std::memory_order_release);
+  // Truncation describes the input and must survive retries.
   m_status = Return_status::ok;
   m_error_message.assign("");
 }
