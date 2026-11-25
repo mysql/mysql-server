@@ -32,6 +32,7 @@
 #include "sql/create_field.h"
 #include "sql/dd/string_type.h"
 #include "sql/method_call_option.h"
+#include "sql/sql_data_access.h"
 
 class THD;
 
@@ -50,7 +51,9 @@ bool udt_method_exists(dd::cache::Dictionary_client *client,
 bool create_udt_method(THD *thd, const dd::UDT_Type &typ_obj,
                        enum_method_call_option method_call,
                        const dd::String_type &method_name,
-                       const dd::String_type &method_specific_name);
+                       const dd::String_type &method_specific_name,
+                       bool is_deterministic,
+                       enum_sql_data_access sql_data_access, bool is_null_call);
 
 bool drop_udt_method(THD *thd, const dd::UDT_Method &method_def);
 

@@ -6149,9 +6149,9 @@ class PT_method_characteristics {
   bool m_sql_data_access_set{false};
   bool m_null_call_option_set{false};
   bool m_deterministic{false};
-  enum_sql_data_access m_sql_data_access;
+  enum_sql_data_access m_sql_data_access{enum_sql_data_access::NO_SQL};
   enum_null_call_option m_null_call_option{
-      enum_null_call_option::NULL_ON_NULL_INPUT};
+      enum_null_call_option::CALLED_ON_NULL_INPUT};
 };
 
 class PT_method_parameter_def {

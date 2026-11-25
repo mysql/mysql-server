@@ -103,7 +103,10 @@ bool udt_method_exists(dd::cache::Dictionary_client *dc,
 bool create_udt_method(THD *thd, const dd::UDT_Type &typ_obj,
                        enum_method_call_option method_call,
                        const dd::String_type &method_name,
-                       const dd::String_type &method_specific_name) {
+                       const dd::String_type &method_specific_name,
+                       bool is_deterministic,
+                       enum_sql_data_access sql_data_access,
+                       bool is_null_call) {
   std::unique_ptr<dd::UDT_Method> obj(typ_obj.create_udt_method(thd));
 
   bool is_static = (method_call == enum_method_call_option::STATIC_METHOD);
@@ -115,6 +118,9 @@ bool create_udt_method(THD *thd, const dd::UDT_Type &typ_obj,
   obj->set_is_constructor(is_constructor);
   obj->set_name(method_name);
   obj->set_specific_name(method_specific_name);
+  obj->set_is_deterministic(is_deterministic);
+  obj->set_sql_data_access(sql_data_access);
+  obj->set_is_null_call(is_null_call);
 
   return thd->dd_client()->store(obj.get());
 }

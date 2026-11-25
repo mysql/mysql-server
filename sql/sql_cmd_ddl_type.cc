@@ -162,13 +162,20 @@ bool Sql_cmd_ddl_type::execute_add_method(
   dd::String_type method_name(method_def->m_method_name.str);
   dd::String_type method_specific_name;
 
+  auto is_determnistic = method_def->m_characteristics->m_deterministic;
+  auto sql_data_access = method_def->m_characteristics->m_sql_data_access;
+  bool is_null_call = (method_def->m_characteristics->m_null_call_option ==
+                       enum_null_call_option::NULL_ON_NULL_INPUT);
+
   if (method_def->m_method_specific_name.length != 0) {
     method_specific_name = method_def->m_method_specific_name.str;
   } else {
     method_specific_name = method_def->m_method_name.str;
   }
 
-  if (create_udt_method(thd, *udt_type, call_option, method_name, method_specific_name)) {
+  if (create_udt_method(thd, *udt_type, call_option, method_name,
+                        method_specific_name, is_determnistic, sql_data_access,
+                        is_null_call)) {
     return true;
   }
 
@@ -334,6 +341,11 @@ bool Sql_cmd_alter_type::execute_drop_method(
     return true;
   }
 
+  if (udt_method->id() == udt_type->ordering_method_id()) {
+    my_error(ER_UDT_ORDERING_METHOD_USED, MYF(0), type_name, method_name);
+    return true;
+  }
+
   if (drop_udt_method(thd, *udt_method)) {
     return true;
   }
@@ -478,7 +490,64 @@ bool Sql_cmd_create_ordering::execute(THD *thd) {
 #endif
 }
 
-bool Sql_cmd_drop_ordering::execute(THD * /* thd */) {
+bool Sql_cmd_drop_ordering::execute(THD *thd) {
+#ifdef WITH_EXPERIMENTAL_UDT
+  if (use_default_db(thd)) {
+    return true;
+  }
+
+  if (check_privileges(thd)) {
+    return true;
+  }
+
+  if (acquire_mdl_schema(thd)) {
+    return true;
+  }
+
+  if (acquire_mdl_type(thd)) {
+    return true;
+  }
+
+  auto *dc = thd->dd_client();
+  const dd::cache::Dictionary_client::Auto_releaser releaser(dc);
+  const char *db_name = m_type_ident->db.str;
+  const char *type_name = m_type_ident->type.str;
+
+  const dd::Schema *schema = acquire_dd_schema(thd);
+  if (schema == nullptr) {
+    my_error(ER_NO_SUCH_DB, MYF(0), db_name);
+    return true;
+  }
+
+  dd::UDT_Type *udt_type = acquire_for_modification_dd_type(thd);
+  if (udt_type == nullptr) {
+    my_error(ER_NO_SUCH_UDT_TYPE, MYF(0), db_name, type_name);
+    return true;
+  }
+
+  // DROP ORDERING
+
+  if (udt_type->get_ordering_form() == enum_ordering_form::NO_ORDER) {
+    my_error(ER_NO_SUCH_UDT_ORDERING, MYF(0), db_name, type_name);
+    return true;
+  }
+
+  udt_type->set_ordering_form(NO_ORDER);
+  udt_type->set_ordering_category(NO_CATEGORY);
+  udt_type->set_ordering_method_id(dd::INVALID_OBJECT_ID);
+
+  if (dc->update(udt_type)) {
+    return true;
+  }
+
+  if (trans_commit_stmt(thd) || trans_commit(thd)) {
+    return true;
+  }
+
+  my_ok(thd);
+  return false;
+#else
   my_error(ER_NOT_SUPPORTED_YET, MYF(0), "DROP ORDERING");
   return true;
+#endif
 }
