@@ -112,7 +112,11 @@ class Locking_queue {
   /// @brief Wakes all waiting consumers (e.g., during shutdown to check pred
   /// and exit). Notifies all on the condition variable, unblocking blocked
   /// consumes.
-  void notify_all() { m_cv_empty_queue.notify_all(); }
+  void notify_all() {
+    // Coordinate with consumers checking their stop predicate.
+    std::lock_guard<concurrency::Mutex> lock(m_mutex_access_queue);
+    m_cv_empty_queue.notify_all();
+  }
 
  private:
   /// Underlying unbounded FIFO queue.

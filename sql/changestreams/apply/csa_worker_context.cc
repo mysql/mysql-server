@@ -24,6 +24,7 @@
 #include "sql/changestreams/apply/csa_worker_context.h"
 #include "sql/changestreams/apply/service/csa_service.h"
 #include "sql/changestreams/apply/service/rescue_task.h"
+#include "sql/debug_sync.h"
 #include "sql/mdl.h"        // MDL_context
 #include "sql/rpl_rli.h"    // Relay_log_info
 #include "sql/sql_class.h"  // THD
@@ -47,8 +48,10 @@ void Csa_worker_context::report_commit_order_deadlock(bool in_commit) {
 
   switch (m_rpco_state.load()) {
     case Rpco_state::preparing:
+    case Rpco_state::rollback_requested:
       return;
     case Rpco_state::prepared:
+      DEBUG_SYNC(current_thd, "csa_report_observed_prepared");
       handle_commit_order_deadlock();
       return;
     case Rpco_state::commit:
@@ -61,26 +64,30 @@ bool Csa_worker_context::found_commit_order_deadlock() const {
   return m_is_commit_order_deadlock;
 }
 
-bool Csa_worker_context::wait_for_rollback() {
-  auto rollback_future = m_rollback_promise.get_future();
-  rollback_future.wait();
-  return rollback_future.get();
-}
+bool Csa_worker_context::wait_for_rollback() { return m_rollback_future.get(); }
 
 void Csa_worker_context::handle_commit_order_deadlock() {
-  if (!m_rollback.exchange(true)) {
-    m_rpco_state = Rpco_state::preparing;
+  // Rescue and commit must claim the same prepared state. A previous read
+  // of prepared does not authorize rescue after commit has taken ownership.
+  Rpco_state expected{Rpco_state::prepared};
+  if (m_rpco_state.compare_exchange_strong(expected,
+                                           Rpco_state::rollback_requested)) {
     assert(m_trx_ctx->rli_slave);
     mysql::csa::Transaction_conflict_monitor::get(
         m_trx_ctx->rli_slave->get_channel_instance_id())
         ->enqueue(mysql::csa::Rescue_task(
             m_trx_ctx->rli_slave, mysql::csa::Rescue_operation_type::rollback,
             m_rollback_promise, get_trx_id()));
+  } else if (expected == Rpco_state::commit) {
+    m_trx_ctx->mdl_context.m_wait.set_status(MDL_wait::VICTIM);
   }
 }
 
 void Csa_worker_context::set_applied() {
-  m_rpco_state.store(Rpco_state::prepared);
+  // The final conflict check can publish applied again after an external
+  // reporter has already claimed rescue. Preserve that request.
+  Rpco_state expected{Rpco_state::preparing};
+  m_rpco_state.compare_exchange_strong(expected, Rpco_state::prepared);
 }
 
 void Csa_worker_context::set_committing() {
@@ -90,9 +97,16 @@ void Csa_worker_context::set_committing() {
 
 void Csa_worker_context::reset_commit_order_deadlock() {
   m_is_commit_order_deadlock = false;
-  m_rollback = false;
-  m_rpco_state = Rpco_state::preparing;
   m_rollback_promise = std::promise<bool>{};
+  m_rollback_future = m_rollback_promise.get_future().share();
+  const auto state = m_rpco_state.load();
+  // Commit ownership includes replay. A completed rescue also resumes under
+  // the commit owner, without making the new attempt externally rescuable.
+  if (state == Rpco_state::rollback_requested) {
+    m_rpco_state = Rpco_state::commit;
+  } else if (state != Rpco_state::commit) {
+    m_rpco_state = Rpco_state::preparing;
+  }
 }
 
 bool Csa_worker_context::is_same_channel(
@@ -162,7 +176,6 @@ bool Csa_worker_context::can_be_retried(THD *thd) {
     // cannot retry
     return false;
   }
-  ++m_current_retry;
   return true;
 }
 
@@ -210,6 +223,9 @@ void Csa_worker_context::update(Trx_id trx_seq_num, Worker_id worker_id,
   m_channel_id = channel_id;
   m_retries_num = retries_num;
   update(trx_seq_num, worker_id, trx_ctx, current_retry);
+  // A pooled context starts a new transaction, not another registration.
+  m_rpco_state = Rpco_state::preparing;
+  reset_commit_order_deadlock();
 }
 
 bool Csa_worker_context::is_csa() const { return true; }

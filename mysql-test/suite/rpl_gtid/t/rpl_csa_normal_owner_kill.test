@@ -1,0 +1,79 @@
+# ==== PURPOSE ====
+#
+# Verify that a normally dispatched commit owner reports an external KILL
+# received while its transaction session is detached.
+#
+# ==== IMPLEMENTATION ====
+#
+# Pause normal commit before attachment, kill its retained transaction
+# session, and check the channel's error and recovery after restart.
+#
+# Test steps:
+#
+# 1. Apply an INSERT and pause its normal commit before session attachment.
+# 2. Issue KILL CONNECTION for the retained transaction session.
+# 3. Release commit, wait for the applier to stop, and capture its error.
+# 4. Restart replication and compare source and replica rows.
+#
+# Test pass conditions:
+#
+# - The stopped channel reports ER_QUERY_INTERRUPTED (1317).
+# - Restart completes the transaction and source and replica tables match.
+#
+# ==== REFERENCES ====
+#
+# Bug#121659: CSA helper thread crashes replica and breaks commit order.
+# CSA-FU-2: missing diagnostic for a killed normal owner.
+#
+--source include/have_debug.inc
+# This test is binlog-format agnostic
+--source include/have_binlog_format_row.inc
+--source include/have_replica_preserve_commit_order.inc
+--let $rpl_applier_version=2:2
+--let $rpl_applier_worker_count=2:2
+--source include/rpl/init_source_replica.inc
+
+CREATE TABLE t1 (id INT PRIMARY KEY);
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/connection_replica.inc
+CALL mtr.add_suppression("Change Stream Applier channel stopped because of error");
+CALL mtr.add_suppression("Query execution was interrupted");
+SET @saved_debug = @@GLOBAL.debug;
+SET GLOBAL debug = '+d,csa_normal_commit_before_attach';
+
+--source include/rpl/connection_source.inc
+INSERT INTO t1 VALUES (1);
+--source include/rpl/connection_replica.inc
+--let $wait_timeout = 60
+--let $wait_condition = SELECT @@GLOBAL.debug LIKE '%csa_normal_commit_before_attach_reached%'
+--source include/wait_condition.inc
+
+--let $session_id = `SELECT COALESCE(MIN(trx_mysql_thread_id),0) FROM information_schema.innodb_trx WHERE trx_rows_modified > 0`
+--let $assert_text = Normal commit has an identifiable transaction session
+--let $assert_cond = $session_id > 0
+--source include/assert.inc
+--disable_query_log
+--eval KILL CONNECTION $session_id
+--enable_query_log
+SET GLOBAL debug = @saved_debug;
+
+# Allow the old missing diagnostic so cleanup and restart run before the
+# final assertion reports the regression.
+--let $slave_sql_errno = 0,1317
+--source include/rpl/wait_for_applier_to_stop.inc
+--let $reported_error = query_get_value(SHOW REPLICA STATUS, Last_SQL_Errno, 1)
+--echo Normal commit kill error: $reported_error
+--source include/rpl/start_applier.inc
+--source include/rpl/connection_source.inc
+--source include/rpl/sync_to_replica.inc
+--let $diff_tables = master:t1,slave:t1
+--source include/diff_tables.inc
+
+--source include/rpl/connection_source.inc
+DROP TABLE t1;
+--source include/rpl/sync_to_replica.inc
+--source include/rpl/reset.inc
+--let $assert_text = Killed normal commit must report ER_QUERY_INTERRUPTED
+--let $assert_cond = $reported_error = 1317
+--source include/assert.inc
+--source include/rpl/deinit.inc

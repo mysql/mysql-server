@@ -115,6 +115,7 @@ template <typename T, uint64_t capacity_tp>
 void Sync_bounded_queue<T, capacity_tp>::notify_all() {
   // Wake all waiting threads to check stop_predicate
   for (std::size_t idx = 0; idx < m_capacity; ++idx) {
+    std::lock_guard<Mutex_type> lock(m_slots[idx].validity_mt);
     m_slots[idx].producer_cv.notify_all();
     m_slots[idx].consumer_cv.notify_all();
   }

@@ -24,6 +24,7 @@
 #ifndef MYSQL_SCHEDULER_TRANSACTION_ORDER_SCHEDULE_H
 #define MYSQL_SCHEDULER_TRANSACTION_ORDER_SCHEDULE_H
 
+#include <atomic>
 #include <chrono>
 #include <iostream>
 #include <memory>
@@ -53,8 +54,8 @@ class Transaction_order_schedule : public Task_schedule {
                              Scheduler_clock_ptr commit_clock,
                              uint64_t commit_time);
 
-  /// @brief This function modifies the state of the schedule to next state
-  /// @returns false - Task is one-shot task, won't be executed in the future
+  /// @brief Advance this two-phase schedule once, then report completion
+  /// @returns true for the first completion callback, false for the second
   bool next() override;
 
   /// @brief Gets information about next execution time
@@ -94,8 +95,8 @@ class Transaction_order_schedule : public Task_schedule {
   Scheduler_clock_ptr m_commit_clock;
   /// Transaction commit start time, relative to the commit clock
   uint64_t m_commit_time;
-  /// Current schedule phase
-  unsigned int m_phase{0};
+  /// Current schedule phase, advanced by the first completion callback
+  std::atomic<unsigned int> m_phase{0};
 };
 
 }  // namespace mysql::scheduler
