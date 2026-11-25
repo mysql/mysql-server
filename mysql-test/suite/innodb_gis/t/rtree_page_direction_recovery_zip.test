@@ -1,0 +1,93 @@
+# ROW_FORMAT=COMPRESSED variant of rtree_page_direction_recovery.
+#
+# Test that crash recovery rebuilds a compressed R-tree page with the same
+# PAGE_DIRECTION / PAGE_N_DIRECTION header fields as the running server.
+# This covers page_cur_insert_rec_zip(), which has the same guard as
+# page_cur_insert_rec_low(): the running server must leave the fields
+# alone on R-tree pages (PAGE_NO_DIRECTION = 5, count 0), and redo apply,
+# which uses the non-spatial dummy index from mlog_parse_index(), must do
+# the same.
+#
+# The .ibd file of a compressed table holds the compressed page frame.
+# page_zip_compress() copies the page header (FIL_PAGE_DATA .. PAGE_DATA)
+# uncompressed to the start of the frame and page_zip_write_header()
+# keeps it there at the same offsets, so the fields can be read directly
+# at PAGE_HEADER + PAGE_DIRECTION; only the page stride is the compressed
+# page size (ZIP_PAGE_SIZE) instead of innodb_page_size.
+#
+# t1: rows inserted, page flushed by the running server, header read from
+#     the .ibd file.
+# t2: same rows, page kept dirty (page cleaner and checkpoint disabled),
+#     server killed, page rebuilt by crash recovery, then flushed and read.
+#
+# Both reads must show FIL_PAGE_TYPE=17854 (FIL_PAGE_RTREE) and 5 / 0.
+
+--source include/have_innodb_max_16k.inc
+
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+--let $rtree_index = sg
+
+# Increasing point coordinates: on the R-tree leaf (here the root, no split)
+# every insert lands immediately after PAGE_LAST_INSERT.
+--let $rows = 10
+
+--echo #
+--echo # Live case: page written by the running server
+--echo #
+CREATE TABLE t1 (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0,
+                 SPATIAL INDEX sg (g)) ENGINE=InnoDB
+                 ROW_FORMAT=COMPRESSED;
+
+--let $i = 1
+--disable_query_log
+while ($i <= $rows)
+{
+  eval INSERT INTO t1 VALUES ($i, POINT($i, $i));
+  --inc $i
+}
+--enable_query_log
+
+FLUSH TABLES t1 FOR EXPORT;
+--let $rtree_page_size = `SELECT ZIP_PAGE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t1'`
+--let $rtree_table = t1
+--source include/innodb_rtree_page_header.inc
+UNLOCK TABLES;
+
+--echo #
+--echo # Recovered case: page rebuilt from redo by crash recovery
+--echo #
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+CREATE TABLE t2 (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0,
+                 SPATIAL INDEX sg (g)) ENGINE=InnoDB
+                 ROW_FORMAT=COMPRESSED;
+
+--let $i = 1
+--disable_query_log
+while ($i <= $rows)
+{
+  eval INSERT INTO t2 VALUES ($i, POINT($i, $i));
+  --inc $i
+}
+--enable_query_log
+
+--source include/kill_and_restart_mysqld.inc
+
+FLUSH TABLES t2 FOR EXPORT;
+--let $rtree_page_size = `SELECT ZIP_PAGE_SIZE FROM INFORMATION_SCHEMA.INNODB_TABLESPACES WHERE NAME = 'test/t2'`
+--let $rtree_table = t2
+--source include/innodb_rtree_page_header.inc
+UNLOCK TABLES;
+
+--echo #
+--echo # Both tables are otherwise consistent
+--echo #
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+CHECK TABLE t1;
+CHECK TABLE t2;
+
+DROP TABLE t1, t2;

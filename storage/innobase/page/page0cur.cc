@@ -1371,7 +1371,7 @@ rec_t *page_cur_insert_rec_low(
         rec_get_node_ptr_flag(last_insert) ==
             rec_get_node_ptr_flag(insert_rec));
 
-  if (!dict_index_is_spatial(index)) {
+  if (fil_page_get_type(page) != FIL_PAGE_RTREE) {
     if (UNIV_UNLIKELY(last_insert == nullptr)) {
       page_header_set_field(page, nullptr, PAGE_DIRECTION, PAGE_NO_DIRECTION);
       page_header_set_field(page, nullptr, PAGE_N_DIRECTION, 0);
@@ -1941,7 +1941,7 @@ rec_t *page_cur_insert_rec_zip(
   ut_ad(!last_insert || rec_get_node_ptr_flag(last_insert) ==
                             rec_get_node_ptr_flag(insert_rec));
 
-  if (!dict_index_is_spatial(index)) {
+  if (fil_page_get_type(page) != FIL_PAGE_RTREE) {
     if (UNIV_UNLIKELY(last_insert == nullptr)) {
       page_header_set_field(page, page_zip, PAGE_DIRECTION, PAGE_NO_DIRECTION);
       page_header_set_field(page, page_zip, PAGE_N_DIRECTION, 0);
@@ -2058,7 +2058,7 @@ const byte *page_parse_copy_rec_list_to_created_page(
 
   page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, nullptr);
 
-  if (!dict_index_is_spatial(index)) {
+  if (fil_page_get_type(page) != FIL_PAGE_RTREE) {
     page_header_set_field(page, page_zip, PAGE_DIRECTION, PAGE_NO_DIRECTION);
     page_header_set_field(page, page_zip, PAGE_N_DIRECTION, 0);
   }

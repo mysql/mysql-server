@@ -1,0 +1,86 @@
+# Test that crash recovery rebuilds an R-tree page with the same
+# PAGE_DIRECTION / PAGE_N_DIRECTION header fields as the running server.
+#
+# The mismatch was found by a recovery/consistency test that compares
+# pages written by the running server with the same pages rebuilt by
+# crash recovery.
+#
+# page_cur_insert_rec_low() does not maintain PAGE_DIRECTION and
+# PAGE_N_DIRECTION on R-tree pages, so on the running server an R-tree
+# page keeps the values written by page_create() (PAGE_NO_DIRECTION = 5,
+# count 0). Redo apply of MLOG_REC_INSERT uses the dummy index built
+# by mlog_parse_index(), which is never spatial. The guard therefore has
+# to check the page type (FIL_PAGE_RTREE) rather than the index, otherwise
+# recovery writes PAGE_RIGHT (2) and a count of (rows - 1).
+#
+# t1: rows inserted, page flushed by the running server, header read from
+#     the .ibd file.
+# t2: same rows, page kept dirty (page cleaner and checkpoint disabled),
+#     server killed, page rebuilt by crash recovery, then flushed and read.
+#
+# Both reads must show FIL_PAGE_TYPE=17854 (FIL_PAGE_RTREE) and 5 / 0.
+
+--source include/have_debug.inc
+--source include/not_valgrind.inc
+
+--let $rtree_index = sg
+--let $rtree_page_size = `SELECT @@innodb_page_size`
+
+# Increasing point coordinates: on the R-tree leaf (here the root, no split)
+# every insert lands immediately after PAGE_LAST_INSERT.
+--let $rows = 10
+
+--echo #
+--echo # Live case: page written by the running server
+--echo #
+CREATE TABLE t1 (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0,
+                 SPATIAL INDEX sg (g)) ENGINE=InnoDB;
+
+--let $i = 1
+--disable_query_log
+while ($i <= $rows)
+{
+  eval INSERT INTO t1 VALUES ($i, POINT($i, $i));
+  --inc $i
+}
+--enable_query_log
+
+FLUSH TABLES t1 FOR EXPORT;
+--let $rtree_table = t1
+--source include/innodb_rtree_page_header.inc
+UNLOCK TABLES;
+
+--echo #
+--echo # Recovered case: page rebuilt from redo by crash recovery
+--echo #
+SET GLOBAL innodb_page_cleaner_disabled_debug = 1;
+SET GLOBAL innodb_checkpoint_disabled = 1;
+
+CREATE TABLE t2 (id INT PRIMARY KEY, g GEOMETRY NOT NULL SRID 0,
+                 SPATIAL INDEX sg (g)) ENGINE=InnoDB;
+
+--let $i = 1
+--disable_query_log
+while ($i <= $rows)
+{
+  eval INSERT INTO t2 VALUES ($i, POINT($i, $i));
+  --inc $i
+}
+--enable_query_log
+
+--source include/kill_and_restart_mysqld.inc
+
+FLUSH TABLES t2 FOR EXPORT;
+--let $rtree_table = t2
+--source include/innodb_rtree_page_header.inc
+UNLOCK TABLES;
+
+--echo #
+--echo # Both tables are otherwise consistent
+--echo #
+SELECT COUNT(*) FROM t1;
+SELECT COUNT(*) FROM t2;
+CHECK TABLE t1;
+CHECK TABLE t2;
+
+DROP TABLE t1, t2;
