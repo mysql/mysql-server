@@ -541,6 +541,13 @@ class Item_in_optimizer final : public Item_bool_func {
   const char *func_name() const override { return "<in_optimizer>"; }
   Item_cache **get_cache() { return &cache; }
   void update_used_tables() override;
+  float get_filtering_effect(THD *thd, table_map filter_for_table,
+                             table_map read_tables,
+                             const MY_BITMAP *fields_to_ignore,
+                             double rows_in_table) override {
+    return args[0]->get_filtering_effect(thd, filter_for_table, read_tables,
+                                         fields_to_ignore, rows_in_table);
+  }
 };
 
 /// Abstract factory interface for creating comparison predicates.
