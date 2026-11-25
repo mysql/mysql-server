@@ -49,11 +49,17 @@
 #include "sql/dd/impl/tables/routines.h"         // dd::tables::Routines
 #include "sql/dd/impl/tables/schemata.h"         // dd::tables::Schemata
 #include "sql/dd/impl/tables/spatial_reference_systems.h"  // dd::tables::Spatial...
-#include "sql/dd/impl/tables/table_stats.h"  // dd::tables::Table_stats
-#include "sql/dd/impl/tables/tables.h"       // dd::tables::Tables
-#include "sql/dd/impl/tables/tablespaces.h"  // dd::tables::Tablespaces
-#include "sql/dd/impl/transaction_impl.h"    // Transaction_ro
+#include "sql/dd/impl/tables/table_stats.h"     // dd::tables::Table_stats
+#include "sql/dd/impl/tables/tables.h"          // dd::tables::Tables
+#include "sql/dd/impl/tables/tablespaces.h"     // dd::tables::Tablespaces
+#include "sql/dd/impl/tables/udt_methods.h"     // dd::tables::UDT_Methods
+#include "sql/dd/impl/tables/udt_parameters.h"  // dd::tables::UDT_Parameters
+#include "sql/dd/impl/tables/udt_types.h"       // dd::tables::UDT_Types
+#include "sql/dd/impl/transaction_impl.h"       // Transaction_ro
 #include "sql/dd/impl/types/entity_object_impl.h"
+#include "sql/dd/impl/types/udt_method_impl.h"
+#include "sql/dd/impl/types/udt_parameter_impl.h"
+#include "sql/dd/impl/types/udt_type_impl.h"
 #include "sql/dd/types/abstract_table.h"            // Abstract_table
 #include "sql/dd/types/charset.h"                   // Charset
 #include "sql/dd/types/collation.h"                 // Collation
@@ -69,6 +75,9 @@
 #include "sql/dd/types/table.h"                     // Table
 #include "sql/dd/types/table_stat.h"                // Table_stat
 #include "sql/dd/types/tablespace.h"                // Tablespace
+#include "sql/dd/types/udt_method.h"                // UDT_Method
+#include "sql/dd/types/udt_parameter.h"             // UDT_Parameter
+#include "sql/dd/types/udt_type.h"                  // UDT_Type
 #include "sql/dd/types/view.h"                      // View
 #include "sql/debug_sync.h"                         // DEBUG_SYNC
 #include "sql/error_handler.h"                      // Internal_error_handler
@@ -599,6 +608,42 @@ template bool Storage_adapter::get<Tablespace::Aux_key, Tablespace>(
     const Tablespace **);
 template bool Storage_adapter::drop(THD *, const Tablespace *);
 template bool Storage_adapter::store(THD *, Tablespace *);
+
+template bool Storage_adapter::get<UDT_Type::Id_key, UDT_Type>(
+    THD *, const UDT_Type::Id_key &, enum_tx_isolation, bool,
+    const UDT_Type **);
+template bool Storage_adapter::get<UDT_Type::Name_key, UDT_Type>(
+    THD *, const UDT_Type::Name_key &, enum_tx_isolation, bool,
+    const UDT_Type **);
+template bool Storage_adapter::get<UDT_Type::Aux_key, UDT_Type>(
+    THD *, const UDT_Type::Aux_key &, enum_tx_isolation, bool,
+    const UDT_Type **);
+template bool Storage_adapter::drop(THD *, const UDT_Type *);
+template bool Storage_adapter::store(THD *, UDT_Type *);
+
+template bool Storage_adapter::get<UDT_Method::Id_key, UDT_Method>(
+    THD *, const UDT_Method::Id_key &, enum_tx_isolation, bool,
+    const UDT_Method **);
+template bool Storage_adapter::get<UDT_Method::Name_key, UDT_Method>(
+    THD *, const UDT_Method::Name_key &, enum_tx_isolation, bool,
+    const UDT_Method **);
+template bool Storage_adapter::get<UDT_Method::Aux_key, UDT_Method>(
+    THD *, const UDT_Method::Aux_key &, enum_tx_isolation, bool,
+    const UDT_Method **);
+template bool Storage_adapter::drop(THD *, const UDT_Method *);
+template bool Storage_adapter::store(THD *, UDT_Method *);
+
+template bool Storage_adapter::get<UDT_Parameter::Id_key, UDT_Parameter>(
+    THD *, const UDT_Parameter::Id_key &, enum_tx_isolation, bool,
+    const UDT_Parameter **);
+template bool Storage_adapter::get<UDT_Parameter::Name_key, UDT_Parameter>(
+    THD *, const UDT_Parameter::Name_key &, enum_tx_isolation, bool,
+    const UDT_Parameter **);
+template bool Storage_adapter::get<UDT_Parameter::Aux_key, UDT_Parameter>(
+    THD *, const UDT_Parameter::Aux_key &, enum_tx_isolation, bool,
+    const UDT_Parameter **);
+template bool Storage_adapter::drop(THD *, const UDT_Parameter *);
+template bool Storage_adapter::store(THD *, UDT_Parameter *);
 
 /*
   DD objects dd::Table_stat and dd::Index_stat are not cached,

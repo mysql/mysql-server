@@ -123,8 +123,11 @@ let $FCT=endpoint;
 -- source include/parser_bug21114.inc
 let $FCT=envelope;
 -- source include/parser_bug21114.inc
-let $FCT=equals;
--- source include/parser_bug21114.inc
+
+# EQUALS is reserved in SQL-2023
+# let $FCT=equals;
+# -- source include/parser_bug21114.inc
+
 let $FCT=exp;
 -- source include/parser_bug21114.inc
 let $FCT=export_set;

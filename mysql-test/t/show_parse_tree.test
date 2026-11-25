@@ -56,8 +56,9 @@ SHOW PARSE_TREE SELECT db.func(), char(col1), char(col1 USING utf8mb4), concat(a
 SHOW PARSE_TREE UPDATE tab SET O = 1;
 --error ER_NOT_SUPPORTED_YET
 SHOW PARSE_TREE CREATE TABLE tab(id INT);
+# (id INVALID_SYNTAX) can be a user defined type.
 --error ER_PARSE_ERROR
-SHOW PARSE_TREE CREATE TABLE tab(id INVALID_SYNTAX);
+SHOW PARSE_TREE CREATE TABLE tab(id INVALID_SYNTAX INTENDED);
 
 --echo #
 --echo # Bug#35964157 mysql 8.1.0/8.2.0, mysqld got signal 11,

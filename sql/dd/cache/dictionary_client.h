@@ -554,6 +554,9 @@ class Dictionary_client {
   template <typename T>
   [[nodiscard]] bool acquire(Object_id id, const T **object);
 
+  template <typename T>
+  [[nodiscard]] bool acquire(const T::Name_key &key, const T **object);
+
   /**
     Retrieve an object by its object id.
 
@@ -569,6 +572,10 @@ class Dictionary_client {
 
   template <typename T>
   [[nodiscard]] bool acquire_for_modification(Object_id id, T **object);
+
+  template <typename T>
+  [[nodiscard]] bool acquire_for_modification(const T::Name_key &key,
+                                              T **object);
 
   /**
     Retrieve an object by its object id without caching it.

@@ -103,8 +103,8 @@ CREATE TABLE test.I_S_view_names (name VARCHAR(64) PRIMARY KEY);
 ########################################################################
 # The number of I_S system views must be as expected.
 ########################################################################
-include/assert.inc [There are 50 system views.]
-include/assert.inc [There are 50 I_S system views in total.]
+include/assert.inc [There are 53 system views.]
+include/assert.inc [There are 53 I_S system views in total.]
 ########################################################################
 # No unexpected I_S tables must be present.
 ########################################################################
@@ -1630,6 +1630,160 @@ INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infosch
   tbl.type != 'VIEW'
   AND CAN_ACCESS_TRIGGER(sch.name, tbl.name)
   AND IS_VISIBLE_DD_OBJECT(tbl.hidden)
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.USER_DEFINED_TYPES AS SELECT 
+  cat.name AS USER_DEFINED_TYPE_CATALOG,
+  sch.name AS USER_DEFINED_TYPE_SCHEMA,
+  typ.name AS USER_DEFINED_TYPE_NAME,
+  typ.type_category AS USER_DEFINED_TYPE_CATEGORY,
+  typ.is_instantiable AS IS_INSTANTIABLE,
+  typ.is_final AS IS_FINAL,
+  typ.ordering_form AS ORDERING_FORM,
+  typ.ordering_category AS ORDERING_CATEGORY,
+  SUBSTRING_INDEX(SUBSTRING_INDEX(typ.data_type_utf8, '(', 1),' ', 1) AS DATA_TYPE,
+  typ.char_max_length AS CHARACTER_MAXIMUM_LENGTH,
+  typ.char_octet_length AS CHARACTER_OCTET_LENGTH,
+  cs.name AS CHARACTER_SET_NAME,
+  coll.name AS COLLATION_NAME,
+  IF (typ.numeric_precision = 0, NULL, typ.numeric_precision) AS NUMERIC_PRECISION,
+  IF (typ.numeric_scale = 0 && typ.numeric_precision = 0,    NULL, typ.numeric_scale) AS NUMERIC_SCALE,
+  typ.datetime_precision AS DATETIME_PRECISION FROM 
+  mysql.user_defined_types typ
+  JOIN mysql.schemata sch ON typ.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+  LEFT JOIN mysql.collations coll ON typ.collation_id=coll.id
+  LEFT JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.USER_DEFINED_TYPES AS SELECT 
+  cat.name AS USER_DEFINED_TYPE_CATALOG,
+  sch.name AS USER_DEFINED_TYPE_SCHEMA,
+  typ.name AS USER_DEFINED_TYPE_NAME,
+  typ.type_category AS USER_DEFINED_TYPE_CATEGORY,
+  typ.is_instantiable AS IS_INSTANTIABLE,
+  typ.is_final AS IS_FINAL,
+  typ.ordering_form AS ORDERING_FORM,
+  typ.ordering_category AS ORDERING_CATEGORY,
+  SUBSTRING_INDEX(SUBSTRING_INDEX(typ.data_type_utf8, '(', 1),' ', 1) AS DATA_TYPE,
+  typ.char_max_length AS CHARACTER_MAXIMUM_LENGTH,
+  typ.char_octet_length AS CHARACTER_OCTET_LENGTH,
+  cs.name AS CHARACTER_SET_NAME,
+  coll.name AS COLLATION_NAME,
+  IF (typ.numeric_precision = 0, NULL, typ.numeric_precision) AS NUMERIC_PRECISION,
+  IF (typ.numeric_scale = 0 && typ.numeric_precision = 0,    NULL, typ.numeric_scale) AS NUMERIC_SCALE,
+  typ.datetime_precision AS DATETIME_PRECISION FROM 
+  mysql.user_defined_types typ
+  JOIN mysql.schemata sch ON typ.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+  LEFT JOIN mysql.collations coll ON typ.collation_id=coll.id
+  LEFT JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.METHOD_SPECIFICATIONS AS SELECT 
+  met.specific_name AS SPECIFIC_NAME,
+  cat.name AS UDT_CATALOG,
+  sch.name AS UDT_SCHEMA,
+  typ.name AS UDT_NAME,
+  met.name AS METHOD_NAME,
+  met.is_static AS IS_STATIC,
+  met.is_overriding AS IS_OVERRIDING,
+  met.is_constructor AS IS_CONSTRUCTOR,
+  SUBSTRING_INDEX(SUBSTRING_INDEX(met.data_type_utf8, '(', 1),' ', 1) AS DATA_TYPE,
+  met.char_max_length AS CHARACTER_MAXIMUM_LENGTH,
+  met.char_octet_length AS CHARACTER_OCTET_LENGTH,
+  cs.name AS CHARACTER_SET_NAME,
+  coll.name AS COLLATION_NAME,
+  IF (met.numeric_precision = 0, NULL, met.numeric_precision) AS NUMERIC_PRECISION,
+  IF (met.numeric_scale = 0 && met.numeric_precision = 0,    NULL, met.numeric_scale) AS NUMERIC_SCALE,
+  met.datetime_precision AS DATETIME_PRECISION,
+  met.is_deterministic AS IS_DETERMINISTIC,
+  met.sql_data_access AS SQL_DATA_ACCESS,
+  met.is_null_call AS IS_NULL_CALL FROM 
+  mysql.method_specifications met
+  JOIN mysql.user_defined_types typ ON met.type_id=typ.id
+  JOIN mysql.schemata sch ON typ.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+  LEFT JOIN mysql.collations coll ON met.collation_id=coll.id
+  LEFT JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.METHOD_SPECIFICATIONS AS SELECT 
+  met.specific_name AS SPECIFIC_NAME,
+  cat.name AS UDT_CATALOG,
+  sch.name AS UDT_SCHEMA,
+  typ.name AS UDT_NAME,
+  met.name AS METHOD_NAME,
+  met.is_static AS IS_STATIC,
+  met.is_overriding AS IS_OVERRIDING,
+  met.is_constructor AS IS_CONSTRUCTOR,
+  SUBSTRING_INDEX(SUBSTRING_INDEX(met.data_type_utf8, '(', 1),' ', 1) AS DATA_TYPE,
+  met.char_max_length AS CHARACTER_MAXIMUM_LENGTH,
+  met.char_octet_length AS CHARACTER_OCTET_LENGTH,
+  cs.name AS CHARACTER_SET_NAME,
+  coll.name AS COLLATION_NAME,
+  IF (met.numeric_precision = 0, NULL, met.numeric_precision) AS NUMERIC_PRECISION,
+  IF (met.numeric_scale = 0 && met.numeric_precision = 0,    NULL, met.numeric_scale) AS NUMERIC_SCALE,
+  met.datetime_precision AS DATETIME_PRECISION,
+  met.is_deterministic AS IS_DETERMINISTIC,
+  met.sql_data_access AS SQL_DATA_ACCESS,
+  met.is_null_call AS IS_NULL_CALL FROM 
+  mysql.method_specifications met
+  JOIN mysql.user_defined_types typ ON met.type_id=typ.id
+  JOIN mysql.schemata sch ON typ.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+  LEFT JOIN mysql.collations coll ON met.collation_id=coll.id
+  LEFT JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
+");
+CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.METHOD_SPECIFICATION_PARAMETERS AS SELECT 
+  cat.name AS UDT_CATALOG,
+  sch.name AS UDT_SCHEMA,
+  typ.name AS UDT_NAME,
+  met.specific_name AS METHOD_SPECIFIC_NAME,
+  par.ordinal_position AS ORDINAL_POSITION,
+  par.mode AS PARAMETER_MODE,
+  par.is_result AS IS_RESULT,
+  par.name AS PARAMETER_NAME,
+  par.char_max_length AS CHARACTER_MAXIMUM_LENGTH,
+  par.char_octet_length AS CHARACTER_OCTET_LENGTH,
+  cs.name AS CHARACTER_SET_NAME,
+  coll.name AS COLLATION_NAME,
+  IF (par.numeric_precision = 0, NULL, par.numeric_precision) AS NUMERIC_PRECISION,
+  IF (par.numeric_scale = 0 && par.numeric_precision = 0,    NULL, par.numeric_scale) AS NUMERIC_SCALE,
+  par.datetime_precision AS DATETIME_PRECISION FROM 
+  mysql.method_specification_parameters par
+  JOIN mysql.method_specifications met ON par.method_id=met.id
+  JOIN mysql.user_defined_types typ ON met.type_id=typ.id
+  JOIN mysql.schemata sch ON typ.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+  LEFT JOIN mysql.collations coll ON met.collation_id=coll.id
+  LEFT JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
+
+INSERT INTO I_S_check_table(t) VALUES ("CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.METHOD_SPECIFICATION_PARAMETERS AS SELECT 
+  cat.name AS UDT_CATALOG,
+  sch.name AS UDT_SCHEMA,
+  typ.name AS UDT_NAME,
+  met.specific_name AS METHOD_SPECIFIC_NAME,
+  par.ordinal_position AS ORDINAL_POSITION,
+  par.mode AS PARAMETER_MODE,
+  par.is_result AS IS_RESULT,
+  par.name AS PARAMETER_NAME,
+  par.char_max_length AS CHARACTER_MAXIMUM_LENGTH,
+  par.char_octet_length AS CHARACTER_OCTET_LENGTH,
+  cs.name AS CHARACTER_SET_NAME,
+  coll.name AS COLLATION_NAME,
+  IF (par.numeric_precision = 0, NULL, par.numeric_precision) AS NUMERIC_PRECISION,
+  IF (par.numeric_scale = 0 && par.numeric_precision = 0,    NULL, par.numeric_scale) AS NUMERIC_SCALE,
+  par.datetime_precision AS DATETIME_PRECISION FROM 
+  mysql.method_specification_parameters par
+  JOIN mysql.method_specifications met ON par.method_id=met.id
+  JOIN mysql.user_defined_types typ ON met.type_id=typ.id
+  JOIN mysql.schemata sch ON typ.schema_id=sch.id
+  JOIN mysql.catalogs cat ON cat.id=sch.catalog_id
+  LEFT JOIN mysql.collations coll ON met.collation_id=coll.id
+  LEFT JOIN mysql.character_sets cs ON coll.character_set_id= cs.id WHERE 
+  CAN_ACCESS_DATABASE(sch.name)
 ");
 CREATE OR REPLACE DEFINER=`mysql.infoschema`@`localhost` VIEW information_schema.VIEW_ROUTINE_USAGE AS SELECT 
   cat.name AS TABLE_CATALOG,

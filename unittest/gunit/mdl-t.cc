@@ -3871,7 +3871,8 @@ TEST_F(MDLHtonNotifyTest, NotifyNamespaces) {
       false,  // RESOURCE_GROUPS
       false,  // FOREIGN_KEY
       false,  // CHECK_CONSTRAINT
-      false   // LIBRARY
+      false,  // LIBRARY
+      false   // UDT_TYPE
   };
   static_assert(
       sizeof(notify_or_not) == MDL_key::NAMESPACE_END,

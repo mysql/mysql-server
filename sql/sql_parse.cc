@@ -172,6 +172,7 @@
 #include "sql/sql_table.h"          // mysql_create_table
 #include "sql/sql_trigger.h"        // add_table_for_trigger
 #include "sql/sql_udf.h"
+#include "sql/sql_user_defined_type.h"
 #include "sql/sql_view.h"  // mysql_create_view
 #include "sql/strfunc.h"
 #include "sql/system_variables.h"  // System_status_var
@@ -1198,6 +1199,36 @@ void init_sql_command_flags() {
   sql_command_flags[SQLCOM_RENAME_USER] |= CF_REQUIRE_ACL_CACHE;
   sql_command_flags[SQLCOM_SHOW_GRANTS] |= CF_REQUIRE_ACL_CACHE;
   sql_command_flags[SQLCOM_SET_PASSWORD] |= CF_REQUIRE_ACL_CACHE;
+
+  // Prototyping
+  sql_command_flags[SQLCOM_CREATE_TYPE] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_DISALLOW_IN_RO_TRANS |
+      CF_ALLOW_PROTOCOL_PLUGIN | CF_NEEDS_AUTOCOMMIT_OFF |
+      CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_ALTER_TYPE] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_DISALLOW_IN_RO_TRANS |
+      CF_ALLOW_PROTOCOL_PLUGIN | CF_NEEDS_AUTOCOMMIT_OFF |
+      CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_TYPE] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_DISALLOW_IN_RO_TRANS |
+      CF_ALLOW_PROTOCOL_PLUGIN | CF_NEEDS_AUTOCOMMIT_OFF |
+      CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_CREATE_CAST] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_DISALLOW_IN_RO_TRANS |
+      CF_ALLOW_PROTOCOL_PLUGIN | CF_NEEDS_AUTOCOMMIT_OFF |
+      CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_CAST] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_DISALLOW_IN_RO_TRANS |
+      CF_ALLOW_PROTOCOL_PLUGIN | CF_NEEDS_AUTOCOMMIT_OFF |
+      CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_CREATE_ORDERING] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_DISALLOW_IN_RO_TRANS |
+      CF_ALLOW_PROTOCOL_PLUGIN | CF_NEEDS_AUTOCOMMIT_OFF |
+      CF_POTENTIAL_ATOMIC_DDL;
+  sql_command_flags[SQLCOM_DROP_ORDERING] =
+      CF_CHANGES_DATA | CF_AUTO_COMMIT_TRANS | CF_DISALLOW_IN_RO_TRANS |
+      CF_ALLOW_PROTOCOL_PLUGIN | CF_NEEDS_AUTOCOMMIT_OFF |
+      CF_POTENTIAL_ATOMIC_DDL;
 }
 
 bool sqlcom_can_generate_row_events(enum enum_sql_command command) {
@@ -2534,7 +2565,7 @@ done:
   else
     thd->mem_root->Clear();
 
-    /* SHOW PROFILE instrumentation, end */
+  /* SHOW PROFILE instrumentation, end */
 #if defined(ENABLED_PROFILING)
   thd->profiling->finish_current_query();
 #endif
@@ -4525,7 +4556,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         my_ok(thd);
       }
       break; /* break super switch */
-    }        /* end case group bracket */
+    } /* end case group bracket */
 
     case SQLCOM_ALTER_PROCEDURE:
     case SQLCOM_ALTER_FUNCTION: {
@@ -4763,7 +4794,14 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_DROP_SRS:
     case SQLCOM_CREATE_LIBRARY:
     case SQLCOM_DROP_LIBRARY:
-    case SQLCOM_ALTER_LIBRARY: {
+    case SQLCOM_ALTER_LIBRARY:
+    case SQLCOM_CREATE_TYPE:
+    case SQLCOM_ALTER_TYPE:
+    case SQLCOM_DROP_TYPE:
+    case SQLCOM_CREATE_CAST:
+    case SQLCOM_DROP_CAST:
+    case SQLCOM_CREATE_ORDERING:
+    case SQLCOM_DROP_ORDERING: {
       assert(lex->m_sql_cmd != nullptr);
 
       res = lex->m_sql_cmd->execute(thd);
@@ -5573,7 +5611,8 @@ bool mysql_test_parse_for_slave(THD *thd) {
     Return 0 if ok
 */
 bool Alter_info::add_field(
-    THD *thd, const LEX_STRING *field_name, enum_field_types type,
+    THD *thd, const LEX_STRING *field_name,
+    const Type_ident *type_ident [[maybe_unused]], enum_field_types type,
     const char *length, const char *decimals, uint type_modifier,
     Item *default_value, Item *on_update_value, LEX_CSTRING *comment,
     const char *change, List<String> *interval_list, const CHARSET_INFO *cs,
@@ -5677,6 +5716,11 @@ bool Alter_info::add_field(
     return true;
   }
 
+  // === UDT, prototyping (begin)
+
+  // #define OLD_WAY
+
+#ifdef OLD_WAY
   Create_field *new_field = new (thd->mem_root) Create_field();
   if ((new_field == nullptr) ||
       new_field->init(thd, field_name->str, type, length, decimals,
@@ -5685,6 +5729,75 @@ bool Alter_info::add_field(
                       uint_geom_type, gcol_info, default_val_expr,
                       masking_policy, srid, hidden, is_array))
     return true;
+#endif
+
+#ifndef OLD_WAY
+  Create_field *new_field = new (thd->mem_root) Create_field();
+  if (new_field == nullptr) {
+    return true;
+  }
+
+  {
+    TypeDescriptor td;
+    td.m_type = type;
+    td.m_type_flags = type_modifier;
+
+    if (length != nullptr) {
+      td.m_length_specified = true;
+      td.m_length = atoi(length);
+    } else {
+      td.m_length_specified = false;
+      td.m_length = 0;
+    }
+
+    if (decimals != nullptr) {
+      td.m_dec_specified = true;
+      td.m_dec = atoi(decimals);
+    } else {
+      td.m_dec_specified = false;
+      td.m_dec = 0;
+    }
+
+    td.m_charset = cs;
+    td.m_has_explicit_collation = has_explicit_collation;
+    td.m_geo_type = uint_geom_type;
+    td.m_internal_list = interval_list;
+    td.m_type_ident = type_ident;
+
+#ifdef LATER
+    if (td.m_type_ident != nullptr) {
+      // FIXME: Using table schema as default ?
+      if (td.m_type_ident->db.length == 0) {
+        LEX_CSTRING db = to_lex_cstring(sp->m_db);
+        Type_ident *qualified = new Type_ident(db, td.m_type_ident->type);
+        td.m_type_ident = qualified;
+      }
+    }
+#endif
+
+    if (resolve_type_descriptor(thd, &td)) {
+      return true;
+    }
+
+    FieldDescriptor fd;
+    fd.m_default_value = default_value;
+    fd.m_on_update_value = on_update_value;
+    fd.m_comment = comment;
+    fd.m_change = change;
+    fd.m_gcol_info = gcol_info;
+    fd.m_default_val_expr = default_val_expr;
+    fd.m_fld_masking_policy = masking_policy;
+    fd.m_srid = srid;
+    fd.m_hidden = hidden;
+    fd.m_is_array = is_array;
+
+    if (new_field->init_from_type_descriptor(thd, field_name->str, &td, &fd)) {
+      return true;
+    }
+  }
+#endif
+
+  // === UDT, prototyping (end)
 
   for (const auto &a : cf_appliers) {
     if (a(new_field, this)) return true;

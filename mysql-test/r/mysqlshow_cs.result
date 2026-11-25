@@ -131,6 +131,8 @@ Database: information_schema
 | KEYWORDS                              |
 | KEY_COLUMN_USAGE                      |
 | LIBRARIES                             |
+| METHOD_SPECIFICATIONS                 |
+| METHOD_SPECIFICATION_PARAMETERS       |
 | OPTIMIZER_TRACE                       |
 | PARAMETERS                            |
 | PARTITIONS                            |
@@ -159,6 +161,7 @@ Database: information_schema
 | TABLE_PRIVILEGES                      |
 | TRIGGERS                              |
 | USER_ATTRIBUTES                       |
+| USER_DEFINED_TYPES                    |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
 | VIEW_ROUTINE_USAGE                    |
@@ -220,6 +223,8 @@ Database: INFORMATION_SCHEMA
 | KEYWORDS                              |
 | KEY_COLUMN_USAGE                      |
 | LIBRARIES                             |
+| METHOD_SPECIFICATIONS                 |
+| METHOD_SPECIFICATION_PARAMETERS       |
 | OPTIMIZER_TRACE                       |
 | PARAMETERS                            |
 | PARTITIONS                            |
@@ -248,6 +253,7 @@ Database: INFORMATION_SCHEMA
 | TABLE_PRIVILEGES                      |
 | TRIGGERS                              |
 | USER_ATTRIBUTES                       |
+| USER_DEFINED_TYPES                    |
 | USER_PRIVILEGES                       |
 | VIEWS                                 |
 | VIEW_ROUTINE_USAGE                    |

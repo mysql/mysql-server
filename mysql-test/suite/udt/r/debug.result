@@ -1,0 +1,11 @@
+CREATE TYPE test.complex_number AS BINARY(16);
+Warnings:
+Warning	6924	The following code is not implemented: Sql_cmd_create_type::execute()
+INSTALL COMPONENT "file://component_udt_example";
+SELECT "Hi there" as my_string;
+SELECT complex_number_from_string("12+24i") as my_complex;
+SELECT complex_number_to_string(complex_number_from_string("24+48i")) as my_string;
+DROP TYPE test.complex_number;
+Warnings:
+Warning	6924	The following code is not implemented: Sql_cmd_drop_type::execute()
+UNINSTALL COMPONENT "file://component_udt_example";
