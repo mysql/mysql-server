@@ -1,0 +1,146 @@
+#
+# Bug#120926 Regression coverage
+#
+SET @save_optimizer_switch=@@optimizer_switch;
+SET @save_sql_mode=@@sql_mode;
+SET @save_default_storage_engine=@@default_storage_engine;
+SET @save_character_set_client=@@character_set_client;
+SET @save_character_set_results=@@character_set_results;
+SET @save_character_set_connection=@@character_set_connection;
+SET @save_collation_connection=@@collation_connection;
+CREATE DATABASE bug_120926 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120926;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (b DECIMAL(62,11));
+INSERT INTO a VALUES ('-324496720440747619363574210177526687173690420725404.47046752783');
+CREATE VIEW v0 AS SELECT AVG(b) AS c,b AS d FROM a GROUP BY d;
+WITH CTE AS (SELECT AVG(b) AS c,b AS d FROM a GROUP BY d) SELECT 0 FROM CTE UNION SELECT COUNT(*) FROM CTE WHERE d<c;
+0
+0
+PREPARE regression_stmt FROM 'WITH CTE AS (SELECT AVG(b) AS c,b AS d FROM a GROUP BY d) SELECT 0 FROM CTE UNION SELECT COUNT(*) FROM CTE WHERE d<c;';
+EXECUTE regression_stmt;
+0
+0
+EXECUTE regression_stmt;
+0
+0
+DEALLOCATE PREPARE regression_stmt;
+SELECT 0 FROM v0 UNION SELECT COUNT(*) FROM v0 WHERE d<c;
+0
+0
+USE test;
+DROP DATABASE bug_120926;
+CREATE DATABASE bug_120926 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120926;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (b DECIMAL(62,11));
+INSERT INTO a VALUES ('-324496720440747619363574210177526687173690420725404.47046752783');
+SELECT AVG(b)=MIN(b) AS equal_value,AVG(b) IS NULL AS is_null FROM a;
+equal_value	is_null
+1	0
+PREPARE regression_stmt FROM 'SELECT AVG(b)=MIN(b) AS equal_value,AVG(b) IS NULL AS is_null FROM a;';
+EXECUTE regression_stmt;
+equal_value	is_null
+1	0
+EXECUTE regression_stmt;
+equal_value	is_null
+1	0
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120926;
+CREATE DATABASE bug_120926 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120926;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (b DECIMAL(62,11));
+INSERT INTO a VALUES ('324496720440747619363574210177526687173690420725404.47046752783');
+SELECT AVG(b)=MIN(b) AS equal_value,AVG(b) IS NULL AS is_null FROM a;
+equal_value	is_null
+1	0
+PREPARE regression_stmt FROM 'SELECT AVG(b)=MIN(b) AS equal_value,AVG(b) IS NULL AS is_null FROM a;';
+EXECUTE regression_stmt;
+equal_value	is_null
+1	0
+EXECUTE regression_stmt;
+equal_value	is_null
+1	0
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120926;
+CREATE DATABASE bug_120926 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120926;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (b DECIMAL(65,0));
+INSERT INTO a VALUES ('99999999999999999999999999999999999999999999999999999999999999999'),('99999999999999999999999999999999999999999999999999999999999999999');
+SELECT AVG(b)=MIN(b) AS equal_value,AVG(b) IS NULL AS is_null FROM a;
+equal_value	is_null
+1	0
+PREPARE regression_stmt FROM 'SELECT AVG(b)=MIN(b) AS equal_value,AVG(b) IS NULL AS is_null FROM a;';
+EXECUTE regression_stmt;
+equal_value	is_null
+1	0
+EXECUTE regression_stmt;
+equal_value	is_null
+1	0
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120926;
+CREATE DATABASE bug_120926 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120926;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (b DECIMAL(62,11));
+INSERT INTO a VALUES (NULL),(NULL);
+SELECT AVG(b)=MIN(b) AS equal_value,AVG(b) IS NULL AS is_null FROM a;
+equal_value	is_null
+NULL	1
+PREPARE regression_stmt FROM 'SELECT AVG(b)=MIN(b) AS equal_value,AVG(b) IS NULL AS is_null FROM a;';
+EXECUTE regression_stmt;
+equal_value	is_null
+NULL	1
+EXECUTE regression_stmt;
+equal_value	is_null
+NULL	1
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120926;
+CREATE DATABASE bug_120926 CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+USE bug_120926;
+SET sql_mode=DEFAULT;
+SET optimizer_switch=DEFAULT;
+SET default_storage_engine=InnoDB;
+SET NAMES utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE TABLE a (b DECIMAL(62,11));
+SELECT AVG(b)=MIN(b) AS equal_value,AVG(b) IS NULL AS is_null FROM a;
+equal_value	is_null
+NULL	1
+PREPARE regression_stmt FROM 'SELECT AVG(b)=MIN(b) AS equal_value,AVG(b) IS NULL AS is_null FROM a;';
+EXECUTE regression_stmt;
+equal_value	is_null
+NULL	1
+EXECUTE regression_stmt;
+equal_value	is_null
+NULL	1
+DEALLOCATE PREPARE regression_stmt;
+USE test;
+DROP DATABASE bug_120926;
+SET optimizer_switch=@save_optimizer_switch;
+SET sql_mode=@save_sql_mode;
+SET default_storage_engine=@save_default_storage_engine;
+SET character_set_client=@save_character_set_client;
+SET character_set_results=@save_character_set_results;
+SET character_set_connection=@save_character_set_connection;
+SET collation_connection=@save_collation_connection;
