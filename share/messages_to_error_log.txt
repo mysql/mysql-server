@@ -12575,7 +12575,7 @@ ER_GROUP_REPLICATION_METADATA_PROTOBUF_PARSING
   eng "Error while parsing serialzed Certification_info from received Recovery Metadata to Protobuf format using Protobuf library."
 
 ER_GROUP_REPLICATION_PROTOBUF_SERIALIZING_ERROR
-  eng "Error while serializing % data using Protobuf library."
+  eng "Error while serializing %s data using Protobuf library."
 
 ER_GROUP_REPLICATION_ERROR_RECEIVED_WAITING_METADATA
   eng "Error received while the Recovery thread was waiting for the Recovery Metadata. The Recovery will be terminated."

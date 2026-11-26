@@ -467,7 +467,7 @@ static int register_system_variables() {
   if (mysql_service_component_sys_variable_register->register_variable(
           "component_connection_control", "min_connection_delay",
           PLUGIN_VAR_LONGLONG | PLUGIN_VAR_RQCMDARG,
-          "Maximum delay in msec to be introduced. Default is 1000.",
+          "Minimum delay in msec to be introduced. Default is 1000.",
           check_min_connection_delay, update_min_connection_delay,
           (void *)&min_delay, (void *)&g_variables.min_connection_delay) != 0) {
     LogComponentErr(ERROR_LEVEL,
