@@ -1,0 +1,8 @@
+SET GLOBAL innodb_checkpoint_disabled = ON;
+SET GLOBAL innodb_page_cleaner_disabled_debug = ON;
+# Kill the server
+# restart: --innodb-buffer-pool-size=100M --innodb-buffer-pool-instances=1 --innodb-read-io-threads=4
+SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'test';
+COUNT(*)
+1000
+# restart:
