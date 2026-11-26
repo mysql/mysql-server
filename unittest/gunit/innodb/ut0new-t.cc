@@ -1102,6 +1102,10 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_fundamental_types,
                         : ut::malloc_large_page(sizeof(type),
                                                 ut::fallback_to_normal_page_t{},
                                                 default_cfg);
+    EXPECT_EQ(initial_large_mem + ut::large_page_low_level_info(
+                                      ret, ut::fallback_to_normal_page_t{})
+                                      .allocation_size,
+              os_total_large_mem_allocated.load());
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ret) % CPU_PAGE_SIZE == 0);
     EXPECT_GE(
         ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}),
@@ -1141,6 +1145,10 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_pod_types, pod_types) {
                         : ut::malloc_large_page(sizeof(type),
                                                 ut::fallback_to_normal_page_t{},
                                                 default_cfg);
+    EXPECT_EQ(initial_large_mem + ut::large_page_low_level_info(
+                                      ret, ut::fallback_to_normal_page_t{})
+                                      .allocation_size,
+              os_total_large_mem_allocated.load());
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ret) % CPU_PAGE_SIZE == 0);
     EXPECT_GE(
         ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}),
@@ -1181,6 +1189,10 @@ TYPED_TEST_P(ut0new_large_malloc_free_fallback_non_pod_types, non_pod_types) {
                         : ut::malloc_large_page(sizeof(type),
                                                 ut::fallback_to_normal_page_t{},
                                                 default_cfg);
+    EXPECT_EQ(initial_large_mem + ut::large_page_low_level_info(
+                                      ret, ut::fallback_to_normal_page_t{})
+                                      .allocation_size,
+              os_total_large_mem_allocated.load());
     EXPECT_TRUE(reinterpret_cast<std::uintptr_t>(ret) % CPU_PAGE_SIZE == 0);
     EXPECT_GE(
         ut::large_page_allocation_size(ret, ut::fallback_to_normal_page_t{}),
