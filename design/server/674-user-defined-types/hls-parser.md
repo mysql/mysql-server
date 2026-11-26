@@ -1,0 +1,639 @@
+
+# CREATE TYPE statement
+
+## Syntax for distinct types
+
+```bison
+<create_type_stmt>:
+  CREATE TYPE <type_ident> AS <builtin_type>
+  <opt_method_specification_list>
+  ;
+```
+
+```bison
+<type_ident>:
+    IDENT_sys
+  | IDENT_sys '.' IDENT_sys
+  ;
+```
+
+```bison
+<builtin_type>:
+  // existing MySQL builtin types
+  ;
+```
+
+```bison
+<opt_method_specification_list>:
+    %empty
+  | <method_specification_list>
+  ;
+```
+
+```bison
+<method_specification_list>:
+    <method_specification>
+  | <method_specification_list> <method_specification>
+  ;
+```
+
+```bison
+<opt_method_kind>:
+    %empty
+  | <method_kind>
+  ;
+```
+
+```bison
+<method_kind>:
+    INSTANCE
+  | STATIC
+  | CONSTRUCTOR
+  ;
+```
+
+The CONSTRUCTOR syntax is supported in the parser,
+but rejected for distinct types.
+This option is only meaningful for structured types,
+which are not implemented.
+
+```bison
+<method_specification>:
+    <partial_method_specification> <opt_method_characteristics>
+  ;
+```
+
+```bison
+<partial_method_specification>:
+    <opt_method_kind> METHOD <ident> '(' <opt_sql_parameter_declaration_list> ')'
+    <returns_clause> <opt_specific_method_name>
+  ;
+```
+
+```bison
+<opt_specific_method_name>:
+    %empty
+  | <specific_method_name>
+  ;
+```
+
+```bison
+<specific_method_name>:
+    SPECIFIC <ident>
+  ;
+```
+
+```bison
+<opt_sql_parameter_declaration_list>:
+    %empty
+  | <sql_parameter_declaration_list>
+  ;
+```
+
+```bison
+<sql_parameter_declaration_list>:
+    <sql_parameter_declaration>
+  | <sql_parameter_declaration_list> ',' <sql_parameter_declaration>
+  ;
+```
+
+```bison
+<sql_parameter_declaration>:
+    <type>
+  ;
+```
+
+```bison
+<returns_clause>:
+    RETURNS <type>
+  ;
+```
+
+```bison
+<opt_method_characteristics>:
+    %empty
+  | <method_characteristics>
+  ;
+```
+
+```bison
+<method_characteristics>:
+    <method_characteristic>
+  | <method_characteristics> <method_characteristic>
+  ;
+```
+
+```bison
+<method_characteristic>:
+    <deterministic_characteristic>
+  | <sql_data_access_indication>
+  | <null_call_clause>
+  ;
+```
+
+```bison
+<deterministic_characteristic>:
+    DETERMINISTIC
+  | NOT DETERMINISTIC
+  ;
+```
+
+```bison
+<sql_data_access_indication>:
+    NO SQL
+  | CONTAINS SQL
+  | READS SQL
+  | MODIFIES SQL
+  ;
+```
+
+```bison
+<null_call_clause>:
+    RETURN NULL ON NULL INPUT
+  | CALLED ON NULL INPUT
+  ;
+```
+
+For example:
+
+```sql
+  CREATE TYPE `complex` AS BINARY(16);
+```
+
+This syntax defines a distinct type
+encapsulated in an underlying storage type.
+
+This simple form is used as a forward declaration,
+to add methods later with ALTER TYPE.
+
+```sql
+  CREATE TYPE math.complex_number AS BINARY(16)
+    STATIC METHOD `from_string` ( TEXT )
+      RETURNS math.complex_number
+    STATIC METHOD `add` ( math.complex_number, math.complex_number )
+      RETURNS math.complex_number
+    STATIC METHOD `mul` ( math.complex_number, math.complex_number )
+      RETURNS math.complex_number
+      RETURN NULL ON NULL INPUT
+    INSTANCE METHOD `real` ()
+      RETURNS DOUBLE
+    INSTANCE METHOD `imaginary` ()
+      RETURNS DOUBLE
+  ;
+```
+
+This form, including method definitions, creates a type and associated
+methods in a single DDL statement.
+
+# ALTER TYPE statement
+
+In the SQL specification, ALTER TYPE is used to:
+- ADD/DROP attributes
+- ADD/DROP methods
+
+We do not have attributes, since structured types are not supported.
+
+FR:
+
+ALTER TYPE supports a ADD METHOD clause, to add a method to an existing
+type.
+
+FR:
+
+ALTER TYPE supports a DROP METHOD clause, to drop a method from an existing
+type.
+
+```bison
+<alter_type_stmt>:
+  ALTER TYPE <type_ident> <alter_type_action>
+  ;
+```
+
+```bison
+<alter_type_action>:
+    ADD <method_specification>
+  | DROP <specific_method_specification_designator>
+  ;
+```
+
+```bison
+<specific_method_specification_designator>:
+    <opt_method_kind> METHOD <ident> '(' <opt_data_type_list> ')'
+  ;
+```
+
+```bison
+<opt_data_type_list>:
+    %empty
+  | <data_type_list>
+  ;
+```
+
+```bison
+<data_type_list>:
+    <type>
+  | <data_type_list> ',' <type>
+  ;
+```
+
+FR:
+
+ALTER TYPE DROP METHOD reports an error if the method to drop is used for
+type ordering.
+
+# DROP TYPE statement
+
+```bison
+<drop_type_stmt>:
+  DROP TYPE <type_ident>
+  ;
+```
+
+For example:
+
+```sql
+  DROP TYPE `complex`;
+```
+
+FR:
+
+DROP TYPE implicitly drops ordering declared with the type, if any.
+
+FR:
+
+DROP TYPE implicitly drops all methods declared with the type (cascade
+behavior).
+
+# DROP SCHEMA statement
+
+This is an existing statement.
+
+FR:
+
+DROP SCHEMA implicitly executes DROP TYPE for types present in the schema to
+drop (cascade behavior)
+
+
+# CREATE ORDERING statement
+
+This statement amends a type definition to declare if/how to compare values,
+for equality only, of for a total order.
+
+Ordering can imply a B-tree (RELATIVE) of a Hash (MAP).
+
+```bison
+<create_ordering_stmt>:
+    CREATE ORDERING FOR <type_ident>
+    <ordering_form> <ordering_category> <specific_routine_designator>
+  ;
+```
+
+```bison
+<ordering_form>:
+    EQUALS ONLY BY
+  | ORDER FULL BY
+  ;
+```
+
+```bison
+<ordering_category>:
+    RELATIVE WITH
+  | MAP WITH
+  | STATE
+  ;
+```
+
+The STATE syntax is supported in the parser,
+but rejected for distinct types.
+This option is only meaningful for structured types,
+which are not implemented.
+
+```bison
+<specific_routine_designator>:
+    <opt_method_kind> METHOD <ident> FOR <type_ident>
+  ;
+```
+
+Examples of use:
+
+```sql
+ALTER TYPE math.complex_number ADD
+  STATIC METHOD `compare` ( math.complex_number, math.complex_number )
+    RETURNS INTEGER;
+
+CREATE ORDERING FOR math.complex_number
+  EQUALS ONLY BY
+  RELATIVE WITH
+  STATIC METHOD compare FOR math.complex_number
+  ;
+```
+
+This ordering indicates that type math.complex_number
+only supports equality comparisons,
+to evaluate with the compare() method provided by the type implementation.
+
+```sql
+  SELECT ... WHERE (z_x = z_y)
+```
+
+is a legal expression for complex numbers.
+
+```sql
+ALTER TYPE net.ipv6 ADD
+  STATIC METHOD `compare` ( net.ipv6, net.ipv6 )
+    RETURNS INTEGER;
+
+CREATE ORDERING FOR net.ipv6
+  ORDER FULL BY
+  RELATIVE WITH
+  STATIC METHOD compare FOR net.ipv6
+  ;
+```
+
+This ordering indicates that type net.ipv6
+supports a total order,
+to evaluate with the compare() method provided by the type implementation.
+
+```sql
+  SELECT ... WHERE (ip_x <= ip_y)
+```
+
+is a legal expression for ip addresses.
+
+# DROP ORDERING statement
+
+```bison
+<drop_ordering_stmt>:
+    DROP ORDERING FOR <type_ident>
+  ;
+```
+
+For example:
+
+```sql
+  DROP ORDERING FOR math.complex_number;
+```
+
+# GRANT statement
+
+A TYPE is a SQL object.
+
+The GRANT statement is extended to user defined types.
+
+Privileges that can be granted are:
+
+- ALL PRIVILEGES
+- CREATE
+- ALTER
+- DROP
+- USAGE
+
+Type objects can be specified as:
+
+- `TYPE *.*`
+- `TYPE db.*`
+- `TYPE db.type`
+
+```sql
+  GRANT ALL PRIVILEGES ON TYPE *.* TO ...
+  GRANT CREATE ON TYPE *.* TO ...
+  GRANT ALTER ON TYPE *.* TO ...
+  GRANT DROP ON TYPE *.* TO ...
+  GRANT USAGE ON TYPE *.* TO ...
+
+  GRANT ALL PRIVILEGES ON TYPE db.* TO ...
+  GRANT CREATE ON TYPE db.* TO ...
+  GRANT ALTER ON TYPE db.* TO ...
+  GRANT DROP ON TYPE db.* TO ...
+  GRANT USAGE ON TYPE db.* TO ...
+
+  GRANT ALL PRIVILEGES ON TYPE db.type TO ...
+  GRANT CREATE ON TYPE db.type TO ...
+  GRANT ALTER ON TYPE db.type TO ...
+  GRANT DROP ON TYPE db.type TO ...
+  GRANT USAGE ON TYPE db.type TO ...
+```
+
+# REVOKE statement
+
+The revoke statement is extended to match grant
+
+```sql
+  REVOKE ALL PRIVILEGES ON TYPE *.* FROM ...
+  REVOKE CREATE ON TYPE *.* FROM ...
+  REVOKE ALTER ON TYPE *.* FROM ...
+  REVOKE DROP ON TYPE *.* FROM ...
+  REVOKE USAGE ON TYPE *.* FROM ...
+
+  REVOKE ALL PRIVILEGES ON TYPE db.* FROM ...
+  REVOKE CREATE ON TYPE db.* FROM ...
+  REVOKE ALTER ON TYPE db.* FROM ...
+  REVOKE DROP ON TYPE db.* FROM ...
+  REVOKE USAGE ON TYPE db.* FROM ...
+
+  REVOKE ALL PRIVILEGES ON TYPE db.type FROM ...
+  REVOKE CREATE ON TYPE db.type FROM ...
+  REVOKE ALTER ON TYPE db.type FROM ...
+  REVOKE DROP ON TYPE db.type FROM ...
+  REVOKE USAGE ON TYPE db.type FROM ...
+```
+
+# Type definitions
+
+The existing grammar for ENUM is extracted in its own rule:
+
+```bison
+  <enum_type>:
+      ENUM_SYM '(' string_list ')' opt_charset_with_opt_binary
+      {
+        $$= NEW_PTN PT_enum_type(@$, $3, $5.charset, $5.force_binary);
+      }
+    ;
+```
+
+The existing grammar for SET is extracted in its own rule:
+
+```bison
+  <set_type>:
+      SET_SYM '(' string_list ')' opt_charset_with_opt_binary
+      {
+        $$= NEW_PTN PT_set_type(@$, $3, $5.charset, $5.force_binary);
+      }
+    ;
+```
+
+The existing grammar for types:
+
+```bison
+  <type>:
+    // all builtin MySQL types
+    ;
+```
+
+is renamed to:
+
+```bison
+  <builtin_type>:
+    // all builtin MySQL types
+    ;
+```
+
+with rules for ENUM and SET excluded.
+
+A new syntax is added for user defined types:
+
+```bison
+  <user_defined_type>:
+    <type_ident>
+    ;
+```
+
+Types are generalized to be builtin, enum or set (as before),
+as well as user defined types:
+
+```bison
+  <type>:
+      <builtin_type>
+    | <enum_type>
+    | <set_type>
+    | <user_defined_type>
+    ;
+```
+
+As a result, every place using a type definition can now support user
+defined types.
+
+This includes:
+
+- column definitions
+- stored routine parameters
+- stored routine result
+- stored routines local variables declarations
+
+# Method invocation
+
+## Static method invocation
+
+The syntax for expressions is augmented to cover static method invocations.
+
+```bison
+  <simple_expr>:
+    <function_call_static_method>
+    ;
+```
+
+```bison
+  <function_call_static_method>:
+    <type_ident> <::> <ident> ( <opt_expr_list> )
+    ;
+```
+
+Examples:
+
+```sql
+  complex_col = complex::from_string("1+2i");
+```
+
+```sql
+  // 1+2i
+  complex_col = math.complex::from_cartesian(1.0, 2.0);
+```
+
+```sql
+  // 0+1i
+  complex_col = complex::from_polar(1.0, pi/2);
+```
+
+```sql
+  complex_col = math.complex::add(col_a, col_b);
+```
+
+## method invocation
+
+The existing syntax for expressions is augmented to cover instance method invocations.
+
+```bison
+  <simple_expr>:
+    <function_call_generic>
+    ;
+```
+
+```bison
+  <function_call_generic>:
+      IDENT_sys '(' opt_udf_expr_list ')'
+      {
+         // existing PTI_function_call_generic_ident_sys, unchanged
+      }
+    | ident '.' ident '(' opt_expr_list ')'
+      {
+         // existing PTI_function_call_generic_2d, unchanged
+      }
+    | ident '.' ident '.' ident '(' opt_expr_list ')'
+      {
+         // new PTI_function_call_generic_3d
+      }
+    ;
+```
+
+In the parse tree, PTI_function_call_generic_2d represents both:
+- calls to stored functions, `schema.function()`
+- calls to user defined types methods on column as object, `column.method()`
+Stored functions take precedence on name collisions.
+
+Rationale for the precedence rule:
+
+* Stored functions are likely to exist already, so are given priority,
+  to avoid changing the behavior of existing code.
+* In case of collisions, there is an alternate, non ambiguous syntax,
+  to invoke `column.method()` instead: `table.column.method()`.
+* There is no alternate syntax to enforce a call to `schema.function()`
+  if the method call takes precedence.
+
+In the parse tree, PTI_function_call_generic_3d represents
+a call to a type method on a qualified column object, `table.column.method()`.
+
+Examples:
+
+```sql
+  string_col = complex_col.to_string();
+```
+
+```sql
+  double_col = table.complex_col.`real`();
+```
+
+```sql
+  double_col = table.complex_col.`imaginary`();
+```
+
+# global function invocation
+
+There is no syntax for a global function, such as:
+
+```sql
+  // Not supported
+  complex_col = complex_from_string("1+2i");
+```
+
+The rationale is to force users to invoke types that belong to a schema,
+to enforce per schema namespaces instead of having naming collisions
+in a global namespace, shared by all types.
+
+```sql
+  // Supported instead
+  CREATE TYPE mysql.complex AS ...;
+
+  use mysql;
+  complex_col = complex::from_string("1+2i");
+  double_col = complex_col.`real`(); // 1.0
+
+  use test;
+  complex_col = mysql.complex::from_string("1+2i");
+  double_col = complex_col.`imaginary`(); // 2.0
+```
+
+This also avoids naming collisions between:
+
+- native functions provided by MySQL
+- global user defined type functions provided by third parties
+
